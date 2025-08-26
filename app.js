@@ -14,7 +14,7 @@ window.addEventListener("DOMContentLoaded", () => {
         const list = document.createElement("ul");
         data.forEach(artist => {
           const item = document.createElement("li");
-          item.textContent = `${artist.name} — ${artist.genre}`;
+          item.textContent = `${artist.name} — ${artist.genre || "No genre set"}`;
           list.appendChild(item);
         });
         container.appendChild(list);
