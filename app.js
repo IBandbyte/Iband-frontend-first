@@ -1,6 +1,5 @@
 // app.js
 
-// When the page loads, fetch artists from backend
 window.addEventListener("DOMContentLoaded", () => {
   fetch("https://iband-backend-first-2.onrender.com/artists")
     .then(response => response.json())
@@ -14,8 +13,7 @@ window.addEventListener("DOMContentLoaded", () => {
         const list = document.createElement("ul");
         data.forEach(artist => {
           const item = document.createElement("li");
-          // if genre is missing, show "No genre set"
-          item.textContent = `${artist.name} — ${artist.genre || "No genre set"}`;
+          item.textContent = `${artist.name} — ${artist.genre}`;
           list.appendChild(item);
         });
         container.appendChild(list);
@@ -28,7 +26,7 @@ window.addEventListener("DOMContentLoaded", () => {
     .catch(error => {
       console.error("Error fetching artists:", error);
       const errorMsg = document.createElement("p");
-      errorMsg.textContent = "⚠️ Could not load artists.";
+      errorMsg.textContent = "⚠️ Could not load artists";
       document.body.appendChild(errorMsg);
     });
 });
