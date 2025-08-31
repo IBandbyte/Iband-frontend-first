@@ -3,14 +3,27 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>iBand Frontend</title>
-  <link rel="stylesheet" href="style.css">
+  <title>iBand Frontend Test</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 2rem;
+      background: #f9f9f9;
+    }
+    h1 {
+      color: #6a0dad;
+    }
+  </style>
 </head>
 <body>
   <h1>Welcome to iBand 🎵</h1>
   <p>This is the frontend test page connected to GitHub.</p>
 
-  <!-- Load JavaScript -->
+  <div id="artists-container">
+    <!-- Artists will be injected here by app.js -->
+  </div>
+
+  <!-- 👇 Important: load app.js here -->
   <script src="app.js"></script>
 </body>
 </html>
