@@ -1,10 +1,13 @@
 // app.js
 
-window.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded", () => {
+  console.log("✅ Frontend connected");
+
+  // Fetch artists from backend
   fetch("https://iband-backend-first-2.onrender.com/artists")
     .then(response => response.json())
     .then(data => {
-      console.log("Artists from backend:", data);
+      console.log("🎵 Artists from backend:", data);
 
       const container = document.createElement("div");
       container.innerHTML = "<h2>Artists</h2>";
@@ -13,20 +16,6 @@ window.addEventListener("DOMContentLoaded", () => {
         const list = document.createElement("ul");
         data.forEach(artist => {
           const item = document.createElement("li");
-          item.textContent = `${artist.name} — ${artist.genre}`;
+          item.textContent = `${artist.name} — ${artist.genre || "No genre set"}`;
           list.appendChild(item);
         });
-        container.appendChild(list);
-      } else {
-        container.innerHTML += "<p>No artists found.</p>";
-      }
-
-      document.body.appendChild(container);
-    })
-    .catch(error => {
-      console.error("Error fetching artists:", error);
-      const errorMsg = document.createElement("p");
-      errorMsg.textContent = "⚠️ Could not load artists";
-      document.body.appendChild(errorMsg);
-    });
-});
