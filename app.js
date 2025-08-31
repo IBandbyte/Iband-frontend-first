@@ -9,13 +9,24 @@ document.addEventListener("DOMContentLoaded", () => {
     .then(data => {
       console.log("🎵 Artists from backend:", data);
 
-      const container = document.createElement("div");
+      const container = document.getElementById("artists-container");
       container.innerHTML = "<h2>Artists</h2>";
 
       if (data.length > 0) {
         const list = document.createElement("ul");
+
         data.forEach(artist => {
           const item = document.createElement("li");
           item.textContent = `${artist.name} — ${artist.genre || "No genre set"}`;
           list.appendChild(item);
         });
+
+        container.appendChild(list);
+      } else {
+        container.innerHTML += "<p>No artists found.</p>";
+      }
+    })
+    .catch(err => {
+      console.error("❌ Error fetching artists:", err);
+    });
+});
