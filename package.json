@@ -1,17 +1,22 @@
 {
-  "name": "iband-frontend-first",
+  "name": "iband-frontend",
   "version": "1.0.0",
-  "private": true,
+  "description": "Frontend for iBand platform",
+  "main": "index.html",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "start": "vite preview"
+    "start": "serve .",
+    "build": "echo 'No build step yet'"
   },
-  "dependencies": {
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0"
-  },
+  "keywords": [
+    "iband",
+    "frontend",
+    "music",
+    "artists"
+  ],
+  "author": "iBand Team",
+  "license": "MIT",
+  "dependencies": {},
   "devDependencies": {
-    "vite": "^5.0.0"
+    "serve": "^14.2.0"
   }
 }
