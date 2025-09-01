@@ -1,47 +1,28 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>iBand • Artists</title>
-  <link rel="stylesheet" href="styles/style.css" />
-  <meta name="description" content="iBand — simple artist browser connected to a Node/Express + MongoDB backend." />
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>iBand</title>
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <header class="site-header">
-    <div class="container">
-      <h1>iBand <span class="emoji">🎵</span></h1>
-      <div class="status">
-        <span id="statusDot" class="dot"></span>
-        <span id="statusText">Checking backend…</span>
-      </div>
-    </div>
+  <header>
+    <h1>🎸 iBand</h1>
+    <p>Powered by Fans. A Platform for Artists and Influencers.</p>
   </header>
 
-  <main class="container">
-    <section class="panel">
-      <h2 class="panel-title">Artists</h2>
+  <main>
+    <div class="controls">
+      <input id="search" type="text" placeholder="Search artists..." />
+      <button id="refresh">🔄 Refresh</button>
+    </div>
 
-      <div class="toolbar">
-        <input id="q" class="search" type="search" placeholder="Search artists…" inputmode="search" />
-        <button id="refreshBtn" class="btn">Refresh</button>
-      </div>
-
-      <div id="message" class="message" hidden></div>
-
-      <ul id="artistsList" class="cards" aria-live="polite" aria-busy="true">
-        <!-- cards injected by JS -->
-      </ul>
-    </section>
+    <section id="artists"></section>
   </main>
 
-  <footer class="site-footer">
-    <div class="container">
-      <small>
-        Backend: <a target="_blank" rel="noopener" href="https://iband-backend-first-2.onrender.com/health">health</a> •
-        <a target="_blank" rel="noopener" href="https://iband-backend-first-2.onrender.com/artists">/artists</a>
-      </small>
-    </div>
+  <footer>
+    <p>© 2025 iBand — Get Signed / Connect</p>
   </footer>
 
   <script src="scripts/app.js"></script>
