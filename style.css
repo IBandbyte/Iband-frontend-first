@@ -1,15 +1,92 @@
+/* style.css — iBand Frontend */
+
 body {
   font-family: Arial, sans-serif;
-  background-color: #f9f9f9;
+  background: #111;
+  color: #eee;
   margin: 0;
+  padding: 0;
+  text-align: center;
+}
+
+header {
+  background: linear-gradient(90deg, #8e2de2, #ff6a00);
   padding: 20px;
+  color: white;
 }
 
-h1 {
-  color: #6c63ff;
+header h1 {
+  margin: 0;
+  font-size: 2.5em;
 }
 
-p {
-  font-size: 18px;
-  color: #333;
+header p {
+  margin: 5px 0 0;
+}
+
+.controls {
+  margin: 20px;
+}
+
+#search {
+  padding: 10px;
+  font-size: 1em;
+  width: 60%;
+  max-width: 300px;
+  border-radius: 5px;
+  border: none;
+}
+
+#refresh {
+  margin-left: 10px;
+  padding: 10px 15px;
+  background: #ff6a00;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 1em;
+  color: white;
+}
+
+#refresh:hover {
+  background: #e65c00;
+}
+
+#artists {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin: 20px;
+}
+
+.artist-card {
+  background: #222;
+  border: 1px solid #333;
+  border-radius: 8px;
+  margin: 10px;
+  padding: 15px;
+  width: 200px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.5);
+  transition: transform 0.2s;
+}
+
+.artist-card:hover {
+  transform: scale(1.05);
+}
+
+.artist-card h3 {
+  margin: 0;
+  font-size: 1.2em;
+}
+
+.artist-card p {
+  margin: 5px 0 0;
+  font-size: 0.9em;
+  color: #bbb;
+}
+
+footer {
+  margin: 20px 0;
+  font-size: 0.8em;
+  color: #777;
 }
