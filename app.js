@@ -1,146 +1,122 @@
-// iBand frontend — fetch artists from your Render backend
+// iBand frontend – robust fetch, caching, search, and render
+(() => {
+  const ENDPOINT = window.API_URL; // set in index.html
+  const artistsEl = document.getElementById("artists");
+  const searchEl = document.getElementById("search");
+  const refreshBtn = document.getElementById("refresh");
+  const statusEl = document.getElementById("status");
 
-const API_BASE = "https://iband-backend-first-2.onrender.com";
-const ENDPOINTS = {
-  health: `${API_BASE}/health`,
-  artists: `${API_BASE}/artists`,
-};
+  // Simple cache (localStorage) – 10 minutes
+  const CACHE_KEY = "iband:artists:v1";
+  const CACHE_TTL_MS = 10 * 60 * 1000;
 
-// DOM
-const statusDot = document.getElementById("statusDot");
-const statusText = document.getElementById("statusText");
-const listEl = document.getElementById("artistsList");
-const msgEl = document.getElementById("message");
-const searchEl = document.getElementById("q");
-const refreshBtn = document.getElementById("refreshBtn");
+  const state = { all: [], q: "" };
 
-// Helpers
-function setStatus(ok, text) {
-  statusDot.classList.toggle("ok", ok);
-  statusDot.classList.toggle("bad", !ok);
-  statusText.textContent = text || (ok ? "Backend: OK" : "Backend: offline");
-}
-
-function showMessage(text, kind = "info") {
-  msgEl.textContent = text;
-  msgEl.dataset.kind = kind;
-  msgEl.hidden = !text;
-}
-
-async function fetchJSON(url, opts = {}, timeoutMs = 10000) {
-  const ctrl = new AbortController();
-  const t = setTimeout(() => ctrl.abort(), timeoutMs);
-  try {
-    const res = await fetch(url, { ...opts, signal: ctrl.signal, cache: "no-store" });
-    if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
-    return await res.json();
-  } finally {
-    clearTimeout(t);
+  function setStatus(msg, type = "info") {
+    statusEl.textContent = msg || "";
+    statusEl.dataset.type = type;
   }
-}
 
-function normalizeArtists(raw) {
-  const arr = Array.isArray(raw) ? raw : raw?.data ?? [];
-  const clean = arr
-    .map(a => ({
-      name: (a?.name ?? "").toString().trim(),
-      genre: (a?.genre ?? "No genre set").toString().trim(),
-    }))
-    .filter(a => a.name);
-
-  // de-dupe by name
-  const byName = new Map();
-  clean.forEach(a => byName.set(a.name.toLowerCase(), a));
-  return [...byName.values()];
-}
-
-function escapeHtml(s) {
-  return String(s)
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
-}
-
-function renderArtists(list) {
-  listEl.innerHTML = "";
-  if (!list.length) {
-    showMessage("No artists found.", "info");
-    listEl.setAttribute("aria-busy", "false");
-    return;
+  function getCache() {
+    try {
+      const raw = localStorage.getItem(CACHE_KEY);
+      if (!raw) return null;
+      const { data, ts } = JSON.parse(raw);
+      if (Date.now() - ts > CACHE_TTL_MS) return null;
+      return Array.isArray(data) ? data : null;
+    } catch {
+      return null;
+    }
   }
-  showMessage("");
-  const frag = document.createDocumentFragment();
-  list.forEach(a => {
-    const li = document.createElement("li");
-    li.className = "card";
-    li.innerHTML = `
-      <div class="card-title">${escapeHtml(a.name)}</div>
-      <div class="card-sub">${escapeHtml(a.genre || "No genre set")}</div>
-    `;
-    frag.appendChild(li);
+
+  function setCache(data) {
+    try {
+      localStorage.setItem(CACHE_KEY, JSON.stringify({ data, ts: Date.now() }));
+    } catch {}
+  }
+
+  async function fetchArtists({ noCache = false } = {}) {
+    if (!noCache) {
+      const cached = getCache();
+      if (cached) {
+        state.all = cached;
+        renderFiltered();
+        setStatus("Loaded from cache • tap Refresh to re-fetch");
+        return;
+      }
+    }
+
+    setStatus("Loading artists…");
+    try {
+      const res = await fetch(ENDPOINT, { headers: { "Accept": "application/json" } });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+
+      // Normalize to { name, genre }
+      const normalized = (Array.isArray(data) ? data : []).map((a) => ({
+        name: a.name ?? "Unknown Artist",
+        genre: a.genre ?? "No genre set",
+      }));
+
+      state.all = normalized;
+      setCache(normalized);
+      renderFiltered();
+      setStatus(`Loaded ${normalized.length} artists`);
+    } catch (err) {
+      console.error(err);
+      // Fallback sample if backend unreachable and no cache
+      if (!state.all.length) {
+        const fallback = [
+          { name: "Aria Nova", genre: "No genre set" },
+          { name: "Neon Harbor", genre: "No genre set" },
+          { name: "Stone & Sparrow", genre: "No genre set" },
+          { name: "Bad Bunny", genre: "Latin trap" },
+          { name: "Billie Eilish", genre: "Alt pop" },
+          { name: "Drake", genre: "Hip hop" },
+        ];
+        state.all = fallback;
+        renderFiltered();
+        setStatus("Offline fallback shown (backend unreachable)", "warn");
+      } else {
+        setStatus("Couldn’t refresh — showing cached results", "warn");
+      }
+    }
+  }
+
+  function renderArtists(list) {
+    if (!list.length) {
+      artistsEl.innerHTML = `<div class="empty">No artists found</div>`;
+      return;
+    }
+
+    artistsEl.innerHTML = list
+      .map(
+        (a) => `
+        <article class="card">
+          <div class="avatar" aria-hidden="true">${a.name.charAt(0) || "?"}</div>
+          <h3 class="name">${a.name}</h3>
+          <p class="genre">${a.genre || "No genre set"}</p>
+        </article>`
+      )
+      .join("");
+  }
+
+  function renderFiltered() {
+    const q = state.q.trim().toLowerCase();
+    const filtered = !q
+      ? state.all
+      : state.all.filter((a) => a.name.toLowerCase().includes(q));
+    renderArtists(filtered);
+  }
+
+  // Events
+  searchEl.addEventListener("input", (e) => {
+    state.q = e.target.value || "";
+    renderFiltered();
   });
-  listEl.appendChild(frag);
-  listEl.setAttribute("aria-busy", "false");
-}
 
-// State + filter
-const state = { all: [], q: "" };
+  refreshBtn.addEventListener("click", () => fetchArtists({ noCache: true }));
 
-function applyFilter() {
-  const q = state.q.trim().toLowerCase();
-  const filtered = !q
-    ? state.all
-    : state.all.filter(a =>
-        a.name.toLowerCase().includes(q) ||
-        (a.genre || "").toLowerCase().includes(q)
-      );
-  renderArtists(filtered);
-}
-
-// Actions
-async function checkHealth() {
-  try {
-    const data = await fetchJSON(ENDPOINTS.health);
-    setStatus(true, data?.message || "Backend: OK");
-  } catch {
-    setStatus(false, "Backend: offline");
-  }
-}
-
-async function loadArtists({ quiet = false } = {}) {
-  listEl.setAttribute("aria-busy", "true");
-  if (!quiet) showMessage("Loading artists…", "info");
-  try {
-    const raw = await fetchJSON(ENDPOINTS.artists);
-    const artists = normalizeArtists(raw);
-    state.all = artists;
-    applyFilter();
-  } catch (err) {
-    console.error(err);
-    showMessage("Could not load artists. Showing sample data.", "warn");
-    state.all = [
-      { name: "Aria Nova", genre: "No genre set" },
-      { name: "Neon Harbor", genre: "No genre set" },
-      { name: "Stone & Sparrow", genre: "No genre set" },
-      { name: "Bad Bunny", genre: "Latin trap" },
-      { name: "Billie Eilish", genre: "Alt pop" },
-      { name: "Drake", genre: "Hip hop" },
-    ];
-    applyFilter();
-  }
-}
-
-// Events
-searchEl.addEventListener("input", (e) => {
-  state.q = e.target.value || "";
-  applyFilter();
-});
-refreshBtn.addEventListener("click", () => loadArtists({ quiet: true }));
-
-// Boot
-(async function init() {
-  await checkHealth();
-  await loadArtists();
+  // Kickoff
+  fetchArtists();
 })();
