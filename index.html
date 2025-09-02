@@ -1,45 +1,31 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-  <meta name="theme-color" content="#0ea5e9" />
-  <title>iBand — Unsigned Artists</title>
-  <meta name="description" content="Browse unsigned music artists powered by the iBand backend." />
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>iBand – Artists</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <header class="site-header">
-    <div class="wrap">
-      <h1 class="brand">iBand <span class="sub">unsigned artists</span></h1>
-
-      <div class="controls">
-        <input id="search" class="search" type="search" inputmode="search"
-               autocomplete="off" placeholder="Search artists…" aria-label="Search artists" />
-        <button id="refreshBtn" class="btn" type="button" title="Refresh from server">↻ Refresh</button>
-      </div>
-    </div>
+  <header>
+    <h1>🎵 iBand</h1>
+    <input id="search" type="text" placeholder="Search artists…" />
+    <button id="refresh">Refresh</button>
   </header>
 
-  <main class="wrap">
-    <div id="statusRow" class="status-row" role="status" aria-live="polite"></div>
-
-    <section id="grid" class="grid" aria-label="Artists list"></section>
-
-    <p id="empty" class="empty" hidden>
-      No artists match your search yet.
-    </p>
+  <main>
+    <div id="status" class="status"></div>
+    <section id="artists" class="grid"></section>
   </main>
 
-  <!-- Loading overlay -->
-  <div id="spinner" class="spinner" hidden>
-    <div class="dot"></div><div class="dot"></div><div class="dot"></div>
-    <p>Loading artists…</p>
-  </div>
+  <footer>
+    <p>Powered by Fans • A Platform for Artists and Influencers</p>
+  </footer>
 
-  <!-- Toasts -->
-  <div id="toast" class="toast" hidden></div>
-
-  <footer class="wrap footer">
-    <small>
-      Backend: <a href="https://iband-backend-first-2
+  <script>
+    // Set your backend API endpoint
+    window.API_URL = "https://iband-backend-first-2.onrender.com/artists";
+  </script>
+  <script src="scripts/app.js"></script>
+</body>
+</html>
