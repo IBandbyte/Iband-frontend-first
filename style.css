@@ -1,65 +1,86 @@
 /* iBand frontend styles */
+:root {
+  --bg: #0f0f0f;
+  --fg: #fff;
+  --accent: linear-gradient(90deg, #a726c1, #ff6b35);
+  --card-bg: #1a1a1a;
+  --muted: #aaa;
+}
+
+* {
+  box-sizing: border-box;
+}
+
 body {
   font-family: system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--fg);
   margin: 0;
-  background: #f7f7f9;
-  color: #222;
+  padding: 0;
+  line-height: 1.5;
 }
 
 header {
-  display: flex;
-  gap: 0.5rem;
-  align-items: center;
+  text-align: center;
   padding: 1rem;
-  background: linear-gradient(90deg, #7b2ff7, #f107a3);
-  color: #fff;
+  background: var(--accent);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
 }
 
 header h1 {
   margin: 0;
-  font-size: 1.5rem;
-  flex: 1;
+  font-size: 2.5rem;
 }
 
-header input {
+.tagline {
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
+.controls {
+  display: flex;
+  gap: 0.5rem;
+  padding: 1rem;
+  justify-content: center;
+  align-items: center;
+}
+
+.controls input {
+  flex: 1;
+  max-width: 300px;
   padding: 0.5rem;
   border-radius: 4px;
   border: none;
 }
 
-header button {
+.controls button {
   padding: 0.5rem 1rem;
   border: none;
+  background: var(--accent);
+  color: white;
   border-radius: 4px;
-  background: #fff;
-  color: #7b2ff7;
-  font-weight: bold;
   cursor: pointer;
 }
 
-.status {
-  padding: 0.5rem 1rem;
-  font-size: 0.9rem;
-}
-
-.status[data-type="warn"] {
-  color: #b58900;
+#status {
+  font-size: 0.8rem;
+  color: var(--muted);
 }
 
 .grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
   gap: 1rem;
   padding: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
 }
 
 .card {
-  background: #fff;
+  background: var(--card-bg);
   border-radius: 8px;
   padding: 1rem;
-  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
   text-align: center;
-  transition: transform 0.2s ease;
+  transition: transform 0.2s;
 }
 
 .card:hover {
@@ -67,14 +88,32 @@ header button {
 }
 
 .avatar {
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
+  width: 50px;
+  height: 50px;
   margin: 0 auto 0.5rem;
-  background: #eee;
+  border-radius: 50%;
+  background: var(--accent);
   display: flex;
   align-items: center;
   justify-content: center;
   font-weight: bold;
+  color: white;
+}
+
+.name {
+  margin: 0.5rem 0 0;
   font-size: 1.2rem;
+}
+
+.genre {
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
+footer {
+  text-align: center;
+  padding: 1rem;
+  font-size: 0.8rem;
+  color: var(--muted);
+  border-top: 1px solid #222;
 }
