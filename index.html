@@ -3,32 +3,33 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>iBand — Get Signed / Connect</title>
+  <title>iBandbyte</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
   <header>
-    <h1>🎸 iBand</h1>
+    <img src="logo.png" alt="iBandbyte Logo" class="logo" />
+    <h1>iBandbyte</h1>
     <p class="tagline">Powered by Fans. A Platform for Artists and Influencers.</p>
   </header>
 
   <main>
-    <section class="controls">
-      <input id="search" type="search" placeholder="Search artists…" />
-      <button id="refresh">🔄 Refresh</button>
-      <div id="status"></div>
+    <section id="artists-section">
+      <h2>Artists</h2>
+      <div id="artists"></div>
     </section>
 
-    <section id="artists" class="grid">
-      <!-- Cards injected by app.js -->
+    <!-- Debug Panel -->
+    <section id="debug-section">
+      <h2>Debug Panel</h2>
+      <pre id="debug-log">Waiting for data...</pre>
     </section>
   </main>
 
   <footer>
-    <p>&copy; 2025 iBand — All rights reserved.</p>
+    <p>© 2025 iBandbyte. All rights reserved.</p>
   </footer>
 
-  <!-- Script at the bottom -->
   <script src="app.js"></script>
 </body>
 </html>
