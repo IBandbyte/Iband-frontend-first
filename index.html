@@ -3,29 +3,32 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>iBand – Artists</title>
+  <title>iBand — Get Signed / Connect</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
   <header>
-    <h1>🎵 iBand</h1>
-    <input id="search" type="text" placeholder="Search artists…" />
-    <button id="refresh">Refresh</button>
+    <h1>🎸 iBand</h1>
+    <p class="tagline">Powered by Fans. A Platform for Artists and Influencers.</p>
   </header>
 
   <main>
-    <div id="status" class="status"></div>
-    <section id="artists" class="grid"></section>
+    <section class="controls">
+      <input id="search" type="search" placeholder="Search artists…" />
+      <button id="refresh">🔄 Refresh</button>
+      <div id="status"></div>
+    </section>
+
+    <section id="artists" class="grid">
+      <!-- Cards injected by app.js -->
+    </section>
   </main>
 
   <footer>
-    <p>Powered by Fans • A Platform for Artists and Influencers</p>
+    <p>&copy; 2025 iBand — All rights reserved.</p>
   </footer>
 
-  <script>
-    // Set your backend API endpoint
-    window.API_URL = "https://iband-backend-first-2.onrender.com/artists";
-  </script>
-  <script src="scripts/app.js"></script>
+  <!-- Script at the bottom -->
+  <script src="app.js"></script>
 </body>
 </html>
