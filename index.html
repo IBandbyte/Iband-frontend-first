@@ -1,30 +1,44 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>iBand</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>iBand • Artists</title>
+  <meta name="description" content="iBand — simple artist browser connected to a Node/Express + MongoDB backend." />
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <header>
-    <h1>🎸 iBand</h1>
-    <p>Powered by Fans. A Platform for Artists and Influencers.</p>
+  <header class="site-header">
+    <h1>iBand <span class="emoji">🎵</span></h1>
+    <div class="status">
+      <span id="statusDot" class="dot"></span>
+      <span id="statusText">Checking backend…</span>
+    </div>
   </header>
 
   <main>
-    <div class="controls">
-      <input id="search" type="text" placeholder="Search artists..." />
-      <button id="refresh">🔄 Refresh</button>
-    </div>
+    <section class="panel">
+      <div class="toolbar">
+        <input id="q" class="search" type="search" placeholder="Search artists…" inputmode="search" />
+        <button id="refreshBtn" class="btn">Refresh</button>
+      </div>
 
-    <section id="artists"></section>
+      <div id="message" class="message" hidden></div>
+
+      <ul id="artistsList" class="cards" aria-live="polite" aria-busy="true">
+        <!-- Cards injected by app.js -->
+      </ul>
+    </section>
   </main>
 
-  <footer>
-    <p>© 2025 iBand — Get Signed / Connect</p>
+  <footer class="site-footer">
+    <small>
+      Backend:
+      <a target="_blank" rel="noopener" href="https://iband-backend-first-2.onrender.com/health">/health</a> •
+      <a target="_blank" rel="noopener" href="https://iband-backend-first-2.onrender.com/artists">/artists</a>
+    </small>
   </footer>
 
-  <script src="scripts/app.js"></script>
+  <script src="app.js"></script>
 </body>
 </html>
