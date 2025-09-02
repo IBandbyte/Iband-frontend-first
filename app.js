@@ -1,10 +1,20 @@
-// iBand frontend – robust fetch, caching, search, and render
+// iBand frontend — single-file version (drop-in replacement for app.js)
+// - Fetches artists from your backend
+// - Caches results for 10 mins
+// - Search + Refresh
+// - Graceful offline fallback
+
 (() => {
-  const ENDPOINT = window.API_URL; // set in index.html
+  // If index.html sets window.API_URL, use it; otherwise default to your live backend
+  const ENDPOINT =
+    (typeof window !== "undefined" && window.API_URL) ||
+    "https://iband-backend-first-2.onrender.com/artists";
+
+  // Grab elements (these IDs should already exist in your index.html)
   const artistsEl = document.getElementById("artists");
   const searchEl = document.getElementById("search");
   const refreshBtn = document.getElementById("refresh");
-  const statusEl = document.getElementById("status");
+  const statusEl = document.getElementById("status") || { textContent: "", dataset: {} };
 
   // Simple cache (localStorage) – 10 minutes
   const CACHE_KEY = "iband:artists:v1";
@@ -13,6 +23,7 @@
   const state = { all: [], q: "" };
 
   function setStatus(msg, type = "info") {
+    if (!statusEl) return;
     statusEl.textContent = msg || "";
     statusEl.dataset.type = type;
   }
@@ -48,25 +59,30 @@
 
     setStatus("Loading artists…");
     try {
-      const res = await fetch(ENDPOINT, { headers: { "Accept": "application/json" } });
+      const res = await fetch(ENDPOINT, { headers: { Accept: "application/json" }, cache: "no-store" });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
 
       // Normalize to { name, genre }
       const normalized = (Array.isArray(data) ? data : []).map((a) => ({
-        name: a.name ?? "Unknown Artist",
-        genre: a.genre ?? "No genre set",
+        name: a?.name ?? "Unknown Artist",
+        genre: a?.genre ?? "No genre set",
       }));
 
-      state.all = normalized;
-      setCache(normalized);
+      // De-dupe by name (case-insensitive)
+      const map = new Map();
+      normalized.forEach((a) => map.set((a.name || "").toLowerCase(), a));
+      const unique = [...map.values()];
+
+      state.all = unique;
+      setCache(unique);
       renderFiltered();
-      setStatus(`Loaded ${normalized.length} artists`);
+      setStatus(`Loaded ${unique.length} artists`);
     } catch (err) {
       console.error(err);
-      // Fallback sample if backend unreachable and no cache
       if (!state.all.length) {
-        const fallback = [
+        // Fallback sample for first load if backend unreachable
+        state.all = [
           { name: "Aria Nova", genre: "No genre set" },
           { name: "Neon Harbor", genre: "No genre set" },
           { name: "Stone & Sparrow", genre: "No genre set" },
@@ -74,7 +90,6 @@
           { name: "Billie Eilish", genre: "Alt pop" },
           { name: "Drake", genre: "Hip hop" },
         ];
-        state.all = fallback;
         renderFiltered();
         setStatus("Offline fallback shown (backend unreachable)", "warn");
       } else {
@@ -84,16 +99,16 @@
   }
 
   function renderArtists(list) {
+    if (!artistsEl) return;
     if (!list.length) {
       artistsEl.innerHTML = `<div class="empty">No artists found</div>`;
       return;
     }
-
     artistsEl.innerHTML = list
       .map(
         (a) => `
         <article class="card">
-          <div class="avatar" aria-hidden="true">${a.name.charAt(0) || "?"}</div>
+          <div class="avatar" aria-hidden="true">${(a.name || "?").charAt(0)}</div>
           <h3 class="name">${a.name}</h3>
           <p class="genre">${a.genre || "No genre set"}</p>
         </article>`
@@ -102,20 +117,27 @@
   }
 
   function renderFiltered() {
-    const q = state.q.trim().toLowerCase();
+    const q = (state.q || "").trim().toLowerCase();
     const filtered = !q
       ? state.all
-      : state.all.filter((a) => a.name.toLowerCase().includes(q));
+      : state.all.filter(
+          (a) =>
+            (a.name || "").toLowerCase().includes(q) ||
+            (a.genre || "").toLowerCase().includes(q)
+        );
     renderArtists(filtered);
   }
 
-  // Events
-  searchEl.addEventListener("input", (e) => {
-    state.q = e.target.value || "";
-    renderFiltered();
-  });
-
-  refreshBtn.addEventListener("click", () => fetchArtists({ noCache: true }));
+  // Events (guard if elements don’t exist)
+  if (searchEl) {
+    searchEl.addEventListener("input", (e) => {
+      state.q = e.target.value || "";
+      renderFiltered();
+    });
+  }
+  if (refreshBtn) {
+    refreshBtn.addEventListener("click", () => fetchArtists({ noCache: true }));
+  }
 
   // Kickoff
   fetchArtists();
