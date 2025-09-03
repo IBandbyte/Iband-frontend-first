@@ -1,35 +1,181 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>iBandbyte</title>
-  <link rel="stylesheet" href="style.css" />
+  <style>
+    :root{
+      --bg:#0f0f10;--panel:#18191c;--card:#202226;--muted:#a9acb3;
+      --text:#f5f6f8;--accent:#ff6ad5;--accent2:#ffb86b;--ok:#21d07a;--err:#ff5555;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--bg);color:var(--text);font:16px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
+    header{
+      padding:48px 16px 32px;
+      background:linear-gradient(90deg,var(--accent) 0%, var(--accent2) 100%);
+      color:#101114;text-align:center
+    }
+    header h1{margin:0;font-size:42px;letter-spacing:.5px}
+    header p{margin:10px 0 0;opacity:.9}
+    .wrap{max-width:980px;margin:0 auto;padding:20px 16px 64px}
+    .toolbar{display:flex;gap:12px;flex-wrap:wrap;align-items:center;justify-content:center;margin:20px 0 28px}
+    input[type="search"]{
+      flex:1 1 320px;max-width:520px;padding:12px 14px;border-radius:10px;border:1px solid #2b2d33;
+      background:#141519;color:var(--text);outline:none
+    }
+    button{
+      padding:12px 16px;border:0;border-radius:10px;cursor:pointer;font-weight:600;color:#111;
+      background:linear-gradient(135deg,var(--accent) 0%,var(--accent2) 100%)
+    }
+    .pill{font-size:12px;padding:6px 10px;border-radius:999px;background:#2a2d33;color:var(--muted)}
+    .grid{display:grid;gap:16px}
+    @media(min-width:640px){.grid{grid-template-columns:repeat(2,1fr)}}
+    @media(min-width:980px){.grid{grid-template-columns:repeat(3,1fr)}}
+
+    .card{
+      background:var(--card);border:1px solid #2a2d33;border-radius:14px;padding:18px 16px;
+      display:flex;gap:14px;align-items:center;min-height:92px
+    }
+    .avatar{
+      width:52px;height:52px;border-radius:999px;display:grid;place-items:center;font-weight:800;
+      background:linear-gradient(135deg,var(--accent) 0%,var(--accent2) 100%);color:#111
+    }
+    .name{font-size:20px;font-weight:800;margin:0 0 6px}
+    .genre{margin:0;color:var(--muted)}
+    .footer{margin-top:32px;text-align:center;color:var(--muted);font-size:14px}
+
+    /* Debug panel */
+    .debug{margin-top:36px;background:#121316;border:1px solid #2a2d33;border-radius:12px}
+    .debug h3{margin:0;padding:14px 16px;border-bottom:1px solid #2a2d33;color:#ffb86b}
+    .debug pre{margin:0;padding:14px 16px;max-height:260px;overflow:auto;background:#0f1013}
+    .kv{display:flex;gap:10px;flex-wrap:wrap;padding:12px 16px;border-bottom:1px solid #2a2d33}
+    .kv span{background:#1b1d22;color:#c9cbd3;padding:6px 10px;border-radius:8px;font-size:12px}
+    .ok{color:var(--ok)} .err{color:var(--err)}
+  </style>
 </head>
 <body>
   <header>
-    <img src="logo.png" alt="iBandbyte Logo" class="logo" />
     <h1>iBandbyte</h1>
-    <p class="tagline">Powered by Fans. A Platform for Artists and Influencers.</p>
+    <p>Powered by Fans. A Platform for Artists and Influencers.</p>
   </header>
 
-  <main>
-    <section id="artists-section">
-      <h2>Artists</h2>
-      <div id="artists"></div>
-    </section>
+  <div class="wrap">
+    <div class="toolbar">
+      <input id="search" type="search" placeholder="Search artists…" autocomplete="off" />
+      <button id="refresh">Refresh</button>
+      <span id="status" class="pill">Idle</span>
+    </div>
+
+    <h2 style="text-align:center;margin:0 0 12px">Artists</h2>
+    <div id="artists" class="grid" aria-live="polite"></div>
 
     <!-- Debug Panel -->
-    <section id="debug-section">
-      <h2>Debug Panel</h2>
-      <pre id="debug-log">Waiting for data...</pre>
-    </section>
-  </main>
+    <div class="debug">
+      <h3>Debug Panel</h3>
+      <div class="kv">
+        <span id="dbg-url"></span>
+        <span id="dbg-http"></span>
+        <span id="dbg-count"></span>
+        <span id="dbg-time"></span>
+      </div>
+      <pre id="dbg-json">Waiting for data…</pre>
+    </div>
 
-  <footer>
-    <p>© 2025 iBandbyte. All rights reserved.</p>
-  </footer>
+    <div class="footer">© 2025 iBandbyte. All rights reserved.</div>
+  </div>
 
-  <script src="app.js"></script>
+  <script>
+    // ====== CONFIG ======
+    const BACKEND_URL = "https://iband-backend-first-2.onrender.com";
+    const ARTISTS_ENDPOINT = BACKEND_URL + "/artists";
+
+    // ====== EL REFS ======
+    const listEl   = document.getElementById("artists");
+    const searchEl = document.getElementById("search");
+    const refreshEl= document.getElementById("refresh");
+    const statusEl = document.getElementById("status");
+    // debug
+    const dbgUrl   = document.getElementById("dbg-url");
+    const dbgHttp  = document.getElementById("dbg-http");
+    const dbgCount = document.getElementById("dbg-count");
+    const dbgTime  = document.getElementById("dbg-time");
+    const dbgJson  = document.getElementById("dbg-json");
+
+    // ====== STATE ======
+    const state = { all: [], q: "" };
+
+    // ====== UI HELPERS ======
+    function setStatus(text, cls="") {
+      statusEl.textContent = text;
+      statusEl.className = "pill " + cls;
+    }
+    function avatarLetter(name) {
+      const c = (name || "").trim();
+      return c ? c[0].toUpperCase() : "U";
+    }
+    function renderArtists(items) {
+      if (!items.length) {
+        listEl.innerHTML = `<div class="card"><div>No artists found.</div></div>`;
+        return;
+      }
+      listEl.innerHTML = items.map(a => `
+        <div class="card">
+          <div class="avatar">${avatarLetter(a.name)}</div>
+          <div>
+            <p class="name">${a.name || "Unknown"}</p>
+            <p class="genre">${a.genre || "No genre set"}</p>
+          </div>
+        </div>
+      `).join("");
+    }
+    function applyFilter() {
+      const q = state.q.trim().toLowerCase();
+      const filtered = q
+        ? state.all.filter(a => (a.name || "").toLowerCase().includes(q))
+        : state.all;
+      renderArtists(filtered);
+    }
+
+    // ====== FETCH ======
+    async function fetchArtists() {
+      setStatus("Fetching…");
+      dbgUrl.textContent = ARTISTS_ENDPOINT;
+      const t0 = performance.now();
+      try {
+        const res = await fetch(ARTISTS_ENDPOINT, { cache: "no-store" });
+        dbgHttp.textContent = "HTTP " + res.status;
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        const data = await res.json();
+
+        // Basic sanity / normalization
+        const normalized = (Array.isArray(data) ? data : [])
+          .filter(x => x && x.name && x.name !== "undefined" && x.name !== "")
+          .map(x => ({
+            name: x.name || "Unknown",
+            genre: x.genre || "No genre set",
+          }));
+
+        state.all = normalized;
+        dbgCount.textContent = `Count ${state.all.length}`;
+        dbgTime.textContent = `${Math.round(performance.now()-t0)} ms`;
+        dbgJson.textContent = JSON.stringify(state.all.slice(0, 10), null, 2);
+
+        applyFilter();
+        setStatus("Live", "ok");
+      } catch (err) {
+        setStatus("Error", "err");
+        dbgJson.textContent = (err && err.message) ? ("Error: " + err.message) : String(err);
+        console.error(err);
+      }
+    }
+
+    // ====== EVENTS ======
+    searchEl.addEventListener("input", (e) => { state.q = e.target.value || ""; applyFilter(); });
+    refreshEl.addEventListener("click", fetchArtists);
+
+    // ====== INIT ======
+    fetchArtists();
+  </script>
 </body>
 </html>
