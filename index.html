@@ -8,97 +8,66 @@
     :root{
       --byte:#FFB100;
       --ink:#0A0A0A;
-      --cardGrad1:#6a11cb; /* purple */
-      --cardGrad2:#ff6600; /* orange */
+      --cardGrad1:#6a11cb;
+      --cardGrad2:#ff6600;
       --panel:#161616;
       --chip:#2a2227;
-      --soft:#999;
+      --soft:#aaa;
       --radius:16px;
     }
     *{box-sizing:border-box}
-    body{
-      margin:0; padding:28px 20px 60px;
-      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-      color:#fff; background:#111;
-    }
-    header{
-      max-width:980px; margin:0 auto 18px;
-      display:flex; align-items:center; gap:14px;
-    }
-    .logo{
-      width:44px; height:44px; border-radius:12px; flex:0 0 44px;
-      display:grid; place-items:center; background:#1b1b1b; overflow:hidden;
-      box-shadow:0 8px 24px rgba(0,0,0,.35), inset 0 0 0 1px rgba(255,255,255,.05);
-    }
+    body{margin:0; padding:28px 20px 60px; font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif; color:#fff; background:#111}
+    header{max-width:980px; margin:0 auto 18px; display:flex; align-items:center; gap:14px}
+    .logo{width:44px; height:44px; border-radius:12px; overflow:hidden; background:#1b1b1b; box-shadow:0 8px 24px rgba(0,0,0,.35), inset 0 0 0 1px rgba(255,255,255,.05); display:grid; place-items:center}
     .logo img{width:100%; height:100%; object-fit:cover}
     .brand{font-weight:800; font-size:34px; letter-spacing:.2px; line-height:1}
     .brand .iband{color:#fff}
     .brand .byte{color:var(--byte)}
-
     .controls{max-width:980px; margin:6px auto 18px}
     .search-row{display:flex; gap:12px; align-items:center}
-    input[type="text"]{
-      flex:1; padding:14px 16px; border:none; outline:none; color:#fff;
-      background:#222; border-radius:10px; font-size:16px;
-      box-shadow:inset 0 0 0 1px rgba(255,255,255,.05);
-    }
-    .btn{
-      padding:12px 18px; border:none; border-radius:10px; color:#fff; cursor:pointer;
-      font-weight:700; letter-spacing:.2px;
-      background:linear-gradient(90deg, var(--cardGrad1), var(--cardGrad2));
-      box-shadow:0 6px 18px rgba(0,0,0,.35);
-    }
+    input[type="text"]{flex:1; padding:14px 16px; border:none; outline:none; color:#fff; background:#222; border-radius:10px; font-size:16px; box-shadow:inset 0 0 0 1px rgba(255,255,255,.05)}
+    .btn{padding:12px 18px; border:none; border-radius:10px; color:#fff; cursor:pointer; font-weight:700; letter-spacing:.2px; background:linear-gradient(90deg, var(--cardGrad1), var(--cardGrad2)); box-shadow:0 6px 18px rgba(0,0,0,.35)}
     .btn:disabled{opacity:.5; cursor:not-allowed}
-
     .wrap{max-width:980px; margin:0 auto}
-    .card-link{display:block; text-decoration:none; color:inherit}
-    .card{
-      background:linear-gradient(145deg, var(--cardGrad1), var(--cardGrad2));
-      border-radius:var(--radius); padding:22px; margin:16px 0; color:#fff;
-      box-shadow:0 10px 28px rgba(0,0,0,.45);
-      transition:transform .15s ease, box-shadow .15s ease;
-    }
+    .card{background:linear-gradient(145deg, var(--cardGrad1), var(--cardGrad2)); border-radius:var(--radius); padding:22px; margin:16px 0; color:#fff; box-shadow:0 10px 28px rgba(0,0,0,.45); transition:transform .15s ease, box-shadow .15s ease; cursor:pointer}
     .card:hover{transform:translateY(-2px); box-shadow:0 16px 34px rgba(0,0,0,.55)}
     .row{display:flex; align-items:center; gap:14px; margin-bottom:8px}
-    .avatar{
-      width:64px; height:64px; border-radius:50%;
-      background: radial-gradient(circle at 30% 30%, #ffd79a, #ff9f6b 50%, #ff7f50 70%);
-      display:grid; place-items:center; font-weight:900; font-size:22px; color:#2b1a12;
-      box-shadow:inset 0 0 0 2px rgba(255,255,255,.35), 0 6px 18px rgba(0,0,0,.25);
-      flex:0 0 64px;
-    }
+    .avatar{width:64px; height:64px; border-radius:50%; background:radial-gradient(circle at 30% 30%, #ffd79a, #ff9f6b 50%, #ff7f50 70%); display:grid; place-items:center; font-weight:900; font-size:22px; color:#2b1a12; box-shadow:inset 0 0 0 2px rgba(255,255,255,.35), 0 6px 18px rgba(0,0,0,.25); flex:0 0 64px}
+    .thumb{width:64px; height:64px; border-radius:50%; object-fit:cover; flex:0 0 64px; box-shadow:0 6px 18px rgba(0,0,0,.25), inset 0 0 0 2px rgba(255,255,255,.25)}
     .name{font-size:28px; font-weight:800; margin:0}
-    .genre{margin:6px 0 14px; color:#f3f3f3; font-size:18px}
+    .genre{margin:6px 0 10px; color:#f3f3f3; font-size:18px}
     .chips{display:flex; gap:10px; flex-wrap:wrap}
-    .chip{
-      background:var(--chip); color:#f0e6e9; padding:8px 12px; border-radius:100px;
-      font-size:13px; box-shadow:inset 0 0 0 1px rgba(255,255,255,.06);
-    }
-
-    /* Pagination */
-    .pager{
-      max-width:980px; margin:14px auto 0; display:flex; gap:10px; align-items:center; justify-content:center;
-    }
+    .chip{background:var(--chip); color:#f0e6e9; padding:8px 12px; border-radius:100px; font-size:13px; box-shadow:inset 0 0 0 1px rgba(255,255,255,.06)}
+    .votes{margin-left:auto; font-weight:800; background:rgba(0,0,0,.25); padding:6px 10px; border-radius:10px}
+    .pager{max-width:980px; margin:14px auto 0; display:flex; gap:10px; align-items:center; justify-content:center}
     .pager .info{color:var(--soft); font-size:14px; padding:8px 10px}
-    .pager .pbtn{
-      padding:10px 14px; border-radius:10px; border:none; cursor:pointer; color:#fff;
-      background:#2b2b2b; box-shadow:inset 0 0 0 1px rgba(255,255,255,.06);
-    }
+    .pager .pbtn{padding:10px 14px; border-radius:10px; border:none; cursor:pointer; color:#fff; background:#2b2b2b; box-shadow:inset 0 0 0 1px rgba(255,255,255,.06)}
     .pager .pbtn[disabled]{opacity:.45; cursor:not-allowed}
-
     footer{max-width:980px; margin:26px auto 0; color:#bbb; text-align:center; font-size:13px}
-    .mono{font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color:#ccc}
+    .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; color:#ccc}
+    /* Modal */
+    .modal-backdrop{position:fixed; inset:0; background:rgba(0,0,0,.55); display:none; align-items:center; justify-content:center; padding:20px; z-index:50}
+    .modal-backdrop.show{display:flex}
+    .modal{width:min(880px,100%); background:#161616; border-radius:18px; color:#fff; box-shadow:0 24px 60px rgba(0,0,0,.6); overflow:hidden; border:1px solid rgba(255,255,255,.06)}
+    .modal-header{display:flex; align-items:center; justify-content:space-between; gap:12px; padding:16px 18px; background:linear-gradient(90deg, var(--cardGrad1), var(--cardGrad2))}
+    .modal-title{font-size:22px; font-weight:800}
+    .close-btn{border:none; background:rgba(0,0,0,.25); color:#fff; width:36px; height:36px; border-radius:10px; cursor:pointer; font-size:18px; display:grid; place-items:center}
+    .modal-body{padding:18px}
+    .modal-grid{display:grid; grid-template-columns:160px 1fr; gap:18px; align-items:start}
+    .portrait{width:160px; height:160px; border-radius:14px; object-fit:cover; background:#222; box-shadow:0 10px 26px rgba(0,0,0,.35), inset 0 0 0 2px rgba(255,255,255,.06)}
+    .modal-avatar{width:160px; height:160px; border-radius:14px; display:grid; place-items:center; font-size:64px; font-weight:900; color:#2b1a12; background:radial-gradient(circle at 30% 30%, #ffd79a, #ff9f6b 50%, #ff7f50 70%); box-shadow:inset 0 0 0 2px rgba(255,255,255,.35), 0 10px 26px rgba(0,0,0,.35)}
+    .detail-line{margin:6px 0; color:#eaeaea}
+    .bio{margin-top:8px; color:#ddd; line-height:1.5; white-space:pre-wrap}
+    .modal-chips{display:flex; gap:10px; flex-wrap:wrap; margin:10px 0}
+    .metric{background:#232; border:1px solid rgba(255,255,255,.08); padding:8px 12px; border-radius:10px; color:#cfeecf}
+    .modal-footer{padding:14px 18px; background:#141414; border-top:1px solid rgba(255,255,255,.06); display:flex; gap:10px; justify-content:flex-end}
+    .ghost{background:transparent; color:#fff; border:1px solid rgba(255,255,255,.12); padding:10px 14px; border-radius:10px; cursor:pointer}
   </style>
 </head>
 <body>
   <header>
     <div class="logo">
-      <!-- Your official orb mark -->
-      <img
-        alt="iBandbyte logo"
-        src="https://raw.githubusercontent.com/IBandbyte/assets/main/branding/orb-logo-64.png"
-        onerror="this.style.display='none';"
-      />
+      <img alt="iBandbyte logo" src="https://raw.githubusercontent.com/IBandbyte/assets/main/branding/orb-logo-64.png" onerror="this.style.display='none';" />
     </div>
     <div class="brand"><span class="iband">iBand</span><span class="byte">byte</span></div>
   </header>
@@ -120,137 +89,211 @@
 
   <footer>© 2025 <span class="brand"><span class="iband">iBand</span><span class="byte">byte</span></span>. All rights reserved.</footer>
 
+  <!-- Modal -->
+  <div id="backdrop" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <article class="modal">
+      <header class="modal-header">
+        <div id="modalTitle" class="modal-title">Artist</div>
+        <button class="close-btn" id="closeModal" aria-label="Close">✕</button>
+      </header>
+      <div class="modal-body">
+        <div class="modal-grid">
+          <!-- image OR avatar goes here -->
+          <img id="mPortrait" class="portrait" alt="Artist image" style="display:none" />
+          <div id="mAvatar" class="modal-avatar">A</div>
+
+          <div>
+            <div class="detail-line"><strong>Name:</strong> <span id="mName">—</span></div>
+            <div class="detail-line"><strong>Genre:</strong> <span id="mGenre">—</span></div>
+            <div class="modal-chips" id="mChips"></div>
+            <div id="mBio" class="bio" style="display:none"></div>
+            <div id="mMetrics" style="margin-top:10px; display:none">
+              <span id="mVotes" class="metric" title="Votes"></span>
+              <span id="mComments" class="metric" title="Comments"></span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="ghost" id="mCopy">Copy name</button>
+        <button class="btn" id="mAction">Open profile (soon)</button>
+      </div>
+    </article>
+  </div>
+
   <script>
-    // ===== CONFIG =====
     const BACKEND_URL = "https://iband-backend-first-2.onrender.com/artists";
-    const PAGE_SIZE   = 24; // change to 12/18/etc anytime
+    const PAGE_SIZE   = 24;
 
-    // ===== STATE =====
-    let rawData = [];        // original list from server
-    let filtered = [];       // list after search filter
-    let currentPage = 1;     // 1-based
+    let rawData = [];
+    let filtered = [];
+    let currentPage = 1;
 
-    // ===== HELPERS =====
-    const $ = (sel) => document.querySelector(sel);
+    const $ = (s) => document.querySelector(s);
 
     function firstLetter(name="") {
       const t = (name || "").trim();
       return t ? t[0].toUpperCase() : "?";
     }
 
-    function slugify(s=""){
-      return encodeURIComponent((s||"").trim().toLowerCase());
-    }
+    function safeText(v, fallback="—"){ return (v==null || v==="") ? fallback : String(v); }
 
     function applyFilter(term){
-      const q = (term || "").trim().toLowerCase();
-      if(!q){ filtered = [...rawData]; return; }
+      const q = (term||"").trim().toLowerCase();
+      if(!q){ filtered=[...rawData]; return; }
       filtered = rawData.filter(a =>
         (a.name||"").toLowerCase().includes(q) ||
-        (a.genre||"").toLowerCase().includes(q)
+        (a.genre||"").toLowerCase().includes(q) ||
+        (a.bio||"").toLowerCase().includes(q)
       );
     }
 
-    function totalPages(){
-      return Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-    }
+    function totalPages(){ return Math.max(1, Math.ceil(filtered.length / PAGE_SIZE)); }
+    function pageSlice(){ const s=(currentPage-1)*PAGE_SIZE; return filtered.slice(s, s+PAGE_SIZE); }
 
-    function clampPage(){
-      const max = totalPages();
-      if(currentPage < 1) currentPage = 1;
-      if(currentPage > max) currentPage = max;
-    }
-
-    function pageSlice(){
-      const start = (currentPage - 1) * PAGE_SIZE;
-      return filtered.slice(start, start + PAGE_SIZE);
-    }
-
-    // ===== RENDER =====
     function renderList(){
-      const container = $("#list");
-      container.innerHTML = "";
-
+      const list = $("#list"); list.innerHTML = "";
       const items = pageSlice();
-      if(items.length === 0){
-        container.innerHTML = `<p class="mono">No results.</p>`;
-        return;
-      }
+      if(!items.length){ list.innerHTML = `<p class="mono">No results.</p>`; updatePager(); return; }
 
       const frag = document.createDocumentFragment();
       for(const a of items){
-        const name  = a.name || "Unknown";
-        const genre = a.genre || "No genre set";
-        const letter = firstLetter(name);
-        const href = `artist.html?name=${slugify(name)}`;
+        const card = document.createElement("article");
+        card.className = "card"; card.tabIndex = 0; card.role = "button";
 
-        const card = document.createElement("a");
-        card.className = "card-link";
-        card.href = href;
+        const name = safeText(a.name,"Unknown");
+        const genre = safeText(a.genre,"No genre set");
+        const votes = (typeof a.votes === "number") ? a.votes : null;
+
+        // avatar OR thumbnail
+        let mediaHTML;
+        if (a.imageUrl){
+          mediaHTML = `<img class="thumb" src="${a.imageUrl}" alt="${name}">`;
+        } else {
+          mediaHTML = `<div class="avatar">${firstLetter(name)}</div>`;
+        }
+
         card.innerHTML = `
-          <article class="card" aria-label="${name}">
-            <div class="row">
-              <div class="avatar">${letter}</div>
-              <h2 class="name">${name}</h2>
-            </div>
-            <div class="genre">${genre}</div>
-            <div class="chips">
-              <span class="chip">Artist</span>
-              <span class="chip">${genre || "Unknown"}</span>
-            </div>
-          </article>
+          <div class="row">
+            ${mediaHTML}
+            <h2 class="name">${name}</h2>
+            ${votes!=null ? `<div class="votes" title="Votes">▲ ${votes}</div>` : ``}
+          </div>
+          <div class="genre">${genre}</div>
+          <div class="chips">
+            <span class="chip">Artist</span>
+            <span class="chip">${genre}</span>
+          </div>
         `;
+
+        card.addEventListener("click", ()=> openModal(a));
+        card.addEventListener("keydown", (e)=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); openModal(a); }});
         frag.appendChild(card);
       }
-      container.appendChild(frag);
-
-      // Update pager
-      $("#pageInfo").textContent = `Page ${currentPage} of ${totalPages()}`;
-      $("#prev").disabled = currentPage <= 1;
-      $("#next").disabled = currentPage >= totalPages();
+      list.appendChild(frag);
+      updatePager();
     }
 
-    // ===== FETCH =====
+    function updatePager(){
+      $("#pageInfo").textContent = `Page ${currentPage} of ${totalPages()}`;
+      $("#prev").disabled = currentPage<=1;
+      $("#next").disabled = currentPage>=totalPages();
+    }
+
+    // ===== Modal logic =====
+    const backdrop = $("#backdrop");
+    const mPortrait = $("#mPortrait");
+    const mAvatar   = $("#mAvatar");
+    const mNameEl   = $("#mName");
+    const mGenreEl  = $("#mGenre");
+    const mChips    = $("#mChips");
+    const mBio      = $("#mBio");
+    const mMetrics  = $("#mMetrics");
+    const mVotes    = $("#mVotes");
+    const mComments = $("#mComments");
+
+    function openModal(a){
+      const name  = safeText(a.name,"Unknown");
+      const genre = safeText(a.genre,"No genre set");
+      $("#modalTitle").textContent = "Artist";
+      mNameEl.textContent  = name;
+      mGenreEl.textContent = genre;
+
+      // Image or avatar
+      if (a.imageUrl){
+        mPortrait.src = a.imageUrl;
+        mPortrait.style.display = "block";
+        mAvatar.style.display   = "none";
+      } else {
+        mAvatar.textContent = firstLetter(name);
+        mAvatar.style.display = "grid";
+        mPortrait.style.display = "none";
+      }
+
+      // Chips
+      mChips.innerHTML = "";
+      const c1 = document.createElement("span"); c1.className="chip"; c1.textContent="Artist";
+      const c2 = document.createElement("span"); c2.className="chip"; c2.textContent=genre;
+      mChips.append(c1,c2);
+
+      // Bio (optional)
+      if (a.bio && a.bio.trim()){
+        mBio.textContent = a.bio.trim();
+        mBio.style.display = "block";
+      } else {
+        mBio.style.display = "none";
+      }
+
+      // Metrics (optional)
+      const votesOk = (typeof a.votes === "number");
+      const commentsCount =
+        Array.isArray(a.comments) ? a.comments.length :
+        (typeof a.commentsCount === "number" ? a.commentsCount : null);
+
+      if (votesOk || commentsCount!=null){
+        mMetrics.style.display = "block";
+        if (votesOk){ mVotes.style.display="inline-block"; mVotes.textContent = `▲ ${a.votes} votes`; } else { mVotes.style.display="none"; }
+        if (commentsCount!=null){ mComments.style.display="inline-block"; mComments.textContent = `💬 ${commentsCount} comments`; } else { mComments.style.display="none"; }
+      } else {
+        mMetrics.style.display = "none";
+      }
+
+      backdrop.classList.add("show");
+      $("#closeModal").focus();
+    }
+
+    function closeModal(){ backdrop.classList.remove("show"); }
+    $("#closeModal").addEventListener("click", closeModal);
+    backdrop.addEventListener("click", (e)=>{ if(e.target===backdrop) closeModal(); });
+    window.addEventListener("keydown", (e)=>{ if(e.key==="Escape") closeModal(); });
+
+    $("#mCopy").addEventListener("click", async ()=>{
+      try{ await navigator.clipboard.writeText(mNameEl.textContent); alert("Copied artist name"); }catch{}
+    });
+    $("#mAction").addEventListener("click", ()=> alert("Profile page coming soon ✨"));
+
+    // ===== Fetch + events =====
     async function fetchArtists(){
       try{
         $("#refreshBtn").disabled = true;
-        const res = await fetch(BACKEND_URL, { cache: "no-store" });
+        const res = await fetch(BACKEND_URL, { cache:"no-store" });
         const data = await res.json();
         rawData = Array.isArray(data) ? data : [];
         applyFilter($("#q").value);
-        currentPage = 1;
-        renderList();
+        currentPage=1; renderList();
       }catch(err){
-        $("#list").innerHTML = `<p class="mono">Error: ${err?.message || err}</p>`;
+        $("#list").innerHTML = `<p class="mono">Error: ${err?.message||err}</p>`;
       }finally{
         $("#refreshBtn").disabled = false;
       }
     }
 
-    // ===== EVENTS =====
-    $("#q").addEventListener("input", (e)=>{
-      applyFilter(e.target.value);
-      currentPage = 1;
-      renderList();
-    });
-
+    $("#q").addEventListener("input", e => { applyFilter(e.target.value); currentPage=1; renderList(); });
     $("#refreshBtn").addEventListener("click", fetchArtists);
+    $("#prev").addEventListener("click", ()=>{ if(currentPage>1){ currentPage--; renderList(); }});
+    $("#next").addEventListener("click", ()=>{ if(currentPage<totalPages()){ currentPage++; renderList(); }});
+    window.addEventListener("keydown", (e)=>{ if(e.key==="ArrowLeft")$("#prev").click(); if(e.key==="ArrowRight")$("#next").click(); });
 
-    $("#prev").addEventListener("click", ()=>{
-      if(currentPage > 1){ currentPage--; renderList(); }
-    });
-
-    $("#next").addEventListener("click", ()=>{
-      if(currentPage < totalPages()){ currentPage++; renderList(); }
-    });
-
-    // Keyboard paging (left/right)
-    window.addEventListener("keydown", (e)=>{
-      if(e.key === "ArrowLeft"){ $("#prev").click(); }
-      if(e.key === "ArrowRight"){ $("#next").click(); }
-    });
-
-    // ===== INIT =====
     fetchArtists();
   </script>
 </body>
