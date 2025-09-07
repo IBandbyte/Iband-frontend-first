@@ -1,56 +1,276 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>iBandbyte</title>
-  <link rel="stylesheet" href="style.css" />
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>iBandbyte — Artists</title>
+  <style>
+    :root{
+      --bg:#0e0f12; --panel:#17181d; --text:#e9edf1; --muted:#a8b0bb; --accent:#ff8a00; --accent2:#ff2d55;
+      --ring:rgba(255,255,255,.08); --card:#1c1e24; --border:#262833; --ok:#1ec971; --bad:#ff5a5f;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
+      color:var(--text); background:radial-gradient(1200px 600px at -10% -10%, #2b2e38 0%, #11131a 40%) no-repeat, var(--bg);
+    }
+    .wrap{max-width:980px; margin-inline:auto; padding:24px 16px 48px}
+    header{
+      padding:28px 16px; border-radius:18px;
+      background:linear-gradient(100deg, #ff8a00, #ff2d55, #8a3cff);
+      color:white; box-shadow:0 10px 30px rgba(0,0,0,.35);
+    }
+    .brand{display:flex; align-items:center; gap:14px}
+    .badge{
+      width:42px; height:42px; flex:0 0 42px; border-radius:12px;
+      background:conic-gradient(from 220deg, #ffd200, #ff8a00, #ff2d55, #8a3cff, #00d1ff, #ffd200);
+      box-shadow:0 6px 16px rgba(0,0,0,.25);
+    }
+    h1{margin:0; font-size:28px; letter-spacing:.3px}
+    p.sub{margin:6px 0 0; opacity:.9; font-size:14px}
+
+    .controls{
+      display:flex; gap:12px; flex-wrap:wrap; margin:18px 0 8px;
+    }
+    .input{
+      position:relative; flex:1 1 280px;
+    }
+    .input input{
+      width:100%; background:var(--panel); color:var(--text);
+      border:1px solid var(--border); border-radius:12px; padding:12px 14px 12px 40px;
+      outline:none; box-shadow:0 0 0 0 transparent; transition:.15s;
+    }
+    .input input:focus{border-color:#3b82f6; box-shadow:0 0 0 4px rgba(59,130,246,.15)}
+    .input svg{position:absolute; left:12px; top:50%; transform:translateY(-50%); opacity:.6}
+
+    .btn{
+      appearance:none; border:1px solid var(--border); background:var(--panel);
+      color:var(--text); padding:12px 14px; border-radius:12px; cursor:pointer;
+      transition:.15s; font-weight:600;
+    }
+    .btn:active{transform:translateY(1px)}
+    .btn.grad{border:none; background:linear-gradient(100deg, #ff8a00, #ff2d55); color:white; box-shadow:0 6px 16px rgba(0,0,0,.25)}
+    .btn.ghost{background:transparent}
+
+    .section-title{margin:26px 6px 10px; font-weight:800; letter-spacing:.4px; font-size:22px}
+
+    .grid{display:grid; grid-template-columns:repeat(1,minmax(0,1fr)); gap:12px}
+    @media(min-width:600px){ .grid{grid-template-columns:repeat(2,minmax(0,1fr))} }
+    @media(min-width:900px){ .grid{grid-template-columns:repeat(3,minmax(0,1fr))} }
+
+    .card{
+      display:flex; gap:14px; align-items:center; padding:16px; border-radius:14px;
+      background:var(--card); border:1px solid var(--border);
+      box-shadow:0 2px 0 0 var(--ring);
+    }
+    .avatar{
+      width:54px; height:54px; border-radius:50%;
+      display:grid; place-items:center; font-weight:900; font-size:20px; color:#111;
+      background:radial-gradient(circle at 30% 30%, #ffe29f, #ffa99f 60%, #ff719a 100%);
+      border:2px solid rgba(255,255,255,.08);
+    }
+    .meta{min-width:0}
+    .name{font-weight:800; font-size:18px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+    .genre{color:var(--muted); margin-top:2px; font-size:14px}
+
+    .empty, .error{padding:18px; border-radius:12px; background:#181a20; border:1px dashed var(--border); color:var(--muted)}
+    .error{border-color:rgba(255,90,95,.5); color:#ffd6d8}
+
+    /* Pagination */
+    .pages{display:flex; align-items:center; gap:10px; justify-content:center; margin:18px 0 0}
+    .pill{
+      min-width:36px; height:36px; padding:0 10px; border-radius:10px; border:1px solid var(--border);
+      background:var(--panel); color:var(--text); display:inline-grid; place-items:center; cursor:pointer; user-select:none;
+    }
+    .pill[disabled]{opacity:.45; cursor:not-allowed}
+    .pill.active{background:linear-gradient(120deg,#ff8a00,#ff2d55); border:none; font-weight:800}
+
+    /* Debug panel (collapsible) */
+    details.debug{margin-top:28px; background:#0f1116; border:1px solid var(--border); border-radius:12px}
+    details.debug > summary{
+      list-style:none; padding:14px 16px; cursor:pointer; font-weight:800;
+      background:linear-gradient(90deg, transparent, rgba(255,255,255,.03));
+      border-bottom:1px solid var(--border);
+    }
+    details.debug pre{margin:0; padding:14px 16px; overflow:auto; max-height:320px; color:#bcd; font-size:12px}
+    code.bad{color:var(--bad)} code.ok{color:var(--ok)}
+    .url{font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; font-size:12px; color:#bcd}
+  </style>
 </head>
 <body>
-  <header>
-    <h1>🎸 iBandbyte</h1>
-    <p>Powered by Fans. A Platform for Artists and Influencers.</p>
-  </header>
+  <div class="wrap">
+    <header>
+      <div class="brand">
+        <div class="badge" aria-hidden="true"></div>
+        <div>
+          <h1>iBandbyte</h1>
+          <p class="sub">Powered by Fans. A Platform for Artists &amp; Influencers.</p>
+        </div>
+      </div>
 
-  <main>
-    <h2>Artists</h2>
-    <ul id="artist-list"></ul>
-  </main>
+      <div class="controls">
+        <div class="input">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <circle cx="11" cy="11" r="8" stroke-width="2"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65" stroke-width="2"></line>
+          </svg>
+          <input id="search" placeholder="Search artists…" autocomplete="off" />
+        </div>
+        <button id="refresh" class="btn grad" type="button">Refresh</button>
+        <button id="toggleDebug" class="btn ghost" type="button">Debug</button>
+      </div>
+    </header>
 
-  <!-- Debug Panel -->
-  <section id="debug-panel">
-    <h3>Debug Panel</h3>
-    <pre id="debug-output">Waiting for data...</pre>
-  </section>
+    <h2 class="section-title">Artists</h2>
+    <div id="list" class="grid" aria-live="polite"></div>
+    <div class="pages" id="pages" hidden>
+      <button class="pill" id="prevBtn">←</button>
+      <div id="pageNums" style="display:flex; gap:6px;"></div>
+      <button class="pill" id="nextBtn">→</button>
+    </div>
 
-  <footer>
-    <p>© 2025 iBandbyte. All rights reserved.</p>
-  </footer>
+    <details class="debug" id="debugPanel">
+      <summary>Debug Panel</summary>
+      <div style="padding:0 16px 10px">
+        <div>Endpoint: <span class="url" id="dbgUrl"></span></div>
+        <div>Status: <code id="dbgStatus" class="ok">Waiting…</code></div>
+      </div>
+      <pre id="dbgJson">[]</pre>
+    </details>
+  </div>
 
   <script>
-    async function loadArtists() {
-      const debug = document.getElementById("debug-output");
-      try {
-        const res = await fetch("https://iband-backend-first-2.onrender.com/artists");
-        const data = await res.json();
+    // ========= CONFIG =========
+    const BACKEND_URL = "https://iband-backend-first-2.onrender.com/artists";
+    const PAGE_SIZE = 6; // items per page
+    // =========================
 
-        // Update debug panel
-        debug.textContent = JSON.stringify(data, null, 2);
+    // Elements
+    const list = document.getElementById("list");
+    const searchInput = document.getElementById("search");
+    const refreshBtn = document.getElementById("refresh");
+    const toggleDebugBtn = document.getElementById("toggleDebug");
+    const debugPanel = document.getElementById("debugPanel");
+    const dbgUrl = document.getElementById("dbgUrl");
+    const dbgStatus = document.getElementById("dbgStatus");
+    const dbgJson = document.getElementById("dbgJson");
+    const pagesWrap = document.getElementById("pages");
+    const prevBtn = document.getElementById("prevBtn");
+    const nextBtn = document.getElementById("nextBtn");
+    const pageNums = document.getElementById("pageNums");
 
-        // Render to page
-        const list = document.getElementById("artist-list");
-        list.innerHTML = "";
-        data.forEach((artist) => {
-          const li = document.createElement("li");
-          li.textContent = `${artist.name} — ${artist.genre}`;
-          list.appendChild(li);
-        });
-      } catch (err) {
-        debug.textContent = "❌ Error: " + err.message;
+    // State
+    let all = [];
+    let filtered = [];
+    let page = 1;
+
+    function avatarLetter(name){ return (name?.trim?.()[0] || "?").toUpperCase(); }
+
+    function card(a){
+      const div = document.createElement("div");
+      div.className = "card";
+      div.innerHTML = `
+        <div class="avatar" aria-hidden="true">${avatarLetter(a.name)}</div>
+        <div class="meta">
+          <div class="name" title="${a.name || ""}">${a.name || "Unnamed artist"}</div>
+          <div class="genre">${a.genre || "No genre set"}</div>
+        </div>`;
+      return div;
+    }
+
+    function render(){
+      // slice per page
+      const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+      if(page > totalPages) page = totalPages;
+
+      list.innerHTML = "";
+      if(!filtered.length){
+        const empty = document.createElement("div");
+        empty.className = "empty";
+        empty.textContent = "No artists match your search.";
+        list.appendChild(empty);
+      }else{
+        const start = (page-1) * PAGE_SIZE;
+        const items = filtered.slice(start, start + PAGE_SIZE);
+        items.forEach(a => list.appendChild(card(a)));
+      }
+
+      // pagination UI
+      pagesWrap.hidden = filtered.length <= PAGE_SIZE;
+      if(!pagesWrap.hidden){
+        pageNums.innerHTML = "";
+        const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
+        const maxButtons = 6;
+        let from = Math.max(1, page - 2);
+        let to = Math.min(totalPages, from + maxButtons - 1);
+        from = Math.max(1, to - maxButtons + 1);
+        for(let i=from;i<=to;i++){
+          const b = document.createElement("button");
+          b.className = "pill" + (i===page ? " active":"");
+          b.textContent = i;
+          b.onclick = () => { page = i; render(); window.scrollTo({top:0, behavior:"smooth"}); };
+          pageNums.appendChild(b);
+        }
+        prevBtn.disabled = page<=1;
+        nextBtn.disabled = page>=totalPages;
       }
     }
 
-    loadArtists();
+    function applySearch(){
+      const q = searchInput.value.trim().toLowerCase();
+      filtered = !q ? all : all.filter(a =>
+        (a.name||"").toLowerCase().includes(q) ||
+        (a.genre||"").toLowerCase().includes(q)
+      );
+      page = 1;
+      render();
+    }
+
+    // simple debounce
+    let t;
+    searchInput.addEventListener("input", () => {
+      clearTimeout(t); t = setTimeout(applySearch, 180);
+    });
+
+    prevBtn.onclick = () => { if(page>1){ page--; render(); window.scrollTo({top:0, behavior:"smooth"});} };
+    nextBtn.onclick = () => { const tp = Math.ceil(filtered.length/PAGE_SIZE); if(page<tp){ page++; render(); window.scrollTo({top:0, behavior:"smooth"});} };
+
+    toggleDebugBtn.onclick = () => debugPanel.open = !debugPanel.open;
+
+    async function fetchArtists(){
+      dbgUrl.textContent = BACKEND_URL;
+      dbgStatus.textContent = "Fetching…";
+      dbgStatus.className = "";
+      try{
+        const res = await fetch(BACKEND_URL, { cache: "no-store" });
+        dbgStatus.textContent = `${res.status} ${res.ok ? "(OK)" : ""}`;
+        dbgStatus.className = res.ok ? "ok" : "bad";
+        const data = await res.json();
+        dbgJson.textContent = JSON.stringify(data, null, 2);
+
+        // normalize & sort
+        all = (Array.isArray(data) ? data : []).map(a => ({
+          name: a.name ?? "",
+          genre: a.genre ?? "No genre set",
+        })).sort((a,b)=>a.name.localeCompare(b.name));
+
+        filtered = all.slice();
+        page = 1;
+        render();
+      }catch(err){
+        dbgStatus.textContent = "Fetch error";
+        dbgStatus.className = "bad";
+        dbgJson.textContent = String(err);
+        list.innerHTML = `<div class="error">Error: ${err?.message || err}</div>`;
+        pagesWrap.hidden = true;
+      }
+    }
+
+    refreshBtn.addEventListener("click", fetchArtists);
+
+    // initial load
+    fetchArtists();
   </script>
 </body>
 </html>
