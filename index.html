@@ -2,238 +2,255 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>iBandbyte — Artists</title>
   <style>
     :root{
-      --brand-yellow:#FFB100;
-      --stage-bg:#0e0e0f;
-      --card-grad-a:#6a11cb;   /* purple */
-      --card-grad-b:#ff6600;   /* orange */
-      --ink:#ffffff;           /* default text on dark */
-      --muted:#b8b8c2;
-      --chip:#1d1d20;
-      --chip-border:#2a2a2f;
-      --accent:#2a2a2f;
+      --byte:#FFB100;
+      --ink:#0A0A0A;
+      --cardGrad1:#6a11cb; /* purple */
+      --cardGrad2:#ff6600; /* orange */
+      --panel:#161616;
+      --chip:#2a2227;
+      --soft:#999;
+      --radius:16px;
     }
     *{box-sizing:border-box}
     body{
-      margin:0;
-      background:#0b0b0c radial-gradient(1200px 1200px at 10% -10%, #151518 0%, transparent 40%) fixed;
-      color:var(--ink);
-      font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;
-      line-height:1.45;
-      -webkit-font-smoothing:antialiased;
-      -moz-osx-font-smoothing:grayscale;
-      padding:22px 16px 80px;
+      margin:0; padding:28px 20px 60px;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      color:#fff; background:#111;
     }
-
-    /* Header */
-    .header{
-      display:flex;align-items:center;gap:14px;max-width:960px;margin:0 auto 18px;
+    header{
+      max-width:980px; margin:0 auto 18px;
+      display:flex; align-items:center; gap:14px;
     }
-    .logo{display:flex;align-items:center;justify-content:center;width:44px;height:44px;border-radius:12px;background:#1a1a1e;box-shadow:inset 0 0 0 1px #26262b}
-    .logo svg{display:block;width:30px;height:30px}
-    .brand{font-size:34px;font-weight:800;letter-spacing:.2px}
-    .brand .iband{color:#fff}                 /* dark bg → “iBand” white */
-    .brand .byte{color:var(--brand-yellow)}   /* “byte” yellow */
+    .logo{
+      width:44px; height:44px; border-radius:12px; flex:0 0 44px;
+      display:grid; place-items:center; background:#1b1b1b; overflow:hidden;
+      box-shadow:0 8px 24px rgba(0,0,0,.35), inset 0 0 0 1px rgba(255,255,255,.05);
+    }
+    .logo img{width:100%; height:100%; object-fit:cover}
+    .brand{font-weight:800; font-size:34px; letter-spacing:.2px; line-height:1}
+    .brand .iband{color:#fff}
+    .brand .byte{color:var(--byte)}
 
-    /* Controls */
-    .toolbar{max-width:960px;margin:10px auto 18px;display:flex;gap:10px;flex-wrap:wrap}
-    .search{
-      flex:1 1 320px;padding:12px 14px;border-radius:10px;border:1px solid var(--chip-border);
-      background:#17171b;color:#fff;font-size:15px;outline:none;
+    .controls{max-width:980px; margin:6px auto 18px}
+    .search-row{display:flex; gap:12px; align-items:center}
+    input[type="text"]{
+      flex:1; padding:14px 16px; border:none; outline:none; color:#fff;
+      background:#222; border-radius:10px; font-size:16px;
+      box-shadow:inset 0 0 0 1px rgba(255,255,255,.05);
     }
     .btn{
-      padding:12px 18px;border:0;border-radius:10px;color:#fff;font-weight:700;cursor:pointer;
-      background:linear-gradient(90deg,var(--card-grad-a),var(--card-grad-b));
-      box-shadow:0 6px 20px rgba(0,0,0,.35);
+      padding:12px 18px; border:none; border-radius:10px; color:#fff; cursor:pointer;
+      font-weight:700; letter-spacing:.2px;
+      background:linear-gradient(90deg, var(--cardGrad1), var(--cardGrad2));
+      box-shadow:0 6px 18px rgba(0,0,0,.35);
     }
-    .btn:hover{filter:brightness(1.05)}
+    .btn:disabled{opacity:.5; cursor:not-allowed}
 
-    /* Cards */
-    .grid{max-width:960px;margin:0 auto;display:grid;gap:16px}
+    .wrap{max-width:980px; margin:0 auto}
+    .card-link{display:block; text-decoration:none; color:inherit}
     .card{
-      border-radius:16px;padding:22px 22px 20px;
-      background:
-        linear-gradient(160deg,rgba(255,255,255,.04),rgba(255,255,255,0)),
-        linear-gradient(135deg,var(--card-grad-a),var(--card-grad-b));
-      box-shadow:
-        inset 0 1px 0 rgba(255,255,255,.06),
-        0 10px 24px rgba(0,0,0,.45);
-      transition:transform .18s ease, box-shadow .18s ease;
+      background:linear-gradient(145deg, var(--cardGrad1), var(--cardGrad2));
+      border-radius:var(--radius); padding:22px; margin:16px 0; color:#fff;
+      box-shadow:0 10px 28px rgba(0,0,0,.45);
+      transition:transform .15s ease, box-shadow .15s ease;
     }
-    .card:hover{transform:translateY(-2px);box-shadow:0 16px 36px rgba(0,0,0,.55)}
-    .row{display:flex;align-items:center;gap:14px}
+    .card:hover{transform:translateY(-2px); box-shadow:0 16px 34px rgba(0,0,0,.55)}
+    .row{display:flex; align-items:center; gap:14px; margin-bottom:8px}
     .avatar{
-      width:46px;height:46px;border-radius:50%;
-      background:radial-gradient(circle at 30% 30%, #ffd7a0 0%, #ff9e72 35%, #e560ff 100%);
-      display:grid;place-items:center;font-weight:800;font-size:18px;color:#1a1a1a;box-shadow:inset 0 0 0 2px rgba(255,255,255,.2)
+      width:64px; height:64px; border-radius:50%;
+      background: radial-gradient(circle at 30% 30%, #ffd79a, #ff9f6b 50%, #ff7f50 70%);
+      display:grid; place-items:center; font-weight:900; font-size:22px; color:#2b1a12;
+      box-shadow:inset 0 0 0 2px rgba(255,255,255,.35), 0 6px 18px rgba(0,0,0,.25);
+      flex:0 0 64px;
     }
-    .title{font-size:22px;font-weight:800;margin:2px 0 6px}
-    .meta{color:#f5f5f5;opacity:.9}
-    .chipbar{margin-top:10px;display:flex;gap:8px;flex-wrap:wrap}
+    .name{font-size:28px; font-weight:800; margin:0}
+    .genre{margin:6px 0 14px; color:#f3f3f3; font-size:18px}
+    .chips{display:flex; gap:10px; flex-wrap:wrap}
     .chip{
-      background:rgba(20,20,24,.35);border:1px solid rgba(255,255,255,.08);color:#fff;
-      padding:5px 9px;border-radius:999px;font-size:12px
+      background:var(--chip); color:#f0e6e9; padding:8px 12px; border-radius:100px;
+      font-size:13px; box-shadow:inset 0 0 0 1px rgba(255,255,255,.06);
     }
 
     /* Pagination */
-    .pager{max-width:960px;margin:18px auto 0;display:flex;justify-content:center;align-items:center;gap:10px}
-    .pager .btn{padding:10px 14px}
-    .page-tag{padding:8px 12px;border-radius:10px;background:#16161a;border:1px solid var(--chip-border);color:#d8d8de;font-weight:700}
+    .pager{
+      max-width:980px; margin:14px auto 0; display:flex; gap:10px; align-items:center; justify-content:center;
+    }
+    .pager .info{color:var(--soft); font-size:14px; padding:8px 10px}
+    .pager .pbtn{
+      padding:10px 14px; border-radius:10px; border:none; cursor:pointer; color:#fff;
+      background:#2b2b2b; box-shadow:inset 0 0 0 1px rgba(255,255,255,.06);
+    }
+    .pager .pbtn[disabled]{opacity:.45; cursor:not-allowed}
 
-    /* Error/empty */
-    .panel{max-width:960px;margin:18px auto 0;padding:16px;border-radius:12px;border:1px dashed #3a3a43;background:#151519;color:#eaeaf0}
-    pre{white-space:pre-wrap;word-break:break-word;margin:0}
+    footer{max-width:980px; margin:26px auto 0; color:#bbb; text-align:center; font-size:13px}
+    .mono{font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color:#ccc}
   </style>
 </head>
 <body>
-  <!-- Header with inline SVG guitar orb -->
-  <header class="header">
-    <div class="logo" aria-hidden="true">
-      <!-- inline SVG: purple→orange orb with guitar neck -->
-      <svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="iBandbyte guitar orb">
-        <defs>
-          <radialGradient id="orb" cx="30%" cy="30%" r="80%">
-            <stop offset="0%"  stop-color="#ff9f50"/>
-            <stop offset="40%" stop-color="#ff6a3a"/>
-            <stop offset="100%" stop-color="#6a11cb"/>
-          </radialGradient>
-        </defs>
-        <circle cx="32" cy="32" r="28" fill="url(#orb)"/>
-        <!-- stylised guitar neck/silhouette -->
-        <path d="M31 15c2 0 3 1 3 3v19c0 2-1 3-3 3s-3-1-3-3V18c0-2 1-3 3-3zm-4 6c-1.2 0-2.2-.9-2.3-2.1-.1-1.3.9-2.4 2.2-2.4h8.2c1.3 0 2.3 1.1 2.2 2.4-.1 1.2-1.1 2.1-2.3 2.1H27z"
-              fill="#fff" opacity=".95"/>
-      </svg>
+  <header>
+    <div class="logo">
+      <!-- Your official orb mark -->
+      <img
+        alt="iBandbyte logo"
+        src="https://raw.githubusercontent.com/IBandbyte/assets/main/branding/orb-logo-64.png"
+        onerror="this.style.display='none';"
+      />
     </div>
-    <div class="brand">
-      <span class="iband">iBand</span><span class="byte">byte</span>
-    </div>
+    <div class="brand"><span class="iband">iBand</span><span class="byte">byte</span></div>
   </header>
 
-  <!-- Controls -->
-  <div class="toolbar">
-    <input id="search" class="search" type="text" placeholder="Search artists… (e.g. Drake, pop)"/>
-    <button id="refresh" class="btn" type="button">Refresh</button>
-  </div>
+  <section class="controls">
+    <div class="search-row">
+      <input id="q" type="text" placeholder="Search artists… (e.g. Drake, pop)" />
+      <button id="refreshBtn" class="btn">Refresh</button>
+    </div>
+  </section>
 
-  <!-- Cards -->
-  <main id="grid" class="grid" aria-live="polite"></main>
+  <main class="wrap" id="list"></main>
 
-  <!-- Pagination -->
   <nav class="pager" aria-label="Pagination">
-    <button id="prev" class="btn" type="button">Prev</button>
-    <span id="pageTag" class="page-tag">Page 1</span>
-    <button id="next" class="btn" type="button">Next</button>
+    <button id="prev" class="pbtn" disabled>◀︎ Prev</button>
+    <span id="pageInfo" class="info">Page 1 of 1</span>
+    <button id="next" class="pbtn" disabled>Next ▶︎</button>
   </nav>
 
-  <!-- Debug / errors -->
-  <section id="panel" class="panel" hidden>
-    <pre id="debug"></pre>
-  </section>
+  <footer>© 2025 <span class="brand"><span class="iband">iBand</span><span class="byte">byte</span></span>. All rights reserved.</footer>
 
   <script>
     // ===== CONFIG =====
     const BACKEND_URL = "https://iband-backend-first-2.onrender.com/artists";
-    const PAGE_SIZE = 24; // show 24 cards per page (change to 12/18/etc any time)
+    const PAGE_SIZE   = 24; // change to 12/18/etc anytime
 
     // ===== STATE =====
-    let allArtists = [];
-    let filtered = [];
-    let page = 1;
-
-    // ===== DOM =====
-    const grid = document.getElementById("grid");
-    const search = document.getElementById("search");
-    const refreshBtn = document.getElementById("refresh");
-    const prevBtn = document.getElementById("prev");
-    const nextBtn = document.getElementById("next");
-    const pageTag = document.getElementById("pageTag");
-    const panel = document.getElementById("panel");
-    const debug = document.getElementById("debug");
+    let rawData = [];        // original list from server
+    let filtered = [];       // list after search filter
+    let currentPage = 1;     // 1-based
 
     // ===== HELPERS =====
-    function showDebug(obj){
-      panel.hidden = false;
-      debug.textContent = typeof obj === "string" ? obj : JSON.stringify(obj,null,2);
-    }
-    function hideDebug(){ panel.hidden = true; debug.textContent = ""; }
-    function letterBadge(name){ return (name?.trim()?.[0] || "?").toUpperCase(); }
+    const $ = (sel) => document.querySelector(sel);
 
-    function render(){
-      const start = (page-1)*PAGE_SIZE;
-      const slice = filtered.slice(start, start+PAGE_SIZE);
-
-      grid.innerHTML = slice.map(a => `
-        <article class="card" role="article" aria-label="${a.name}">
-          <div class="row">
-            <div class="avatar" aria-hidden="true">${letterBadge(a.name)}</div>
-            <div>
-              <div class="title">${a.name || "Unknown Artist"}</div>
-              <div class="meta">${a.genre || "No genre set"}</div>
-              <div class="chipbar">
-                <span class="chip">Artist</span>
-                <span class="chip">${(a.genre || "No genre set")}</span>
-              </div>
-            </div>
-          </div>
-        </article>
-      `).join("");
-
-      const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-      page = Math.min(page, totalPages);
-      pageTag.textContent = `Page ${page} / ${totalPages}`;
-      prevBtn.disabled = page <= 1;
-      nextBtn.disabled = page >= totalPages;
+    function firstLetter(name="") {
+      const t = (name || "").trim();
+      return t ? t[0].toUpperCase() : "?";
     }
 
-    function applyFilter(){
-      const q = search.value.trim().toLowerCase();
-      if(!q){
-        filtered = [...allArtists];
-      }else{
-        filtered = allArtists.filter(a => {
-          const n = (a.name||"").toLowerCase();
-          const g = (a.genre||"").toLowerCase();
-          return n.includes(q) || g.includes(q);
-        });
+    function slugify(s=""){
+      return encodeURIComponent((s||"").trim().toLowerCase());
+    }
+
+    function applyFilter(term){
+      const q = (term || "").trim().toLowerCase();
+      if(!q){ filtered = [...rawData]; return; }
+      filtered = rawData.filter(a =>
+        (a.name||"").toLowerCase().includes(q) ||
+        (a.genre||"").toLowerCase().includes(q)
+      );
+    }
+
+    function totalPages(){
+      return Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+    }
+
+    function clampPage(){
+      const max = totalPages();
+      if(currentPage < 1) currentPage = 1;
+      if(currentPage > max) currentPage = max;
+    }
+
+    function pageSlice(){
+      const start = (currentPage - 1) * PAGE_SIZE;
+      return filtered.slice(start, start + PAGE_SIZE);
+    }
+
+    // ===== RENDER =====
+    function renderList(){
+      const container = $("#list");
+      container.innerHTML = "";
+
+      const items = pageSlice();
+      if(items.length === 0){
+        container.innerHTML = `<p class="mono">No results.</p>`;
+        return;
       }
-      page = 1;
-      render();
+
+      const frag = document.createDocumentFragment();
+      for(const a of items){
+        const name  = a.name || "Unknown";
+        const genre = a.genre || "No genre set";
+        const letter = firstLetter(name);
+        const href = `artist.html?name=${slugify(name)}`;
+
+        const card = document.createElement("a");
+        card.className = "card-link";
+        card.href = href;
+        card.innerHTML = `
+          <article class="card" aria-label="${name}">
+            <div class="row">
+              <div class="avatar">${letter}</div>
+              <h2 class="name">${name}</h2>
+            </div>
+            <div class="genre">${genre}</div>
+            <div class="chips">
+              <span class="chip">Artist</span>
+              <span class="chip">${genre || "Unknown"}</span>
+            </div>
+          </article>
+        `;
+        frag.appendChild(card);
+      }
+      container.appendChild(frag);
+
+      // Update pager
+      $("#pageInfo").textContent = `Page ${currentPage} of ${totalPages()}`;
+      $("#prev").disabled = currentPage <= 1;
+      $("#next").disabled = currentPage >= totalPages();
     }
 
+    // ===== FETCH =====
     async function fetchArtists(){
-      hideDebug();
       try{
-        const t0 = performance.now();
-        const res = await fetch(BACKEND_URL, { headers:{ "Accept":"application/json" }});
-        if(!res.ok) throw new Error(`HTTP ${res.status}`);
+        $("#refreshBtn").disabled = true;
+        const res = await fetch(BACKEND_URL, { cache: "no-store" });
         const data = await res.json();
-
-        // Guard against bad data
-        const clean = Array.isArray(data)
-          ? data.filter(x => x && typeof x === "object" && ("name" in x))
-          : [];
-
-        allArtists = clean;
-        applyFilter();
-
-        const ms = Math.round(performance.now() - t0);
-        showDebug({ ok:true, fetched: clean.length, ms, url: BACKEND_URL, pageSize: PAGE_SIZE });
-        setTimeout(hideDebug, 1800); // auto-hide success
+        rawData = Array.isArray(data) ? data : [];
+        applyFilter($("#q").value);
+        currentPage = 1;
+        renderList();
       }catch(err){
-        showDebug({ ok:false, error: String(err), url: BACKEND_URL });
+        $("#list").innerHTML = `<p class="mono">Error: ${err?.message || err}</p>`;
+      }finally{
+        $("#refreshBtn").disabled = false;
       }
     }
 
     // ===== EVENTS =====
-    search.addEventListener("input", () => applyFilter());
-    refreshBtn.addEventListener("click", () => fetchArtists());
-    prevBtn.addEventListener("click", () => { if(page>1){ page--; render(); }});
-    nextBtn.addEventListener("click", () => { page++; render(); });
+    $("#q").addEventListener("input", (e)=>{
+      applyFilter(e.target.value);
+      currentPage = 1;
+      renderList();
+    });
 
-    // ===== BOOT =====
+    $("#refreshBtn").addEventListener("click", fetchArtists);
+
+    $("#prev").addEventListener("click", ()=>{
+      if(currentPage > 1){ currentPage--; renderList(); }
+    });
+
+    $("#next").addEventListener("click", ()=>{
+      if(currentPage < totalPages()){ currentPage++; renderList(); }
+    });
+
+    // Keyboard paging (left/right)
+    window.addEventListener("keydown", (e)=>{
+      if(e.key === "ArrowLeft"){ $("#prev").click(); }
+      if(e.key === "ArrowRight"){ $("#next").click(); }
+    });
+
+    // ===== INIT =====
     fetchArtists();
   </script>
 </body>
