@@ -3,179 +3,269 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>iBandbyte</title>
+  <title>iBandbyte — Artists</title>
   <style>
-    :root{
-      --bg:#0f0f10;--panel:#18191c;--card:#202226;--muted:#a9acb3;
-      --text:#f5f6f8;--accent:#ff6ad5;--accent2:#ffb86b;--ok:#21d07a;--err:#ff5555;
-    }
-    *{box-sizing:border-box}
-    body{margin:0;background:var(--bg);color:var(--text);font:16px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
-    header{
-      padding:48px 16px 32px;
-      background:linear-gradient(90deg,var(--accent) 0%, var(--accent2) 100%);
-      color:#101114;text-align:center
-    }
-    header h1{margin:0;font-size:42px;letter-spacing:.5px}
-    header p{margin:10px 0 0;opacity:.9}
-    .wrap{max-width:980px;margin:0 auto;padding:20px 16px 64px}
-    .toolbar{display:flex;gap:12px;flex-wrap:wrap;align-items:center;justify-content:center;margin:20px 0 28px}
-    input[type="search"]{
-      flex:1 1 320px;max-width:520px;padding:12px 14px;border-radius:10px;border:1px solid #2b2d33;
-      background:#141519;color:var(--text);outline:none
-    }
-    button{
-      padding:12px 16px;border:0;border-radius:10px;cursor:pointer;font-weight:600;color:#111;
-      background:linear-gradient(135deg,var(--accent) 0%,var(--accent2) 100%)
-    }
-    .pill{font-size:12px;padding:6px 10px;border-radius:999px;background:#2a2d33;color:var(--muted)}
-    .grid{display:grid;gap:16px}
-    @media(min-width:640px){.grid{grid-template-columns:repeat(2,1fr)}}
-    @media(min-width:980px){.grid{grid-template-columns:repeat(3,1fr)}}
-
-    .card{
-      background:var(--card);border:1px solid #2a2d33;border-radius:14px;padding:18px 16px;
-      display:flex;gap:14px;align-items:center;min-height:92px
-    }
-    .avatar{
-      width:52px;height:52px;border-radius:999px;display:grid;place-items:center;font-weight:800;
-      background:linear-gradient(135deg,var(--accent) 0%,var(--accent2) 100%);color:#111
-    }
-    .name{font-size:20px;font-weight:800;margin:0 0 6px}
-    .genre{margin:0;color:var(--muted)}
-    .footer{margin-top:32px;text-align:center;color:var(--muted);font-size:14px}
-
-    /* Debug panel */
-    .debug{margin-top:36px;background:#121316;border:1px solid #2a2d33;border-radius:12px}
-    .debug h3{margin:0;padding:14px 16px;border-bottom:1px solid #2a2d33;color:#ffb86b}
-    .debug pre{margin:0;padding:14px 16px;max-height:260px;overflow:auto;background:#0f1013}
-    .kv{display:flex;gap:10px;flex-wrap:wrap;padding:12px 16px;border-bottom:1px solid #2a2d33}
-    .kv span{background:#1b1d22;color:#c9cbd3;padding:6px 10px;border-radius:8px;font-size:12px}
-    .ok{color:var(--ok)} .err{color:var(--err)}
+    :root { --bg:#0e0f12; --card:#1b1e24; --muted:#9aa3af; --text:#fff; --pill:#ffd89e; --pill2:#fba7ff; --ok:#19c37d; --err:#ff5c5c; }
+    *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--text);font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
+    .wrap{max-width:900px;margin:0 auto;padding:20px}
+    .hero{padding:28px 0 12px}
+    h1{margin:0 0 6px;font-size:36px}
+    .sub{color:#cfcfcf;opacity:.85;margin:0 0 18px}
+    .row{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin:8px 0 20px}
+    input[type="search"]{flex:1;min-width:220px;background:#101218;border:1px solid #2c313a;border-radius:10px;color:#fff;padding:12px 14px;outline:none}
+    .btn{border:0;border-radius:12px;padding:10px 14px;cursor:pointer;color:#101218;background:linear-gradient(135deg,var(--pill),var(--pill2));font-weight:700}
+    .list{display:grid;gap:14px}
+    .card{background:var(--card);border-radius:16px;padding:16px;display:flex;gap:14px;align-items:flex-start}
+    .ava{width:56px;height:56px;border-radius:50%;background:radial-gradient(circle at 30% 30%,var(--pill2),var(--pill));display:grid;place-items:center;font-weight:800;color:#000}
+    .card h3{margin:2px 0 6px;font-size:24px}
+    .muted{color:var(--muted);margin:0}
+    .grow{flex:1}
+    .actions{display:flex;gap:8px;flex-wrap:wrap}
+    .btn-sm{padding:8px 12px;border-radius:10px;font-weight:700}
+    .btn-ghost{background:#11141a;color:#e6e6e6;border:1px solid #2b3038}
+    .pill{display:inline-block;font-size:12px;padding:4px 8px;border:1px solid #2b3038;border-radius:999px;color:#cfd3da}
+    .toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:#11141a;color:#e6e6e6;padding:10px 14px;border-radius:10px;border:1px solid #2b3038;box-shadow:0 10px 30px rgba(0,0,0,.35);display:none}
+    .toast.ok{border-color:#1fbe7a;color:#dff7ea}
+    .toast.err{border-color:#ff6b6b;color:#ffe8e8}
+    .debug{margin:18px 0 8px;padding:14px;border-radius:12px;background:#12151b;border:1px dashed #313744}
+    code,pre{font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace}
+    .small{font-size:12px;color:#9aa3af}
+    dialog{border:1px solid #2b3038;border-radius:12px;background:#0f1217;color:#e6e6e6;max-width:520px;width:92%}
+    dialog::backdrop{background:rgba(0,0,0,.45)}
+    .dlg-h{display:flex;justify-content:space-between;align-items:center;padding:8px 0 6px;margin-bottom:10px;border-bottom:1px solid #2b3038}
+    .comments{display:grid;gap:10px;max-height:45vh;overflow:auto;margin:10px 0}
+    .citem{background:#12151b;border:1px solid #2b3038;border-radius:10px;padding:8px 10px}
+    textarea{width:100%;min-height:72px;background:#0d1015;border:1px solid #2b3038;border-radius:10px;color:#fff;padding:8px 10px;outline:none}
   </style>
 </head>
 <body>
-  <header>
-    <h1>iBandbyte</h1>
-    <p>Powered by Fans. A Platform for Artists and Influencers.</p>
-  </header>
-
   <div class="wrap">
-    <div class="toolbar">
-      <input id="search" type="search" placeholder="Search artists…" autocomplete="off" />
-      <button id="refresh">Refresh</button>
-      <span id="status" class="pill">Idle</span>
-    </div>
-
-    <h2 style="text-align:center;margin:0 0 12px">Artists</h2>
-    <div id="artists" class="grid" aria-live="polite"></div>
-
-    <!-- Debug Panel -->
-    <div class="debug">
-      <h3>Debug Panel</h3>
-      <div class="kv">
-        <span id="dbg-url"></span>
-        <span id="dbg-http"></span>
-        <span id="dbg-count"></span>
-        <span id="dbg-time"></span>
+    <div class="hero">
+      <h1>Artists</h1>
+      <p class="sub">Powered by Fans. A Platform for Artists and Influencers.</p>
+      <div class="row">
+        <input id="q" type="search" placeholder="Search artists…" />
+        <button id="refresh" class="btn">Refresh</button>
       </div>
-      <pre id="dbg-json">Waiting for data…</pre>
     </div>
 
-    <div class="footer">© 2025 iBandbyte. All rights reserved.</div>
+    <div id="list" class="list"></div>
+
+    <div class="debug">
+      <div class="small">API base:</div>
+      <code id="api"></code>
+      <div class="small" style="margin-top:8px">Status: <span id="status">…</span></div>
+    </div>
   </div>
 
+  <div id="toast" class="toast"></div>
+
+  <!-- Comments dialog -->
+  <dialog id="dlg">
+    <div class="dlg-h">
+      <strong id="dlgTitle">Comments</strong>
+      <button id="dlgClose" class="btn-sm btn-ghost">Close</button>
+    </div>
+    <div id="cList" class="comments"></div>
+    <div>
+      <label class="small">Add a comment</label>
+      <textarea id="cText" placeholder="Say something nice…"></textarea>
+      <div class="row" style="justify-content:flex-end;margin-top:8px">
+        <button id="cSend" class="btn btn-sm">Post Comment</button>
+      </div>
+    </div>
+  </dialog>
+
   <script>
-    // ====== CONFIG ======
-    const BACKEND_URL = "https://iband-backend-first-2.onrender.com";
-    const ARTISTS_ENDPOINT = BACKEND_URL + "/artists";
+  ;(() => {
+    // === CONFIG ===
+    const API_BASE = "https://iband-backend-first-2.onrender.com";
+    document.getElementById("api").textContent = API_BASE;
 
-    // ====== EL REFS ======
-    const listEl   = document.getElementById("artists");
-    const searchEl = document.getElementById("search");
-    const refreshEl= document.getElementById("refresh");
-    const statusEl = document.getElementById("status");
-    // debug
-    const dbgUrl   = document.getElementById("dbg-url");
-    const dbgHttp  = document.getElementById("dbg-http");
-    const dbgCount = document.getElementById("dbg-count");
-    const dbgTime  = document.getElementById("dbg-time");
-    const dbgJson  = document.getElementById("dbg-json");
-
-    // ====== STATE ======
-    const state = { all: [], q: "" };
-
-    // ====== UI HELPERS ======
-    function setStatus(text, cls="") {
-      statusEl.textContent = text;
-      statusEl.className = "pill " + cls;
+    // === helpers ===
+    const toastEl = document.getElementById("toast");
+    function toast(msg, type="ok", ms=1600){
+      toastEl.textContent = msg;
+      toastEl.className = "toast " + type;
+      toastEl.style.display = "block";
+      clearTimeout(toastEl._t);
+      toastEl._t = setTimeout(()=>toastEl.style.display="none", ms);
     }
-    function avatarLetter(name) {
-      const c = (name || "").trim();
-      return c ? c[0].toUpperCase() : "U";
+
+    const listEl = document.getElementById("list");
+    const qEl = document.getElementById("q");
+
+    async function fetchJSON(url, opt={}){
+      try{
+        const res = await fetch(url, { ...opt, headers: { "Content-Type":"application/json", ...(opt.headers||{}) }});
+        if(!res.ok) throw new Error("HTTP " + res.status);
+        return await res.json();
+      }catch(e){
+        console.error(e);
+        toast("Network error: " + (e.message||e), "err");
+        throw e;
+      }
     }
-    function renderArtists(items) {
-      if (!items.length) {
-        listEl.innerHTML = `<div class="card"><div>No artists found.</div></div>`;
+
+    function letter(name){ return (name||"?").trim().charAt(0).toUpperCase() || "?" }
+
+    function renderArtists(items){
+      const q = (qEl.value||"").trim().toLowerCase();
+      listEl.innerHTML = "";
+      items
+        .filter(a => !q || (a.name||"").toLowerCase().includes(q))
+        .forEach(a => {
+          const card = document.createElement("div");
+          card.className = "card";
+
+          const ava = document.createElement("div");
+          ava.className = "ava";
+          ava.textContent = letter(a.name);
+
+          const grow = document.createElement("div");
+          grow.className = "grow";
+          const h3 = document.createElement("h3");
+          h3.textContent = a.name || "Unknown";
+          const p = document.createElement("p");
+          p.className = "muted";
+          p.textContent = a.genre || "No genre set";
+          grow.append(h3,p);
+
+          const actions = document.createElement("div");
+          actions.className = "actions";
+
+          // vote count pill (best effort – if backend returns votes, show it)
+          const pill = document.createElement("span");
+          pill.className = "pill";
+          pill.textContent = (a.votes!=null ? `${a.votes} votes` : "vote");
+          actions.appendChild(pill);
+
+          // Vote button
+          const voteBtn = document.createElement("button");
+          voteBtn.className = "btn-sm btn";
+          voteBtn.textContent = "Vote";
+          voteBtn.addEventListener("click", async () => {
+            try{
+              // Try common backend shape: POST /votes with { artist: name }.
+              const data = await fetchJSON(`${API_BASE}/votes`, {
+                method:"POST",
+                body: JSON.stringify({ artist: a.name })
+              });
+              // If server returns count, show it
+              if(typeof data.votes === "number") pill.textContent = `${data.votes} votes`;
+              toast("Vote recorded!", "ok");
+            }catch(_){
+              toast("Voting not available yet", "err");
+            }
+          });
+
+          // Comments button
+          const comBtn = document.createElement("button");
+          comBtn.className = "btn-sm btn-ghost";
+          comBtn.textContent = "Comments";
+          comBtn.addEventListener("click", () => openComments(a.name));
+
+          actions.append(voteBtn, comBtn);
+
+          card.append(ava, grow, actions);
+          listEl.append(card);
+        });
+    }
+
+    // Load artists
+    async function load(){
+      document.getElementById("status").textContent = "Fetching…";
+      try{
+        const items = await fetchJSON(`${API_BASE}/artists`);
+        renderArtists(items || []);
+        document.getElementById("status").textContent = "OK";
+      }catch(e){
+        document.getElementById("status").textContent = (e.message||"Error");
+      }
+    }
+
+    // Comments dialog UX
+    const dlg = document.getElementById("dlg");
+    const dlgTitle = document.getElementById("dlgTitle");
+    const dlgClose = document.getElementById("dlgClose");
+    const cList = document.getElementById("cList");
+    const cText = document.getElementById("cText");
+    const cSend = document.getElementById("cSend");
+    let currentArtist = null;
+
+    dlgClose.addEventListener("click", ()=>dlg.close());
+
+    async function openComments(artist){
+      currentArtist = artist;
+      dlgTitle.textContent = `Comments — ${artist}`;
+      cText.value = "";
+      cList.innerHTML = `<div class="small">Loading…</div>`;
+      dlg.showModal();
+      try{
+        // Try common shape: GET /comments?artist=Name -> [{text,createdAt}, ...]
+        const items = await fetchJSON(`${API_BASE}/comments?artist=${encodeURIComponent(artist)}`);
+        renderComments(items||[]);
+      }catch(_){
+        cList.innerHTML = `<div class="small">Comments API not available yet.</div>`;
+      }
+    }
+
+    function renderComments(items){
+      cList.innerHTML = "";
+      if(!items.length){
+        cList.innerHTML = `<div class="small">No comments yet. Be the first!</div>`;
         return;
       }
-      listEl.innerHTML = items.map(a => `
-        <div class="card">
-          <div class="avatar">${avatarLetter(a.name)}</div>
-          <div>
-            <p class="name">${a.name || "Unknown"}</p>
-            <p class="genre">${a.genre || "No genre set"}</p>
-          </div>
-        </div>
-      `).join("");
-    }
-    function applyFilter() {
-      const q = state.q.trim().toLowerCase();
-      const filtered = q
-        ? state.all.filter(a => (a.name || "").toLowerCase().includes(q))
-        : state.all;
-      renderArtists(filtered);
+      items.forEach(c => {
+        const div = document.createElement("div");
+        div.className = "citem";
+        const when = c.createdAt ? new Date(c.createdAt).toLocaleString() : "";
+        div.innerHTML = `<div style="font-size:14px;line-height:1.4">${(c.text||"").replace(/</g,"&lt;")}</div><div class="small" style="margin-top:4px">${when}</div>`;
+        cList.append(div);
+      });
     }
 
-    // ====== FETCH ======
-    async function fetchArtists() {
-      setStatus("Fetching…");
-      dbgUrl.textContent = ARTISTS_ENDPOINT;
-      const t0 = performance.now();
-      try {
-        const res = await fetch(ARTISTS_ENDPOINT, { cache: "no-store" });
-        dbgHttp.textContent = "HTTP " + res.status;
-        if (!res.ok) throw new Error("HTTP " + res.status);
-        const data = await res.json();
+    cSend.addEventListener("click", async ()=>{
+      const txt = (cText.value||"").trim();
+      if(!currentArtist) return;
+      if(!txt){ toast("Write a comment first", "err"); return; }
+      try{
+        // Try common shape: POST /comments  { artist, text }
+        const data = await fetchJSON(`${API_BASE}/comments`, {
+          method:"POST",
+          body: JSON.stringify({ artist: currentArtist, text: txt })
+        });
+        // If server echoes updated list, render it; else just append locally
+        if(Array.isArray(data?.comments)) renderComments(data.comments);
+        else renderComments([{ text: txt, createdAt: new Date().toISOString() }, ...Array.from(cList.querySelectorAll(".citem")).map(el => ({ text: el.textContent }))]);
+        cText.value = "";
+        toast("Comment posted!", "ok");
+      }catch(_){
+        toast("Posting not available yet", "err");
+      }
+    });
 
-        // Basic sanity / normalization
-        const normalized = (Array.isArray(data) ? data : [])
-          .filter(x => x && x.name && x.name !== "undefined" && x.name !== "")
-          .map(x => ({
-            name: x.name || "Unknown",
-            genre: x.genre || "No genre set",
-          }));
-
-        state.all = normalized;
-        dbgCount.textContent = `Count ${state.all.length}`;
-        dbgTime.textContent = `${Math.round(performance.now()-t0)} ms`;
-        dbgJson.textContent = JSON.stringify(state.all.slice(0, 10), null, 2);
-
-        applyFilter();
-        setStatus("Live", "ok");
-      } catch (err) {
-        setStatus("Error", "err");
-        dbgJson.textContent = (err && err.message) ? ("Error: " + err.message) : String(err);
-        console.error(err);
+    // events
+    document.getElementById("refresh").addEventListener("click", load);
+    qEl.addEventListener("input", ()=>loadCached());
+    let _cache = [];
+    function loadCached(){ renderArtists(_cache); }
+    // keep a tiny cache so search feels instant
+    const _origLoad = load;
+    load = async function(){
+      document.getElementById("status").textContent = "Fetching…";
+      try{
+        _cache = await fetchJSON(`${API_BASE}/artists`);
+        renderArtists(_cache||[]);
+        document.getElementById("status").textContent = "OK";
+      }catch(e){
+        document.getElementById("status").textContent = (e.message||"Error");
       }
     }
 
-    // ====== EVENTS ======
-    searchEl.addEventListener("input", (e) => { state.q = e.target.value || ""; applyFilter(); });
-    refreshEl.addEventListener("click", fetchArtists);
-
-    // ====== INIT ======
-    fetchArtists();
+    // go
+    load();
+  })();
   </script>
 </body>
 </html>
