@@ -38,29 +38,14 @@
     .genre{margin:6px 0 10px; color:#f3f3f3; font-size:18px}
     .chips{display:flex; gap:10px; flex-wrap:wrap}
     .chip{background:var(--chip); color:#f0e6e9; padding:8px 12px; border-radius:100px; font-size:13px; box-shadow:inset 0 0 0 1px rgba(255,255,255,.06)}
-    .votes{margin-left:auto; font-weight:800; background:rgba(0,0,0,.25); padding:6px 10px; border-radius:10px}
+    .voteBtn{margin-left:auto; font-weight:800; padding:8px 12px; border:none; border-radius:10px; color:#fff; background:rgba(0,0,0,.28); box-shadow:inset 0 0 0 1px rgba(255,255,255,.12); cursor:pointer}
+    .voteBtn:disabled{opacity:.6; cursor:not-allowed}
     .pager{max-width:980px; margin:14px auto 0; display:flex; gap:10px; align-items:center; justify-content:center}
     .pager .info{color:var(--soft); font-size:14px; padding:8px 10px}
     .pager .pbtn{padding:10px 14px; border-radius:10px; border:none; cursor:pointer; color:#fff; background:#2b2b2b; box-shadow:inset 0 0 0 1px rgba(255,255,255,.06)}
     .pager .pbtn[disabled]{opacity:.45; cursor:not-allowed}
     footer{max-width:980px; margin:26px auto 0; color:#bbb; text-align:center; font-size:13px}
     .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; color:#ccc}
-
-    /* Vote button styling */
-    .voteBtn{
-      margin-left:auto;
-      padding:10px 12px;
-      border:none;
-      border-radius:10px;
-      color:#fff;
-      cursor:pointer;
-      font-weight:800;
-      background:linear-gradient(90deg, var(--cardGrad1), var(--cardGrad2));
-      box-shadow:0 6px 18px rgba(0,0,0,.35)
-    }
-    .voteBtn:disabled{ opacity:.6; cursor:not-allowed; }
-    .voteBtn .voteCount{ margin-left:6px; font-weight:900; }
-
     /* Modal */
     .modal-backdrop{position:fixed; inset:0; background:rgba(0,0,0,.55); display:none; align-items:center; justify-content:center; padding:20px; z-index:50}
     .modal-backdrop.show{display:flex}
@@ -78,6 +63,13 @@
     .metric{background:#232; border:1px solid rgba(255,255,255,.08); padding:8px 12px; border-radius:10px; color:#cfeecf}
     .modal-footer{padding:14px 18px; background:#141414; border-top:1px solid rgba(255,255,255,.06); display:flex; gap:10px; justify-content:flex-end}
     .ghost{background:transparent; color:#fff; border:1px solid rgba(255,255,255,.12); padding:10px 14px; border-radius:10px; cursor:pointer}
+    /* comments */
+    .comments{margin-top:14px; padding-top:12px; border-top:1px solid rgba(255,255,255,.09)}
+    .comment{background:#141414; border:1px solid rgba(255,255,255,.08); border-radius:10px; padding:10px 12px; margin:8px 0}
+    .comment small{color:#bbb}
+    .comment-form{display:grid; gap:8px; margin-top:10px}
+    .comment-form input,.comment-form textarea{background:#222;border:1px solid rgba(255,255,255,.08); color:#fff;border-radius:8px;padding:10px}
+    .comment-form button{justify-self:end}
   </style>
 </head>
 <body>
@@ -127,6 +119,17 @@
               <span id="mVotes" class="metric" title="Votes"></span>
               <span id="mComments" class="metric" title="Comments"></span>
             </div>
+
+            <!-- Comments -->
+            <section class="comments" id="commentsSection" style="display:none">
+              <h3 style="margin:6px 0 6px;">Comments</h3>
+              <div id="commentsList"></div>
+              <form id="commentForm" class="comment-form">
+                <input id="cName" placeholder="Your name (optional)" />
+                <textarea id="cText" rows="3" placeholder="Write a comment…"></textarea>
+                <button class="btn" type="submit">Post comment</button>
+              </form>
+            </section>
           </div>
         </div>
       </div>
@@ -138,12 +141,14 @@
   </div>
 
   <script>
-    const BACKEND_URL = "https://iband-backend-first-2.onrender.com/artists";
-    const PAGE_SIZE   = 24;
+    const API_BASE = "https://iband-backend-first-2.onrender.com";
+    const LIST_URL = API_BASE + "/artists";
+    const PAGE_SIZE = 24;
 
     let rawData = [];
     let filtered = [];
     let currentPage = 1;
+    let currentArtist = null; // for modal actions
 
     const $ = (s) => document.querySelector(s);
 
@@ -167,6 +172,30 @@
     function totalPages(){ return Math.max(1, Math.ceil(filtered.length / PAGE_SIZE)); }
     function pageSlice(){ const s=(currentPage-1)*PAGE_SIZE; return filtered.slice(s, s+PAGE_SIZE); }
 
+    async function sendVote(id, btn){
+      try{
+        btn.disabled = true;
+        const res = await fetch(`${API_BASE}/artists/${id}/vote`, { method:"POST" });
+        const data = await res.json();
+        if (data?.ok){
+          // update in-memory + UI
+          const artist = rawData.find(x => x._id === id);
+          if (artist){ artist.votes = data.votes; }
+          btn.querySelector(".vnum").textContent = data.votes;
+          // also reflect in modal if open on same artist
+          if (currentArtist && currentArtist._id === id){
+            $("#mVotes").textContent = `▲ ${data.votes} votes`;
+          }
+        } else {
+          alert(data?.error || "Vote failed");
+        }
+      } catch (e){
+        alert("Network error while voting");
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
     function renderList(){
       const list = $("#list"); list.innerHTML = "";
       const items = pageSlice();
@@ -175,11 +204,9 @@
       const frag = document.createDocumentFragment();
       for(const a of items){
         const card = document.createElement("article");
-        card.className = "card"; 
-        card.tabIndex = 0; 
-        card.role = "button";
+        card.className = "card"; card.tabIndex = 0; card.role = "button";
 
-        const name  = safeText(a.name,"Unknown");
+        const name = safeText(a.name,"Unknown");
         const genre = safeText(a.genre,"No genre set");
         const votes = (typeof a.votes === "number") ? a.votes : 0;
 
@@ -195,12 +222,9 @@
           <div class="row">
             ${mediaHTML}
             <h2 class="name">${name}</h2>
-
-            <button 
-              class="voteBtn" 
-              data-id="${a._id || ""}" 
-              title="Vote for ${name}">
-              ▲ Vote <span class="voteCount">${votes}</span>
+            <button class="voteBtn" title="Vote"
+              onclick="event.stopPropagation(); sendVote('${a._id}', this);">
+              ▲ <span class="vnum">${votes}</span>
             </button>
           </div>
           <div class="genre">${genre}</div>
@@ -211,12 +235,7 @@
         `;
 
         card.addEventListener("click", ()=> openModal(a));
-        card.addEventListener("keydown", (e)=>{ 
-          if(e.key==='Enter'||e.key===' '){ 
-            e.preventDefault(); 
-            openModal(a); 
-          }
-        });
+        card.addEventListener("keydown", (e)=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); openModal(a); }});
         frag.appendChild(card);
       }
       list.appendChild(frag);
@@ -240,8 +259,15 @@
     const mMetrics  = $("#mMetrics");
     const mVotes    = $("#mVotes");
     const mComments = $("#mComments");
+    const commentsSection = $("#commentsSection");
+    const commentsList = $("#commentsList");
+    const commentForm = $("#commentForm");
+    const cName = $("#cName");
+    const cText = $("#cText");
 
     function openModal(a){
+      currentArtist = a;
+
       const name  = safeText(a.name,"Unknown");
       const genre = safeText(a.genre,"No genre set");
       $("#modalTitle").textContent = "Artist";
@@ -273,19 +299,21 @@
         mBio.style.display = "none";
       }
 
-      // Metrics (optional)
+      // Metrics
       const votesOk = (typeof a.votes === "number");
       const commentsCount =
         Array.isArray(a.comments) ? a.comments.length :
-        (typeof a.commentsCount === "number" ? a.commentsCount : null);
+        (typeof a.commentsCount === "number" ? a.commentsCount : 0);
 
-      if (votesOk || commentsCount!=null){
-        mMetrics.style.display = "block";
-        if (votesOk){ mVotes.style.display="inline-block"; mVotes.textContent = `▲ ${a.votes} votes`; } else { mVotes.style.display="none"; }
-        if (commentsCount!=null){ mComments.style.display="inline-block"; mComments.textContent = `💬 ${commentsCount} comments`; } else { mComments.style.display="none"; }
-      } else {
-        mMetrics.style.display = "none";
-      }
+      mMetrics.style.display = (votesOk || commentsCount!=null) ? "block" : "none";
+      if (votesOk){ mVotes.style.display="inline-block"; mVotes.textContent = `▲ ${a.votes} votes`; } else { mVotes.style.display="none"; }
+      if (commentsCount!=null){ mComments.style.display="inline-block"; mComments.textContent = `💬 ${commentsCount} comments`; } else { mComments.style.display="none"; }
+
+      // Reset comments UI and fetch
+      commentsList.innerHTML = "";
+      commentsSection.style.display = "block";
+      cText.value = "";
+      fetchComments(a._id);
 
       backdrop.classList.add("show");
       $("#closeModal").focus();
@@ -301,11 +329,59 @@
     });
     $("#mAction").addEventListener("click", ()=> alert("Profile page coming soon ✨"));
 
+    async function fetchComments(id){
+      try{
+        const res = await fetch(`${API_BASE}/artists/${id}/comments`);
+        const data = await res.json();
+        commentsList.innerHTML = "";
+        (data?.comments || []).forEach(c=>{
+          const div = document.createElement("div");
+          div.className = "comment";
+          const d = new Date(c.createdAt);
+          div.innerHTML = `<strong>${safeText(c.name,"Anon")}</strong> <small>· ${d.toLocaleString()}</small><div style="margin-top:6px">${safeText(c.text,"")}</div>`;
+          commentsList.appendChild(div);
+        });
+      } catch (e){
+        commentsList.innerHTML = `<p class="mono">Failed to load comments</p>`;
+      }
+    }
+
+    commentForm.addEventListener("submit", async (e)=>{
+      e.preventDefault();
+      if (!currentArtist) return;
+      const name = cName.value.trim();
+      const text = cText.value.trim();
+      if (!text) { alert("Please write a comment"); return; }
+      try{
+        const res = await fetch(`${API_BASE}/artists/${currentArtist._id}/comments`, {
+          method: "POST",
+          headers: { "Content-Type":"application/json" },
+          body: JSON.stringify({ name, text })
+        });
+        const data = await res.json();
+        if (data?.ok){
+          // update counters
+          const a = rawData.find(x=>x._id===currentArtist._id);
+          if (a){
+            a.commentsCount = data.count;
+            currentArtist.commentsCount = data.count;
+            mComments.textContent = `💬 ${data.count} comments`;
+          }
+          cText.value = "";
+          fetchComments(currentArtist._id);
+        } else {
+          alert(data?.error || "Failed to post comment");
+        }
+      } catch (e){
+        alert("Network error while posting");
+      }
+    });
+
     // ===== Fetch + events =====
     async function fetchArtists(){
       try{
         $("#refreshBtn").disabled = true;
-        const res = await fetch(BACKEND_URL, { cache:"no-store" });
+        const res = await fetch(LIST_URL, { cache:"no-store" });
         const data = await res.json();
         rawData = Array.isArray(data) ? data : [];
         applyFilter($("#q").value);
@@ -321,41 +397,8 @@
     $("#refreshBtn").addEventListener("click", fetchArtists);
     $("#prev").addEventListener("click", ()=>{ if(currentPage>1){ currentPage--; renderList(); }});
     $("#next").addEventListener("click", ()=>{ if(currentPage<totalPages()){ currentPage++; renderList(); }});
-    window.addEventListener("keydown", (e)=>{ if(e.key==="ArrowLeft")$("#prev"].click(); if(e.key==="ArrowRight")$("#next"].click(); });
+    window.addEventListener("keydown", (e)=>{ if(e.key==="ArrowLeft")$("#prev").click(); if(e.key==="ArrowRight")$("#next").click(); });
 
-    // Vote button handler (event delegation)
-    document.addEventListener("click", async (e) => {
-      const btn = e.target.closest(".voteBtn");
-      if (!btn) return;
-      e.stopPropagation();
-
-      const id = btn.getAttribute("data-id");
-      if (!id) return;
-
-      btn.disabled = true;
-      const countSpan = btn.querySelector(".voteCount");
-
-      try {
-        const res = await fetch(`https://iband-backend-first-2.onrender.com/artists/${id}/vote`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" }
-        });
-        const data = await res.json();
-
-        if (typeof data.votes === "number") {
-          countSpan.textContent = data.votes;
-        } else {
-          const current = parseInt(countSpan.textContent || "0", 10);
-          countSpan.textContent = current + 1;
-        }
-      } catch (err) {
-        alert("Vote failed: " + (err?.message || err));
-      } finally {
-        btn.disabled = false;
-      }
-    });
-
-    // Initial load
     fetchArtists();
   </script>
 </body>
