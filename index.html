@@ -45,6 +45,22 @@
     .pager .pbtn[disabled]{opacity:.45; cursor:not-allowed}
     footer{max-width:980px; margin:26px auto 0; color:#bbb; text-align:center; font-size:13px}
     .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; color:#ccc}
+
+    /* Vote button styling */
+    .voteBtn{
+      margin-left:auto;
+      padding:10px 12px;
+      border:none;
+      border-radius:10px;
+      color:#fff;
+      cursor:pointer;
+      font-weight:800;
+      background:linear-gradient(90deg, var(--cardGrad1), var(--cardGrad2));
+      box-shadow:0 6px 18px rgba(0,0,0,.35)
+    }
+    .voteBtn:disabled{ opacity:.6; cursor:not-allowed; }
+    .voteBtn .voteCount{ margin-left:6px; font-weight:900; }
+
     /* Modal */
     .modal-backdrop{position:fixed; inset:0; background:rgba(0,0,0,.55); display:none; align-items:center; justify-content:center; padding:20px; z-index:50}
     .modal-backdrop.show{display:flex}
@@ -159,11 +175,13 @@
       const frag = document.createDocumentFragment();
       for(const a of items){
         const card = document.createElement("article");
-        card.className = "card"; card.tabIndex = 0; card.role = "button";
+        card.className = "card"; 
+        card.tabIndex = 0; 
+        card.role = "button";
 
-        const name = safeText(a.name,"Unknown");
+        const name  = safeText(a.name,"Unknown");
         const genre = safeText(a.genre,"No genre set");
-        const votes = (typeof a.votes === "number") ? a.votes : null;
+        const votes = (typeof a.votes === "number") ? a.votes : 0;
 
         // avatar OR thumbnail
         let mediaHTML;
@@ -177,7 +195,13 @@
           <div class="row">
             ${mediaHTML}
             <h2 class="name">${name}</h2>
-            ${votes!=null ? `<div class="votes" title="Votes">▲ ${votes}</div>` : ``}
+
+            <button 
+              class="voteBtn" 
+              data-id="${a._id || ""}" 
+              title="Vote for ${name}">
+              ▲ Vote <span class="voteCount">${votes}</span>
+            </button>
           </div>
           <div class="genre">${genre}</div>
           <div class="chips">
@@ -187,7 +211,12 @@
         `;
 
         card.addEventListener("click", ()=> openModal(a));
-        card.addEventListener("keydown", (e)=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); openModal(a); }});
+        card.addEventListener("keydown", (e)=>{ 
+          if(e.key==='Enter'||e.key===' '){ 
+            e.preventDefault(); 
+            openModal(a); 
+          }
+        });
         frag.appendChild(card);
       }
       list.appendChild(frag);
@@ -292,8 +321,41 @@
     $("#refreshBtn").addEventListener("click", fetchArtists);
     $("#prev").addEventListener("click", ()=>{ if(currentPage>1){ currentPage--; renderList(); }});
     $("#next").addEventListener("click", ()=>{ if(currentPage<totalPages()){ currentPage++; renderList(); }});
-    window.addEventListener("keydown", (e)=>{ if(e.key==="ArrowLeft")$("#prev").click(); if(e.key==="ArrowRight")$("#next").click(); });
+    window.addEventListener("keydown", (e)=>{ if(e.key==="ArrowLeft")$("#prev"].click(); if(e.key==="ArrowRight")$("#next"].click(); });
 
+    // Vote button handler (event delegation)
+    document.addEventListener("click", async (e) => {
+      const btn = e.target.closest(".voteBtn");
+      if (!btn) return;
+      e.stopPropagation();
+
+      const id = btn.getAttribute("data-id");
+      if (!id) return;
+
+      btn.disabled = true;
+      const countSpan = btn.querySelector(".voteCount");
+
+      try {
+        const res = await fetch(`https://iband-backend-first-2.onrender.com/artists/${id}/vote`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" }
+        });
+        const data = await res.json();
+
+        if (typeof data.votes === "number") {
+          countSpan.textContent = data.votes;
+        } else {
+          const current = parseInt(countSpan.textContent || "0", 10);
+          countSpan.textContent = current + 1;
+        }
+      } catch (err) {
+        alert("Vote failed: " + (err?.message || err));
+      } finally {
+        btn.disabled = false;
+      }
+    });
+
+    // Initial load
     fetchArtists();
   </script>
 </body>
