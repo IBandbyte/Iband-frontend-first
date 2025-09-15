@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>iBandbyte — Cleanup Tool</title>
+<style>
+  :root{
+    --byte:#FFB100; --ink:#0A0A0A; --panel:#161616; --soft:#aaa;
+    --ok:#2ecc71; --warn:#f39c12; --bad:#e74c3c;
+  }
+  *{box-sizing:border-box}
+  body{margin:0; padding:20px; font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif; background:#111; color:#fff}
+  header{max-width:960px; margin:0 auto 16px; display:flex; align-items:center; gap:12px}
+  .brand{font-weight:800; font-size:28px}
+  .brand .iband{color:#fff} .brand .byte{color:var(--byte)}
+  main{max-width:960px; margin:0 auto; background:#141414; border:1px solid rgba(255,255,255,.08); border-radius:14px; padding:16px}
+  .row{display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom:12px}
+  input[type="text"], input[type="password"]{
+    background:#222; color:#fff; border:none; border-radius:10px; padding:12px 14px; min-width:260px; outline:none;
+  }
+  .btn{padding:12px 14px; border:none; border-radius:10px; color:#fff; cursor:pointer; font-weight:700;
+       background:linear-gradient(90deg,#6a11cb,#ff6600)}
+  .btn:disabled{opacity:.5; cursor:not-allowed}
+  .panel{background:#161616; border:1px solid rgba(255,255,255,.06); border-radius:12px; padding:14px; margin:14px 0}
+  .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; color:#ddd; font-size:13px}
+  .ok{color:var(--ok)} .warn{color:var(--warn)} .bad{color:var(--bad)}
+  table{width:100%; border-collapse:collapse; margin-top:10px; font-size:14px}
+  th,td{padding:8px 10px; border-bottom:1px solid rgba(255,255,255,.08)}
+  th{text-align:left; color:#ccc}
+  .footer{margin-top:18px; color:#bbb; text-align:center; font-size:12px}
+</style>
+</head>
+<body>
+  <header>
+    <div class="brand"><span class="iband">iBand</span><span class="byte">byte</span> — Cleanup</div>
+  </header>
+
+  <main>
+    <div class="panel">
+      <div class="row">
+        <input id="baseUrl" type="text" value="https://iband-backend-first-2.onrender.com"
+               aria-label="Backend base URL" />
+        <button id="scanBtn" class="btn">Scan /artists</button>
+      </div>
+      <div id="status" class="mono">Status: waiting…</div>
+    </div>
+
+    <div class="panel">
+      <strong>Findings</strong>
+      <div id="summary" class="mono">No data yet.</div>
+      <div id="tables"></div>
+    </div>
+
+    <div class="panel">
+      <strong>Run server cleanup (dedupe & remove bad names)</strong>
+      <div class="mono" style="margin:6px 0 10px">
+        This calls <code>POST /admin/cleanup</code>. Enter your <code>ADMIN_KEY</code> (we never store it).
+      </div>
+      <div class="row">
+        <input id="adminKey" type="password" placeholder="Enter ADMIN_KEY (e.g. mysecret123)" />
+        <button id="cleanupBtn" class="btn">Run Cleanup</button>
+      </div>
+      <div id="cleanupResult" class="mono">Not run yet.</div>
+    </div>
+
+    <div class="footer">© 2025 iBandbyte. All rights reserved.</div>
+  </main>
+
+<script>
+const $ = (s) => document.querySelector(s);
+
+function normName(n){
+  return ((n ?? "") + "").trim().toLowerCase();
+}
+
+function makeTable(title, rows){
+  const wrap = document.createElement("div");
+  wrap.className = "panel";
+  const h = document.createElement("div");
+  h.innerHTML = `<strong>${title}</strong>`;
+  const tbl = document.createElement("table");
+  const thead = document.createElement("thead");
+  thead.innerHTML = "<tr><th>Name</th><th>Genre</th><th>_id</th></tr>";
+  const tbody = document.createElement("tbody");
+  rows.forEach(r=>{
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td>${r.name ?? "—"}</td><td>${r.genre ?? "—"}</td><td class="mono">${r._id ?? "—"}</td>`;
+    tbody.appendChild(tr);
+  });
+  tbl.append(thead, tbody);
+  wrap.append(h, tbl);
+  return wrap;
+}
+
+async function scan(){
+  const base = $("#baseUrl").value.replace(/\/+$/,"");
+  $("#status").textContent = "Status: fetching /artists …";
+  $("#tables").innerHTML = "";
+  $("#summary").textContent = "Scanning…";
+
+  try{
+    const res = await fetch(`${base}/artists`, {cache:"no-store"});
+    const data = await res.json();
+    if(!Array.isArray(data)) throw new Error("Unexpected response");
+
+    let bad = [];
+    let groups = new Map();
+    data.forEach(a=>{
+      const n = a?.name;
+      const isBad = (n==null || n==="" || n==="undefined");
+      if(isBad) bad.push(a);
+      const key = normName(n);
+      if(!groups.has(key)) groups.set(key, []);
+      groups.get(key).push(a);
+    });
+
+    let dupes = [];
+    groups.forEach((arr, key)=>{
+      if(key && arr.length > 1){
+        // Keep the first, mark the rest as dupes
+        dupes.push(...arr.slice(1));
+      }
+    });
+
+    const s = [];
+    s.push(`Total artists: ${data.length}`);
+    s.push(`Bad/blank names: ${bad.length}`);
+    s.push(`Duplicates to remove: ${dupes.length}`);
+    $("#summary").innerHTML = s.map(line=>{
+      if(line.includes("Bad/blank")) return `<span class="bad">${line}</span>`;
+      if(line.includes("Duplicates")) return `<span class="warn">${line}</span>`;
+      return `<span class="ok">${line}</span>`;
+    }).join("<br>");
+
+    const tables = $("#tables");
+    if(bad.length) tables.appendChild(makeTable("Bad / blank names", bad));
+    if(dupes.length) tables.appendChild(makeTable("Duplicates (will be removed)", dupes));
+    if(!bad.length && !dupes.length){
+      const ok = document.createElement("div");
+      ok.className = "mono ok";
+      ok.textContent = "Looks clean — no action needed.";
+      tables.appendChild(ok);
+    }
+
+    $("#status").textContent = "Status: scan complete ✅";
+  }catch(err){
+    $("#status").textContent = "Status: error — " + (err?.message || err);
+    $("#summary").textContent = "—";
+  }
+}
+
+async function runCleanup(){
+  const base = $("#baseUrl").value.replace(/\/+$/,"");
+  const key  = $("#adminKey").value.trim();
+  if(!key){ $("#cleanupResult").textContent = "Please enter ADMIN_KEY."; return; }
+  $("#cleanupResult").textContent = "Calling /admin/cleanup …";
+
+  try{
+    const res = await fetch(`${base}/admin/cleanup`, {
+      method: "POST",
+      headers: { "x-admin-key": key }
+    });
+    const data = await res.json();
+    $("#cleanupResult").textContent =
+      res.ok ? JSON.stringify(data) : `Error ${res.status}: ${JSON.stringify(data)}`;
+  }catch(err){
+    $("#cleanupResult").textContent = "Request failed: " + (err?.message || err);
+  }
+}
+
+$("#scanBtn").addEventListener("click", scan);
+$("#cleanupBtn").addEventListener("click", runCleanup);
+
+// Auto-scan on load
+scan();
+</script>
+</body>
+</html>
