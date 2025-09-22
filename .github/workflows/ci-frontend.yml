@@ -1,0 +1,31 @@
+name: CI (Frontend)
+on:
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Use Node 18
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+          cache: 'npm'
+
+      - name: Install deps
+        run: npm ci
+
+      - name: Build Next.js
+        env:
+          # Dummy values so PR builds compile without leaking prod secrets
+          NEXT_PUBLIC_API_BASE: "https://example.com"
+          NEXT_PUBLIC_CHATBASE_ID: "dummy"
+        run: npm run build
