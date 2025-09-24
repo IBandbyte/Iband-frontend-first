@@ -1,5 +1,8 @@
 name: CI (Frontend)
+
 on:
+  push:
+    branches: [ main ]
   pull_request:
     branches: [ main ]
   workflow_dispatch:
@@ -10,6 +13,7 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -17,15 +21,14 @@ jobs:
       - name: Use Node 18
         uses: actions/setup-node@v4
         with:
-          node-version: 18
-          cache: 'npm'
+          node-version: '18'
+          # no cache: we don't have a package-lock.json yet
 
       - name: Install deps
-        run: npm ci
+        run: npm install --no-audit --no-fund
 
-      - name: Build Next.js
-        env:
-          # Dummy values so PR builds compile without leaking prod secrets
-          NEXT_PUBLIC_API_BASE: "https://example.com"
-          NEXT_PUBLIC_CHATBASE_ID: "dummy"
+      - name: Build (noop for static site)
         run: npm run build
+
+      - name: Verify "serve" is available
+        run: npx serve --version
