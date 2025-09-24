@@ -1,198 +1,184 @@
-# 🎶 iBand Master Build Plan  
-*Entertainment Super-App: Music • Acting • Dance • Influencers • Film/TV • Gaming • Apps*
+# 🎶 iBand Master Build Plan (Expanded)
+
+A unified roadmap for the iBand ecosystem.  
+Covers **Music • Film/TV • Gaming • Theatre/Acting • Dance • Social Creators • Education**.  
+This document is the living blueprint for development and investor communications.
 
 ---
 
-## 🌍 Overview
-iBand is a **Universal Creative Economy Platform** that combines:
-- Music discovery and monetization  
-- Acting and dance performance tools  
-- Influencer and editing features  
-- Film/TV distribution  
-- Gaming marketplace  
-- App distribution  
-- A fan-driven ecosystem powered by voting, comments, and engagement  
+## 1. Core Layers of iBand
 
-This makes iBand the **TikTok + Spotify + Netflix + Steam + App Store** of the creator economy, all under one roof.  
-
----
-
-## 🎵 Music Layer
-- **Pay-Per-View Live Concerts**  
-  - Artists host exclusive online concerts.  
-  - Fans buy tickets (tiered access: General / VIP with Q&A).  
-  - Replay-on-demand included.  
-
-- **Tour & Gig Listings**  
-  - Artist profiles show upcoming gigs, venues, and ticket prices.  
-  - Fans can subscribe for gig alerts.  
-
-- **Music Teacher / Lessons**  
-  - Artists offer live or recorded lessons (instrument, production, voice).  
-  - AI assists with tuning, rhythm, practice tracking.  
-
-- **Exclusive Artist Lounge**  
-  - Private fan clubs with unreleased content.  
-  - Subscription tiers (Patreon-style).  
-
-- **Merch & Commerce**  
-  - Artists sell merch directly inside iBand.  
-
-- **Monetization Stack**  
-  1. Streams & fan voting  
-  2. Tips & gifting  
-  3. Merch sales  
-  4. Pay-per-view concerts  
-  5. Teaching/lessons  
-  6. Exclusive lounge subscriptions  
+### 🎵 Music
+- Artist discovery platform (unsigned → labels/fans).
+- Artist profiles with:
+  - Tracks, albums, previews (MP3/MP4 uploads, not YouTube embeds).
+  - Fan voting, comments, shares.
+  - Pay-per-view live concerts + ticket sales.
+  - Music teacher modules (instrument, vocal).
+  - Exclusive **Artist Lounge** for networking.
+- Monetization:
+  - Streams (ad-supported & premium).
+  - Downloads & sales.
+  - Fan tips + Patreon-style subscriptions.
+  - Record label scouting & finder's fee pipeline.
+- **In-house online music studio**:
+  - AI mixing/mastering.
+  - Collaboration tools (multi-user jam sessions).
+  - CapCut-style editor for music videos.
 
 ---
 
-## 🎭 Acting Layer
-- **AI Scene Rehearsals**  
-  - Users choose scenes from Shakespeare to modern films.  
-  - AI actors fill other roles.  
-  - Autocue prompts timing/lines.  
-
-- **Scene Library**  
-  - Act 1, Scene 2, etc. structured libraries.  
-  - From classics to contemporary cinema.  
-
-- **AI Visuals**  
-  - Scenery and costumes generated with AI.  
-  - Option to upgrade experience with hardware (autocue screen, VR headset).  
-
-- **Career Discovery**  
-  - Actors showcase reels → casting scouts discover talent.  
+### 🎬 Film & TV
+- Trailers & previews (studios can advertise upcoming releases).
+- Rent or buy new + old films (VOD).
+- Fan/critic reviews, comments, ratings.
+- Local cinema tie-ins:
+  - Showtime listings, tickets, prices, maps.
+- Pay-per-view movie premieres (exclusive online).
+- Potential partnerships: indie film festivals.
 
 ---
 
-## 💃 Dance Layer
-- **AI Coaching**  
-  - AI judges moves, gives tips, tracks improvement.  
-  - Covers ballet, contemporary, hip hop, etc.  
-
-- **Learn & Perform**  
-  - Step-by-step routines with AI guidance.  
-  - Fans can post dance covers.  
-
-- **Discovery**  
-  - Path to dance schools, professional scouts, choreographers.  
+### 🎮 Gaming
+- Marketplace for indie & mainstream games.
+- Rent or buy digital copies.
+- Live gameplay streams.
+- Game reviews, likes, comments.
+- Esports event ticketing & streaming.
+- App-store style hub for 3rd-party apps.
 
 ---
 
-## 📱 Influencer Layer
-- **Universal Editing Suite (CapCut-style)**  
-  - Available to ALL creators (musicians, actors, dancers, gamers, filmmakers).  
-  - Add effects, subtitles, overlays, transitions.  
-  - Basic version free + premium plugins via partners (iBand takes %).  
-
-- **Fan Engagement**  
-  - Like, comment, share, fan voting.  
-  - Influencers can polish their posts to maximize reach.  
-
----
-
-## 🎬 Film & TV Layer
-- **Trailer Uploads**  
-  - Studios upload trailers/teasers.  
-  - Fans like, comment, review → buzz before release.  
-
-- **Buy or Rent Films/TV**  
-  - Old & new releases available inside iBand.  
-  - Options: Buy (permanent library) or Rent (48 hours).  
-  - Ad-supported free tier possible.  
-
-- **Cinema Integration**  
-  - Local cinemas advertise addresses, showtimes, ticket prices.  
-  - Direct ticket sales inside iBand.  
-
-- **Fan Critics**  
-  - Comment sections double as “fan Rotten Tomatoes.”  
+### 🎭 Theatre & Acting
+- AI-powered acting coach:
+  - Rehearse scenes from plays/films.
+  - Autocue + timing assistant.
+  - Choose your character & interact with AI co-stars.
+- Library of plays:
+  - Shakespeare, modern theatre, film scripts.
+- Scene study with AI-generated costumes, backdrops, scenery.
+- Performance uploads → fan engagement.
+- Discovery:
+  - Talent pipeline for casting directors.
 
 ---
 
-## 🎮 Gaming Layer
-- **Game Marketplace**  
-  - Buy or rent games → stored in personal iBand library.  
-  - Start with indie titles → expand to AAA publishers.  
-
-- **Fan Interactions**  
-  - Reviews, ratings, likes, comments.  
-  - Gamers post clips (like Twitch highlights).  
-
-- **Monetization**  
-  - Revenue share per purchase/rental.  
-  - Paid featured placement for game studios.  
+### 💃 Dance
+- AI dance teacher:
+  - Learn styles (ballet → hip hop → ballroom).
+  - Motion tracking: feedback + tips.
+- Upload dance performances.
+- Dance schools/talent scouts integration.
+- Paid courses from pro instructors.
 
 ---
 
-## 📲 App Store Layer
-- **3rd-Party Apps Distribution**  
-  - Music tools, editing apps, AI plugins, education.  
-  - Developers submit apps to iBand.  
-
-- **Revenue Split**  
-  - iBand takes 15–30% of sales.  
-  - Attract devs with lower rates than Apple/Google.  
-
-- **Social Layer**  
-  - Unlike App Store/Google Play, iBand adds fan voting, likes, comments.  
+### 📱 Social Creators & Influencers
+- Instagram/TikTok-style content feed.
+- Creator toolkit (CapCut-style filters, effects).
+- Collab features (duets, remixes, stitch).
+- Creator monetization:
+  - Sponsored posts.
+  - Revenue share on branded content.
+- Marketplace for CapCut-style template providers (partner ecosystem).
 
 ---
 
-## 🛒 Marketplace & Monetization
-- Ads (artists, studios, game devs, app devs)  
-- Ticketing (concerts, gigs, cinemas)  
-- Subscriptions (lounges, premium tiers, education)  
-- Merch sales (artists, filmmakers, game devs)  
-- App & plugin sales (editing tools, music plugins)  
-- Buy/Rent (films, shows, games)  
+## 2. Monetization Pillars
+
+1. **Music**
+   - Streams (ad + subscription).
+   - Digital sales & downloads.
+   - Live concert tickets (virtual + physical).
+   - Finder’s fees from label signings.
+
+2. **Film/TV**
+   - Trailer advertising.
+   - VOD rentals/purchases.
+   - Cinema ads & ticketing partnerships.
+
+3. **Gaming**
+   - Game purchases/rentals.
+   - In-app advertising & premium events.
+   - Esports broadcasting rights.
+
+4. **Theatre & Dance**
+   - Paid coaching sessions.
+   - Ticket sales (virtual + physical).
+   - Course subscriptions.
+
+5. **Creators**
+   - Sponsored posts & partnerships.
+   - Revenue from effect/template store.
 
 ---
 
-## 🔮 Future Additions
-- **VR/AR Experiences**  
-  - VR concerts, AR dance coaching, immersive film screenings.  
+## 3. AI & Automation Features
 
-- **Education Layer**  
-  - Masterclass-style lessons across music, film, dance, gaming.  
-  - AI tutors + live instructors.  
-
-- **NFT & Collectibles**  
-  - Digital posters, music tracks, game skins, limited editions.  
-
-- **Talent Agency Tools**  
-  - Direct integration with booking agents, casting directors, labels.  
-
-- **Expanded Merch**  
-  - Physical + digital bundles (vinyls + NFTs, props + AR assets).  
+- **AI Studio Tools**: mixing, mastering, video editing.
+- **AI Teachers**: music, dance, acting coaches.
+- **AI Commentary**:
+  - Radio-host style music commentary.
+  - Chart insights & predictions.
+- **AI Discovery Engine**:
+  - Recommends artists, films, games, creators.
+- **Customer Service Bot**:
+  - Automated inquiry handling, escalations.
 
 ---
 
-## 🚀 Phased Roadmap
-**Phase 1 — MVP**  
-- Music: Artist profiles, uploads, fan voting, exclusive lounges.  
-- Influencer Editing Suite (basic).  
-- Acting & Dance: early AI rehearsal demos.  
+## 4. Community & Fan Engagement
 
-**Phase 2 — Expansion**  
-- Pay-per-view concerts, ticketing, merch.  
-- Film/TV trailers + buy/rent layer.  
-- Gaming marketplace (indie-first).  
-- App Store for 3rd-party tools.  
-
-**Phase 3 — Super-App**  
-- Full cross-layer monetization.  
-- VR/AR immersive layers.  
-- Talent agency & industry integrations.  
-- Global entertainment hub (music + acting + dance + film + gaming + apps).  
+- Fan voting & rankings.
+- Artist/actor/dancer “charts” (weekly leaderboards).
+- Gamification: badges, streaks, rewards.
+- Exclusive fan clubs (subscription tier).
+- Community challenges (e.g., cover songs, dance-offs).
 
 ---
 
-## 🖼️ Visual Roadmap
-*(To be included as a diagram in the PDF and as a standalone PNG)*  
-- Central hub: **iBand Platform**  
-- Surrounding layers: Music • Acting • Dance • Influencers • Film/TV • Gaming • Apps  
-- Connected by: Fan Voting • Social Engagement • Monetization Tools  
-- Marketplace at the foundation → powering all layers.  
+## 5. Marketplace & Partnerships
+
+- **CapCut-style plugin store**: rev-share with template/effect creators.
+- **Cinemas & film studios**: advertising + ticket sales.
+- **Game devs**: indie showcase hub.
+- **Music labels**: scouting, showcase ads.
+- **Education institutions**: dance schools, acting academies, music conservatories.
+
+---
+
+## 6. Long-Term Vision
+
+iBand evolves into a **universal creative economy hub**:
+- Music, film, gaming, theatre, dance, social creators → all in one.
+- Streaming + marketplace + discovery + education.
+- A true rival to **Spotify + TikTok + Netflix + App Store** combined.
+
+---
+
+## 7. Technical Notes
+
+- **Backend**:
+  - Node.js + Express API.
+  - Modular service layers (Artists, Labels, Film, Games, Theatre, Dance).
+  - Payments: Stripe integration.
+  - AI modules containerized for scaling.
+
+- **Frontend**:
+  - React (Vercel hosting).
+  - Responsive design (mobile-first).
+  - Video/Audio players integrated (MP4 native playback).
+
+- **Storage**:
+  - AWS S3 (media hosting).
+  - Database: PostgreSQL (core data) + Redis (cache).
+
+- **Deployment**:
+  - Backend → Render.
+  - Frontend → Vercel.
+  - CDN for global media delivery.
+
+---
+
+# ✅ Next Step
+Place this file at:
