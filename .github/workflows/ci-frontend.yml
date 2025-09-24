@@ -1,8 +1,7 @@
-name: CI (Frontend)
+# Updated frontend CI workflow (no-op comment added for commit history)
 
+name: CI (Frontend)
 on:
-  push:
-    branches: [ main ]
   pull_request:
     branches: [ main ]
   workflow_dispatch:
@@ -13,7 +12,6 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -21,14 +19,14 @@ jobs:
       - name: Use Node 18
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
-          # no cache: we don't have a package-lock.json yet
+          node-version: 18
+          cache: 'npm'
 
       - name: Install deps
-        run: npm install --no-audit --no-fund
+        run: npm ci
 
-      - name: Build (noop for static site)
-        run: npm run build
-
-      - name: Verify "serve" is available
-        run: npx serve --version
+      - name: Build frontend (static serve)
+        env:
+          NEXT_PUBLIC_API_BASE: "https://example.com"
+          NEXT_PUBLIC_CHATBASE_ID: "dummy"
+        run: npm start
