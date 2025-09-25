@@ -1,6 +1,5 @@
-# Updated frontend CI workflow (no-op comment added for commit history)
-
 name: CI (Frontend)
+
 on:
   pull_request:
     branches: [ main ]
@@ -23,10 +22,11 @@ jobs:
           cache: 'npm'
 
       - name: Install deps
-        run: npm ci
+        run: npm install
 
-      - name: Build frontend (static serve)
+      - name: Build frontend
         env:
+          # Dummy values so PR builds compile without leaking prod secrets
           NEXT_PUBLIC_API_BASE: "https://example.com"
           NEXT_PUBLIC_CHATBASE_ID: "dummy"
-        run: npm start
+        run: npm run build
