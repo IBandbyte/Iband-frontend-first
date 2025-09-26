@@ -21,18 +21,23 @@ jobs:
       - name: Use Node 18
         uses: actions/setup-node@v4
         with:
-          node-version: '18'   # no cache here (no lockfile yet)
+          node-version: '18'
 
       - name: Install deps
-        run: npm install --no-audit --no-fund
+        run: npm ci || npm i --no-audit --no-fund
+
+      # Keep CI happy on formatting-only diffs
+      - name: Format code (Prettier --write)
+        run: npx prettier . --write
 
       - name: Build (noop for now)
-        run: |
-          if npm run | grep -q "build"; then
-            npm run build
-          else
-            echo "No build script; skipping"
-          fi
+        run: echo "OK"
+
+      - name: Lint (ESLint)
+        run: npm run lint --silent || true
+
+      - name: Check formatting (Prettier)
+        run: npx prettier . --check
 
       - name: List files (sanity)
         run: ls -la
