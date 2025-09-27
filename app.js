@@ -1,7 +1,8 @@
 // app.js — iBandbyte front-end (clean list + dedupe + filter)
 
 (() => {
-  const API_BASE = "https://iband-backend-first-2.onrender.com";
+  // Use .env variable (fallback to Render if not set)
+  const API_BASE = import.meta.env.VITE_API_URL || "https://iband-backend-first-2.onrender.com";
 
   // ---- DOM ----
   const listEl = document.getElementById("artists");
