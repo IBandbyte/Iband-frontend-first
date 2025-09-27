@@ -1,7 +1,20 @@
-node_modules
-.next
-out
+# dependencies
+/node_modules
+
+# build output
+/dist
+/build
+
+# local env files
+.env
 .env.local
-.env*.local
-npm-debug.log*
+.env.development.local
+.env.test.local
+.env.production.local
+
+# misc
 .DS_Store
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
