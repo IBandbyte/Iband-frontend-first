@@ -1,22 +1,22 @@
 {
   "name": "iband-frontend",
   "version": "1.0.0",
-  "description": "Frontend for iBand platform",
-  "main": "index.html",
+  "private": true,
+  "type": "module",
   "scripts": {
-    "start": "serve .",
-    "build": "echo 'No build step yet'"
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview --port 5173",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "echo \"(no frontend tests yet)\" && exit 0"
   },
-  "keywords": [
-    "iband",
-    "frontend",
-    "music",
-    "artists"
-  ],
-  "author": "iBand Team",
-  "license": "MIT",
-  "dependencies": {},
   "devDependencies": {
-    "serve": "^14.2.0"
+    "vite": "^5.4.0",
+    "eslint": "^8.57.0",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-prettier": "^5.1.3",
+    "prettier": "^3.3.3"
   }
 }
