@@ -1,0 +1,109 @@
+{
+  "slides": [
+    {
+      "title": "Cover",
+      "text": "iBand — Get Signed / Connect\nPowered by Fans. A Platform for Artists and Influencers.",
+      "visual": "Glowing logo center stage, gradient purple-orange background, crowd silhouette.",
+      "prompt": "Futuristic stage spotlight on logo."
+    },
+    {
+      "title": "The Problem",
+      "text": "Artists struggle to be discovered.\nFans have no real influence.\nLabels & agencies waste time scheduling auditions and sifting portfolios.",
+      "visual": "Broken music notes, grayscale mic with sad emoji.",
+      "prompt": "Dark tone, broken vinyls."
+    },
+    {
+      "title": "The Solution",
+      "text": "iBand = fan-powered discovery across music, dance, acting, and modeling.\nVotes + virality decide who rises.\nScouts access an unrivalled, vast talent pool without commitment — no scheduling, no delays, instant side-by-side comparison.",
+      "visual": "App mockup showing feed + vote button + talent tiles.",
+      "prompt": "Energetic futuristic phone mockup glowing."
+    },
+    {
+      "title": "How It Works",
+      "steps": [
+        "Creators upload: tracks, mixes, dance clips, scene reads, model portfolios.",
+        "Fans vote, comment, share.",
+        "Charts & leaderboards update in real time.",
+        "Labels, casting & modeling agencies review and shortlist instantly."
+      ],
+      "visual": "Infographic arrows: Creator → Fans → iBand → Labels/Agencies.",
+      "prompt": "Neon arrows, flat infographic."
+    },
+    {
+      "title": "Models & Influencers",
+      "text": "Catwalk models, Instagram models, and fashion influencers upload full portfolios (photos, walk videos, measurements, brand collabs).\nAgencies & brands get unrivalled access to a large, searchable talent pool.\nSaves interview bookings, no waiting for portfolios, and enables larger side-by-side comparison at a glance.",
+      "visual": "Three-up layout: catwalk clip, portfolio grid, brand collaboration badge.",
+      "prompt": "Lifestyle & fashion vibe merged with music energy."
+    },
+    {
+      "title": "Dance Mode",
+      "text": "Live Kinect-style competitions with real-time voting.\nWorks with webcams, phones, or external cameras.\nMulti-view: up to 4 teams on one screen; fans can switch or rewind.",
+      "visual": "Split-screen dancers with voting bar and emoji reactions.",
+      "prompt": "Colorful high-energy dance battle."
+    },
+    {
+      "title": "Studio Mode",
+      "text": "Bands, DJs, actors rehearse live together.\nPrivate collab rooms or public livestreams.\nBattle Studio Mode: challenge another band/artist on-the-fly.",
+      "visual": "Studio scene with neon instruments and live chat bubbles.",
+      "prompt": "Modern digital music studio overlay."
+    },
+    {
+      "title": "Engagement Ecosystem",
+      "text": "Dual Track:\n• Dance Mode = viral competitions & parties.\n• Studio Mode = rehearsals, collabs, battles, monetization.\n• Models/Influencers = portfolios + discovery + brand deals.",
+      "visual": "3-lane diagram (Dance, Studio, Models) converging to iBand logo.",
+      "prompt": "Bright neon diagram flow."
+    },
+    {
+      "title": "Monetization",
+      "tiers": {
+        "Free Users": "Ads, microtransactions",
+        "Power Users": "Voting boosts, emojis, GIFs, replays",
+        "Pro Creators": "Subscriptions, ticketed streams, analytics, portfolio tools",
+        "Labels & Agencies": "Scouting seats, shortlists, advanced search & comparison"
+      },
+      "visual": "Tier pyramid with glowing coins.",
+      "prompt": "Futuristic glowing coin stacks."
+    },
+    {
+      "title": "Market Opportunity",
+      "text": "$26B music streaming.\n$10B+ creator economy.\nFashion/modeling & casting add multi-billion TAM.\nGen Z demand for interactive entertainment.",
+      "visual": "Bold stats with music + fashion icons.",
+      "prompt": "Data-driven glowing charts."
+    },
+    {
+      "title": "Competitive Landscape",
+      "text": "Spotify = passive listening.\nTikTok = viral but unstructured for scouting.\nTwitch = gamer-first.\niBand = fan-powered discovery + portfolios + cross-vertical scouting.",
+      "visual": "Matrix chart with iBand top right.",
+      "prompt": "Minimalist glowing matrix."
+    },
+    {
+      "title": "Traction",
+      "text": "Backend live on Render.\nFrontend live on Vercel (Vite).\nAdmin tools + artist routes active.\nDance/Studio modes specced; safety-first design.",
+      "visual": "Screenshots of iBand app frontend.",
+      "prompt": "Polished phone mockups."
+    },
+    {
+      "title": "Roadmap",
+      "phases": [
+        "Phase 1: Core platform + fan voting",
+        "Phase 2: Dance Mode + Studio Mode + Portfolios",
+        "Phase 3: Monetization + Ads + App Store",
+        "Phase 4: Scale + Regional compliance + Partnerships"
+      ],
+      "visual": "Timeline roadmap glowing checkpoints.",
+      "prompt": "Futuristic neon roadmap."
+    },
+    {
+      "title": "Exit Strategy",
+      "text": "ByteDance: creator ecosystem.\nMeta: music + fashion + VR.\nAlt: scale independently to profitability.",
+      "visual": "ByteDance + Meta logos with $10M+ exit.",
+      "prompt": "Corporate sleek dark theme."
+    },
+    {
+      "title": "Closing",
+      "text": "Join the future of music & talent discovery.\niBand — Powered by Fans.",
+      "visual": "Glowing iBand logo spotlight with confetti.",
+      "prompt": "Grand finale stage vibe."
+    }
+  ]
+}
