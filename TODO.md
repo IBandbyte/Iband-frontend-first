@@ -1,28 +1,32 @@
-# iBandbyte – Daily TODO
-
-This file is a living checklist of what’s next.  
-Keep it short, update often, and tick off what’s done. ✅  
-
----
+# iBand TODOs
 
 ## Backend
-- [ ] Fix Prettier/ESLint errors (`npm run lint:fix`)
-- [ ] Add more admin tools (reset DB, export, etc.)
-- [ ] Security pass: validate inputs & sanitize user content
+- [ ] Artist/votes/comments/admin routes + tests.
+- [ ] Portfolio models (models/influencers): photos, reels, metadata.
+- [ ] Fashion items: product tagging schema (item id, brand, size/color, price, affiliate link).
+- [ ] “Buy the Look” API: resolve tags → product cards; track clicks/sales.
+- [ ] Safety: panic button endpoints, moderation queue, audit logging.
+- [ ] Regional compliance toggles (content, ads, commerce).
 
 ## Frontend
-- [ ] Confirm VITE_API_URL is loaded from `.env`
-- [ ] Add UI feedback for failed API requests
-- [ ] Prep design for artist detail pages
+- [ ] Connect API via `VITE_API_URL`; env management.
+- [ ] Artist list + dedupe + search; voting UI; comments.
+- [ ] Portfolios UI (grid, reel, measurements, brand badges).
+- [ ] Fashion overlay: tag hotspots on video; product card drawer; checkout deeplinks.
+- [ ] Dance/Studio multi-view; voting; replays; cast-to-TV.
+- [ ] Slogan surfacing (“It’s Always Your Choice”) in genre picker + onboarding.
 
-## Infra / Docs
-- [ ] Set up Render auto-deploys (backend)
-- [ ] Set up Vercel auto-deploys (frontend)
-- [ ] Add CONTRIBUTING.md (basic dev guide)
+## Fashion Module
+- [ ] Affiliate integrations; brand “drop” scheduler; promo banners.
+- [ ] AI shopping assistant in live streams (sizes/colors/alternatives).
+- [ ] Admin: tag moderation, brand approval, revenue dashboard.
 
----
+## AI/Discovery
+- [ ] Cultural/linguistic detection → English/global/local genre routing.
+- [ ] Personalized recs by fan mix (& allow English-only mode).
+- [ ] Safety classifiers for content/commerce abuse.
 
-## Done ✅
-- [x] Added `BUILD_PLAN.md`
-- [x] Added `.gitignore` rules
-- [x] Initial CI tests running
+## Docs
+- [ ] Pitch Deck updated with Fashion & Portfolios. ✅
+- [ ] Storyboard (MD/JSON) updated with Fashion slide. ✅
+- [ ] Build Plan expanded with commerce + genre choice. ✅
