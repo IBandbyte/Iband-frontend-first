@@ -1,128 +1,116 @@
-# 🎤 iBand Investor Pitch Deck
+# iBand Pitch Deck
 
 ---
 
-## 1. Cover
-**iBandbyte**  
-**Tagline:** *Get Signed / Connect*  
-*Powered by Fans. A Platform for Artists and Influencers.*  
+## Slide 1: Vision
+**iBand — The Universal Creative Economy Platform**  
+Where music, dance, acting, modeling, gaming, fashion, and influencers converge.  
+**Tagline (artists):** Get Signed / Connect  
+**Tagline (fans):** It’s Always Your Choice  
+**Powered by Fans. A Platform for Artists and Influencers.**
 
 ---
 
-## 2. Problem
-🎤 Talented creators (musicians, dancers, actors, cosplayers, DJs) struggle to:  
-- Break into the industry.  
-- Get noticed by labels, venues, or agencies.  
-- Earn fair monetization.  
-- Stay safe online (abuse, exploitation, scams).  
-
-🎟 Fans struggle to:  
-- Participate directly in artist discovery.  
-- Enjoy interactive, immersive content (beyond TikTok/Spotify/YouTube).  
-- Support creators meaningfully.  
+## Slide 2: Problem
+- Fragmented industries: musicians on Spotify, dancers on TikTok, models on Instagram, actors on YouTube.  
+- Scouts, labels, agencies, and brands waste time on scattered portfolios and slow auditions.  
+- Fans lack a central hub that’s interactive across creative fields.
 
 ---
 
-## 3. Solution: iBand
-A **Universal Creative Hub** for:  
-- **Music** 🎶 — unsigned artists, bands, DJs, collabs, streaming.  
-- **Dance** 💃 — Wii-style competitions, livestream parties, voting, trends.  
-- **Acting/Theatre** 🎭 — AI coach, autocue, casting pipeline.  
-- **Cosplay/Anime** 👘 — live contests, fan-voted shows.  
-- **Fans** 👥 — direct engagement, voting, commenting, gifting.  
-- **Venues/Clubs** 🏟 — ticketed events, live-stream showcases.  
-
-*One platform where talent gets discovered, fans participate, and everyone monetizes.*  
+## Slide 3: Solution
+- One global platform where creators **showcase, stream, collab, compete, and monetize**.  
+- Fans **vote, comment, gift, and boost** visibility in real time.  
+- **Labels, modeling agencies, casting directors, brands** explore an **unrivalled talent pool** — **no scheduling, no delays**, instant side-by-side comparison.  
 
 ---
 
-## 4. Product Demo Flow
-**Studio Mode (Rehearsals/Collabs)**  
-- Artists rehearse privately or stream publicly.  
-- Bands collab online (like Zoom for music).  
-- DJs mix live sets with fans watching.  
-
-**Dance Party Mode (Interactive Wii-style)**  
-- One vs one, team vs team, or global comps.  
-- Real-time voting + live reactions.  
-- Smart TV + webcam support.  
-- Winner reveal: *“SLAYED IT!”* with animated avatars.  
-
-**Acting & Cosplay Mode**  
-- AI tools to practice scripts & accents.  
-- Fan-voted cosplay contests.  
-- Casting directors scout talent directly.  
+## Slide 4: Global Reach
+- Available worldwide in **all languages** with **English as the common global language**.  
+- Genres and sounds are **grouped into global + country-specific categories** (e.g., Latin, K-Pop, Afrobeats, Flamenco).  
+- Fans are **not bound** to local categories:  
+  - Mix & match across **global, English-only, or local** genres.  
+- **Fan slogan:** *It’s Always Your Choice.*  
+- Culturally aware recommendations connect fans to local + international talent.
 
 ---
 
-## 5. Engagement Ecosystem
-- Live comments, emojis, memes, GIFs.  
-- Split-screen collabs (up to 4 teams).  
-- Fans switch views or replay performances.  
-- Panic Button 🔴 for abuse → alerts moderators / police (safety first).  
+## Slide 5: Core Use Cases
+1) **Music Artists/Bands/DJs** — Upload tracks, rehearse, live stream shows.  
+2) **Dancers** — Wii/Kinect-style competitions, live voting, replays.  
+3) **Actors** — AI coach, autocue, scene rehearsals, casting pipeline.  
+4) **Influencers** — Short-form feed, collabs, templates, effects.
 
 ---
 
-## 6. Monetization Strategy
-**Free Users** → Explore, watch, vote.  
-**Fan Packs** → Stickers, boosts, VIP voting.  
-**Creators Pro** → Uploads, collab rooms, analytics.  
-**Venues/Clubs** → Ads, ticketed events, showcase slots.  
-**App Store Hub** → Partner extensions & in-house apps.  
-**Ads Marketplace** → TikTok-style ads, brand collabs, venue promos.  
+## Slide 5a: Models & Influencers (Portfolios)
+- **Catwalk models**: portfolios + walk-throughs (video).  
+- **Instagram/digital models**: reels + lifestyle grids + measurements/brands.  
+- **Agencies & brands**: unrivalled global access; **save interview bookings**, **no waiting for portfolios**, **large side-by-side comparisons**.
 
 ---
 
-## 7. Market Opportunity
-- Global creator economy = $250B+ by 2030.  
-- Music + Dance + Acting + Anime/Cosplay combined = untapped crossover.  
-- No single platform unites all creative verticals.  
-- Fans want **participation, not just passive viewing**.  
+## Slide 5b: Fashion & Lifestyle (NEW)
+- **Clothes, trainers, jewelry** integrated into performances, streams, and posts.  
+- **Tag what you wear** → “Buy the Look” overlay during live streams and replays.  
+- **Drops & collabs**: exclusive brand launches, limited editions, artist merch.  
+- **AI shopping assistant**: “Like this jacket? Show other colors/sizes.”  
+- Monetization: **affiliate %**, **sponsored drops**, **virtual try-ons**, **artist merch**.
 
 ---
 
-## 8. Competitive Landscape
-- TikTok → Short videos, limited monetization.  
-- Spotify → Streaming only, no fan interaction.  
-- YouTube → Discovery, but too broad.  
-- Twitch → Live, but gamer-first.  
-- **iBand** → Combines all + adds direct artist-to-label scouting + fan voting + multi-vertical reach.  
+## Slide 6: Engagement Flywheel
+- Fans fuel discovery → voting & engagement rank talent.  
+- Agencies/labels/brands scout top performers directly.  
+- Creators earn: subs, tickets, tips, ads, merch, affiliate.  
+- More fans join because their **choice matters**.
 
 ---
 
-## 9. Traction / Early Build
-- Functional backend + frontend live.  
-- Admin tools integrated.  
-- Dance/Studio modes specced.  
-- Security-first design.  
-- Growing community interest.  
+## Slide 7: Revenue Streams
+- **Subscriptions**: Power users, Pro creators/studios.  
+- **Live events**: PPV concerts, dance battles, studio battles.  
+- **Ads & Sponsorships**: TikTok-style + venue promos.  
+- **Marketplace**: effects/templates/apps; **Fashion & Lifestyle** affiliate + drops.  
+- **Finder’s Fees**: label/agency deals.
 
 ---
 
-## 10. Roadmap
-**Phase 1:** Music & Dance (live streaming, collabs, voting).  
-**Phase 2:** Acting, Anime, Cosplay (AI tools, contests, casting).  
-**Phase 3:** Monetization Marketplace (ads, app store, extensions).  
-**Phase 4:** Global Expansion (multi-language, regional compliance).  
+## Slide 8: Competitive Advantage
+- TikTok = entertainment; Spotify = music; Twitch = streaming; Instagram = visuals.  
+- **iBand** = **cross-industry talent + fan voting + agency/brand scouting + commerce in one**.
 
 ---
 
-## 11. Ethics & Safety
-- **Anti-exploitation guarantee** (panic button, cyber policing).  
-- Global moderation pipeline.  
-- Country-by-country compliance (laws, content rules).  
-- Zero tolerance for abuse & forced exploitation.  
+## Slide 9: Traction
+- Backend (Express/Mongo) + Frontend (Vite/Vercel) live; admin tools active.  
+- Artist list, voting, comments, cleanup scripts built.  
+- Specs ready: **Dance Mode**, **Studio Mode**, **Portfolios**, **Fashion tags**.
 
 ---
 
-## 12. Ask
-💰 Seeking **$3M seed / $10M Series A** for:  
-- Tech scaling (AI, live streaming infra).  
-- Creator acquisition & marketing.  
-- Partnerships with venues, labels, anime studios.  
+## Slide 10: Roadmap
+- **Phase 1:** Music/Dance core + voting + portfolios.  
+- **Phase 2:** Studio collabs + battles + Fashion tags + “Buy the Look”.  
+- **Phase 3:** Monetization (ads, subs, marketplace, affiliate) + brand partnerships.  
+- **Phase 4:** Global scale, multi-language, regional compliance, TV apps.
 
 ---
 
-## 13. Vision
-*iBand becomes the universal creative hub —  
-where fans don’t just watch, they decide who rises.*  
+## Slide 11: Ethics & Safety
+- Panic Button, incident response, police escalation pathways.  
+- Moderation + anti-exploitation enforcement.  
+- Country-by-country compliance (content rules, payments, data).
+
+---
+
+## Slide 12: Ask
+- **$2–3M seed**: live streaming infra, AI tooling, creator acquisition, brand/agency partnerships.  
+- Path to **$10M+ acquisition** (ByteDance, Meta, Spotify, UTA, fashion marketplaces).
+
+---
+
+## Slide 13: Closing
+**iBand — Get Signed / Connect.**  
+**For fans:** *It’s Always Your Choice.*  
+**Borderless, multilingual, culture-aware talent discovery with commerce built in.**
