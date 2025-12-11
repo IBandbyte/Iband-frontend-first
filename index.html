@@ -1,97 +1,12 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>iBandbyte — Admin Cleanup</title>
-  <style>
-    :root{
-      --byte:#FFB100;
-    }
-    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:#111;color:#fff;margin:0;padding:24px}
-    header{display:flex;align-items:center;gap:12px;margin-bottom:16px}
-    .brand{font-weight:900;font-size:28px}
-    .brand .iband{color:#fff}
-    .brand .byte{color:var(--byte)}
-    .card{background:#161616;border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:16px;margin:12px 0}
-    .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
-    input,button{font-size:16px}
-    input{flex:1;min-width:240px;padding:10px 12px;border-radius:10px;border:none;background:#222;color:#fff}
-    button{padding:10px 14px;border:none;border-radius:10px;color:#fff;background:linear-gradient(90deg,#6a11cb,#ff6600);cursor:pointer}
-    button:disabled{opacity:.6;cursor:not-allowed}
-    pre{background:#0e0e0e;border-radius:10px;padding:12px;overflow:auto}
-    .hint{color:#bbb;font-size:14px;margin-top:6px}
-    .ok{color:#9ef59e}
-    .err{color:#ffb4b4}
-    a{color:#FFB100}
-  </style>
-</head>
-<body>
-  <header>
-    <div class="brand"><span class="iband">iBand</span><span class="byte">byte</span> — Admin Tools</div>
-  </header>
-
-  <section class="card">
-    <h2>Cleanup duplicates & bad names</h2>
-    <p class="hint">
-      This calls your backend <code>POST /admin/cleanup</code> with your admin key.
-    </p>
-    <div class="row" style="margin-top:8px">
-      <input id="url" type="text" value="https://iband-backend-first-2.onrender.com/admin/cleanup" />
-      <input id="key" type="password" placeholder="x-admin-key" value="mysecret123" />
-      <button id="runBtn">Run cleanup</button>
-    </div>
-    <div id="status" class="hint" style="margin-top:8px"></div>
-    <pre id="out" aria-live="polite"></pre>
-  </section>
-
-  <section class="card">
-    <h2>Quick links</h2>
-    <p>
-      • Health: <a href="https://iband-backend-first-2.onrender.com/health" target="_blank">/health</a><br/>
-      • Artists JSON: <a href="https://iband-backend-first-2.onrender.com/artists" target="_blank">/artists</a>
-    </p>
-  </section>
-
-  <script>
-    const $ = s => document.querySelector(s);
-    const btn = $("#runBtn");
-    const out = $("#out");
-    const status = $("#status");
-
-    async function runCleanup(){
-      const url = $("#url").value.trim();
-      const key = $("#key").value.trim();
-
-      out.textContent = "";
-      status.textContent = "";
-      if(!url){ status.innerHTML = '<span class="err">Missing URL</span>'; return; }
-      if(!key){ status.innerHTML = '<span class="err">Missing x-admin-key</span>'; return; }
-
-      btn.disabled = true;
-      status.textContent = "Running…";
-
-      try{
-        const res = await fetch(url, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "x-admin-key": key
-          },
-          body: "{}"
-        });
-        const text = await res.text();
-        status.innerHTML = res.ok ? '<span class="ok">Done ✓</span>' : `<span class="err">HTTP ${res.status}</span>`;
-        try { out.textContent = JSON.stringify(JSON.parse(text), null, 2); }
-        catch { out.textContent = text; }
-      }catch(err){
-        status.innerHTML = `<span class="err">Error: ${err.message}</span>`;
-      }finally{
-        btn.disabled = false;
-      }
-    }
-
-    btn.addEventListener("click", runCleanup);
-  </script>
-</body>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>iBandbyte – Discover New Artists</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
 </html>
