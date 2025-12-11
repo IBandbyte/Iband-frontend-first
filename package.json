@@ -1,21 +1,19 @@
 {
-  "name": "iband-frontend",
+  "name": "iband-frontend-first",
   "version": "1.0.0",
   "private": true,
+  "description": "iBandbyte frontend – React + Vite app connected to the iBand backend API.",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview",
-    "lint": "eslint . --ext .js,.jsx,.ts,.tsx",
-    "format": "prettier --write ."
+    "preview": "vite preview"
   },
   "dependencies": {
-    "axios": "^1.6.0"
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
   },
   "devDependencies": {
-    "vite": "^5.0.0",
-    "eslint": "^8.55.0",
-    "prettier": "^3.1.0",
-    "@vitejs/plugin-react": "^4.0.0"
+    "@vitejs/plugin-react-swc": "^3.7.0",
+    "vite": "^6.0.0"
   }
 }
