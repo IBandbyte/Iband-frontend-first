@@ -1,314 +1,382 @@
 import React, { useEffect, useMemo, useState } from "react";
-import * as api from "./services/api";
+import { api, apiFetch, API_BASE } from "./services/api";
 
-const DEFAULT_BASE =
-  (import.meta && import.meta.env && import.meta.env.VITE_API_BASE_URL) ||
-  "https://iband-backend-first-1.onrender.com";
-
-async function tryFetchJson(url, options) {
-  const res = await fetch(url, options);
-  const text = await res.text();
-  let data = null;
-  try {
-    data = text ? JSON.parse(text) : null;
-  } catch {
-    data = text;
-  }
-  return { ok: res.ok, status: res.status, data };
-}
-
-async function fallbackHealth(base) {
-  return tryFetchJson(`${base.replace(/\/$/, "")}/health`);
-}
-
-async function fallbackArtists(base) {
-  const clean = base.replace(/\/$/, "");
-  // Try the most likely routes in order
-  const candidates = [
-    `${clean}/api/artists`,
-    `${clean}/artists`,
-    `${clean}/api/artists?source=fake`,
-    `${clean}/artists?source=fake`,
-  ];
-
-  let last = null;
-  for (const url of candidates) {
-    last = await tryFetchJson(url);
-    if (last.ok) return last;
-  }
-  return last || { ok: false, status: 0, data: null };
-}
-
-async function fallbackVote(base, artistId) {
-  const clean = base.replace(/\/$/, "");
-  const candidates = [
-    { url: `${clean}/api/votes`, body: { artistId } },
-    { url: `${clean}/votes`, body: { artistId } },
-    { url: `${clean}/api/votes/${encodeURIComponent(artistId)}`, body: {} },
-    { url: `${clean}/votes/${encodeURIComponent(artistId)}`, body: {} },
-  ];
-
-  let last = null;
-  for (const c of candidates) {
-    last = await tryFetchJson(c.url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(c.body),
-    });
-    if (last.ok) return last;
-  }
-  return last || { ok: false, status: 0, data: null };
-}
-
-function normalizeArtistsPayload(payload) {
-  if (!payload) return [];
-  if (Array.isArray(payload)) return payload;
-
-  // common shapes:
-  // { success:true, artists:[...] }
-  // { items:[...] }
-  // { data:[...] }
-  const candidates = [payload.artists, payload.items, payload.data];
-  for (const c of candidates) {
-    if (Array.isArray(c)) return c;
-  }
-  return [];
-}
-
-function safeArtistId(a, idx) {
-  return (
-    a?.id ||
-    a?._id ||
-    a?.artistId ||
-    a?.slug ||
-    a?.name ||
-    `artist-${idx + 1}`
-  );
-}
-
-function safeName(a, idx) {
-  return a?.name || a?.artistName || a?.title || `Artist ${idx + 1}`;
-}
-
-function safeGenre(a) {
-  return a?.genre || a?.category || a?.style || "";
-}
-
-function safeVotes(a) {
-  const v =
-    a?.votes ??
-    a?.voteCount ??
-    a?.totalVotes ??
-    a?.stats?.votes ??
-    a?.voteTotal;
-  return typeof v === "number" ? v : null;
-}
+/**
+ * iBandbyte — Phase 1 Frontend Rebuild
+ * - Live health check
+ * - Live artists feed
+ * - Vote + Comments (with graceful fallback if endpoints differ)
+ */
 
 export default function App() {
-  const [baseUrl, setBaseUrl] = useState(DEFAULT_BASE);
-  const [health, setHealth] = useState(null);
-  const [artists, setArtists] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [votingId, setVotingId] = useState(null);
-  const [error, setError] = useState("");
+  const [health, setHealth] = useState({ loading: true, ok: false, data: null, err: null });
+  const [artists, setArtists] = useState({ loading: true, items: [], err: null });
+  const [selectedId, setSelectedId] = useState(null);
 
-  const cleanBase = useMemo(() => baseUrl.trim().replace(/\/$/, ""), [baseUrl]);
+  const [voteState, setVoteState] = useState({ loading: false, err: null, last: null });
 
-  async function loadAll() {
-    setError("");
-    setLoading(true);
+  const [comments, setComments] = useState({ loading: false, items: [], err: null });
+  const [commentForm, setCommentForm] = useState({ name: "", text: "" });
+  const [commentPost, setCommentPost] = useState({ loading: false, err: null, last: null });
 
+  const selectedArtist = useMemo(() => {
+    return artists.items.find((a) => String(a.id) === String(selectedId)) || null;
+  }, [artists.items, selectedId]);
+
+  async function loadHealth() {
+    setHealth({ loading: true, ok: false, data: null, err: null });
     try {
-      // HEALTH (prefer api.js if it has a function, otherwise fallback)
-      let healthRes = null;
-      if (typeof api.getHealth === "function") {
-        healthRes = await api.getHealth(cleanBase);
-      } else if (typeof api.health === "function") {
-        healthRes = await api.health(cleanBase);
-      } else {
-        healthRes = await fallbackHealth(cleanBase);
-      }
-
-      setHealth(healthRes);
-
-      // ARTISTS
-      let artistsRes = null;
-      if (typeof api.listArtists === "function") {
-        artistsRes = await api.listArtists(cleanBase);
-      } else if (typeof api.getArtists === "function") {
-        artistsRes = await api.getArtists(cleanBase);
-      } else {
-        artistsRes = await fallbackArtists(cleanBase);
-      }
-
-      if (!artistsRes?.ok) {
-        throw new Error(
-          `Artists fetch failed (HTTP ${artistsRes?.status ?? "?"}).`
-        );
-      }
-
-      const list = normalizeArtistsPayload(artistsRes.data);
-      setArtists(list);
+      const data = await api.health();
+      setHealth({ loading: false, ok: true, data, err: null });
     } catch (e) {
-      setError(e?.message || "Unknown error");
-    } finally {
-      setLoading(false);
+      setHealth({ loading: false, ok: false, data: null, err: e?.message || "Health check failed" });
     }
   }
 
-  async function voteFor(artist) {
-    const id = safeArtistId(artist, 0);
-    setError("");
-    setVotingId(id);
-
+  async function loadArtists() {
+    setArtists((p) => ({ ...p, loading: true, err: null }));
     try {
-      let voteRes = null;
+      // Preferred (your backend currently exposes /artists)
+      let data = await api.listArtists();
 
-      if (typeof api.voteForArtist === "function") {
-        voteRes = await api.voteForArtist(cleanBase, id);
-      } else if (typeof api.vote === "function") {
-        voteRes = await api.vote(cleanBase, id);
-      } else {
-        voteRes = await fallbackVote(cleanBase, id);
+      // If backend returns {items:[...]} normalize; if it returns array, normalize
+      let items = Array.isArray(data) ? data : data?.items || data?.artists || [];
+
+      // Fallback if someone uses /api/artists instead
+      if (!items?.length) {
+        try {
+          const alt = await apiFetch("/api/artists");
+          items = Array.isArray(alt) ? alt : alt?.items || alt?.artists || items;
+        } catch {
+          // ignore fallback failure
+        }
       }
 
-      if (!voteRes?.ok) {
-        throw new Error(`Vote failed (HTTP ${voteRes?.status ?? "?"}).`);
-      }
+      // Ensure each artist has an id
+      items = (items || []).map((a, idx) => ({
+        id: a?.id ?? a?._id ?? a?.slug ?? idx,
+        name: a?.name ?? a?.artistName ?? "Unknown Artist",
+        genre: a?.genre ?? a?.category ?? "Unknown",
+        imageUrl: a?.imageUrl ?? a?.image ?? a?.photo ?? "",
+        votes: a?.votes ?? a?.voteCount ?? a?.totalVotes ?? 0,
+        ...a,
+      }));
 
-      // Reload artists to show updated totals (simple + reliable)
-      await loadAll();
+      setArtists({ loading: false, items, err: null });
+
+      // Auto-select first artist if none selected
+      if (!selectedId && items.length) setSelectedId(String(items[0].id));
     } catch (e) {
-      setError(e?.message || "Vote error");
-    } finally {
-      setVotingId(null);
+      setArtists({ loading: false, items: [], err: e?.message || "Failed to load artists" });
+    }
+  }
+
+  async function runVote(artistId) {
+    setVoteState({ loading: true, err: null, last: null });
+    try {
+      // Try common vote patterns
+      let out = null;
+      try {
+        out = await api.vote(artistId); // POST /votes {artistId}
+      } catch (e1) {
+        // fallback A: /api/votes
+        try {
+          out = await apiFetch("/api/votes", { method: "POST", body: { artistId } });
+        } catch (e2) {
+          // fallback B: /artists/:id/vote
+          out = await apiFetch(`/artists/${encodeURIComponent(artistId)}/vote`, {
+            method: "POST",
+            body: {},
+          });
+        }
+      }
+
+      setVoteState({ loading: false, err: null, last: out });
+
+      // Refresh artists to update totals
+      await loadArtists();
+    } catch (e) {
+      setVoteState({ loading: false, err: e?.message || "Vote failed", last: null });
+    }
+  }
+
+  async function loadComments(artistId) {
+    if (!artistId) return;
+    setComments({ loading: true, items: [], err: null });
+    try {
+      // Preferred: GET /comments?artistId=...
+      let data = null;
+      try {
+        data = await api.listComments(artistId);
+      } catch (e1) {
+        // fallback A: /api/comments?artistId=...
+        try {
+          data = await apiFetch(`/api/comments?artistId=${encodeURIComponent(artistId)}`);
+        } catch (e2) {
+          // fallback B: /artists/:id/comments
+          data = await apiFetch(`/artists/${encodeURIComponent(artistId)}/comments`);
+        }
+      }
+
+      let items = Array.isArray(data) ? data : data?.items || data?.comments || [];
+      items = (items || []).map((c, idx) => ({
+        id: c?.id ?? c?._id ?? idx,
+        name: c?.name ?? c?.author ?? "Fan",
+        text: c?.text ?? c?.comment ?? "",
+        createdAt: c?.createdAt ?? c?.created_at ?? null,
+        ...c,
+      }));
+
+      setComments({ loading: false, items, err: null });
+    } catch (e) {
+      setComments({ loading: false, items: [], err: e?.message || "Failed to load comments" });
+    }
+  }
+
+  async function postComment() {
+    if (!selectedArtist) return;
+
+    const name = (commentForm.name || "").trim();
+    const text = (commentForm.text || "").trim();
+
+    if (!name || !text) {
+      setCommentPost({ loading: false, err: "Name and comment are required", last: null });
+      return;
+    }
+
+    setCommentPost({ loading: true, err: null, last: null });
+    try {
+      let out = null;
+
+      // Preferred: POST /comments {artistId,name,text}
+      try {
+        out = await api.addComment({ artistId: selectedArtist.id, name, text });
+      } catch (e1) {
+        // fallback A: /api/comments
+        try {
+          out = await apiFetch("/api/comments", {
+            method: "POST",
+            body: { artistId: selectedArtist.id, name, text },
+          });
+        } catch (e2) {
+          // fallback B: /artists/:id/comments
+          out = await apiFetch(`/artists/${encodeURIComponent(selectedArtist.id)}/comments`, {
+            method: "POST",
+            body: { name, text },
+          });
+        }
+      }
+
+      setCommentPost({ loading: false, err: null, last: out });
+      setCommentForm({ name: "", text: "" });
+      await loadComments(selectedArtist.id);
+    } catch (e) {
+      setCommentPost({ loading: false, err: e?.message || "Failed to post comment", last: null });
     }
   }
 
   useEffect(() => {
-    loadAll();
+    loadHealth();
+    loadArtists();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const isLive = Boolean(health?.ok);
+  useEffect(() => {
+    if (selectedId) loadComments(selectedId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedId]);
 
   return (
     <div style={styles.page}>
       <header style={styles.header}>
-        <div style={styles.brand}>
-          <span style={styles.iband}>iBand</span>
-          <span style={styles.byte}>byte</span>
+        <div style={styles.brandRow}>
+          <div style={styles.logoDot} aria-hidden />
+          <div style={styles.brandText}>
+            <span style={{ color: "#fff", fontWeight: 900 }}>iBand</span>
+            <span style={{ color: "#FFB100", fontWeight: 900 }}>byte</span>
+          </div>
         </div>
 
-        <div style={styles.statusRow}>
-          <span style={{ ...styles.pill, ...(isLive ? styles.ok : styles.warn) }}>
-            {isLive ? "Backend: LIVE" : "Backend: ?"}
-          </span>
-          {health?.status ? (
-            <span style={styles.pill}>HTTP {health.status}</span>
-          ) : null}
+        <div style={styles.subTitle}>Phase 1 — Frontend ↔ Backend Connection</div>
+
+        <div style={styles.topBar}>
+          <div style={styles.pill}>
+            <span style={{ opacity: 0.8 }}>API:</span>{" "}
+            <code style={styles.code}>{API_BASE}</code>
+          </div>
+
+          <button style={styles.btn} onClick={() => { loadHealth(); loadArtists(); }}>
+            Refresh
+          </button>
         </div>
       </header>
 
-      <section style={styles.card}>
-        <h2 style={styles.h2}>Connection</h2>
-
-        <div style={styles.row}>
-          <input
-            value={baseUrl}
-            onChange={(e) => setBaseUrl(e.target.value)}
-            placeholder="Backend base URL (Render)"
-            style={styles.input}
-            spellCheck={false}
-          />
-          <button
-            onClick={loadAll}
-            disabled={loading}
-            style={{ ...styles.btn, ...(loading ? styles.btnDisabled : null) }}
-          >
-            {loading ? "Loading…" : "Reload"}
-          </button>
-        </div>
-
-        <p style={styles.hint}>
-          Tip: use your Render URL, e.g.{" "}
-          <code style={styles.code}>{DEFAULT_BASE}</code>
-        </p>
-
-        {error ? <div style={styles.errBox}>⚠️ {error}</div> : null}
-
-        <details style={{ marginTop: 10 }}>
-          <summary style={styles.summary}>Debug payloads</summary>
-          <pre style={styles.pre}>
-            {JSON.stringify(
-              {
-                baseUrl: cleanBase,
-                health,
-                artistsCount: artists.length,
-              },
-              null,
-              2
-            )}
-          </pre>
-        </details>
-      </section>
-
-      <section style={styles.card}>
-        <h2 style={styles.h2}>Live Artist Feed</h2>
-
-        {loading && artists.length === 0 ? (
-          <div style={styles.hint}>Loading artists…</div>
-        ) : null}
-
-        {artists.length === 0 && !loading ? (
-          <div style={styles.hint}>
-            No artists yet. This is OK — we’ll seed/submit next.
-          </div>
-        ) : null}
+      <main style={styles.main}>
+        {/* HEALTH */}
+        <section style={styles.card}>
+          <h2 style={styles.h2}>Backend status</h2>
+          {health.loading ? (
+            <div style={styles.muted}>Checking /health…</div>
+          ) : health.ok ? (
+            <div style={{ ...styles.muted, color: "#9ef59e" }}>
+              Live ✓ {health.data ? "— " + stringifyOneLine(health.data) : ""}
+            </div>
+          ) : (
+            <div style={{ ...styles.muted, color: "#ffb4b4" }}>
+              Offline / error: {health.err}
+            </div>
+          )}
+        </section>
 
         <div style={styles.grid}>
-          {artists.map((a, idx) => {
-            const id = safeArtistId(a, idx);
-            const name = safeName(a, idx);
-            const genre = safeGenre(a);
-            const votes = safeVotes(a);
+          {/* ARTISTS */}
+          <section style={styles.card}>
+            <div style={styles.rowBetween}>
+              <h2 style={styles.h2}>Artists</h2>
+              <button style={styles.btnGhost} onClick={loadArtists} disabled={artists.loading}>
+                {artists.loading ? "Loading…" : "Reload"}
+              </button>
+            </div>
 
-            return (
-              <div key={id} style={styles.artistCard}>
-                <div style={styles.artistTop}>
-                  <div style={styles.artistName}>{name}</div>
-                  {genre ? <div style={styles.genre}>{genre}</div> : null}
-                </div>
+            {artists.err ? (
+              <div style={{ ...styles.muted, color: "#ffb4b4" }}>{artists.err}</div>
+            ) : null}
 
-                <div style={styles.artistMeta}>
-                  <div style={styles.metaLine}>
-                    <span style={styles.metaLabel}>ID:</span>{" "}
-                    <code style={styles.codeSmall}>{id}</code>
-                  </div>
-                  <div style={styles.metaLine}>
-                    <span style={styles.metaLabel}>Votes:</span>{" "}
-                    <strong>{votes ?? "—"}</strong>
-                  </div>
-                </div>
-
-                <button
-                  onClick={() => voteFor(a)}
-                  disabled={votingId === id || loading}
-                  style={{
-                    ...styles.voteBtn,
-                    ...(votingId === id || loading ? styles.btnDisabled : null),
-                  }}
-                >
-                  {votingId === id ? "Voting…" : "Vote"}
-                </button>
+            {artists.loading ? (
+              <div style={styles.muted}>Fetching artists…</div>
+            ) : artists.items.length ? (
+              <div style={styles.list}>
+                {artists.items.map((a) => {
+                  const active = String(a.id) === String(selectedId);
+                  return (
+                    <button
+                      key={String(a.id)}
+                      onClick={() => setSelectedId(String(a.id))}
+                      style={{
+                        ...styles.listItem,
+                        borderColor: active ? "rgba(255,177,0,0.8)" : "rgba(255,255,255,0.10)",
+                        background: active ? "rgba(255,177,0,0.08)" : "rgba(255,255,255,0.03)",
+                      }}
+                    >
+                      <div style={styles.artistLine}>
+                        <div style={styles.artistName}>{a.name}</div>
+                        <div style={styles.artistMeta}>
+                          <span style={styles.badge}>{a.genre}</span>
+                          <span style={styles.badge}>Votes: {Number(a.votes) || 0}</span>
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })}
               </div>
-            );
-          })}
+            ) : (
+              <div style={styles.muted}>No artists yet.</div>
+            )}
+          </section>
+
+          {/* ARTIST DETAIL */}
+          <section style={styles.card}>
+            <h2 style={styles.h2}>Artist detail</h2>
+
+            {!selectedArtist ? (
+              <div style={styles.muted}>Select an artist to see details.</div>
+            ) : (
+              <>
+                <div style={styles.detailTop}>
+                  <div>
+                    <div style={styles.detailName}>{selectedArtist.name}</div>
+                    <div style={styles.muted}>
+                      Genre: <b>{selectedArtist.genre}</b> • Votes:{" "}
+                      <b>{Number(selectedArtist.votes) || 0}</b>
+                    </div>
+                  </div>
+
+                  <button
+                    style={styles.btn}
+                    onClick={() => runVote(selectedArtist.id)}
+                    disabled={voteState.loading}
+                  >
+                    {voteState.loading ? "Voting…" : "Vote"}
+                  </button>
+                </div>
+
+                {voteState.err ? (
+                  <div style={{ ...styles.muted, color: "#ffb4b4", marginTop: 8 }}>
+                    Vote error: {voteState.err}
+                  </div>
+                ) : null}
+
+                {/* COMMENTS */}
+                <div style={{ marginTop: 14 }}>
+                  <div style={styles.rowBetween}>
+                    <h3 style={styles.h3}>Comments</h3>
+                    <button
+                      style={styles.btnGhost}
+                      onClick={() => loadComments(selectedArtist.id)}
+                      disabled={comments.loading}
+                    >
+                      {comments.loading ? "Loading…" : "Reload"}
+                    </button>
+                  </div>
+
+                  {comments.err ? (
+                    <div style={{ ...styles.muted, color: "#ffb4b4" }}>{comments.err}</div>
+                  ) : null}
+
+                  <div style={styles.commentBox}>
+                    <input
+                      style={styles.input}
+                      placeholder="Your name"
+                      value={commentForm.name}
+                      onChange={(e) => setCommentForm((p) => ({ ...p, name: e.target.value }))}
+                    />
+                    <textarea
+                      style={styles.textarea}
+                      placeholder="Write a comment…"
+                      value={commentForm.text}
+                      onChange={(e) => setCommentForm((p) => ({ ...p, text: e.target.value }))}
+                    />
+                    <button style={styles.btn} onClick={postComment} disabled={commentPost.loading}>
+                      {commentPost.loading ? "Posting…" : "Post comment"}
+                    </button>
+
+                    {commentPost.err ? (
+                      <div style={{ ...styles.muted, color: "#ffb4b4", marginTop: 8 }}>
+                        {commentPost.err}
+                      </div>
+                    ) : null}
+                  </div>
+
+                  <div style={styles.commentsList}>
+                    {comments.loading ? (
+                      <div style={styles.muted}>Loading comments…</div>
+                    ) : comments.items.length ? (
+                      comments.items.map((c) => (
+                        <div key={String(c.id)} style={styles.commentItem}>
+                          <div style={styles.commentHeader}>
+                            <b>{c.name}</b>
+                            {c.createdAt ? (
+                              <span style={styles.commentTime}>
+                                {formatDate(c.createdAt)}
+                              </span>
+                            ) : null}
+                          </div>
+                          <div style={styles.commentText}>{c.text}</div>
+                        </div>
+                      ))
+                    ) : (
+                      <div style={styles.muted}>No comments yet.</div>
+                    )}
+                  </div>
+                </div>
+              </>
+            )}
+          </section>
         </div>
-      </section>
+      </main>
 
       <footer style={styles.footer}>
-        <div style={styles.footerText}>
+        <div style={styles.muted}>
           Powered by Fans. A Platform for Artists and Influencers.
         </div>
       </footer>
@@ -316,131 +384,156 @@ export default function App() {
   );
 }
 
+function stringifyOneLine(obj) {
+  try {
+    return JSON.stringify(obj);
+  } catch {
+    return String(obj);
+  }
+}
+
+function formatDate(v) {
+  try {
+    const d = new Date(v);
+    if (Number.isNaN(d.getTime())) return String(v);
+    return d.toLocaleString();
+  } catch {
+    return String(v);
+  }
+}
+
 const styles = {
   page: {
     minHeight: "100vh",
     background: "#0b0b0f",
     color: "#fff",
-    padding: 18,
-    fontFamily:
-      "system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif",
+    fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif",
   },
   header: {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 12,
-    marginBottom: 14,
-    flexWrap: "wrap",
+    padding: "18px 16px 12px",
+    borderBottom: "1px solid rgba(255,255,255,0.08)",
+    background:
+      "radial-gradient(1200px 400px at 30% 0%, rgba(106,17,203,0.30), transparent), radial-gradient(1200px 400px at 80% 0%, rgba(255,102,0,0.25), transparent)",
   },
-  brand: { fontSize: 28, fontWeight: 900, letterSpacing: 0.2 },
-  iband: { color: "#fff" },
-  byte: { color: "#FFB100" },
-  statusRow: { display: "flex", gap: 8, alignItems: "center" },
-  pill: {
-    fontSize: 12,
-    padding: "6px 10px",
+  brandRow: { display: "flex", alignItems: "center", gap: 10 },
+  logoDot: {
+    width: 34,
+    height: 34,
     borderRadius: 999,
-    border: "1px solid rgba(255,255,255,.14)",
-    background: "rgba(255,255,255,.06)",
+    background: "linear-gradient(135deg, #6a11cb, #ff6600)",
+    boxShadow: "0 0 0 2px rgba(255,255,255,0.10) inset",
   },
-  ok: { borderColor: "rgba(120,255,120,.35)" },
-  warn: { borderColor: "rgba(255,200,120,.35)" },
+  brandText: { fontSize: 26, letterSpacing: 0.2 },
+  subTitle: { marginTop: 6, opacity: 0.8, fontSize: 13 },
+  topBar: { marginTop: 12, display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" },
+  pill: {
+    padding: "8px 10px",
+    borderRadius: 999,
+    border: "1px solid rgba(255,255,255,0.10)",
+    background: "rgba(255,255,255,0.03)",
+    fontSize: 13,
+  },
+  code: { fontSize: 12, opacity: 0.9 },
+  main: { padding: 16, maxWidth: 1100, margin: "0 auto" },
   card: {
-    background: "#12121a",
-    border: "1px solid rgba(255,255,255,.10)",
-    borderRadius: 16,
+    background: "rgba(255,255,255,0.03)",
+    border: "1px solid rgba(255,255,255,0.10)",
+    borderRadius: 14,
     padding: 14,
-    marginBottom: 14,
+    marginBottom: 12,
   },
-  h2: { margin: "0 0 10px 0", fontSize: 18 },
-  row: { display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" },
-  input: {
-    flex: 1,
-    minWidth: 240,
-    padding: "10px 12px",
-    borderRadius: 12,
-    border: "1px solid rgba(255,255,255,.14)",
-    background: "#0e0e16",
-    color: "#fff",
-    outline: "none",
-  },
+  h2: { margin: "0 0 10px", fontSize: 18 },
+  h3: { margin: "0 0 10px", fontSize: 16 },
+  muted: { opacity: 0.75, fontSize: 13 },
+  grid: { display: "grid", gridTemplateColumns: "1fr", gap: 12 },
+  rowBetween: { display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 },
   btn: {
     padding: "10px 14px",
     borderRadius: 12,
     border: "none",
-    color: "#fff",
     cursor: "pointer",
-    background: "linear-gradient(90deg,#6a11cb,#ff6600)",
+    color: "#fff",
     fontWeight: 700,
-  },
-  voteBtn: {
-    marginTop: 10,
-    width: "100%",
-    padding: "10px 14px",
-    borderRadius: 12,
-    border: "none",
-    color: "#fff",
-    cursor: "pointer",
     background: "linear-gradient(90deg,#6a11cb,#ff6600)",
-    fontWeight: 800,
   },
-  btnDisabled: { opacity: 0.6, cursor: "not-allowed" },
-  hint: { marginTop: 8, color: "rgba(255,255,255,.72)", fontSize: 13 },
-  errBox: {
-    marginTop: 10,
-    padding: 10,
+  btnGhost: {
+    padding: "8px 10px",
     borderRadius: 12,
-    background: "rgba(255,70,70,.10)",
-    border: "1px solid rgba(255,70,70,.25)",
-    color: "#ffd0d0",
+    border: "1px solid rgba(255,255,255,0.14)",
+    cursor: "pointer",
+    color: "#fff",
+    background: "rgba(255,255,255,0.03)",
   },
-  summary: { cursor: "pointer", color: "rgba(255,255,255,.8)" },
-  pre: {
-    marginTop: 10,
-    background: "#0a0a10",
-    border: "1px solid rgba(255,255,255,.10)",
+  list: { display: "flex", flexDirection: "column", gap: 10, marginTop: 10 },
+  listItem: {
+    textAlign: "left",
+    padding: 12,
     borderRadius: 12,
-    padding: 12,
-    overflow: "auto",
+    border: "1px solid rgba(255,255,255,0.10)",
+    cursor: "pointer",
+    background: "rgba(255,255,255,0.03)",
+  },
+  artistLine: { display: "flex", flexDirection: "column", gap: 6 },
+  artistName: { fontWeight: 800, fontSize: 15 },
+  artistMeta: { display: "flex", gap: 8, flexWrap: "wrap" },
+  badge: {
     fontSize: 12,
-  },
-  code: {
-    background: "rgba(255,255,255,.08)",
-    padding: "2px 6px",
-    borderRadius: 8,
-  },
-  codeSmall: {
-    background: "rgba(255,255,255,.08)",
-    padding: "1px 6px",
-    borderRadius: 8,
-    fontSize: 12,
-  },
-  grid: {
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-    gap: 12,
-  },
-  artistCard: {
-    background: "#0e0e16",
-    border: "1px solid rgba(255,255,255,.10)",
-    borderRadius: 16,
-    padding: 12,
-  },
-  artistTop: { display: "flex", justifyContent: "space-between", gap: 10 },
-  artistName: { fontWeight: 900, fontSize: 16 },
-  genre: {
-    fontSize: 12,
+    opacity: 0.85,
     padding: "4px 8px",
     borderRadius: 999,
-    border: "1px solid rgba(255,255,255,.14)",
-    background: "rgba(255,255,255,.06)",
-    color: "rgba(255,255,255,.86)",
-    height: "fit-content",
+    border: "1px solid rgba(255,255,255,0.10)",
+    background: "rgba(0,0,0,0.20)",
   },
-  artistMeta: { marginTop: 8, color: "rgba(255,255,255,.85)" },
-  metaLine: { fontSize: 13, marginTop: 6 },
-  metaLabel: { color: "rgba(255,255,255,.65)" },
-  footer: { marginTop: 10, padding: 8, textAlign: "center" },
-  footerText: { color: "rgba(255,255,255,.65)", fontSize: 12 },
+  detailTop: { display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 },
+  detailName: { fontSize: 20, fontWeight: 900, marginBottom: 4 },
+  commentBox: { display: "grid", gap: 10, marginTop: 10 },
+  input: {
+    width: "100%",
+    padding: "10px 12px",
+    borderRadius: 12,
+    border: "1px solid rgba(255,255,255,0.10)",
+    background: "rgba(0,0,0,0.25)",
+    color: "#fff",
+    fontSize: 14,
+  },
+  textarea: {
+    width: "100%",
+    minHeight: 90,
+    padding: "10px 12px",
+    borderRadius: 12,
+    border: "1px solid rgba(255,255,255,0.10)",
+    background: "rgba(0,0,0,0.25)",
+    color: "#fff",
+    fontSize: 14,
+    resize: "vertical",
+  },
+  commentsList: { marginTop: 10, display: "grid", gap: 10 },
+  commentItem: {
+    padding: 10,
+    borderRadius: 12,
+    border: "1px solid rgba(255,255,255,0.10)",
+    background: "rgba(0,0,0,0.18)",
+  },
+  commentHeader: { display: "flex", justifyContent: "space-between", gap: 10, marginBottom: 6 },
+  commentTime: { opacity: 0.7, fontSize: 12 },
+  commentText: { opacity: 0.9, fontSize: 14, lineHeight: 1.35 },
+  footer: {
+    padding: "14px 16px 24px",
+    borderTop: "1px solid rgba(255,255,255,0.08)",
+    textAlign: "center",
+  },
 };
+
+// Responsive upgrade (simple)
+if (typeof window !== "undefined") {
+  const mq = window.matchMedia?.("(min-width: 980px)");
+  const apply = () => {
+    // eslint-disable-next-line no-undef
+    const root = document?.documentElement;
+    if (!root) return;
+    // we can’t mutate the styles object safely after render,
+    // but we can rely on CSS in later phases.
+  };
+  mq?.addEventListener?.("change", apply);
+  apply();
+}
