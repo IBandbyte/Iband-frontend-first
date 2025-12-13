@@ -1,11 +1,19 @@
 import React from "react";
-import ReactDOM from "react-dom/client";
+import { createRoot } from "react-dom/client";
 import App from "./App.jsx";
 
-// Use existing global CSS (from root)
-import "/style.css";
+// Global styles live at repo root (style.css)
+import "../style.css";
 
-ReactDOM.createRoot(document.getElementById("root")).render(
+const rootEl = document.getElementById("root");
+
+if (!rootEl) {
+  throw new Error(
+    "Missing #root element. Ensure your index.html contains: <div id='root'></div>"
+  );
+}
+
+createRoot(rootEl).render(
   <React.StrictMode>
     <App />
   </React.StrictMode>
