@@ -1,101 +1,54 @@
-import { useEffect, useState } from "react";
-import { api } from "./services/api";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
 
-export default function App() {
-  const [health, setHealth] = useState(null);
-  const [artists, setArtists] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-
-  async function load() {
-    setLoading(true);
-    setError("");
-    try {
-      const h = await api.health();
-      setHealth(h);
-
-      const a = await api.listArtists();
-      setArtists(a.artists || a || []);
-    } catch (err) {
-      setError(err.message || "Failed to load data");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  useEffect(() => {
-    load();
-  }, []);
-
+/**
+ * Temporary Home component
+ * (We will replace this with the real homepage later)
+ */
+function Home() {
   return (
-    <div style={styles.page}>
-      <h1 style={styles.title}>iBandbyte</h1>
-
-      {loading && <p>Loading…</p>}
-      {error && <p style={styles.error}>{error}</p>}
-
-      {health && (
-        <p style={styles.health}>
-          Backend status: <strong>ONLINE</strong>
-        </p>
-      )}
-
-      <button onClick={load} style={styles.button}>
-        Refresh
-      </button>
-
-      <ul style={styles.list}>
-        {artists.map((a) => (
-          <li key={a.id || a._id} style={styles.card}>
-            <strong>{a.name}</strong>
-            <div style={styles.meta}>{a.genre}</div>
-            <div>Votes: {a.votes ?? 0}</div>
-          </li>
-        ))}
-      </ul>
+    <div style={{ padding: "2rem", color: "#fff" }}>
+      <h1>iBandbyte</h1>
+      <p>Home route loaded successfully.</p>
     </div>
   );
 }
 
-const styles = {
-  page: {
-    padding: 24,
-    fontFamily: "system-ui, sans-serif",
-    background: "#0f0f0f",
-    minHeight: "100vh",
-    color: "#fff",
-  },
-  title: {
-    fontSize: 32,
-    marginBottom: 12,
-  },
-  health: {
-    color: "#7CFF7C",
-  },
-  error: {
-    color: "#ff7c7c",
-  },
-  button: {
-    margin: "12px 0",
-    padding: "10px 14px",
-    borderRadius: 8,
-    border: "none",
-    background: "linear-gradient(90deg,#6a11cb,#ff6600)",
-    color: "#fff",
-    cursor: "pointer",
-  },
-  list: {
-    listStyle: "none",
-    padding: 0,
-  },
-  card: {
-    background: "#161616",
-    borderRadius: 10,
-    padding: 12,
-    marginBottom: 10,
-  },
-  meta: {
-    opacity: 0.7,
-    fontSize: 14,
-  },
-};
+/**
+ * Fallback route (already working)
+ */
+function NotFound() {
+  return (
+    <div style={{ padding: "2rem", color: "#fff" }}>
+      <h1>iBandbyte</h1>
+      <p style={{ color: "#ff5a5a" }}>Route not found.</p>
+      <button
+        onClick={() => window.location.reload()}
+        style={{
+          marginTop: "1rem",
+          padding: "0.6rem 1rem",
+          borderRadius: "8px",
+          border: "none",
+          background: "linear-gradient(90deg,#7b2ff7,#f107a3)",
+          color: "#fff",
+          cursor: "pointer",
+        }}
+      >
+        Refresh
+      </button>
+    </div>
+  );
+}
+
+export default function App() {
+  return (
+    <BrowserRouter>
+      <Routes>
+        {/* ✅ Home route */}
+        <Route path="/" element={<Home />} />
+
+        {/* ❌ Catch-all */}
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+    </BrowserRouter>
+  );
+}
