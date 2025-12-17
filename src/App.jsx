@@ -2,32 +2,61 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 
 function Home() {
   return (
-    <div style={{ padding: "2rem" }}>
-      <h1>iBandbyte</h1>
-      <p>Home route loaded successfully.</p>
+    <div
+      style={{
+        minHeight: "100vh",
+        background: "#0f0f0f",
+        color: "#ffffff",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        flexDirection: "column",
+        textAlign: "center",
+        padding: "2rem",
+      }}
+    >
+      <h1
+        style={{
+          fontSize: "3rem",
+          fontWeight: "900",
+          marginBottom: "1rem",
+        }}
+      >
+        iBand<span style={{ color: "#ff7a18" }}>byte</span>
+      </h1>
+
+      <p style={{ fontSize: "1.2rem", opacity: 0.9 }}>
+        Home route loaded successfully.
+      </p>
+
+      <p style={{ marginTop: "1.5rem", fontSize: "0.9rem", opacity: 0.6 }}>
+        Powered by Fans. A Platform for Artists.
+      </p>
     </div>
   );
 }
 
 function NotFound() {
   return (
-    <div style={{ padding: "2rem" }}>
-      <h1>iBandbyte</h1>
-      <p style={{ color: "crimson" }}>Route not found.</p>
-      <button
-        onClick={() => window.location.reload()}
-        style={{
-          marginTop: "1rem",
-          padding: "0.6rem 1rem",
-          borderRadius: "8px",
-          border: "none",
-          background: "linear-gradient(90deg,#7c3aed,#f97316)",
-          color: "white",
-          fontWeight: "bold",
-        }}
-      >
-        Refresh
-      </button>
+    <div
+      style={{
+        minHeight: "100vh",
+        background: "#0f0f0f",
+        color: "#ffffff",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        flexDirection: "column",
+        textAlign: "center",
+        padding: "2rem",
+      }}
+    >
+      <h1 style={{ fontSize: "2rem", marginBottom: "0.5rem" }}>
+        Route not found
+      </h1>
+      <p style={{ opacity: 0.7 }}>
+        This page does not exist.
+      </p>
     </div>
   );
 }
