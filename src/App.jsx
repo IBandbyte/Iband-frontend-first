@@ -1,368 +1,537 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React from "react";
 import {
   BrowserRouter,
-  NavLink,
-  Route,
   Routes,
+  Route,
+  NavLink,
   useNavigate,
   useParams,
 } from "react-router-dom";
+
 import { api } from "./services/api.js";
 
-function cx(...classes) {
-  return classes.filter(Boolean).join(" ");
+const BRAND = {
+  name: "iBandbyte",
+  tagline: "Powered by Fans. A Platform for Artists.",
+};
+
+function cx(...parts) {
+  return parts.filter(Boolean).join(" ");
 }
 
-function GradientLogo() {
+function safeText(v, fallback = "") {
+  if (v === null || v === undefined) return fallback;
+  const s = String(v);
+  return s.trim().length ? s : fallback;
+}
+
+function normalizeArtists(payload) {
+  // Accepts: array, { data: [] }, { artists: [] }, { items: [] }, { results: [] }
+  if (Array.isArray(payload)) return payload;
+  if (payload && typeof payload === "object") {
+    const keys = ["data", "artists", "items", "results"];
+    for (const k of keys) {
+      if (Array.isArray(payload[k])) return payload[k];
+    }
+  }
+  return [];
+}
+
+function normalizeArtist(payload) {
+  // Accepts: object, { data: {} }, { artist: {} }
+  if (payload && typeof payload === "object") {
+    if (payload.id || payload._id || payload.name) return payload;
+    if (payload.data && typeof payload.data === "object") return payload.data;
+    if (payload.artist && typeof payload.artist === "object") return payload.artist;
+  }
+  return null;
+}
+
+function getArtistId(a) {
+  return a?.id ?? a?._id ?? a?.artistId ?? a?.slug ?? null;
+}
+
+function getVotes(a) {
+  const v = a?.votes ?? a?.voteCount ?? a?.totalVotes ?? a?.voteTotal ?? 0;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : 0;
+}
+
+function getGenre(a) {
   return (
-    <span className="brand">
-      <span className="brand-iband">iBand</span>
-      <span className="brand-byte">byte</span>
-    </span>
+    a?.genre ??
+    a?.primaryGenre ??
+    a?.category ??
+    (Array.isArray(a?.genres) ? a.genres[0] : null) ??
+    "Unknown"
   );
+}
+
+function getLocation(a) {
+  return a?.location ?? a?.city ?? a?.country ?? "";
+}
+
+function getBio(a) {
+  return a?.bio ?? a?.about ?? a?.description ?? "";
+}
+
+function getImage(a) {
+  return a?.imageUrl ?? a?.image ?? a?.avatarUrl ?? a?.avatar ?? a?.photoUrl ?? "";
+}
+
+function formatApiError(err) {
+  if (!err) return "Unknown error";
+  const msg = err.message || "Request failed";
+  const status = err.status ? ` (HTTP ${err.status})` : "";
+  return `${msg}${status}`;
 }
 
 function Shell({ children }) {
   return (
-    <div className="page">
-      <div className="topbar">
-        <div className="topbar-inner">
-          <div className="topbar-left">
-            <GradientLogo />
+    <div style={styles.page}>
+      <div style={styles.bgGlow} />
+      <header style={styles.header}>
+        <div style={styles.brand}>
+          <div style={styles.brandName}>
+            <span style={styles.brandWhite}>iBand</span>
+            <span style={styles.brandGradient}>byte</span>
           </div>
-
-          <nav className="nav">
-            <NavLink
-              to="/"
-              end
-              className={({ isActive }) => cx("nav-btn", isActive && "active")}
-            >
-              Home
-            </NavLink>
-            <NavLink
-              to="/artists"
-              className={({ isActive }) => cx("nav-btn", isActive && "active")}
-            >
-              Artists
-            </NavLink>
-            <NavLink
-              to="/admin"
-              className={({ isActive }) => cx("nav-btn", isActive && "active")}
-            >
-              Admin
-            </NavLink>
-          </nav>
+          <div style={styles.brandSub}>{BRAND.tagline}</div>
         </div>
-      </div>
 
-      <main className="content">{children}</main>
+        <nav style={styles.nav}>
+          <NavLink
+            to="/"
+            style={({ isActive }) => ({
+              ...styles.navBtn,
+              ...(isActive ? styles.navBtnActive : {}),
+            })}
+          >
+            Home
+          </NavLink>
+          <NavLink
+            to="/artists"
+            style={({ isActive }) => ({
+              ...styles.navBtn,
+              ...(isActive ? styles.navBtnActive : {}),
+            })}
+          >
+            Artists
+          </NavLink>
+          <NavLink
+            to="/admin"
+            style={({ isActive }) => ({
+              ...styles.navBtn,
+              ...(isActive ? styles.navBtnActive : {}),
+            })}
+          >
+            Admin
+          </NavLink>
+        </nav>
+      </header>
 
-      <footer className="footer">
-        Powered by Fans. A Platform for Artists.
-      </footer>
-    </div>
-  );
-}
+      <main style={styles.main}>{children}</main>
 
-function Button({ variant = "solid", onClick, children, disabled }) {
-  return (
-    <button
-      className={cx("btn", variant === "ghost" && "btn-ghost")}
-      onClick={onClick}
-      disabled={disabled}
-      type="button"
-    >
-      {children}
-    </button>
-  );
-}
-
-function Card({ title, children }) {
-  return (
-    <div className="card">
-      <div className="card-title">{title}</div>
-      <div className="card-body">{children}</div>
+      <footer style={styles.footer}>{BRAND.tagline}</footer>
     </div>
   );
 }
 
 function Home() {
-  const navigate = useNavigate();
+  const nav = useNavigate();
 
   return (
     <Shell>
-      <div className="hero">
-        <div className="hero-logo">
-          <GradientLogo />
-        </div>
-        <div className="hero-sub">Home route loaded successfully.</div>
+      <section style={styles.hero}>
+        <h1 style={styles.heroTitle}>
+          <span style={styles.heroBrand}>
+            <span style={styles.brandWhite}>iBand</span>
+            <span style={styles.brandGradient}>byte</span>
+          </span>
+        </h1>
+        <p style={styles.heroLead}>Home route loaded successfully.</p>
 
-        <div className="stack">
-          <Card title="Discover">
-            Browse up-and-coming artists and preview tracks.
-          </Card>
-          <Card title="Vote">Help artists get signed with fan-powered voting.</Card>
-          <Card title="Connect">Labels scout talent, artists build fans.</Card>
+        <div style={styles.grid}>
+          <div style={styles.card}>
+            <div style={styles.cardTitle}>Discover</div>
+            <div style={styles.cardText}>
+              Browse up-and-coming artists and preview tracks.
+            </div>
+          </div>
+
+          <div style={styles.card}>
+            <div style={styles.cardTitle}>Vote</div>
+            <div style={styles.cardText}>
+              Help artists get signed with fan-powered voting.
+            </div>
+          </div>
+
+          <div style={styles.card}>
+            <div style={styles.cardTitle}>Connect</div>
+            <div style={styles.cardText}>
+              Labels scout talent, artists build fans.
+            </div>
+          </div>
         </div>
 
-        <div className="actions">
-          <Button onClick={() => navigate("/artists")}>Go to Artists</Button>
-          <Button variant="ghost" onClick={() => window.location.reload()}>
+        <div style={styles.actionsRow}>
+          <button style={styles.primaryBtn} onClick={() => nav("/artists")}>
+            Go to Artists
+          </button>
+          <button style={styles.ghostBtn} onClick={() => window.location.reload()}>
             Refresh
-          </Button>
+          </button>
         </div>
-      </div>
+      </section>
     </Shell>
   );
 }
 
 function Artists() {
-  const navigate = useNavigate();
+  const nav = useNavigate();
 
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [artists, setArtists] = useState([]);
+  const [loading, setLoading] = React.useState(true);
+  const [error, setError] = React.useState("");
+  const [artists, setArtists] = React.useState([]);
+  const [query, setQuery] = React.useState("");
 
-  async function load() {
+  const load = React.useCallback(async () => {
     setLoading(true);
     setError("");
-
     try {
-      const data = await api.listArtists();
+      const payload = await api.listArtists();
+      const list = normalizeArtists(payload);
 
-      // We accept either: { artists: [] } OR [] directly (future-proof)
-      const list = Array.isArray(data) ? data : Array.isArray(data?.artists) ? data.artists : [];
-      setArtists(list);
+      // Ensure stable shape for rendering (best-effort)
+      const cleaned = list.map((a, idx) => ({
+        ...a,
+        __key: getArtistId(a) ?? `row_${idx}`,
+        __name: safeText(a?.name, "Unnamed Artist"),
+        __genre: safeText(getGenre(a), "Unknown"),
+        __votes: getVotes(a),
+        __location: safeText(getLocation(a), ""),
+        __bio: safeText(getBio(a), ""),
+        __image: safeText(getImage(a), ""),
+      }));
+
+      setArtists(cleaned);
     } catch (e) {
-      setError(e?.message || "Failed to load artists");
+      setError(formatApiError(e));
+      setArtists([]);
     } finally {
       setLoading(false);
     }
-  }
-
-  useEffect(() => {
-    load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const hasArtists = artists && artists.length > 0;
+  React.useEffect(() => {
+    load();
+  }, [load]);
+
+  const filtered = React.useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return artists;
+    return artists.filter((a) => {
+      const hay = [
+        a.__name,
+        a.__genre,
+        a.__location,
+        a.__bio,
+        String(a.__votes),
+      ]
+        .join(" ")
+        .toLowerCase();
+      return hay.includes(q);
+    });
+  }, [artists, query]);
 
   return (
     <Shell>
-      <h1 className="h1">Artists</h1>
-      <p className="muted">
-        Live route. This now fetches from the backend and renders cards.
-      </p>
+      <section style={styles.section}>
+        <h2 style={styles.pageTitle}>Artists</h2>
+        <p style={styles.pageSub}>
+          Live route. This now fetches from the backend and renders cards.
+        </p>
 
-      <div className="actions">
-        <Button onClick={load} disabled={loading}>
-          {loading ? "Loading..." : "Refresh"}
-        </Button>
-        <Button
-          variant="ghost"
-          onClick={() => navigate("/artists/demo")}
-          disabled={loading}
-        >
-          Open demo artist
-        </Button>
-      </div>
+        <div style={styles.toolbar}>
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search artists (name, genre, location, votes)…"
+            style={styles.search}
+            autoCapitalize="none"
+            autoCorrect="off"
+          />
 
-      {error ? (
-        <div className="notice error">
-          <div className="notice-title">Error</div>
-          <div className="notice-body">{error}</div>
-        </div>
-      ) : null}
+          <div style={styles.toolbarBtns}>
+            <button style={styles.primaryBtn} onClick={load} disabled={loading}>
+              Refresh
+            </button>
 
-      {loading ? (
-        <div className="grid">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <div className="artist-card skeleton" key={i}>
-              <div className="skeleton-line lg" />
-              <div className="skeleton-line" />
-              <div className="skeleton-line sm" />
-              <div className="skeleton-line btn" />
-            </div>
-          ))}
-        </div>
-      ) : hasArtists ? (
-        <div className="grid">
-          {artists.map((a) => (
-            <ArtistCard
-              key={String(a?.id || a?._id || a?.slug || a?.name || Math.random())}
-              artist={a}
-              onOpen={() => {
-                const id = a?.id || a?._id || a?.slug || a?.name;
-                navigate(`/artists/${encodeURIComponent(String(id))}`);
-              }}
-              onVoted={load}
-            />
-          ))}
-        </div>
-      ) : (
-        <div className="notice">
-          <div className="notice-title">No artists yet</div>
-          <div className="notice-body">
-            The backend returned an empty list. That’s okay — next phase we’ll add seed data
-            or admin submission.
+            <button
+              style={styles.ghostBtn}
+              onClick={() => nav("/artists/demo")}
+            >
+              Open demo artist
+            </button>
           </div>
         </div>
-      )}
+
+        {error ? (
+          <div style={styles.alertError}>
+            <div style={styles.alertTitle}>Error</div>
+            <div style={styles.alertText}>{error}</div>
+            <div style={styles.alertHint}>
+              If you see timeouts: the backend may be cold-starting on Render.
+              Hit Refresh once or twice.
+            </div>
+          </div>
+        ) : null}
+
+        {loading ? (
+          <div style={styles.skeletonGrid}>
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} style={styles.skeletonCard}>
+                <div style={styles.skeletonLineLg} />
+                <div style={styles.skeletonLineSm} />
+                <div style={styles.skeletonLineSm} />
+              </div>
+            ))}
+          </div>
+        ) : null}
+
+        {!loading && !error && filtered.length === 0 ? (
+          <div style={styles.card}>
+            <div style={styles.cardTitle}>No artists yet</div>
+            <div style={styles.cardText}>
+              The backend returned an empty list. That’s okay — next phase we’ll
+              add seed data or admin submission.
+            </div>
+          </div>
+        ) : null}
+
+        {!loading && filtered.length > 0 ? (
+          <div style={styles.cardsGrid}>
+            {filtered.map((a) => {
+              const id = getArtistId(a);
+              return (
+                <div key={a.__key} style={styles.artistCard}>
+                  <div style={styles.artistTopRow}>
+                    <div style={styles.artistIdentity}>
+                      <div style={styles.artistName}>{a.__name}</div>
+                      <div style={styles.artistMetaRow}>
+                        <span style={styles.pill}>{a.__genre}</span>
+                        {a.__location ? (
+                          <span style={styles.pillMuted}>{a.__location}</span>
+                        ) : null}
+                        <span style={styles.pillVotes}>
+                          Votes: <b style={{ fontWeight: 700 }}>{a.__votes}</b>
+                        </span>
+                      </div>
+                    </div>
+
+                    {a.__image ? (
+                      <div style={styles.artistAvatarWrap}>
+                        <img
+                          src={a.__image}
+                          alt={a.__name}
+                          style={styles.artistAvatar}
+                          loading="lazy"
+                        />
+                      </div>
+                    ) : (
+                      <div style={styles.artistAvatarFallback}>
+                        {a.__name.slice(0, 1).toUpperCase()}
+                      </div>
+                    )}
+                  </div>
+
+                  {a.__bio ? (
+                    <div style={styles.artistBio}>{a.__bio}</div>
+                  ) : (
+                    <div style={styles.artistBioMuted}>
+                      No bio yet. Next phase we’ll show track previews + comments.
+                    </div>
+                  )}
+
+                  <div style={styles.artistActions}>
+                    <button
+                      style={styles.ghostBtn}
+                      onClick={() => {
+                        if (id) nav(`/artists/${encodeURIComponent(id)}`);
+                        else nav("/artists/demo");
+                      }}
+                    >
+                      View Profile
+                    </button>
+
+                    <button
+                      style={styles.primaryBtn}
+                      onClick={async () => {
+                        // Vote now (optimistic UI)
+                        const artistId = id;
+                        if (!artistId) return;
+
+                        // Optimistic
+                        setArtists((prev) =>
+                          prev.map((x) =>
+                            getArtistId(x) === artistId
+                              ? { ...x, __votes: (x.__votes || 0) + 1 }
+                              : x
+                          )
+                        );
+
+                        try {
+                          await api.vote(artistId);
+                        } catch (e) {
+                          // Revert on failure
+                          setArtists((prev) =>
+                            prev.map((x) =>
+                              getArtistId(x) === artistId
+                                ? { ...x, __votes: Math.max((x.__votes || 1) - 1, 0) }
+                                : x
+                            )
+                          );
+                          setError(formatApiError(e));
+                        }
+                      }}
+                    >
+                      Vote
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ) : null}
+      </section>
     </Shell>
   );
 }
 
-function ArtistCard({ artist, onOpen, onVoted }) {
-  const [voting, setVoting] = useState(false);
-  const [voteError, setVoteError] = useState("");
-
-  const name = useMemo(() => {
-    return (
-      artist?.name ||
-      artist?.stageName ||
-      artist?.artistName ||
-      artist?.title ||
-      "Unnamed artist"
-    );
-  }, [artist]);
-
-  const genre = useMemo(() => {
-    return artist?.genre || artist?.category || artist?.style || "";
-  }, [artist]);
-
-  const votes = useMemo(() => {
-    const v = artist?.votes ?? artist?.voteCount ?? artist?.totalVotes;
-    return typeof v === "number" ? v : null;
-  }, [artist]);
-
-  async function vote() {
-    setVoteError("");
-    setVoting(true);
-    try {
-      const id = artist?.id || artist?._id || artist?.slug || artist?.name;
-      await api.vote(String(id));
-      if (typeof onVoted === "function") onVoted();
-    } catch (e) {
-      setVoteError(e?.message || "Vote failed");
-    } finally {
-      setVoting(false);
-    }
-  }
-
-  return (
-    <div className="artist-card">
-      <div className="artist-top">
-        <div className="artist-name">{name}</div>
-        {genre ? <div className="chip">{genre}</div> : null}
-      </div>
-
-      <div className="artist-meta">
-        {votes === null ? (
-          <span className="muted">Votes: —</span>
-        ) : (
-          <span className="muted">Votes: {votes}</span>
-        )}
-      </div>
-
-      {voteError ? <div className="mini-error">{voteError}</div> : null}
-
-      <div className="artist-actions">
-        <Button variant="ghost" onClick={onOpen}>
-          Open
-        </Button>
-        <Button onClick={vote} disabled={voting}>
-          {voting ? "Voting..." : "Vote"}
-        </Button>
-      </div>
-    </div>
-  );
-}
-
 function ArtistDetail() {
+  const nav = useNavigate();
   const { id } = useParams();
 
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [artist, setArtist] = useState(null);
+  const [loading, setLoading] = React.useState(true);
+  const [error, setError] = React.useState("");
+  const [artist, setArtist] = React.useState(null);
 
-  async function load() {
+  const load = React.useCallback(async () => {
     setLoading(true);
     setError("");
     try {
-      // special demo route
-      if (id === "demo") {
-        setArtist({
-          id: "demo",
-          name: "Demo Artist",
-          genre: "Pop / Urban",
-          votes: 42,
-          bio:
-            "This is a demo placeholder. Next phase will display a real artist with track previews and comments.",
-        });
-        return;
-      }
-
-      const data = await api.getArtist(id);
-      setArtist(data?.artist || data);
+      const payload = await api.getArtist(id);
+      const a = normalizeArtist(payload);
+      if (!a) throw new Error("Artist not found");
+      setArtist(a);
     } catch (e) {
-      setError(e?.message || "Failed to load artist");
+      setError(formatApiError(e));
+      setArtist(null);
     } finally {
       setLoading(false);
     }
-  }
-
-  useEffect(() => {
-    load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
-  const name =
-    artist?.name ||
-    artist?.stageName ||
-    artist?.artistName ||
-    artist?.title ||
-    "Artist";
+  React.useEffect(() => {
+    load();
+  }, [load]);
 
-  const genre = artist?.genre || artist?.category || artist?.style || "";
-  const votes = artist?.votes ?? artist?.voteCount ?? artist?.totalVotes;
+  const name = safeText(artist?.name, "Artist");
+  const genre = safeText(getGenre(artist), "Unknown");
+  const votes = getVotes(artist);
+  const bio = safeText(getBio(artist), "");
 
   return (
     <Shell>
-      <h1 className="h1">{name}</h1>
+      <section style={styles.section}>
+        <h2 style={styles.pageTitle}>{name}</h2>
+        <p style={styles.pageSub}>Live detail route: /artists/:id</p>
 
-      {loading ? <p className="muted">Loading...</p> : null}
-
-      {error ? (
-        <div className="notice error">
-          <div className="notice-title">Error</div>
-          <div className="notice-body">{error}</div>
-        </div>
-      ) : null}
-
-      {!loading && !error && artist ? (
-        <div className="stack">
-          <Card title="Overview">
-            <div className="detail-row">
-              <span className="muted">Genre</span>
-              <span>{genre || "—"}</span>
+        {error ? (
+          <div style={styles.alertError}>
+            <div style={styles.alertTitle}>Error</div>
+            <div style={styles.alertText}>{error}</div>
+            <div style={styles.alertHint}>
+              If your backend doesn’t support <code>/artists/:id</code> yet,
+              we’ll add it in the backend phase.
             </div>
-            <div className="detail-row">
-              <span className="muted">Votes</span>
-              <span>{typeof votes === "number" ? votes : "—"}</span>
+          </div>
+        ) : null}
+
+        {loading ? (
+          <div style={styles.skeletonCard}>
+            <div style={styles.skeletonLineLg} />
+            <div style={styles.skeletonLineSm} />
+            <div style={styles.skeletonLineSm} />
+          </div>
+        ) : null}
+
+        {!loading && artist ? (
+          <div style={styles.artistDetailCard}>
+            <div style={styles.artistMetaRow}>
+              <span style={styles.pill}>{genre}</span>
+              <span style={styles.pillVotes}>
+                Votes: <b style={{ fontWeight: 700 }}>{votes}</b>
+              </span>
+              {getLocation(artist) ? (
+                <span style={styles.pillMuted}>{safeText(getLocation(artist), "")}</span>
+              ) : null}
             </div>
-          </Card>
 
-          <Card title="Bio">
-            {artist?.bio || artist?.about || "No bio yet."}
-          </Card>
+            {bio ? (
+              <div style={styles.artistBio}>{bio}</div>
+            ) : (
+              <div style={styles.artistBioMuted}>
+                This artist has no bio yet.
+              </div>
+            )}
 
-          <div className="actions">
-            <Button variant="ghost" onClick={() => window.history.back()}>
+            <div style={styles.artistActions}>
+              <button style={styles.ghostBtn} onClick={() => nav("/artists")}>
+                Back
+              </button>
+
+              <button style={styles.primaryBtn} onClick={load}>
+                Refresh
+              </button>
+            </div>
+          </div>
+        ) : null}
+      </section>
+    </Shell>
+  );
+}
+
+function DemoArtist() {
+  const nav = useNavigate();
+
+  return (
+    <Shell>
+      <section style={styles.section}>
+        <h2 style={styles.pageTitle}>Demo Artist</h2>
+
+        <div style={styles.artistDetailCard}>
+          <div style={styles.cardTitle}>Overview</div>
+          <div style={styles.artistMetaRow}>
+            <span style={styles.pill}>Pop / Urban</span>
+            <span style={styles.pillVotes}>
+              Votes: <b style={{ fontWeight: 700 }}>42</b>
+            </span>
+          </div>
+
+          <div style={styles.cardTitle}>Bio</div>
+          <div style={styles.artistBio}>
+            This is a demo placeholder. Next phase will display a real artist with
+            track previews and comments.
+          </div>
+
+          <div style={styles.artistActions}>
+            <button style={styles.ghostBtn} onClick={() => nav("/artists")}>
               Back
-            </Button>
+            </button>
           </div>
         </div>
-      ) : null}
+      </section>
     </Shell>
   );
 }
@@ -370,329 +539,371 @@ function ArtistDetail() {
 function Admin() {
   return (
     <Shell>
-      <h1 className="h1">Admin</h1>
-      <p className="muted">
-        Placeholder route. Later we&apos;ll connect to real admin endpoints + protect access.
-      </p>
+      <section style={styles.section}>
+        <h2 style={styles.pageTitle}>Admin</h2>
+        <p style={styles.pageSub}>
+          Placeholder route. Later we’ll connect to real admin endpoints + protect access.
+        </p>
+      </section>
     </Shell>
   );
 }
 
 function NotFound() {
+  const nav = useNavigate();
   return (
     <Shell>
-      <h1 className="h1">Route not found.</h1>
-      <div className="actions">
-        <Button onClick={() => (window.location.href = "/")}>Go Home</Button>
-        <Button variant="ghost" onClick={() => window.location.reload()}>
-          Refresh
-        </Button>
-      </div>
+      <section style={styles.section}>
+        <h2 style={styles.pageTitle}>Route not found.</h2>
+        <div style={styles.actionsRow}>
+          <button style={styles.primaryBtn} onClick={() => nav("/")}>
+            Go Home
+          </button>
+          <button style={styles.ghostBtn} onClick={() => window.location.reload()}>
+            Refresh
+          </button>
+        </div>
+      </section>
     </Shell>
   );
 }
 
 export default function App() {
   return (
-    <>
-      <style>{styles}</style>
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/artists" element={<Artists />} />
-          <Route path="/artists/:id" element={<ArtistDetail />} />
-          <Route path="/admin" element={<Admin />} />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
-    </>
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<Home />} />
+
+        <Route path="/artists" element={<Artists />} />
+        <Route path="/artists/demo" element={<DemoArtist />} />
+        <Route path="/artists/:id" element={<ArtistDetail />} />
+
+        <Route path="/admin" element={<Admin />} />
+
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+    </BrowserRouter>
   );
 }
 
-const styles = `
-:root{
-  --bg:#050507;
-  --panel:#0b0b10;
-  --panel2:#0e0e14;
-  --text:#eaeaf2;
-  --muted:#a8a8b6;
-  --stroke:rgba(255,255,255,.10);
-  --shadow:rgba(0,0,0,.35);
-  --grad: linear-gradient(90deg,#7b2cff 0%,#ff7a18 100%);
-  --grad2: linear-gradient(90deg,#a855f7 0%,#fb7185 50%,#f97316 100%);
-}
-
-*{ box-sizing:border-box; }
-html,body{ height:100%; }
-body{
-  margin:0;
-  background: radial-gradient(800px 500px at 20% 0%, rgba(123,44,255,.20), transparent 60%),
-              radial-gradient(800px 500px at 80% 0%, rgba(255,122,24,.18), transparent 60%),
-              var(--bg);
-  color:var(--text);
-  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial;
-}
-
-.page{
-  min-height:100vh;
-  display:flex;
-  flex-direction:column;
-}
-
-.topbar{
-  position:sticky;
-  top:0;
-  z-index:10;
-  backdrop-filter: blur(10px);
-  background: rgba(8,8,12,.70);
-  border-bottom:1px solid var(--stroke);
-}
-
-.topbar-inner{
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  padding:14px 16px;
-  gap:12px;
-}
-
-.brand{
-  font-weight:800;
-  letter-spacing:.2px;
-  font-size:28px;
-  line-height:1;
-}
-.brand-iband{ color: var(--text); }
-.brand-byte{
-  background: var(--grad2);
-  -webkit-background-clip:text;
-  background-clip:text;
-  color:transparent;
-}
-
-.nav{ display:flex; gap:10px; }
-.nav-btn{
-  text-decoration:none;
-  color:var(--text);
-  border:1px solid var(--stroke);
-  padding:10px 14px;
-  border-radius:14px;
-  background: rgba(255,255,255,.02);
-}
-.nav-btn.active{
-  border-color: rgba(168,85,247,.55);
-  box-shadow: 0 0 0 3px rgba(168,85,247,.12);
-}
-
-.content{
-  flex:1;
-  padding:22px 16px 34px;
-}
-
-.footer{
-  border-top:1px solid var(--stroke);
-  color: var(--muted);
-  text-align:center;
-  padding:18px 16px;
-  background: rgba(8,8,12,.55);
-}
-
-.hero{
-  display:flex;
-  flex-direction:column;
-  align-items:flex-start;
-  gap:14px;
-  max-width: 560px;
-  margin: 18px auto 0;
-  width:100%;
-}
-
-.hero-logo{ font-size:56px; }
-.hero-sub{
-  color: var(--muted);
-  font-size:20px;
-}
-
-.h1{
-  max-width: 900px;
-  margin: 10px auto 6px;
-  width:100%;
-  font-size:42px;
-  letter-spacing:.2px;
-}
-
-.muted{
-  max-width: 900px;
-  margin: 0 auto 18px;
-  width:100%;
-  color: var(--muted);
-  font-size:16px;
-}
-
-.stack{
-  width:100%;
-  display:flex;
-  flex-direction:column;
-  gap:12px;
-}
-
-.card{
-  border:1px solid var(--stroke);
-  background: rgba(255,255,255,.03);
-  border-radius:18px;
-  padding:16px;
-  box-shadow: 0 18px 45px var(--shadow);
-}
-.card-title{
-  font-weight:800;
-  font-size:26px;
-  margin-bottom:8px;
-}
-.card-body{
-  color: var(--muted);
-  font-size:18px;
-  line-height:1.35;
-}
-
-.actions{
-  display:flex;
-  gap:12px;
-  margin-top: 8px;
-  flex-wrap:wrap;
-}
-
-.btn{
-  border:none;
-  padding:14px 18px;
-  border-radius:18px;
-  font-weight:800;
-  font-size:18px;
-  cursor:pointer;
-  background: var(--grad);
-  color: #0b0b10;
-  box-shadow: 0 16px 40px rgba(123,44,255,.22);
-}
-.btn:disabled{
-  opacity:.65;
-  cursor:not-allowed;
-}
-.btn-ghost{
-  background: rgba(255,255,255,.03);
-  color: var(--text);
-  border:1px solid var(--stroke);
-  box-shadow:none;
-}
-
-.grid{
-  max-width: 980px;
-  margin: 0 auto;
-  width:100%;
-  display:grid;
-  grid-template-columns: 1fr;
-  gap:12px;
-}
-
-.artist-card{
-  border:1px solid var(--stroke);
-  background: rgba(255,255,255,.03);
-  border-radius:18px;
-  padding:16px;
-  box-shadow: 0 18px 45px var(--shadow);
-}
-.artist-top{
-  display:flex;
-  align-items:flex-start;
-  justify-content:space-between;
-  gap:10px;
-}
-.artist-name{
-  font-weight:900;
-  font-size:22px;
-}
-.chip{
-  border:1px solid var(--stroke);
-  padding:6px 10px;
-  border-radius:999px;
-  background: rgba(255,255,255,.02);
-  color: var(--muted);
-  font-size:13px;
-}
-.artist-meta{
-  margin-top:10px;
-}
-.artist-actions{
-  display:flex;
-  gap:10px;
-  margin-top:14px;
-  flex-wrap:wrap;
-}
-
-.notice{
-  max-width: 980px;
-  margin: 14px auto 0;
-  width:100%;
-  border:1px solid var(--stroke);
-  border-radius:18px;
-  background: rgba(255,255,255,.03);
-  padding:14px 16px;
-}
-.notice.error{
-  border-color: rgba(248,113,113,.35);
-  background: rgba(248,113,113,.06);
-}
-.notice-title{
-  font-weight:900;
-  font-size:18px;
-  margin-bottom:6px;
-}
-.notice-body{
-  color: var(--muted);
-  line-height:1.35;
-}
-
-.mini-error{
-  margin-top:10px;
-  color: #fca5a5;
-  font-weight:700;
-}
-
-.detail-row{
-  display:flex;
-  justify-content:space-between;
-  gap:10px;
-  padding:8px 0;
-  border-bottom:1px solid rgba(255,255,255,.06);
-}
-.detail-row:last-child{ border-bottom:none; }
-
-.skeleton{
-  position:relative;
-  overflow:hidden;
-}
-.skeleton::after{
-  content:"";
-  position:absolute;
-  inset:0;
-  transform:translateX(-60%);
-  background: linear-gradient(90deg, transparent, rgba(255,255,255,.06), transparent);
-  animation: shine 1.2s infinite;
-}
-@keyframes shine{
-  0%{ transform:translateX(-60%); }
-  100%{ transform:translateX(60%); }
-}
-.skeleton-line{
-  height:12px;
-  border-radius:10px;
-  background: rgba(255,255,255,.05);
-  margin:10px 0;
-}
-.skeleton-line.lg{ height:18px; width:70%; }
-.skeleton-line.sm{ width:55%; }
-.skeleton-line.btn{ height:44px; width:60%; border-radius:18px; margin-top:16px; }
-
-@media (min-width: 860px){
-  .grid{ grid-template-columns: 1fr 1fr; }
-  .hero-logo{ font-size:64px; }
-}
-`;
+const styles = {
+  page: {
+    minHeight: "100vh",
+    color: "rgba(255,255,255,0.92)",
+    background: "radial-gradient(1200px 800px at 30% -10%, rgba(168, 85, 247, 0.20), transparent 55%), radial-gradient(900px 700px at 90% 0%, rgba(249, 115, 22, 0.16), transparent 55%), #07070b",
+    position: "relative",
+    overflowX: "hidden",
+  },
+  bgGlow: {
+    position: "absolute",
+    inset: 0,
+    pointerEvents: "none",
+    background:
+      "linear-gradient(180deg, rgba(255,255,255,0.02), transparent 30%, rgba(255,255,255,0.02))",
+  },
+  header: {
+    position: "sticky",
+    top: 0,
+    zIndex: 50,
+    padding: "18px 18px 14px",
+    borderBottom: "1px solid rgba(255,255,255,0.06)",
+    background: "rgba(7,7,11,0.70)",
+    backdropFilter: "blur(10px)",
+  },
+  brand: {
+    display: "flex",
+    flexDirection: "column",
+    gap: 6,
+  },
+  brandName: {
+    fontSize: 34,
+    letterSpacing: "-0.02em",
+    fontWeight: 800,
+    lineHeight: 1,
+  },
+  brandWhite: { color: "rgba(255,255,255,0.92)" },
+  brandGradient: {
+    background: "linear-gradient(90deg, #a855f7, #f97316)",
+    WebkitBackgroundClip: "text",
+    backgroundClip: "text",
+    color: "transparent",
+  },
+  brandSub: {
+    fontSize: 14,
+    opacity: 0.72,
+  },
+  nav: {
+    marginTop: 12,
+    display: "flex",
+    gap: 10,
+  },
+  navBtn: {
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: "10px 16px",
+    borderRadius: 14,
+    textDecoration: "none",
+    color: "rgba(255,255,255,0.86)",
+    border: "1px solid rgba(255,255,255,0.10)",
+    background: "rgba(255,255,255,0.03)",
+  },
+  navBtnActive: {
+    border: "1px solid rgba(168,85,247,0.55)",
+    boxShadow: "0 0 0 1px rgba(249,115,22,0.18) inset",
+  },
+  main: {
+    padding: 18,
+  },
+  footer: {
+    padding: "22px 18px 28px",
+    borderTop: "1px solid rgba(255,255,255,0.06)",
+    opacity: 0.6,
+    textAlign: "center",
+  },
+  hero: {
+    maxWidth: 900,
+    margin: "20px auto 0",
+  },
+  heroTitle: {
+    fontSize: 56,
+    letterSpacing: "-0.03em",
+    margin: "14px 0 6px",
+  },
+  heroBrand: {
+    display: "inline-block",
+  },
+  heroLead: {
+    margin: "6px 0 18px",
+    opacity: 0.72,
+    fontSize: 18,
+  },
+  grid: {
+    display: "grid",
+    gridTemplateColumns: "1fr",
+    gap: 14,
+    marginTop: 14,
+  },
+  card: {
+    borderRadius: 18,
+    border: "1px solid rgba(255,255,255,0.08)",
+    background: "rgba(255,255,255,0.03)",
+    padding: 16,
+    boxShadow: "0 20px 60px rgba(0,0,0,0.25)",
+  },
+  cardTitle: {
+    fontSize: 20,
+    fontWeight: 800,
+    marginBottom: 6,
+  },
+  cardText: {
+    opacity: 0.75,
+    lineHeight: 1.45,
+  },
+  actionsRow: {
+    display: "flex",
+    gap: 12,
+    marginTop: 18,
+    flexWrap: "wrap",
+  },
+  primaryBtn: {
+    border: "none",
+    borderRadius: 16,
+    padding: "12px 16px",
+    fontWeight: 800,
+    color: "#0a0a0f",
+    background: "linear-gradient(90deg, #a855f7, #f97316)",
+  },
+  ghostBtn: {
+    borderRadius: 16,
+    padding: "12px 16px",
+    fontWeight: 800,
+    color: "rgba(255,255,255,0.86)",
+    background: "rgba(255,255,255,0.03)",
+    border: "1px solid rgba(255,255,255,0.12)",
+  },
+  section: {
+    maxWidth: 980,
+    margin: "10px auto 0",
+  },
+  pageTitle: {
+    fontSize: 46,
+    letterSpacing: "-0.03em",
+    margin: "10px 0 6px",
+  },
+  pageSub: {
+    opacity: 0.70,
+    margin: "0 0 14px",
+    lineHeight: 1.45,
+  },
+  toolbar: {
+    display: "flex",
+    flexDirection: "column",
+    gap: 12,
+    margin: "12px 0 16px",
+  },
+  toolbarBtns: {
+    display: "flex",
+    gap: 12,
+    flexWrap: "wrap",
+  },
+  search: {
+    width: "100%",
+    borderRadius: 16,
+    border: "1px solid rgba(255,255,255,0.10)",
+    background: "rgba(255,255,255,0.03)",
+    color: "rgba(255,255,255,0.90)",
+    padding: "12px 14px",
+    outline: "none",
+    fontSize: 15,
+  },
+  alertError: {
+    borderRadius: 18,
+    border: "1px solid rgba(255,80,80,0.20)",
+    background: "rgba(255,80,80,0.05)",
+    padding: 16,
+    marginBottom: 16,
+  },
+  alertTitle: { fontSize: 18, fontWeight: 900, marginBottom: 6 },
+  alertText: { opacity: 0.9, lineHeight: 1.45 },
+  alertHint: { marginTop: 10, opacity: 0.65, lineHeight: 1.45 },
+  cardsGrid: {
+    display: "grid",
+    gridTemplateColumns: "1fr",
+    gap: 14,
+  },
+  artistCard: {
+    borderRadius: 18,
+    border: "1px solid rgba(255,255,255,0.08)",
+    background: "rgba(255,255,255,0.03)",
+    padding: 16,
+    boxShadow: "0 18px 55px rgba(0,0,0,0.25)",
+  },
+  artistTopRow: {
+    display: "flex",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    gap: 14,
+  },
+  artistIdentity: {
+    display: "flex",
+    flexDirection: "column",
+    gap: 8,
+    minWidth: 0,
+    flex: 1,
+  },
+  artistName: {
+    fontSize: 22,
+    fontWeight: 900,
+    letterSpacing: "-0.02em",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+  },
+  artistMetaRow: {
+    display: "flex",
+    flexWrap: "wrap",
+    gap: 8,
+    alignItems: "center",
+  },
+  pill: {
+    padding: "6px 10px",
+    borderRadius: 999,
+    border: "1px solid rgba(168,85,247,0.25)",
+    background: "rgba(168,85,247,0.08)",
+    fontSize: 12,
+    fontWeight: 800,
+  },
+  pillMuted: {
+    padding: "6px 10px",
+    borderRadius: 999,
+    border: "1px solid rgba(255,255,255,0.10)",
+    background: "rgba(255,255,255,0.03)",
+    fontSize: 12,
+    fontWeight: 800,
+    opacity: 0.8,
+  },
+  pillVotes: {
+    padding: "6px 10px",
+    borderRadius: 999,
+    border: "1px solid rgba(249,115,22,0.25)",
+    background: "rgba(249,115,22,0.08)",
+    fontSize: 12,
+    fontWeight: 800,
+  },
+  artistBio: {
+    marginTop: 12,
+    opacity: 0.78,
+    lineHeight: 1.5,
+  },
+  artistBioMuted: {
+    marginTop: 12,
+    opacity: 0.60,
+    lineHeight: 1.5,
+  },
+  artistActions: {
+    marginTop: 14,
+    display: "flex",
+    gap: 12,
+    flexWrap: "wrap",
+  },
+  artistAvatarWrap: {
+    width: 54,
+    height: 54,
+    borderRadius: 16,
+    overflow: "hidden",
+    border: "1px solid rgba(255,255,255,0.10)",
+    background: "rgba(255,255,255,0.03)",
+    flex: "0 0 auto",
+  },
+  artistAvatar: {
+    width: "100%",
+    height: "100%",
+    objectFit: "cover",
+    display: "block",
+  },
+  artistAvatarFallback: {
+    width: 54,
+    height: 54,
+    borderRadius: 16,
+    border: "1px solid rgba(255,255,255,0.10)",
+    background: "rgba(255,255,255,0.03)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontWeight: 900,
+    color: "rgba(255,255,255,0.85)",
+    flex: "0 0 auto",
+  },
+  skeletonGrid: {
+    display: "grid",
+    gridTemplateColumns: "1fr",
+    gap: 14,
+    marginBottom: 16,
+  },
+  skeletonCard: {
+    borderRadius: 18,
+    border: "1px solid rgba(255,255,255,0.08)",
+    background: "rgba(255,255,255,0.03)",
+    padding: 16,
+  },
+  skeletonLineLg: {
+    height: 18,
+    borderRadius: 10,
+    background: "rgba(255,255,255,0.08)",
+    marginBottom: 12,
+  },
+  skeletonLineSm: {
+    height: 12,
+    borderRadius: 10,
+    background: "rgba(255,255,255,0.06)",
+    marginBottom: 10,
+  },
+  artistDetailCard: {
+    borderRadius: 18,
+    border: "1px solid rgba(255,255,255,0.08)",
+    background: "rgba(255,255,255,0.03)",
+    padding: 16,
+    boxShadow: "0 18px 55px rgba(0,0,0,0.25)",
+  },
+};
