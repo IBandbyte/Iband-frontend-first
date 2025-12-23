@@ -18,15 +18,12 @@ function toNumber(v, fallback = 0) {
 
 function buildArtistsUrl(params) {
   const url = new URL("/artists", API_BASE);
-
-  // Optional server-side query support (future-proof). Backend can ignore safely.
   Object.entries(params || {}).forEach(([k, v]) => {
     if (v === undefined || v === null) return;
     const s = String(v).trim();
     if (!s) return;
     url.searchParams.set(k, s);
   });
-
   return url.toString();
 }
 
@@ -240,7 +237,6 @@ export default function Artists() {
     setError("");
 
     const url = buildArtistsUrl({
-      // Future-proof: backend can optionally support server-side filtering/sorting
       q: query || undefined,
       order: "desc",
       sort: "new",
@@ -250,7 +246,6 @@ export default function Artists() {
 
     const started = Date.now();
     const result = await fetchWithTimeout(url, { timeoutMs: 15000 });
-
     setLastFetchMs(Date.now() - started);
 
     if (!result.ok) {
@@ -276,7 +271,6 @@ export default function Artists() {
   }
 
   useEffect(() => {
-    // Initial load
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -286,13 +280,7 @@ export default function Artists() {
     if (!q) return artists;
 
     return artists.filter((a) => {
-      const hay = [
-        a.name,
-        a.genre,
-        a.location,
-        String(a.votes ?? ""),
-        a.bio,
-      ]
+      const hay = [a.name, a.genre, a.location, String(a.votes ?? ""), a.bio]
         .join(" ")
         .toLowerCase();
       return hay.includes(q);
@@ -341,21 +329,6 @@ export default function Artists() {
           {loading ? "Loading…" : "Refresh"}
         </button>
 
-        <a
-          href="/artists/demo"
-          style={{
-            borderRadius: 16,
-            padding: "12px 16px",
-            border: "1px solid rgba(255,255,255,0.12)",
-            background: "rgba(255,255,255,0.06)",
-            color: "white",
-            textDecoration: "none",
-            fontWeight: 800,
-          }}
-        >
-          Open demo artist
-        </a>
-
         <div style={{ opacity: 0.7, alignSelf: "center" }}>
           API: {API_BASE}
           {lastFetchMs ? ` • ${lastFetchMs}ms` : ""}
@@ -399,7 +372,7 @@ export default function Artists() {
             <div style={{ fontWeight: 900, fontSize: 20 }}>No artists yet</div>
             <div style={{ opacity: 0.85, marginTop: 6 }}>
               The backend returned an empty list. That’s okay — next we’ll add
-              admin submission + seed data.
+              seed + admin submission.
             </div>
           </div>
         ) : null}
