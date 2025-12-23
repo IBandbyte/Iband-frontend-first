@@ -1,10 +1,10 @@
 import React from "react";
-import { NavLink, Route, Routes, Link } from "react-router-dom";
+import { NavLink, Route, Routes } from "react-router-dom";
 import Artists from "./Artists.jsx";
 
 function Home() {
   return (
-    <div style={{ maxWidth: 900, margin: "0 auto", padding: "32px 16px" }}>
+    <div style={{ maxWidth: 950, margin: "0 auto", padding: "32px 16px" }}>
       <h1 style={{ fontSize: 56, margin: 0, letterSpacing: -1 }}>
         iBand<span style={{ color: "#FFB100" }}>byte</span>
       </h1>
@@ -13,41 +13,18 @@ function Home() {
         Powered by Fans. A Platform for Artists and Influencers.
       </p>
 
-      <div style={{ marginTop: 18, display: "grid", gap: 14 }}>
-        <div
-          style={{
-            borderRadius: 18,
-            border: "1px solid rgba(255,255,255,0.10)",
-            background: "rgba(0,0,0,0.35)",
-            padding: 18,
-          }}
-        >
-          <div style={{ fontSize: 26, fontWeight: 900 }}>Get Signed / Connect</div>
-          <div style={{ opacity: 0.85, marginTop: 6 }}>
-            Discover rising artists, vote, and help talent get noticed.
-          </div>
-
-          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 14 }}>
-            <Link
-              to="/artists"
-              style={{
-                borderRadius: 16,
-                padding: "12px 16px",
-                border: "1px solid rgba(255,255,255,0.12)",
-                background:
-                  "linear-gradient(90deg, rgba(154,74,255,0.95), rgba(255,147,43,0.95))",
-                color: "black",
-                fontWeight: 900,
-                textDecoration: "none",
-              }}
-            >
-              Browse Artists
-            </Link>
-          </div>
-        </div>
-
-        <div style={{ opacity: 0.65, marginTop: 4 }}>
-          Frontend: Vercel • Backend: Render • Phase 2.1.3
+      <div
+        style={{
+          marginTop: 18,
+          borderRadius: 18,
+          border: "1px solid rgba(255,255,255,0.10)",
+          background: "rgba(0,0,0,0.35)",
+          padding: 18,
+        }}
+      >
+        <div style={{ fontSize: 26, fontWeight: 900 }}>Get Signed / Connect</div>
+        <div style={{ opacity: 0.85, marginTop: 6 }}>
+          Discover rising artists, vote, and help talent get noticed.
         </div>
       </div>
     </div>
@@ -56,7 +33,7 @@ function Home() {
 
 function Admin() {
   return (
-    <div style={{ maxWidth: 900, margin: "0 auto", padding: "32px 16px" }}>
+    <div style={{ maxWidth: 950, margin: "0 auto", padding: "32px 16px" }}>
       <h1 style={{ fontSize: 56, margin: 0, letterSpacing: -1 }}>Admin</h1>
       <p style={{ opacity: 0.85, marginTop: 10 }}>
         Admin dashboard placeholder. Next phase wires admin tools + seed endpoints.
@@ -73,7 +50,7 @@ function TopNav() {
     padding: "10px 14px",
     border: "1px solid rgba(255,255,255,0.12)",
     background: isActive ? "rgba(154,74,255,0.22)" : "rgba(255,255,255,0.06)",
-    fontWeight: 800,
+    fontWeight: 900,
   });
 
   return (
@@ -124,7 +101,7 @@ export default function App() {
         <Route path="/artists" element={<Artists />} />
         <Route path="/admin" element={<Admin />} />
 
-        {/* Catch-all to avoid blank client side */}
+        {/* Prevent blank route */}
         <Route path="*" element={<Home />} />
       </Routes>
     </div>
