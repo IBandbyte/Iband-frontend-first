@@ -1,10 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-
-const API_BASE =
-  (typeof import.meta !== "undefined" &&
-    import.meta.env &&
-    import.meta.env.VITE_API_BASE_URL) ||
-  "https://iband-backend-first-1.onrender.com";
+import { api, API_BASE } from "./services/api";
 
 function safeText(v) {
   if (v === null || v === undefined) return "";
@@ -14,45 +9,6 @@ function safeText(v) {
 function toNumber(v, fallback = 0) {
   const n = Number(v);
   return Number.isFinite(n) ? n : fallback;
-}
-
-function buildArtistsUrl(params) {
-  const url = new URL("/artists", API_BASE);
-  Object.entries(params || {}).forEach(([k, v]) => {
-    if (v === undefined || v === null) return;
-    const s = String(v).trim();
-    if (!s) return;
-    url.searchParams.set(k, s);
-  });
-  return url.toString();
-}
-
-async function fetchWithTimeout(url, { timeoutMs = 12000, ...options } = {}) {
-  const controller = new AbortController();
-  const id = setTimeout(() => controller.abort(), timeoutMs);
-
-  try {
-    const res = await fetch(url, {
-      ...options,
-      signal: controller.signal,
-      headers: {
-        Accept: "application/json",
-        ...(options.headers || {}),
-      },
-    });
-
-    const text = await res.text();
-    let json = null;
-    try {
-      json = text ? JSON.parse(text) : null;
-    } catch {
-      json = null;
-    }
-
-    return { ok: res.ok, status: res.status, json, text };
-  } finally {
-    clearTimeout(id);
-  }
 }
 
 function normalizeArtist(raw) {
@@ -68,6 +24,7 @@ function normalizeArtist(raw) {
     bio: safeText(a.bio || a.description || ""),
     status: safeText(a.status || "active"),
     votes: toNumber(a.votes, 0),
+    imageUrl: safeText(a.imageUrl || a.image || ""),
     socials: {
       instagram: safeText(socials.instagram || ""),
       tiktok: safeText(socials.tiktok || ""),
@@ -90,10 +47,6 @@ function normalizeArtist(raw) {
 function ArtistCard({ artist }) {
   const subtitle = [artist.genre, artist.location].filter(Boolean).join(" • ");
 
-  const socials = Object.entries(artist.socials || {}).filter(
-    ([, v]) => v && v.startsWith("http")
-  );
-
   return (
     <div
       style={{
@@ -105,48 +58,85 @@ function ArtistCard({ artist }) {
         boxShadow: "0 8px 22px rgba(0,0,0,0.35)",
       }}
     >
-      <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
-        <div style={{ minWidth: 0 }}>
-          <div style={{ fontSize: 22, fontWeight: 800, lineHeight: 1.1 }}>
+      <div style={{ display: "flex", gap: 14, alignItems: "flex-start" }}>
+        {artist.imageUrl ? (
+          <img
+            src={artist.imageUrl}
+            alt={artist.name}
+            style={{
+              width: 96,
+              height: 96,
+              borderRadius: 16,
+              objectFit: "cover",
+              border: "1px solid rgba(255,255,255,0.10)",
+            }}
+          />
+        ) : (
+          <div
+            style={{
+              width: 96,
+              height: 96,
+              borderRadius: 16,
+              border: "1px solid rgba(255,255,255,0.10)",
+              background: "rgba(255,255,255,0.05)",
+              display: "grid",
+              placeItems: "center",
+              fontWeight: 900,
+              fontSize: 22,
+              color: "rgba(255,255,255,0.75)",
+            }}
+          >
+            {artist.name?.slice(0, 1)?.toUpperCase() || "A"}
+          </div>
+        )}
+
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 22, fontWeight: 900, lineHeight: 1.1 }}>
             {artist.name}
           </div>
+
           {subtitle ? (
             <div style={{ opacity: 0.8, marginTop: 6 }}>{subtitle}</div>
           ) : null}
-          {artist.status ? (
-            <div style={{ opacity: 0.65, marginTop: 6, fontSize: 13 }}>
-              Status: {artist.status}
+
+          {artist.bio ? (
+            <div style={{ marginTop: 10, opacity: 0.9, lineHeight: 1.45 }}>
+              {artist.bio}
             </div>
           ) : null}
-        </div>
 
-        <div
-          style={{
-            borderRadius: 16,
-            padding: "10px 12px",
-            border: "1px solid rgba(255,255,255,0.12)",
-            background: "rgba(255,255,255,0.06)",
-            textAlign: "center",
-            minWidth: 84,
-            height: "fit-content",
-          }}
-        >
-          <div style={{ fontSize: 12, opacity: 0.85 }}>Votes</div>
-          <div style={{ fontSize: 22, fontWeight: 900 }}>
-            {toNumber(artist.votes, 0)}
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 12 }}>
+            <span
+              style={{
+                borderRadius: 999,
+                padding: "8px 12px",
+                border: "1px solid rgba(255,255,255,0.12)",
+                background: "rgba(255,255,255,0.06)",
+                fontSize: 13,
+                fontWeight: 800,
+              }}
+            >
+              Votes: {toNumber(artist.votes, 0)}
+            </span>
+
+            <span
+              style={{
+                borderRadius: 999,
+                padding: "8px 12px",
+                border: "1px solid rgba(255,255,255,0.12)",
+                background: "rgba(255,255,255,0.06)",
+                fontSize: 13,
+              }}
+            >
+              Status: {artist.status}
+            </span>
           </div>
         </div>
       </div>
 
-      {artist.bio ? (
-        <div style={{ marginTop: 12, opacity: 0.9, lineHeight: 1.45 }}>
-          {artist.bio}
-        </div>
-      ) : null}
-
       {artist.tracks.length ? (
         <div style={{ marginTop: 14 }}>
-          <div style={{ fontWeight: 800, marginBottom: 8 }}>Tracks</div>
+          <div style={{ fontWeight: 900, marginBottom: 8 }}>Tracks</div>
           <div style={{ display: "grid", gap: 8 }}>
             {artist.tracks.slice(0, 3).map((t, idx) => (
               <div
@@ -194,33 +184,6 @@ function ArtistCard({ artist }) {
           </div>
         </div>
       ) : null}
-
-      {socials.length ? (
-        <div style={{ marginTop: 14 }}>
-          <div style={{ fontWeight: 800, marginBottom: 8 }}>Socials</div>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-            {socials.slice(0, 6).map(([k, v]) => (
-              <a
-                key={`${artist.id}-social-${k}`}
-                href={v}
-                target="_blank"
-                rel="noreferrer"
-                style={{
-                  textDecoration: "none",
-                  borderRadius: 999,
-                  padding: "8px 12px",
-                  border: "1px solid rgba(255,255,255,0.12)",
-                  background: "rgba(255,255,255,0.08)",
-                  color: "white",
-                  fontSize: 13,
-                }}
-              >
-                {k}
-              </a>
-            ))}
-          </div>
-        </div>
-      ) : null}
     </div>
   );
 }
@@ -236,38 +199,24 @@ export default function Artists() {
     setLoading(true);
     setError("");
 
-    const url = buildArtistsUrl({
-      q: query || undefined,
-      order: "desc",
-      sort: "new",
-      limit: 50,
-      page: 1,
-    });
-
     const started = Date.now();
-    const result = await fetchWithTimeout(url, { timeoutMs: 15000 });
-    setLastFetchMs(Date.now() - started);
+    try {
+      const payload = await api.listArtists({ q: query || undefined, limit: 50, page: 1 });
 
-    if (!result.ok) {
-      const msg =
-        (result.json && (result.json.message || result.json.error)) ||
-        `Route not found. (HTTP ${result.status})`;
+      const listRaw =
+        (payload && payload.data && Array.isArray(payload.data) && payload.data) ||
+        (payload && payload.artists && Array.isArray(payload.artists) && payload.artists) ||
+        (Array.isArray(payload) && payload) ||
+        [];
 
+      setArtists(listRaw.map(normalizeArtist));
+    } catch (e) {
       setArtists([]);
-      setError(msg);
+      setError(e?.message || "Failed to load artists");
+    } finally {
+      setLastFetchMs(Date.now() - started);
       setLoading(false);
-      return;
     }
-
-    const payload = result.json;
-    const listRaw =
-      (payload && payload.data && Array.isArray(payload.data) && payload.data) ||
-      (Array.isArray(payload) && payload) ||
-      [];
-
-    const normalized = listRaw.map(normalizeArtist);
-    setArtists(normalized);
-    setLoading(false);
   }
 
   useEffect(() => {
@@ -288,10 +237,11 @@ export default function Artists() {
   }, [artists, query]);
 
   return (
-    <div style={{ maxWidth: 820, margin: "0 auto", padding: "28px 16px" }}>
+    <div style={{ maxWidth: 900, margin: "0 auto", padding: "28px 16px" }}>
       <h1 style={{ fontSize: 52, margin: 0, letterSpacing: -1 }}>Artists</h1>
       <p style={{ opacity: 0.85, marginTop: 10 }}>
-        Live route. This now fetches from the backend and renders cards.
+        Live feed from backend • API: {API_BASE}
+        {lastFetchMs ? ` • ${lastFetchMs}ms` : ""}
       </p>
 
       <div style={{ marginTop: 18 }}>
@@ -315,6 +265,7 @@ export default function Artists() {
       <div style={{ display: "flex", gap: 10, marginTop: 14, flexWrap: "wrap" }}>
         <button
           onClick={load}
+          disabled={loading}
           style={{
             borderRadius: 16,
             padding: "12px 16px",
@@ -324,14 +275,14 @@ export default function Artists() {
             color: "black",
             fontWeight: 900,
             cursor: "pointer",
+            opacity: loading ? 0.8 : 1,
           }}
         >
           {loading ? "Loading…" : "Refresh"}
         </button>
 
         <div style={{ opacity: 0.7, alignSelf: "center" }}>
-          API: {API_BASE}
-          {lastFetchMs ? ` • ${lastFetchMs}ms` : ""}
+          Showing {filtered.length} artist(s)
         </div>
       </div>
 
@@ -348,17 +299,12 @@ export default function Artists() {
           <div style={{ fontWeight: 900, fontSize: 18 }}>Error</div>
           <div style={{ opacity: 0.9, marginTop: 6 }}>{error}</div>
           <div style={{ opacity: 0.75, marginTop: 8, fontSize: 13 }}>
-            If you see timeouts: the backend may be cold-starting on Render. Hit
-            Refresh once or twice.
+            Render may cold-start. Hit Refresh once or twice.
           </div>
         </div>
       ) : null}
 
       <div style={{ marginTop: 16 }}>
-        {loading && !artists.length ? (
-          <div style={{ opacity: 0.85 }}>Loading artists…</div>
-        ) : null}
-
         {!loading && !filtered.length ? (
           <div
             style={{
@@ -371,8 +317,7 @@ export default function Artists() {
           >
             <div style={{ fontWeight: 900, fontSize: 20 }}>No artists yet</div>
             <div style={{ opacity: 0.85, marginTop: 6 }}>
-              The backend returned an empty list. That’s okay — next we’ll add
-              seed + admin submission.
+              Backend returned an empty list. Next we’ll seed + admin submit.
             </div>
           </div>
         ) : null}
@@ -380,11 +325,6 @@ export default function Artists() {
         {filtered.map((a) => (
           <ArtistCard key={a.id || a.name} artist={a} />
         ))}
-      </div>
-
-      <div style={{ opacity: 0.6, marginTop: 18, fontSize: 13 }}>
-        Tip: set <b>VITE_API_BASE_URL</b> on Vercel later to swap backend
-        environments without code changes.
       </div>
     </div>
   );
