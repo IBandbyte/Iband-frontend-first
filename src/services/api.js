@@ -94,18 +94,15 @@ export async function apiFetch(path, options = {}) {
 }
 
 /**
- * iBand API surface
- * Backend endpoints you already confirmed:
+ * Backend endpoints confirmed:
  * - GET  /health
  * - GET  /artists
  * - GET  /artists/:id
  * - POST /artists/:id/votes  { amount: 1 }
  */
 export const api = {
-  // Health
   health: () => apiFetch("/health"),
 
-  // Artists
   listArtists: (params = {}) => {
     const q = new URLSearchParams();
     for (const [k, v] of Object.entries(params)) {
@@ -120,7 +117,6 @@ export const api = {
 
   getArtist: (id) => apiFetch(`/artists/${encodeURIComponent(id)}`),
 
-  // Votes
   voteArtist: (artistId, amount = 1) =>
     apiFetch(`/artists/${encodeURIComponent(artistId)}/votes`, {
       method: "POST",
