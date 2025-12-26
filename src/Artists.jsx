@@ -27,7 +27,6 @@ function normalizeArtist(raw) {
     imageUrl: safeText(a.imageUrl || a.image || ""),
     socials: {
       instagram: safeText(socials.instagram || ""),
-      tiktok: safeText(socials.tiktok || ""),
       youtube: safeText(socials.youtube || ""),
       spotify: safeText(socials.spotify || ""),
       soundcloud: safeText(socials.soundcloud || ""),
@@ -42,6 +41,23 @@ function normalizeArtist(raw) {
       }))
       .filter((t) => t.title || t.url),
   };
+}
+
+function Pill({ children }) {
+  return (
+    <span
+      style={{
+        borderRadius: 999,
+        padding: "8px 12px",
+        border: "1px solid rgba(255,255,255,0.12)",
+        background: "rgba(255,255,255,0.06)",
+        fontSize: 13,
+        fontWeight: 800,
+      }}
+    >
+      {children}
+    </span>
+  );
 }
 
 function ArtistCard({ artist }) {
@@ -106,30 +122,8 @@ function ArtistCard({ artist }) {
           ) : null}
 
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 12 }}>
-            <span
-              style={{
-                borderRadius: 999,
-                padding: "8px 12px",
-                border: "1px solid rgba(255,255,255,0.12)",
-                background: "rgba(255,255,255,0.06)",
-                fontSize: 13,
-                fontWeight: 800,
-              }}
-            >
-              Votes: {toNumber(artist.votes, 0)}
-            </span>
-
-            <span
-              style={{
-                borderRadius: 999,
-                padding: "8px 12px",
-                border: "1px solid rgba(255,255,255,0.12)",
-                background: "rgba(255,255,255,0.06)",
-                fontSize: 13,
-              }}
-            >
-              Status: {artist.status}
-            </span>
+            <Pill>Votes: {toNumber(artist.votes, 0)}</Pill>
+            <Pill>Status: {artist.status}</Pill>
           </div>
         </div>
       </div>
@@ -201,7 +195,7 @@ export default function Artists() {
 
     const started = Date.now();
     try {
-      const payload = await api.listArtists({ q: query || undefined, limit: 50, page: 1 });
+      const payload = await api.listArtists({ limit: 50, page: 1 });
 
       const listRaw =
         (payload && payload.data && Array.isArray(payload.data) && payload.data) ||
