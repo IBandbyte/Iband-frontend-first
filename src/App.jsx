@@ -99,10 +99,8 @@ export default function App() {
 
       <Routes>
         <Route path="/" element={<Home />} />
-
         <Route path="/artists" element={<Artists />} />
         <Route path="/artists/:id" element={<ArtistDetail />} />
-
         <Route path="/admin" element={<Admin />} />
 
         {/* Prevent blank white screen on unknown route */}
