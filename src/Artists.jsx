@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { api, API_BASE } from "./services/api";
 
 function safeText(v) {
@@ -41,23 +42,6 @@ function normalizeArtist(raw) {
       }))
       .filter((t) => t.title || t.url),
   };
-}
-
-function Pill({ children }) {
-  return (
-    <span
-      style={{
-        borderRadius: 999,
-        padding: "8px 12px",
-        border: "1px solid rgba(255,255,255,0.12)",
-        background: "rgba(255,255,255,0.06)",
-        fontSize: 13,
-        fontWeight: 800,
-      }}
-    >
-      {children}
-    </span>
-  );
 }
 
 function ArtistCard({ artist }) {
@@ -111,19 +95,53 @@ function ArtistCard({ artist }) {
             {artist.name}
           </div>
 
-          {subtitle ? (
-            <div style={{ opacity: 0.8, marginTop: 6 }}>{subtitle}</div>
-          ) : null}
+          {subtitle ? <div style={{ opacity: 0.8, marginTop: 6 }}>{subtitle}</div> : null}
 
           {artist.bio ? (
-            <div style={{ marginTop: 10, opacity: 0.9, lineHeight: 1.45 }}>
-              {artist.bio}
-            </div>
+            <div style={{ marginTop: 10, opacity: 0.9, lineHeight: 1.45 }}>{artist.bio}</div>
           ) : null}
 
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 12 }}>
-            <Pill>Votes: {toNumber(artist.votes, 0)}</Pill>
-            <Pill>Status: {artist.status}</Pill>
+            <span
+              style={{
+                borderRadius: 999,
+                padding: "8px 12px",
+                border: "1px solid rgba(255,255,255,0.12)",
+                background: "rgba(255,255,255,0.06)",
+                fontSize: 13,
+                fontWeight: 800,
+              }}
+            >
+              Votes: {toNumber(artist.votes, 0)}
+            </span>
+
+            <span
+              style={{
+                borderRadius: 999,
+                padding: "8px 12px",
+                border: "1px solid rgba(255,255,255,0.12)",
+                background: "rgba(255,255,255,0.06)",
+                fontSize: 13,
+              }}
+            >
+              Status: {artist.status}
+            </span>
+
+            <Link
+              to={`/artists/${encodeURIComponent(artist.id)}`}
+              style={{
+                textDecoration: "none",
+                borderRadius: 999,
+                padding: "8px 12px",
+                border: "1px solid rgba(255,255,255,0.12)",
+                background: "rgba(154,74,255,0.22)",
+                fontSize: 13,
+                fontWeight: 900,
+                color: "white",
+              }}
+            >
+              View
+            </Link>
           </div>
         </div>
       </div>
@@ -132,7 +150,7 @@ function ArtistCard({ artist }) {
         <div style={{ marginTop: 14 }}>
           <div style={{ fontWeight: 900, marginBottom: 8 }}>Tracks</div>
           <div style={{ display: "grid", gap: 8 }}>
-            {artist.tracks.slice(0, 3).map((t, idx) => (
+            {artist.tracks.slice(0, 1).map((t, idx) => (
               <div
                 key={`${artist.id}-track-${idx}`}
                 style={{
@@ -195,7 +213,7 @@ export default function Artists() {
 
     const started = Date.now();
     try {
-      const payload = await api.listArtists({ limit: 50, page: 1 });
+      const payload = await api.listArtists({ q: query || undefined, limit: 50, page: 1 });
 
       const listRaw =
         (payload && payload.data && Array.isArray(payload.data) && payload.data) ||
