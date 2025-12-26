@@ -28,6 +28,7 @@ function normalizeArtist(raw) {
     imageUrl: safeText(a.imageUrl || a.image || ""),
     socials: {
       instagram: safeText(socials.instagram || ""),
+      tiktok: safeText(socials.tiktok || ""),
       youtube: safeText(socials.youtube || ""),
       spotify: safeText(socials.spotify || ""),
       soundcloud: safeText(socials.soundcloud || ""),
@@ -42,6 +43,37 @@ function normalizeArtist(raw) {
       }))
       .filter((t) => t.title || t.url),
   };
+}
+
+function Button({ children, onClick, disabled, variant = "primary" }) {
+  const base = {
+    borderRadius: 16,
+    padding: "12px 16px",
+    border: "1px solid rgba(255,255,255,0.12)",
+    fontWeight: 900,
+    cursor: disabled ? "not-allowed" : "pointer",
+    opacity: disabled ? 0.7 : 1,
+  };
+
+  const style =
+    variant === "primary"
+      ? {
+          ...base,
+          background:
+            "linear-gradient(90deg, rgba(154,74,255,0.95), rgba(255,147,43,0.95))",
+          color: "black",
+        }
+      : {
+          ...base,
+          background: "rgba(255,255,255,0.08)",
+          color: "white",
+        };
+
+  return (
+    <button onClick={onClick} disabled={disabled} style={style}>
+      {children}
+    </button>
+  );
 }
 
 function Pill({ children }) {
@@ -64,19 +96,18 @@ function Pill({ children }) {
 export default function ArtistDetail() {
   const { id } = useParams();
 
-  const [artist, setArtist] = useState(null);
   const [loading, setLoading] = useState(false);
   const [voting, setVoting] = useState(false);
   const [error, setError] = useState("");
+  const [artist, setArtist] = useState(null);
   const [lastFetchMs, setLastFetchMs] = useState(0);
 
-  const title = useMemo(() => (artist?.name ? artist.name : "Artist"), [artist]);
-
   async function load() {
+    if (!id) return;
     setLoading(true);
     setError("");
-    const started = Date.now();
 
+    const started = Date.now();
     try {
       const payload = await api.getArtist(id);
 
@@ -86,7 +117,10 @@ export default function ArtistDetail() {
         (payload && typeof payload === "object" && payload) ||
         null;
 
-      if (!raw) throw new Error("Artist not found");
+      if (!raw) {
+        throw new Error("Artist not found");
+      }
+
       setArtist(normalizeArtist(raw));
     } catch (e) {
       setArtist(null);
@@ -97,28 +131,30 @@ export default function ArtistDetail() {
     }
   }
 
-  async function vote() {
-    if (!artist?.id) return;
-
+  async function vote(amount = 1) {
+    if (!id) return;
     setVoting(true);
     setError("");
 
     try {
-      const payload = await api.voteArtist(artist.id, 1);
+      const payload = await api.voteArtist(id, amount);
 
-      // backend typically returns updated artist or at least votes
-      const raw =
+      // Try to pull updated artist from response if backend returns it
+      const updated =
         (payload && payload.data && typeof payload.data === "object" && payload.data) ||
-        (payload && typeof payload === "object" && payload) ||
+        (payload && payload.artist && typeof payload.artist === "object" && payload.artist) ||
         null;
 
-      if (raw) {
-        const next = normalizeArtist({ ...artist, ...raw });
-        setArtist(next);
-      } else {
-        // fallback: optimistic increment
-        setArtist((prev) => (prev ? { ...prev, votes: (prev.votes || 0) + 1 } : prev));
+      if (updated) {
+        setArtist(normalizeArtist(updated));
+        return;
       }
+
+      // Otherwise optimistic update + refresh
+      setArtist((prev) =>
+        prev ? { ...prev, votes: toNumber(prev.votes, 0) + amount } : prev
+      );
+      await load();
     } catch (e) {
       setError(e?.message || "Vote failed");
     } finally {
@@ -131,32 +167,40 @@ export default function ArtistDetail() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
+  const subtitle = useMemo(() => {
+    if (!artist) return "";
+    return [artist.genre, artist.location].filter(Boolean).join(" • ");
+  }, [artist]);
+
   return (
     <div style={{ maxWidth: 900, margin: "0 auto", padding: "28px 16px" }}>
       <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
         <div>
-          <h1 style={{ fontSize: 52, margin: 0, letterSpacing: -1 }}>{title}</h1>
+          <h1 style={{ fontSize: 52, margin: 0, letterSpacing: -1 }}>
+            {artist?.name || (loading ? "Loading…" : "Artist")}
+          </h1>
           <p style={{ opacity: 0.85, marginTop: 10 }}>
-            Artist detail • API: {API_BASE}
+            API: {API_BASE}
             {lastFetchMs ? ` • ${lastFetchMs}ms` : ""}
           </p>
         </div>
 
-        <Link
-          to="/artists"
-          style={{
-            textDecoration: "none",
-            borderRadius: 16,
-            padding: "12px 16px",
-            border: "1px solid rgba(255,255,255,0.12)",
-            background: "rgba(255,255,255,0.06)",
-            color: "white",
-            fontWeight: 900,
-            height: "fit-content",
-          }}
-        >
-          ← Back to Artists
-        </Link>
+        <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+          <Link
+            to="/artists"
+            style={{
+              textDecoration: "none",
+              borderRadius: 16,
+              padding: "12px 16px",
+              border: "1px solid rgba(255,255,255,0.12)",
+              background: "rgba(255,255,255,0.08)",
+              color: "white",
+              fontWeight: 900,
+            }}
+          >
+            ← Back
+          </Link>
+        </div>
       </div>
 
       {error ? (
@@ -172,7 +216,7 @@ export default function ArtistDetail() {
           <div style={{ fontWeight: 900, fontSize: 18 }}>Error</div>
           <div style={{ opacity: 0.9, marginTop: 6 }}>{error}</div>
           <div style={{ opacity: 0.75, marginTop: 8, fontSize: 13 }}>
-            Render may cold-start. Hit Refresh once or twice.
+            If Render cold-started, try refresh once.
           </div>
         </div>
       ) : null}
@@ -187,153 +231,126 @@ export default function ArtistDetail() {
           boxShadow: "0 8px 22px rgba(0,0,0,0.35)",
         }}
       >
-        {loading ? (
-          <div style={{ opacity: 0.85 }}>Loading…</div>
-        ) : !artist ? (
-          <div style={{ opacity: 0.85 }}>No artist loaded.</div>
-        ) : (
-          <>
-            <div style={{ display: "flex", gap: 14, alignItems: "flex-start" }}>
-              {artist.imageUrl ? (
-                <img
-                  src={artist.imageUrl}
-                  alt={artist.name}
-                  style={{
-                    width: 110,
-                    height: 110,
-                    borderRadius: 18,
-                    objectFit: "cover",
-                    border: "1px solid rgba(255,255,255,0.10)",
-                  }}
-                />
-              ) : (
-                <div
-                  style={{
-                    width: 110,
-                    height: 110,
-                    borderRadius: 18,
-                    border: "1px solid rgba(255,255,255,0.10)",
-                    background: "rgba(255,255,255,0.05)",
-                    display: "grid",
-                    placeItems: "center",
-                    fontWeight: 900,
-                    fontSize: 30,
-                    color: "rgba(255,255,255,0.75)",
-                  }}
-                >
-                  {artist.name?.slice(0, 1)?.toUpperCase() || "A"}
-                </div>
-              )}
-
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 26, fontWeight: 900, lineHeight: 1.1 }}>
-                  {artist.name}
-                </div>
-
-                <div style={{ opacity: 0.85, marginTop: 8 }}>
-                  {[artist.genre, artist.location].filter(Boolean).join(" • ")}
-                </div>
-
-                {artist.bio ? (
-                  <div style={{ marginTop: 12, opacity: 0.9, lineHeight: 1.5 }}>
-                    {artist.bio}
-                  </div>
-                ) : null}
-
-                <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 14 }}>
-                  <Pill>Votes: {toNumber(artist.votes, 0)}</Pill>
-                  <Pill>Status: {artist.status}</Pill>
-
-                  <button
-                    onClick={vote}
-                    disabled={voting}
-                    style={{
-                      borderRadius: 16,
-                      padding: "10px 14px",
-                      border: "1px solid rgba(255,255,255,0.12)",
-                      background:
-                        "linear-gradient(90deg, rgba(154,74,255,0.95), rgba(255,147,43,0.95))",
-                      color: "black",
-                      fontWeight: 900,
-                      cursor: "pointer",
-                      opacity: voting ? 0.8 : 1,
-                    }}
-                  >
-                    {voting ? "Voting…" : "Vote +1"}
-                  </button>
-
-                  <button
-                    onClick={load}
-                    disabled={loading}
-                    style={{
-                      borderRadius: 16,
-                      padding: "10px 14px",
-                      border: "1px solid rgba(255,255,255,0.12)",
-                      background: "rgba(255,255,255,0.06)",
-                      color: "white",
-                      fontWeight: 900,
-                      cursor: "pointer",
-                      opacity: loading ? 0.8 : 1,
-                    }}
-                  >
-                    Refresh
-                  </button>
-                </div>
-              </div>
+        <div style={{ display: "flex", gap: 14, alignItems: "flex-start" }}>
+          {artist?.imageUrl ? (
+            <img
+              src={artist.imageUrl}
+              alt={artist.name}
+              style={{
+                width: 110,
+                height: 110,
+                borderRadius: 18,
+                objectFit: "cover",
+                border: "1px solid rgba(255,255,255,0.10)",
+              }}
+            />
+          ) : (
+            <div
+              style={{
+                width: 110,
+                height: 110,
+                borderRadius: 18,
+                border: "1px solid rgba(255,255,255,0.10)",
+                background: "rgba(255,255,255,0.05)",
+                display: "grid",
+                placeItems: "center",
+                fontWeight: 900,
+                fontSize: 28,
+                color: "rgba(255,255,255,0.75)",
+              }}
+            >
+              {(artist?.name || "A").slice(0, 1).toUpperCase()}
             </div>
+          )}
 
-            {artist.tracks.length ? (
-              <div style={{ marginTop: 18 }}>
-                <div style={{ fontWeight: 900, marginBottom: 10, fontSize: 18 }}>Tracks</div>
-                <div style={{ display: "grid", gap: 10 }}>
-                  {artist.tracks.map((t, idx) => (
-                    <div
-                      key={`${artist.id}-track-${idx}`}
-                      style={{
-                        borderRadius: 14,
-                        padding: "10px 12px",
-                        border: "1px solid rgba(255,255,255,0.10)",
-                        background: "rgba(0,0,0,0.25)",
-                        display: "flex",
-                        justifyContent: "space-between",
-                        gap: 10,
-                      }}
-                    >
-                      <div style={{ minWidth: 0 }}>
-                        <div style={{ fontWeight: 900 }}>{t.title || "Track"}</div>
-                        <div style={{ opacity: 0.75, fontSize: 13, marginTop: 2 }}>
-                          {[t.platform, t.durationSec ? `${t.durationSec}s` : ""]
-                            .filter(Boolean)
-                            .join(" • ")}
-                        </div>
-                      </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            {subtitle ? (
+              <div style={{ opacity: 0.8, marginTop: 2 }}>{subtitle}</div>
+            ) : null}
 
-                      {t.url && t.url.startsWith("http") ? (
-                        <a
-                          href={t.url}
-                          target="_blank"
-                          rel="noreferrer"
-                          style={{
-                            textDecoration: "none",
-                            borderRadius: 12,
-                            padding: "8px 10px",
-                            border: "1px solid rgba(255,255,255,0.12)",
-                            background: "rgba(255,255,255,0.08)",
-                            color: "white",
-                            height: "fit-content",
-                            whiteSpace: "nowrap",
-                          }}
-                        >
-                          Open
-                        </a>
-                      ) : null}
-                    </div>
-                  ))}
-                </div>
+            {artist?.bio ? (
+              <div style={{ marginTop: 10, opacity: 0.9, lineHeight: 1.45 }}>
+                {artist.bio}
               </div>
             ) : null}
-          </>
+
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 12 }}>
+              <Pill>Votes: {toNumber(artist?.votes, 0)}</Pill>
+              <Pill>Status: {artist?.status || "active"}</Pill>
+              <Pill>ID: {id}</Pill>
+            </div>
+
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 14 }}>
+              <Button onClick={() => vote(1)} disabled={voting || loading || !id}>
+                {voting ? "Voting…" : "Vote +1"}
+              </Button>
+
+              <Button onClick={load} disabled={loading} variant="secondary">
+                {loading ? "Refreshing…" : "Refresh"}
+              </Button>
+            </div>
+          </div>
+        </div>
+
+        {artist?.tracks?.length ? (
+          <div style={{ marginTop: 18 }}>
+            <div style={{ fontWeight: 900, marginBottom: 10, fontSize: 18 }}>Tracks</div>
+            <div style={{ display: "grid", gap: 10 }}>
+              {artist.tracks.map((t, idx) => (
+                <div
+                  key={`${artist.id}-trk-${idx}`}
+                  style={{
+                    borderRadius: 14,
+                    padding: "12px 12px",
+                    border: "1px solid rgba(255,255,255,0.10)",
+                    background: "rgba(0,0,0,0.25)",
+                    display: "flex",
+                    justifyContent: "space-between",
+                    gap: 10,
+                  }}
+                >
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontWeight: 900 }}>{t.title || "Track"}</div>
+                    <div style={{ opacity: 0.75, fontSize: 13, marginTop: 2 }}>
+                      {[t.platform, t.durationSec ? `${t.durationSec}s` : ""]
+                        .filter(Boolean)
+                        .join(" • ")}
+                    </div>
+                  </div>
+
+                  {t.url && t.url.startsWith("http") ? (
+                    <a
+                      href={t.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      style={{
+                        textDecoration: "none",
+                        borderRadius: 12,
+                        padding: "10px 12px",
+                        border: "1px solid rgba(255,255,255,0.12)",
+                        background: "rgba(255,255,255,0.08)",
+                        color: "white",
+                        height: "fit-content",
+                        whiteSpace: "nowrap",
+                        fontWeight: 900,
+                      }}
+                    >
+                      Open
+                    </a>
+                  ) : null}
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <div style={{ marginTop: 18, opacity: 0.8 }}>
+            No tracks yet. Next phase adds richer previews + comments.
+          </div>
         )}
+      </div>
+
+      <div style={{ marginTop: 16, opacity: 0.75, fontSize: 13 }}>
+        Notes: Vote uses <b>POST /artists/:id/votes</b> with <b>{"{ amount: 1 }"}</b>.
       </div>
     </div>
   );
