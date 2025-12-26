@@ -62,45 +62,52 @@ function Pill({ children }) {
   );
 }
 
-function Button({ children, onClick, disabled, variant = "primary", to }) {
-  const base = {
+function SoftBtn({ children, to, onClick, disabled }) {
+  const common = {
+    textDecoration: "none",
     borderRadius: 16,
     padding: "12px 16px",
     border: "1px solid rgba(255,255,255,0.12)",
+    background: "rgba(255,255,255,0.08)",
+    color: "white",
     fontWeight: 900,
     cursor: disabled ? "not-allowed" : "pointer",
     opacity: disabled ? 0.7 : 1,
-    textDecoration: "none",
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
+    display: "inline-block",
   };
-
-  const styles =
-    variant === "primary"
-      ? {
-          ...base,
-          background:
-            "linear-gradient(90deg, rgba(154,74,255,0.95), rgba(255,147,43,0.95))",
-          color: "black",
-        }
-      : {
-          ...base,
-          background: "rgba(255,255,255,0.08)",
-          color: "white",
-        };
 
   if (to) {
     return (
-      <Link to={to} style={styles}>
+      <Link to={to} style={common}>
         {children}
       </Link>
     );
   }
 
   return (
-    <button onClick={onClick} disabled={disabled} style={styles}>
+    <button onClick={onClick} disabled={disabled} style={common}>
+      {children}
+    </button>
+  );
+}
+
+function PrimaryBtn({ children, onClick, disabled }) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      style={{
+        borderRadius: 16,
+        padding: "12px 16px",
+        border: "1px solid rgba(255,255,255,0.12)",
+        background:
+          "linear-gradient(90deg, rgba(154,74,255,0.95), rgba(255,147,43,0.95))",
+        color: "black",
+        fontWeight: 900,
+        cursor: disabled ? "not-allowed" : "pointer",
+        opacity: disabled ? 0.8 : 1,
+      }}
+    >
       {children}
     </button>
   );
@@ -108,7 +115,6 @@ function Button({ children, onClick, disabled, variant = "primary", to }) {
 
 function ArtistCard({ artist }) {
   const subtitle = [artist.genre, artist.location].filter(Boolean).join(" • ");
-  const viewHref = artist.id ? `/artists/${encodeURIComponent(artist.id)}` : null;
 
   return (
     <div
@@ -158,9 +164,7 @@ function ArtistCard({ artist }) {
             {artist.name}
           </div>
 
-          {subtitle ? (
-            <div style={{ opacity: 0.8, marginTop: 6 }}>{subtitle}</div>
-          ) : null}
+          {subtitle ? <div style={{ opacity: 0.8, marginTop: 6 }}>{subtitle}</div> : null}
 
           {artist.bio ? (
             <div style={{ marginTop: 10, opacity: 0.9, lineHeight: 1.45 }}>
@@ -174,7 +178,7 @@ function ArtistCard({ artist }) {
           </div>
 
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 14 }}>
-            {viewHref ? <Button to={viewHref} variant="secondary">View</Button> : null}
+            <SoftBtn to={`/artists/${encodeURIComponent(artist.id)}`}>View</SoftBtn>
           </div>
         </div>
       </div>
@@ -182,6 +186,7 @@ function ArtistCard({ artist }) {
       {artist.tracks.length ? (
         <div style={{ marginTop: 14 }}>
           <div style={{ fontWeight: 900, marginBottom: 8 }}>Tracks</div>
+
           <div style={{ display: "grid", gap: 8 }}>
             {artist.tracks.slice(0, 3).map((t, idx) => (
               <div
@@ -246,7 +251,7 @@ export default function Artists() {
 
     const started = Date.now();
     try {
-      const payload = await api.listArtists({ limit: 50, page: 1 });
+      const payload = await api.listArtists({ q: query || undefined, limit: 50, page: 1 });
 
       const listRaw =
         (payload && payload.data && Array.isArray(payload.data) && payload.data) ||
@@ -254,8 +259,7 @@ export default function Artists() {
         (Array.isArray(payload) && payload) ||
         [];
 
-      const normalized = listRaw.map(normalizeArtist);
-      setArtists(normalized);
+      setArtists(listRaw.map(normalizeArtist));
     } catch (e) {
       setArtists([]);
       setError(e?.message || "Failed to load artists");
@@ -309,23 +313,9 @@ export default function Artists() {
       </div>
 
       <div style={{ display: "flex", gap: 10, marginTop: 14, flexWrap: "wrap" }}>
-        <button
-          onClick={load}
-          disabled={loading}
-          style={{
-            borderRadius: 16,
-            padding: "12px 16px",
-            border: "1px solid rgba(255,255,255,0.12)",
-            background:
-              "linear-gradient(90deg, rgba(154,74,255,0.95), rgba(255,147,43,0.95))",
-            color: "black",
-            fontWeight: 900,
-            cursor: "pointer",
-            opacity: loading ? 0.8 : 1,
-          }}
-        >
+        <PrimaryBtn onClick={load} disabled={loading}>
           {loading ? "Loading…" : "Refresh"}
-        </button>
+        </PrimaryBtn>
 
         <div style={{ opacity: 0.7, alignSelf: "center" }}>
           Showing {filtered.length} artist(s)
