@@ -1,8 +1,8 @@
 /**
  * iBand Frontend API Client (FOUNDATION)
  * - Single source of truth for backend calls
- * - Safe on mobile + Vercel
- * - Normalized errors + timeouts + JSON parsing
+ * - Mobile-safe (timeouts) + Vercel-safe
+ * - Normalized errors + JSON parsing
  */
 
 export const API_BASE =
@@ -95,14 +95,11 @@ export async function apiFetch(path, options = {}) {
 
 /**
  * iBand API surface
- * NOTE: Your backend currently uses non-/api prefixes (e.g. /artists).
- * Keep calls aligned to that.
+ * Backend uses non-/api prefixes (e.g. /artists).
  */
 export const api = {
-  // Health
   health: () => apiFetch("/health"),
 
-  // Artists
   listArtists: (params = {}) => {
     const q = new URLSearchParams();
     for (const [k, v] of Object.entries(params)) {
@@ -117,20 +114,14 @@ export const api = {
 
   getArtist: (id) => apiFetch(`/artists/${encodeURIComponent(id)}`),
 
-  // Votes (keep flexible)
-  vote: (artistId) =>
-    apiFetch("/votes", { method: "POST", body: { artistId } }),
+  // Optional future-proof calls (won’t break if unused)
+  vote: (artistId) => apiFetch("/votes", { method: "POST", body: { artistId } }),
 
-  // Comments
   listComments: (artistId) =>
     apiFetch(`/comments?artistId=${encodeURIComponent(artistId)}`),
 
   addComment: ({ artistId, name, text }) =>
-    apiFetch("/comments", {
-      method: "POST",
-      body: { artistId, name, text },
-    }),
+    apiFetch("/comments", { method: "POST", body: { artistId, name, text } }),
 
-  // Admin (optional routes – safe to call later when wired)
   adminStats: () => apiFetch("/api/admin/stats"),
 };
