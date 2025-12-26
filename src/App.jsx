@@ -21,6 +21,7 @@ function Home() {
           border: "1px solid rgba(255,255,255,0.10)",
           background: "rgba(0,0,0,0.35)",
           padding: 18,
+          boxShadow: "0 8px 22px rgba(0,0,0,0.35)",
         }}
       >
         <div style={{ fontSize: 26, fontWeight: 900 }}>Get Signed / Connect</div>
@@ -74,9 +75,11 @@ function TopNav() {
         <NavLink to="/" style={linkStyle} end>
           Home
         </NavLink>
+
         <NavLink to="/artists" style={linkStyle}>
           Artists
         </NavLink>
+
         <NavLink to="/admin" style={linkStyle}>
           Admin
         </NavLink>
@@ -103,7 +106,7 @@ export default function App() {
         <Route path="/artists/:id" element={<ArtistDetail />} />
         <Route path="/admin" element={<Admin />} />
 
-        {/* Prevent blank white screen on unknown route */}
+        {/* Prevent blank route */}
         <Route path="*" element={<Home />} />
       </Routes>
     </div>
