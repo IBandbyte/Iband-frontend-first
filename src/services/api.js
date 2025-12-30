@@ -99,10 +99,14 @@ export async function apiFetch(path, options = {}) {
  * - GET  /artists
  * - GET  /artists/:id
  * - POST /artists/:id/votes  { amount: 1 }
+ * - GET  /comments?artistId=:id
+ * - POST /comments { artistId, name, text }
  */
 export const api = {
+  // Health
   health: () => apiFetch("/health"),
 
+  // Artists
   listArtists: (params = {}) => {
     const q = new URLSearchParams();
     for (const [k, v] of Object.entries(params)) {
@@ -121,5 +125,21 @@ export const api = {
     apiFetch(`/artists/${encodeURIComponent(artistId)}/votes`, {
       method: "POST",
       body: { amount },
+    }),
+
+  // Comments (Phase 2.2.1)
+  listComments: (artistId, { limit = 50, page = 1 } = {}) => {
+    const a = String(artistId ?? "").trim();
+    const q = new URLSearchParams();
+    q.set("artistId", a);
+    q.set("limit", String(limit));
+    q.set("page", String(page));
+    return apiFetch(`/comments?${q.toString()}`);
+  },
+
+  addComment: ({ artistId, name, text }) =>
+    apiFetch("/comments", {
+      method: "POST",
+      body: { artistId, name, text },
     }),
 };
