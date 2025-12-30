@@ -2,6 +2,7 @@ import React from "react";
 import { NavLink, Route, Routes } from "react-router-dom";
 import Artists from "./Artists.jsx";
 import ArtistDetail from "./ArtistDetail.jsx";
+import SubmitArtist from "./SubmitArtist.jsx";
 
 function Home() {
   return (
@@ -38,7 +39,7 @@ function Admin() {
     <div style={{ maxWidth: 950, margin: "0 auto", padding: "32px 16px" }}>
       <h1 style={{ fontSize: 56, margin: 0, letterSpacing: -1 }}>Admin</h1>
       <p style={{ opacity: 0.85, marginTop: 10 }}>
-        Admin dashboard placeholder. Next phase: submissions, moderation, stats.
+        Admin dashboard placeholder. Next phase: approvals, moderation, stats.
       </p>
     </div>
   );
@@ -80,6 +81,10 @@ function TopNav() {
           Artists
         </NavLink>
 
+        <NavLink to="/submit" style={linkStyle}>
+          Submit
+        </NavLink>
+
         <NavLink to="/admin" style={linkStyle}>
           Admin
         </NavLink>
@@ -102,8 +107,12 @@ export default function App() {
 
       <Routes>
         <Route path="/" element={<Home />} />
+
         <Route path="/artists" element={<Artists />} />
         <Route path="/artists/:id" element={<ArtistDetail />} />
+
+        <Route path="/submit" element={<SubmitArtist />} />
+
         <Route path="/admin" element={<Admin />} />
 
         {/* Prevent blank route */}
