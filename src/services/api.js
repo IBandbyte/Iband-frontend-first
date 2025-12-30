@@ -94,13 +94,18 @@ export async function apiFetch(path, options = {}) {
 }
 
 /**
- * Backend endpoints confirmed:
+ * Backend endpoints confirmed (so far):
  * - GET  /health
  * - GET  /artists
  * - GET  /artists/:id
  * - POST /artists/:id/votes  { amount: 1 }
- * - GET  /comments?artistId=:id
- * - POST /comments { artistId, name, text }
+ * - GET  /comments?artistId=demo
+ * - POST /comments  { artistId, name, text }
+ *
+ * Submission endpoints may vary by backend iteration.
+ * We support BOTH patterns safely:
+ * - POST /artists/submissions
+ * - POST /artists   (with { status:"pending" } if backend accepts)
  */
 export const api = {
   // Health
@@ -127,19 +132,55 @@ export const api = {
       body: { amount },
     }),
 
-  // Comments (Phase 2.2.1)
-  listComments: (artistId, { limit = 50, page = 1 } = {}) => {
-    const a = String(artistId ?? "").trim();
-    const q = new URLSearchParams();
-    q.set("artistId", a);
-    q.set("limit", String(limit));
-    q.set("page", String(page));
-    return apiFetch(`/comments?${q.toString()}`);
-  },
+  // Comments
+  listComments: (artistId) =>
+    apiFetch(`/comments?artistId=${encodeURIComponent(artistId)}`),
 
   addComment: ({ artistId, name, text }) =>
     apiFetch("/comments", {
       method: "POST",
       body: { artistId, name, text },
+    }),
+
+  /**
+   * Artist Submission (Phase 2.2.2)
+   * Primary: POST /artists/submissions
+   * Fallback: POST /artists (with status=pending)
+   */
+  submitArtist: async (payload) => {
+    // Try canonical endpoint first
+    try {
+      return await apiFetch("/artists/submissions", { method: "POST", body: payload });
+    } catch (e) {
+      // If backend doesn't have /artists/submissions, fallback to /artists
+      // (Some builds treat POST /artists as submissions)
+      if (e?.status === 404) {
+        const fallbackPayload =
+          payload && typeof payload === "object"
+            ? { ...payload, status: payload.status || "pending" }
+            : payload;
+
+        return apiFetch("/artists", { method: "POST", body: fallbackPayload });
+      }
+      throw e;
+    }
+  },
+
+  /**
+   * Future-proof admin hooks (Phase 2.2.3+)
+   * These are SAFE to exist even if unused.
+   */
+  listPendingArtists: (params = {}) =>
+    apiFetch(
+      `/admin/artists?${new URLSearchParams({ status: "pending", ...params }).toString()}`
+    ),
+
+  approveArtist: (id) =>
+    apiFetch(`/admin/artists/${encodeURIComponent(id)}/approve`, { method: "POST" }),
+
+  rejectArtist: (id, reason = "") =>
+    apiFetch(`/admin/artists/${encodeURIComponent(id)}/reject`, {
+      method: "POST",
+      body: { reason },
     }),
 };
