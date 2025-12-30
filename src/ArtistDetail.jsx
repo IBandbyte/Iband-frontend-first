@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { api, API_BASE } from "./services/api";
 
@@ -106,19 +106,47 @@ function SoftBtn({ children, onClick, disabled }) {
   );
 }
 
+function Card({ children }) {
+  return (
+    <div
+      style={{
+        marginTop: 18,
+        borderRadius: 18,
+        border: "1px solid rgba(255,255,255,0.10)",
+        background: "rgba(0,0,0,0.35)",
+        padding: 18,
+        boxShadow: "0 8px 22px rgba(0,0,0,0.35)",
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
 export default function ArtistDetail() {
   const { id } = useParams();
 
-  const [loading, setLoading] = useState(false);
+  const [loadingArtist, setLoadingArtist] = useState(false);
+  const [loadingComments, setLoadingComments] = useState(false);
   const [voting, setVoting] = useState(false);
+  const [posting, setPosting] = useState(false);
+
   const [error, setError] = useState("");
   const [artist, setArtist] = useState(null);
   const [lastFetchMs, setLastFetchMs] = useState(0);
 
-  async function load() {
+  const [comments, setComments] = useState([]);
+  const [commentName, setCommentName] = useState("");
+  const [commentText, setCommentText] = useState("");
+
+  const subtitle = useMemo(() => {
+    return artist ? [artist.genre, artist.location].filter(Boolean).join(" • ") : "";
+  }, [artist]);
+
+  async function loadArtist() {
     if (!id) return;
 
-    setLoading(true);
+    setLoadingArtist(true);
     setError("");
 
     const started = Date.now();
@@ -136,8 +164,46 @@ export default function ArtistDetail() {
       setError(e?.message || "Failed to load artist");
     } finally {
       setLastFetchMs(Date.now() - started);
-      setLoading(false);
+      setLoadingArtist(false);
     }
+  }
+
+  async function loadComments() {
+    if (!id) return;
+
+    setLoadingComments(true);
+    setError("");
+
+    try {
+      const payload = await api.listComments(id, { limit: 50, page: 1 });
+
+      const items =
+        (payload && payload.data && payload.data.items && Array.isArray(payload.data.items)
+          ? payload.data.items
+          : []) || [];
+
+      // Normalize minimally
+      const normalized = items
+        .map((c) => ({
+          id: safeText(c.id || c._id || ""),
+          artistId: safeText(c.artistId || id),
+          name: safeText(c.name || "Anonymous"),
+          text: safeText(c.text || ""),
+          createdAt: safeText(c.createdAt || ""),
+        }))
+        .filter((c) => c.text);
+
+      setComments(normalized);
+    } catch (e) {
+      setComments([]);
+      setError(e?.message || "Failed to load comments");
+    } finally {
+      setLoadingComments(false);
+    }
+  }
+
+  async function refreshAll() {
+    await Promise.all([loadArtist(), loadComments()]);
   }
 
   async function vote() {
@@ -146,8 +212,8 @@ export default function ArtistDetail() {
     setVoting(true);
     setError("");
     try {
-      await apiFetchVote(id);
-      await load();
+      await api.voteArtist(id, 1);
+      await loadArtist();
     } catch (e) {
       setError(e?.message || "Vote failed");
     } finally {
@@ -155,75 +221,45 @@ export default function ArtistDetail() {
     }
   }
 
-  async function apiFetchVote(artistId) {
-    // Backend route: POST /artists/:id/votes with body { amount: 1 }
-    return apiFetchRaw(`/artists/${encodeURIComponent(artistId)}/votes`, {
-      method: "POST",
-      body: { amount: 1 },
-    });
-  }
+  async function postComment() {
+    if (!id) return;
 
-  async function apiFetchRaw(path, options) {
-    // Reuse your shared api client if you already exposed a helper;
-    // otherwise keep it simple by calling api.getArtist/api.listArtists on the shared api.
-    // Here we call api.listArtists() style only through the shared apiFetch by using api.health trick:
-    // We DON'T have direct access unless it's exported; so we call fetch directly here safely.
-    const base = API_BASE.replace(/\/+$/, "");
-    const url = `${base}${path.startsWith("/") ? "" : "/"}${path}`;
+    const name = commentName.trim();
+    const text = commentText.trim();
 
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 15000);
+    if (!text) {
+      setError("Please write a comment first.");
+      return;
+    }
+
+    setPosting(true);
+    setError("");
 
     try {
-      const res = await fetch(url, {
-        method: options.method || "GET",
-        headers: { Accept: "application/json", "Content-Type": "application/json" },
-        body: options.body ? JSON.stringify(options.body) : undefined,
-        signal: controller.signal,
-        mode: "cors",
-        credentials: "omit",
+      await api.addComment({
+        artistId: id,
+        name: name || "Anonymous",
+        text,
       });
 
-      const text = await res.text();
-      let data = null;
-      if (text) {
-        try {
-          data = JSON.parse(text);
-        } catch {
-          data = text;
-        }
-      }
-
-      if (!res.ok) {
-        const msg =
-          (data && typeof data === "object" && (data.error || data.message)) ||
-          `Request failed (${res.status})`;
-        const err = new Error(msg);
-        err.status = res.status;
-        err.data = data;
-        throw err;
-      }
-
-      return data;
+      setCommentText("");
+      await loadComments();
     } catch (e) {
-      if (e?.name === "AbortError") throw new Error("Request timed out");
-      throw e;
+      setError(e?.message || "Failed to post comment");
     } finally {
-      clearTimeout(timer);
+      setPosting(false);
     }
   }
 
   useEffect(() => {
-    load();
+    refreshAll();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
-
-  const subtitle = artist ? [artist.genre, artist.location].filter(Boolean).join(" • ") : "";
 
   return (
     <div style={{ maxWidth: 900, margin: "0 auto", padding: "28px 16px" }}>
       <h1 style={{ fontSize: 60, margin: 0, letterSpacing: -1 }}>
-        {artist?.name || (loading ? "Loading…" : "Artist")}
+        {artist?.name || (loadingArtist ? "Loading…" : "Artist")}
       </h1>
 
       <p style={{ opacity: 0.85, marginTop: 10 }}>
@@ -261,20 +297,14 @@ export default function ArtistDetail() {
         >
           <div style={{ fontWeight: 900, fontSize: 18 }}>Error</div>
           <div style={{ opacity: 0.9, marginTop: 6 }}>{error}</div>
+          <div style={{ opacity: 0.7, marginTop: 8, fontSize: 13 }}>
+            If Render cold-starts, hit Refresh once.
+          </div>
         </div>
       ) : null}
 
       {artist ? (
-        <div
-          style={{
-            marginTop: 18,
-            borderRadius: 18,
-            border: "1px solid rgba(255,255,255,0.10)",
-            background: "rgba(0,0,0,0.35)",
-            padding: 18,
-            boxShadow: "0 8px 22px rgba(0,0,0,0.35)",
-          }}
-        >
+        <Card>
           <div style={{ display: "flex", gap: 14, alignItems: "flex-start" }}>
             {artist.imageUrl ? (
               <img
@@ -323,11 +353,12 @@ export default function ArtistDetail() {
               </div>
 
               <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 14 }}>
-                <PrimaryBtn onClick={vote} disabled={voting || loading}>
+                <PrimaryBtn onClick={vote} disabled={voting || loadingArtist}>
                   {voting ? "Voting…" : "Vote +1"}
                 </PrimaryBtn>
-                <SoftBtn onClick={load} disabled={loading}>
-                  {loading ? "Loading…" : "Refresh"}
+
+                <SoftBtn onClick={refreshAll} disabled={loadingArtist || loadingComments}>
+                  {loadingArtist || loadingComments ? "Loading…" : "Refresh"}
                 </SoftBtn>
               </div>
             </div>
@@ -353,9 +384,7 @@ export default function ArtistDetail() {
                     }}
                   >
                     <div style={{ minWidth: 0 }}>
-                      <div style={{ fontWeight: 900, fontSize: 18 }}>
-                        {t.title || "Track"}
-                      </div>
+                      <div style={{ fontWeight: 900, fontSize: 18 }}>{t.title || "Track"}</div>
                       <div style={{ opacity: 0.75, fontSize: 13, marginTop: 4 }}>
                         {[t.platform, t.durationSec ? `${t.durationSec}s` : ""]
                           .filter(Boolean)
@@ -385,14 +414,90 @@ export default function ArtistDetail() {
                   </div>
                 ))}
               </div>
-
-              <div style={{ opacity: 0.7, marginTop: 12, fontSize: 13 }}>
-                Notes: Vote uses POST /artists/:id/votes with {"{ amount: 1 }"}.
-              </div>
             </div>
           ) : null}
-        </div>
+        </Card>
       ) : null}
+
+      {/* COMMENTS */}
+      <Card>
+        <div style={{ fontWeight: 900, fontSize: 28 }}>Comments</div>
+        <div style={{ opacity: 0.75, marginTop: 6 }}>
+          Live fan interaction • {loadingComments ? "Loading…" : `${comments.length} shown`}
+        </div>
+
+        <div style={{ marginTop: 14, display: "grid", gap: 10 }}>
+          <input
+            value={commentName}
+            onChange={(e) => setCommentName(e.target.value)}
+            placeholder="Your name (optional)"
+            style={{
+              width: "100%",
+              padding: "14px 14px",
+              borderRadius: 16,
+              border: "1px solid rgba(255,255,255,0.12)",
+              background: "rgba(0,0,0,0.25)",
+              color: "white",
+              outline: "none",
+              fontSize: 16,
+            }}
+          />
+
+          <textarea
+            value={commentText}
+            onChange={(e) => setCommentText(e.target.value)}
+            placeholder="Write a comment…"
+            rows={4}
+            style={{
+              width: "100%",
+              padding: "14px 14px",
+              borderRadius: 16,
+              border: "1px solid rgba(255,255,255,0.12)",
+              background: "rgba(0,0,0,0.25)",
+              color: "white",
+              outline: "none",
+              fontSize: 16,
+              resize: "vertical",
+            }}
+          />
+
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+            <PrimaryBtn onClick={postComment} disabled={posting || !id}>
+              {posting ? "Posting…" : "Post Comment"}
+            </PrimaryBtn>
+
+            <SoftBtn onClick={loadComments} disabled={loadingComments || !id}>
+              {loadingComments ? "Loading…" : "Refresh Comments"}
+            </SoftBtn>
+          </div>
+        </div>
+
+        <div style={{ marginTop: 16, display: "grid", gap: 10 }}>
+          {!loadingComments && comments.length === 0 ? (
+            <div style={{ opacity: 0.75 }}>No comments yet. Be the first 🔥</div>
+          ) : null}
+
+          {comments.map((c) => (
+            <div
+              key={c.id}
+              style={{
+                borderRadius: 16,
+                padding: "12px 14px",
+                border: "1px solid rgba(255,255,255,0.10)",
+                background: "rgba(0,0,0,0.25)",
+              }}
+            >
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
+                <div style={{ fontWeight: 900 }}>{c.name || "Anonymous"}</div>
+                <div style={{ opacity: 0.6, fontSize: 12 }}>
+                  {c.createdAt ? new Date(c.createdAt).toLocaleString() : ""}
+                </div>
+              </div>
+              <div style={{ marginTop: 8, opacity: 0.95, lineHeight: 1.45 }}>{c.text}</div>
+            </div>
+          ))}
+        </div>
+      </Card>
     </div>
   );
 }
