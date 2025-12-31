@@ -1,8 +1,8 @@
 /**
- * iBand Frontend API Client (FOUNDATION)
- * - Single source of truth for backend calls
- * - Safe on mobile + Vercel
- * - Normalized errors + timeouts + JSON parsing
+ * iBand Frontend API Client (SINGLE SOURCE OF TRUTH)
+ * - One client for ALL backend calls
+ * - Mobile-safe timeouts + normalized errors
+ * - Supports optional admin auth via VITE_ADMIN_KEY (sent as x-admin-key)
  */
 
 export const API_BASE =
@@ -27,6 +27,11 @@ function makeError(message, status, data, url) {
   return err;
 }
 
+function getAdminKey() {
+  const k = String(import.meta?.env?.VITE_ADMIN_KEY || "").trim();
+  return k || "";
+}
+
 export async function apiFetch(path, options = {}) {
   const url = joinUrl(API_BASE, path);
 
@@ -40,6 +45,12 @@ export async function apiFetch(path, options = {}) {
     Accept: "application/json",
     ...(options.headers || {}),
   };
+
+  // Optional admin key header (only when provided)
+  if (options.useAdminKey) {
+    const adminKey = getAdminKey();
+    if (adminKey) headers["x-admin-key"] = adminKey;
+  }
 
   const hasBody = options.body !== undefined && options.body !== null;
 
@@ -94,24 +105,36 @@ export async function apiFetch(path, options = {}) {
 }
 
 /**
- * Backend endpoints confirmed (so far):
+ * Backend endpoints in play:
+ * Public:
  * - GET  /health
  * - GET  /artists
  * - GET  /artists/:id
- * - POST /artists/:id/votes  { amount: 1 }
- * - GET  /comments?artistId=demo
- * - POST /comments  { artistId, name, text }
- *
- * Submission endpoints may vary by backend iteration.
- * We support BOTH patterns safely:
- * - POST /artists/submissions
- * - POST /artists   (with { status:"pending" } if backend accepts)
+ * - POST /artists
+ * - POST /artists/:id/votes  { amount }
+ * Comments:
+ * - GET  /comments?artistId=:id
+ * - POST /comments
+ * - GET  /artists/:id/comments
+ * - POST /artists/:id/comments
+ * Admin (Phase 2.2.3):
+ * - GET    /admin/artists?status=pending
+ * - POST   /admin/artists/:id/approve
+ * - POST   /admin/artists/:id/reject
+ * - POST   /admin/artists/:id/restore
+ * - DELETE /admin/artists/:id
+ * - GET    /admin/stats
  */
+
 export const api = {
+  // ----------------------
   // Health
+  // ----------------------
   health: () => apiFetch("/health"),
 
-  // Artists
+  // ----------------------
+  // Artists (public)
+  // ----------------------
   listArtists: (params = {}) => {
     const q = new URLSearchParams();
     for (const [k, v] of Object.entries(params)) {
@@ -126,15 +149,39 @@ export const api = {
 
   getArtist: (id) => apiFetch(`/artists/${encodeURIComponent(id)}`),
 
+  createArtist: (payload) =>
+    apiFetch("/artists", {
+      method: "POST",
+      body: payload,
+    }),
+
+  // submission helper (defaults status to pending if not provided)
+  submitArtist: (payload) => {
+    const body = { ...(payload || {}) };
+    if (!body.status) body.status = "pending";
+    return apiFetch("/artists", { method: "POST", body });
+  },
+
   voteArtist: (artistId, amount = 1) =>
     apiFetch(`/artists/${encodeURIComponent(artistId)}/votes`, {
       method: "POST",
       body: { amount },
     }),
 
+  // ----------------------
   // Comments
-  listComments: (artistId) =>
-    apiFetch(`/comments?artistId=${encodeURIComponent(artistId)}`),
+  // ----------------------
+  listComments: (artistId, params = {}) => {
+    const q = new URLSearchParams();
+    if (artistId) q.set("artistId", String(artistId));
+    for (const [k, v] of Object.entries(params)) {
+      if (v === undefined || v === null) continue;
+      const s = String(v).trim();
+      if (!s) continue;
+      q.set(k, s);
+    }
+    return apiFetch(`/comments?${q.toString()}`);
+  },
 
   addComment: ({ artistId, name, text }) =>
     apiFetch("/comments", {
@@ -142,45 +189,71 @@ export const api = {
       body: { artistId, name, text },
     }),
 
-  /**
-   * Artist Submission (Phase 2.2.2)
-   * Primary: POST /artists/submissions
-   * Fallback: POST /artists (with status=pending)
-   */
-  submitArtist: async (payload) => {
-    // Try canonical endpoint first
-    try {
-      return await apiFetch("/artists/submissions", { method: "POST", body: payload });
-    } catch (e) {
-      // If backend doesn't have /artists/submissions, fallback to /artists
-      // (Some builds treat POST /artists as submissions)
-      if (e?.status === 404) {
-        const fallbackPayload =
-          payload && typeof payload === "object"
-            ? { ...payload, status: payload.status || "pending" }
-            : payload;
-
-        return apiFetch("/artists", { method: "POST", body: fallbackPayload });
-      }
-      throw e;
+  listArtistComments: (artistId, params = {}) => {
+    const q = new URLSearchParams();
+    for (const [k, v] of Object.entries(params)) {
+      if (v === undefined || v === null) continue;
+      const s = String(v).trim();
+      if (!s) continue;
+      q.set(k, s);
     }
+    const qs = q.toString();
+    return apiFetch(
+      qs
+        ? `/artists/${encodeURIComponent(artistId)}/comments?${qs}`
+        : `/artists/${encodeURIComponent(artistId)}/comments`
+    );
   },
 
-  /**
-   * Future-proof admin hooks (Phase 2.2.3+)
-   * These are SAFE to exist even if unused.
-   */
-  listPendingArtists: (params = {}) =>
-    apiFetch(
-      `/admin/artists?${new URLSearchParams({ status: "pending", ...params }).toString()}`
-    ),
+  addArtistComment: (artistId, { name, text }) =>
+    apiFetch(`/artists/${encodeURIComponent(artistId)}/comments`, {
+      method: "POST",
+      body: { name, text },
+    }),
 
-  approveArtist: (id) =>
-    apiFetch(`/admin/artists/${encodeURIComponent(id)}/approve`, { method: "POST" }),
+  // ----------------------
+  // Admin (moderation)
+  // ----------------------
+  adminListArtists: (params = {}) => {
+    const q = new URLSearchParams();
+    for (const [k, v] of Object.entries(params)) {
+      if (v === undefined || v === null) continue;
+      const s = String(v).trim();
+      if (!s) continue;
+      q.set(k, s);
+    }
+    const qs = q.toString();
+    return apiFetch(qs ? `/admin/artists?${qs}` : "/admin/artists", {
+      useAdminKey: true,
+    });
+  },
 
-  rejectArtist: (id, reason = "") =>
+  adminGetArtist: (id) =>
+    apiFetch(`/admin/artists/${encodeURIComponent(id)}`, { useAdminKey: true }),
+
+  adminApproveArtist: (id) =>
+    apiFetch(`/admin/artists/${encodeURIComponent(id)}/approve`, {
+      method: "POST",
+      useAdminKey: true,
+    }),
+
+  adminRejectArtist: (id) =>
     apiFetch(`/admin/artists/${encodeURIComponent(id)}/reject`, {
       method: "POST",
-      body: { reason },
+      useAdminKey: true,
     }),
+
+  adminRestoreArtist: (id) =>
+    apiFetch(`/admin/artists/${encodeURIComponent(id)}/restore`, {
+      method: "POST",
+      useAdminKey: true,
+    }),
+
+  adminDeleteArtist: (id) =>
+    apiFetch(`/admin/artists/${encodeURIComponent(id)}`, {
+      method: "DELETE",
+      useAdminKey: true,
+    }),
+
+  adminStats: () => apiFetch("/admin/stats", { useAdminKey: true }),
 };
