@@ -1,214 +1,109 @@
+// src/App.jsx
 import React, { useEffect, useMemo, useState } from "react";
-import { NavLink, Route, Routes } from "react-router-dom";
-import Artists from "./Artists.jsx";
-import ArtistDetail from "./ArtistDetail.jsx";
-import { api, API_BASE } from "./services/api";
+import {
+  getHealth,
+  listArtists,
+  submitArtist,
+  voteArtist,
+  adminListArtists,
+  adminStats,
+  adminApproveArtist,
+  adminRejectArtist,
+  getAdminKey,
+  setAdminKey,
+  clearAdminKey,
+  getApiBase,
+} from "./services/api";
 
-function Home() {
+// Simple router via hash (works anywhere, no extra deps)
+function getRoute() {
+  const hash = (window.location.hash || "").replace("#", "").trim();
+  return hash || "/";
+}
+
+function Nav({ route }) {
   return (
-    <div style={{ maxWidth: 950, margin: "0 auto", padding: "32px 16px" }}>
-      <h1 style={{ fontSize: 56, margin: 0, letterSpacing: -1 }}>
-        iBand<span style={{ color: "#FFB100" }}>byte</span>
-      </h1>
+    <nav style={styles.nav}>
+      <a style={styles.navLink(route === "/" )} href="#/">
+        Artists
+      </a>
+      <a style={styles.navLink(route === "/submit")} href="#/submit">
+        Submit
+      </a>
+      <a style={styles.navLink(route === "/admin")} href="#/admin">
+        Admin
+      </a>
+    </nav>
+  );
+}
 
-      <p style={{ opacity: 0.85, marginTop: 10, fontSize: 18 }}>
-        Powered by Fans. A Platform for Artists and Influencers.
-      </p>
+export default function App() {
+  const [route, setRoute] = useState(getRoute());
 
-      <div
-        style={{
-          marginTop: 18,
-          borderRadius: 18,
-          border: "1px solid rgba(255,255,255,0.10)",
-          background: "rgba(0,0,0,0.35)",
-          padding: 18,
-          boxShadow: "0 8px 22px rgba(0,0,0,0.35)",
-        }}
-      >
-        <div style={{ fontSize: 26, fontWeight: 900 }}>Get Signed / Connect</div>
-        <div style={{ opacity: 0.85, marginTop: 6 }}>
-          Discover rising artists, vote, and help talent get noticed.
+  useEffect(() => {
+    const onHash = () => setRoute(getRoute());
+    window.addEventListener("hashchange", onHash);
+    return () => window.removeEventListener("hashchange", onHash);
+  }, []);
+
+  return (
+    <div style={styles.page}>
+      <header style={styles.header}>
+        <div style={styles.brand}>
+          <div style={styles.logoDot} />
+          <div>
+            <div style={styles.title}>iBand</div>
+            <div style={styles.subtitle}>Get Signed / Connect</div>
+          </div>
         </div>
-      </div>
+        <div style={styles.apiBase}>API: {getApiBase()}</div>
+      </header>
+
+      <Nav route={route} />
+
+      <main style={styles.main}>
+        {route === "/" && <ArtistsPage />}
+        {route === "/submit" && <SubmitPage />}
+        {route === "/admin" && <AdminPage />}
+        {!["/", "/submit", "/admin"].includes(route) && (
+          <div style={styles.card}>
+            <h2 style={styles.h2}>Not found</h2>
+            <p style={styles.p}>That route doesn’t exist.</p>
+          </div>
+        )}
+      </main>
+
+      <footer style={styles.footer}>
+        Powered by Fans. A Platform for Artists and Influencers.
+      </footer>
     </div>
   );
 }
 
-function safeText(v) {
-  if (v === null || v === undefined) return "";
-  return String(v);
-}
-
-function toNumber(v, fallback = 0) {
-  const n = Number(v);
-  return Number.isFinite(n) ? n : fallback;
-}
-
-function normalizeStatus(s) {
-  const v = String(s || "").toLowerCase().trim();
-  if (v === "pending" || v === "active" || v === "rejected") return v;
-  return "";
-}
-
-function normalizeAdminArtist(raw) {
-  const a = raw || {};
-  const id = safeText(a.id || a._id || a.slug || "");
-  const name = safeText(a.name || "Unnamed Artist");
-  const genre = safeText(a.genre || a.primaryGenre || "");
-  const location = safeText(a.location || a.city || a.country || "");
-  const bio = safeText(a.bio || a.description || "");
-  const imageUrl = safeText(a.imageUrl || a.image || "");
-  const status = normalizeStatus(a.status) || "active";
-  const createdAt = safeText(a.createdAt || "");
-  const updatedAt = safeText(a.updatedAt || "");
-  const votes = toNumber(a.votes, 0);
-
-  return { ...a, id, name, genre, location, bio, imageUrl, status, createdAt, updatedAt, votes };
-}
-
-function Pill({ children }) {
-  return (
-    <span
-      style={{
-        borderRadius: 999,
-        padding: "10px 14px",
-        border: "1px solid rgba(255,255,255,0.12)",
-        background: "rgba(255,255,255,0.06)",
-        fontSize: 13,
-        fontWeight: 900,
-        display: "inline-block",
-      }}
-    >
-      {children}
-    </span>
-  );
-}
-
-function SoftBtn({ children, onClick, disabled, title }) {
-  return (
-    <button
-      title={title}
-      onClick={onClick}
-      disabled={disabled}
-      style={{
-        borderRadius: 16,
-        padding: "10px 14px",
-        border: "1px solid rgba(255,255,255,0.12)",
-        background: "rgba(255,255,255,0.08)",
-        color: "white",
-        fontWeight: 900,
-        cursor: disabled ? "not-allowed" : "pointer",
-        opacity: disabled ? 0.7 : 1,
-      }}
-    >
-      {children}
-    </button>
-  );
-}
-
-function DangerBtn({ children, onClick, disabled, title }) {
-  return (
-    <button
-      title={title}
-      onClick={onClick}
-      disabled={disabled}
-      style={{
-        borderRadius: 16,
-        padding: "10px 14px",
-        border: "1px solid rgba(255,100,100,0.25)",
-        background: "rgba(255,40,40,0.14)",
-        color: "white",
-        fontWeight: 900,
-        cursor: disabled ? "not-allowed" : "pointer",
-        opacity: disabled ? 0.7 : 1,
-      }}
-    >
-      {children}
-    </button>
-  );
-}
-
-function PrimaryBtn({ children, onClick, disabled, title }) {
-  return (
-    <button
-      title={title}
-      onClick={onClick}
-      disabled={disabled}
-      style={{
-        borderRadius: 16,
-        padding: "10px 14px",
-        border: "1px solid rgba(255,255,255,0.12)",
-        background:
-          "linear-gradient(90deg, rgba(154,74,255,0.95), rgba(255,147,43,0.95))",
-        color: "black",
-        fontWeight: 900,
-        cursor: disabled ? "not-allowed" : "pointer",
-        opacity: disabled ? 0.8 : 1,
-      }}
-    >
-      {children}
-    </button>
-  );
-}
-
-function TabBtn({ active, children, onClick }) {
-  return (
-    <button
-      onClick={onClick}
-      style={{
-        borderRadius: 16,
-        padding: "10px 14px",
-        border: "1px solid rgba(255,255,255,0.12)",
-        background: active ? "rgba(154,74,255,0.22)" : "rgba(255,255,255,0.06)",
-        color: "white",
-        fontWeight: 900,
-        cursor: "pointer",
-      }}
-    >
-      {children}
-    </button>
-  );
-}
-
-function AdminModeration() {
-  const [tab, setTab] = useState("pending"); // pending | active | rejected
-  const [loading, setLoading] = useState(false);
-  const [actingId, setActingId] = useState("");
+/* -----------------------------
+   Artists Page (Public)
+----------------------------- */
+function ArtistsPage() {
+  const [health, setHealth] = useState(null);
   const [error, setError] = useState("");
-  const [q, setQ] = useState("");
-  const [items, setItems] = useState([]);
-  const [stats, setStats] = useState(null);
-  const [lastMs, setLastMs] = useState(0);
+  const [loading, setLoading] = useState(false);
 
-  const title = useMemo(() => {
-    if (tab === "pending") return "Pending";
-    if (tab === "active") return "Active";
-    return "Rejected";
-  }, [tab]);
+  const [q, setQ] = useState("");
+  const [artists, setArtists] = useState([]);
 
   async function load() {
-    setLoading(true);
     setError("");
-    const started = Date.now();
+    setLoading(true);
     try {
-      const [listRes, statsRes] = await Promise.all([
-        api.adminListArtists({ status: tab, q: q || "", page: 1, limit: 50 }),
-        api.adminStats(),
-      ]);
+      const h = await getHealth();
+      setHealth(h);
 
-      // listRes shape (from backend): { success, page, limit, total, pages, data }
-      const raw = (listRes && listRes.data) || [];
-      const normalized = Array.isArray(raw) ? raw.map(normalizeAdminArtist) : [];
-      setItems(normalized);
-
-      const s = (statsRes && statsRes.data) || null;
-      setStats(s && typeof s === "object" ? s : null);
+      const res = await listArtists(q ? { q } : {});
+      // Backend returns {success:true, data:[...], meta:{...}} for /artists
+      setArtists(res?.data || []);
     } catch (e) {
-      setItems([]);
-      setStats(null);
-      setError(e?.message || "Failed to load admin data");
+      setError(e?.message || "Failed to load.");
     } finally {
-      setLastMs(Date.now() - started);
       setLoading(false);
     }
   }
@@ -216,389 +111,537 @@ function AdminModeration() {
   useEffect(() => {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tab]);
+  }, []);
 
-  async function doAction(fn, id) {
-    if (!id) return;
-    setActingId(id);
-    setError("");
+  return (
+    <div style={styles.stack}>
+      <div style={styles.card}>
+        <h2 style={styles.h2}>Artists</h2>
+        <p style={styles.p}>
+          {health?.success ? "Backend: OK ✅" : "Backend: …"}{" "}
+          <span style={{ opacity: 0.7 }}>
+            ({health?.service || "iband-backend"})
+          </span>
+        </p>
+
+        <div style={styles.row}>
+          <input
+            style={styles.input}
+            placeholder="Search artists (name, genre, location)…"
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+          />
+          <button style={styles.btn} onClick={load} disabled={loading}>
+            {loading ? "Loading…" : "Search"}
+          </button>
+        </div>
+
+        {error ? <div style={styles.error}>{error}</div> : null}
+      </div>
+
+      <div style={styles.grid}>
+        {artists.map((a) => (
+          <ArtistCard key={a.id} artist={a} />
+        ))}
+        {!loading && artists.length === 0 ? (
+          <div style={styles.card}>
+            <p style={styles.p}>No artists found.</p>
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+function ArtistCard({ artist }) {
+  const [busy, setBusy] = useState(false);
+  const [votes, setVotes] = useState(Number(artist?.votes || 0));
+  const [msg, setMsg] = useState("");
+
+  async function onVote() {
+    setMsg("");
+    setBusy(true);
     try {
-      await fn(id);
-      await load();
+      const res = await voteArtist(artist.id, 1);
+      const next = res?.data?.votes;
+      if (typeof next === "number") setVotes(next);
+      else setVotes((v) => v + 1);
+      setMsg("Voted ✅");
+      setTimeout(() => setMsg(""), 900);
     } catch (e) {
-      setError(e?.message || "Action failed");
+      setMsg(e?.message || "Vote failed");
     } finally {
-      setActingId("");
+      setBusy(false);
     }
   }
 
-  const emptyHint =
-    tab === "pending"
-      ? "No pending submissions right now."
-      : tab === "active"
-      ? "No active artists found."
-      : "No rejected artists found.";
-
   return (
-    <div style={{ maxWidth: 1000, margin: "0 auto", padding: "24px 16px" }}>
-      <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 14, flexWrap: "wrap" }}>
+    <div style={styles.card}>
+      <div style={styles.cardTop}>
         <div>
-          <h1 style={{ fontSize: 48, margin: 0, letterSpacing: -1 }}>Admin</h1>
-          <div style={{ opacity: 0.85, marginTop: 8 }}>
-            Moderation Panel • API: {API_BASE}
-            {lastMs ? ` • ${lastMs}ms` : ""}
+          <div style={styles.artistName}>{artist?.name || "Unnamed"}</div>
+          <div style={styles.muted}>
+            {artist?.genre || "—"} • {artist?.location || "—"}
           </div>
-        </div>
-
-        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-          <TabBtn active={tab === "pending"} onClick={() => setTab("pending")}>
-            Pending
-          </TabBtn>
-          <TabBtn active={tab === "active"} onClick={() => setTab("active")}>
-            Active
-          </TabBtn>
-          <TabBtn active={tab === "rejected"} onClick={() => setTab("rejected")}>
-            Rejected
-          </TabBtn>
+          <div style={styles.badges}>
+            <span style={styles.badge}>{artist?.status || "active"}</span>
+            <span style={styles.badge}>votes: {votes}</span>
+          </div>
         </div>
       </div>
 
-      <div
-        style={{
-          marginTop: 16,
-          borderRadius: 18,
-          border: "1px solid rgba(255,255,255,0.10)",
-          background: "rgba(0,0,0,0.35)",
-          padding: 16,
-          boxShadow: "0 8px 22px rgba(0,0,0,0.35)",
-        }}
-      >
-        <div style={{ display: "flex", gap: 12, alignItems: "center", justifyContent: "space-between", flexWrap: "wrap" }}>
-          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-            <Pill>View: {title}</Pill>
-            {stats ? (
-              <>
-                <Pill>Total: {toNumber(stats.total, 0)}</Pill>
-                <Pill>Pending: {toNumber(stats.pending, 0)}</Pill>
-                <Pill>Active: {toNumber(stats.active, 0)}</Pill>
-                <Pill>Rejected: {toNumber(stats.rejected, 0)}</Pill>
-              </>
-            ) : (
-              <Pill>Stats: {loading ? "Loading…" : "—"}</Pill>
-            )}
-          </div>
+      {artist?.bio ? <p style={styles.p}>{artist.bio}</p> : null}
 
-          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-            <input
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              placeholder="Search name / genre / location…"
-              style={{
-                width: 240,
-                maxWidth: "100%",
-                borderRadius: 16,
-                padding: "10px 12px",
-                border: "1px solid rgba(255,255,255,0.12)",
-                background: "rgba(255,255,255,0.06)",
-                color: "white",
-                outline: "none",
-                fontWeight: 800,
-              }}
-            />
-            <SoftBtn onClick={load} disabled={loading} title="Reload list + stats">
-              {loading ? "Loading…" : "Refresh"}
-            </SoftBtn>
-            <SoftBtn
-              onClick={() => {
-                setQ("");
-                // reload with cleared q
-                setTimeout(load, 0);
-              }}
-              disabled={loading}
-              title="Clear search"
-            >
-              Clear
-            </SoftBtn>
-          </div>
+      <button style={styles.btn} onClick={onVote} disabled={busy}>
+        {busy ? "Voting…" : "Vote +1"}
+      </button>
+
+      {msg ? <div style={styles.muted}>{msg}</div> : null}
+    </div>
+  );
+}
+
+/* -----------------------------
+   Submit Page (Public)
+----------------------------- */
+function SubmitPage() {
+  const [name, setName] = useState("");
+  const [genre, setGenre] = useState("");
+  const [location, setLocation] = useState("");
+  const [bio, setBio] = useState("");
+  const [statusMsg, setStatusMsg] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  async function onSubmit(e) {
+    e.preventDefault();
+    setStatusMsg("");
+    setBusy(true);
+    try {
+      // Send status pending by default (moderation flow)
+      const payload = { name, genre, location, bio, status: "pending" };
+      const res = await submitArtist(payload);
+      if (res?.success) {
+        setStatusMsg("Submitted ✅ (pending approval)");
+        setName("");
+        setGenre("");
+        setLocation("");
+        setBio("");
+      } else {
+        setStatusMsg(res?.message || "Submit failed.");
+      }
+    } catch (e2) {
+      setStatusMsg(e2?.message || "Submit failed.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div style={styles.card}>
+      <h2 style={styles.h2}>Submit Artist</h2>
+      <p style={styles.p}>Submissions go in as <b>pending</b> for admin approval.</p>
+
+      <form onSubmit={onSubmit} style={styles.stack}>
+        <input
+          style={styles.input}
+          placeholder="Artist name"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          required
+        />
+        <input
+          style={styles.input}
+          placeholder="Genre"
+          value={genre}
+          onChange={(e) => setGenre(e.target.value)}
+        />
+        <input
+          style={styles.input}
+          placeholder="Location"
+          value={location}
+          onChange={(e) => setLocation(e.target.value)}
+        />
+        <textarea
+          style={styles.textarea}
+          placeholder="Bio"
+          value={bio}
+          onChange={(e) => setBio(e.target.value)}
+          rows={5}
+        />
+        <button style={styles.btn} type="submit" disabled={busy}>
+          {busy ? "Submitting…" : "Submit"}
+        </button>
+      </form>
+
+      {statusMsg ? <div style={styles.muted}>{statusMsg}</div> : null}
+    </div>
+  );
+}
+
+/* -----------------------------
+   Admin Page (Moderation)
+----------------------------- */
+function AdminPage() {
+  const [adminKey, setAdminKeyState] = useState(getAdminKey());
+  const [savedMsg, setSavedMsg] = useState("");
+
+  const [stats, setStats] = useState(null);
+  const [filter, setFilter] = useState("pending"); // pending | active | rejected | all
+  const [list, setList] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState("");
+
+  const statusParam = useMemo(() => {
+    if (filter === "all") return {};
+    return { status: filter };
+  }, [filter]);
+
+  async function refresh() {
+    setErr("");
+    setLoading(true);
+    try {
+      const s = await adminStats();
+      setStats(s?.data || null);
+
+      const res = await adminListArtists(statusParam);
+      // admin endpoints return {success:true, page, limit, total, data:[...]}
+      setList(res?.data || []);
+    } catch (e) {
+      setErr(e?.message || "Admin request failed");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    refresh();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filter]);
+
+  function onSaveKey() {
+    setSavedMsg("");
+    setAdminKey(adminKey);
+    setSavedMsg("Admin key saved ✅");
+    setTimeout(() => setSavedMsg(""), 1200);
+    refresh();
+  }
+
+  function onClearKey() {
+    clearAdminKey();
+    setAdminKeyState("");
+    setSavedMsg("Admin key cleared ✅");
+    setTimeout(() => setSavedMsg(""), 1200);
+    refresh();
+  }
+
+  async function onApprove(id) {
+    setErr("");
+    try {
+      await adminApproveArtist(id);
+      await refresh();
+    } catch (e) {
+      setErr(e?.message || "Approve failed");
+    }
+  }
+
+  async function onReject(id) {
+    setErr("");
+    try {
+      await adminRejectArtist(id);
+      await refresh();
+    } catch (e) {
+      setErr(e?.message || "Reject failed");
+    }
+  }
+
+  return (
+    <div style={styles.stack}>
+      <div style={styles.card}>
+        <h2 style={styles.h2}>Admin Moderation</h2>
+        <p style={styles.p}>
+          Uses header <code>x-admin-key</code> (stored locally). If your backend has no{" "}
+          <code>ADMIN_KEY</code> set, it allows requests (dev mode).
+        </p>
+
+        <div style={styles.row}>
+          <input
+            style={styles.input}
+            placeholder="Admin key (x-admin-key)"
+            value={adminKey}
+            onChange={(e) => setAdminKeyState(e.target.value)}
+          />
+          <button style={styles.btn} onClick={onSaveKey}>
+            Save Key
+          </button>
+          <button style={styles.btnSecondary} onClick={onClearKey}>
+            Clear
+          </button>
         </div>
 
-        {error ? (
-          <div
-            style={{
-              marginTop: 14,
-              padding: 14,
-              borderRadius: 16,
-              border: "1px solid rgba(255,64,64,0.35)",
-              background: "rgba(120,0,0,0.20)",
-            }}
+        {savedMsg ? <div style={styles.muted}>{savedMsg}</div> : null}
+        {err ? <div style={styles.error}>{err}</div> : null}
+      </div>
+
+      <div style={styles.card}>
+        <div style={styles.rowBetween}>
+          <div>
+            <div style={styles.h2}>Stats</div>
+            <div style={styles.muted}>
+              pending: {stats?.pending ?? "—"} • active: {stats?.active ?? "—"} • rejected:{" "}
+              {stats?.rejected ?? "—"}
+            </div>
+          </div>
+          <button style={styles.btn} onClick={refresh} disabled={loading}>
+            {loading ? "Refreshing…" : "Refresh"}
+          </button>
+        </div>
+
+        <div style={styles.row}>
+          <select
+            style={styles.select}
+            value={filter}
+            onChange={(e) => setFilter(e.target.value)}
           >
-            <div style={{ fontWeight: 900, fontSize: 18 }}>Error</div>
-            <div style={{ opacity: 0.9, marginTop: 6 }}>{error}</div>
-            <div style={{ opacity: 0.75, marginTop: 10, fontSize: 13 }}>
-              Tip: if you set an admin key on the backend, add <b>VITE_ADMIN_KEY</b> to your frontend env.
-            </div>
-          </div>
-        ) : null}
+            <option value="pending">pending</option>
+            <option value="active">active</option>
+            <option value="rejected">rejected</option>
+            <option value="all">all</option>
+          </select>
+          <div style={styles.muted}>Showing: {filter}</div>
+        </div>
 
-        <div style={{ marginTop: 14, opacity: 0.9 }}>
-          {q ? (
-            <div style={{ marginBottom: 10, fontWeight: 900 }}>
-              Searching: <span style={{ opacity: 0.85 }}>{q}</span>
-            </div>
-          ) : null}
-
-          {items.length === 0 ? (
-            <div
-              style={{
-                borderRadius: 16,
-                padding: 14,
-                border: "1px solid rgba(255,255,255,0.10)",
-                background: "rgba(0,0,0,0.25)",
-              }}
-            >
-              <div style={{ fontWeight: 900, fontSize: 18 }}>{loading ? "Loading…" : emptyHint}</div>
-              <div style={{ opacity: 0.8, marginTop: 6, lineHeight: 1.4 }}>
-                {tab === "pending"
-                  ? "When artists submit, they should appear here for approval."
-                  : "Try switching tabs or clearing search."}
-              </div>
-            </div>
-          ) : (
-            <div style={{ display: "grid", gap: 12 }}>
-              {items
-                .filter((a) => {
-                  if (!q) return true;
-                  const hay = `${a.id} ${a.name} ${a.genre} ${a.location} ${a.bio}`.toLowerCase();
-                  return hay.includes(String(q).toLowerCase());
-                })
-                .map((a) => {
-                  const busy = actingId === a.id || loading;
-
-                  return (
-                    <div
-                      key={a.id}
-                      style={{
-                        borderRadius: 16,
-                        padding: 14,
-                        border: "1px solid rgba(255,255,255,0.10)",
-                        background: "rgba(0,0,0,0.25)",
-                        display: "flex",
-                        gap: 12,
-                        alignItems: "flex-start",
-                      }}
-                    >
-                      {a.imageUrl ? (
-                        <img
-                          src={a.imageUrl}
-                          alt={a.name}
-                          style={{
-                            width: 64,
-                            height: 64,
-                            borderRadius: 14,
-                            objectFit: "cover",
-                            border: "1px solid rgba(255,255,255,0.10)",
-                          }}
-                        />
-                      ) : (
-                        <div
-                          style={{
-                            width: 64,
-                            height: 64,
-                            borderRadius: 14,
-                            border: "1px solid rgba(255,255,255,0.10)",
-                            background: "rgba(255,255,255,0.05)",
-                            display: "grid",
-                            placeItems: "center",
-                            fontWeight: 900,
-                            fontSize: 22,
-                            color: "rgba(255,255,255,0.75)",
-                            flex: "0 0 auto",
-                          }}
-                        >
-                          {(a.name || "A").slice(0, 1).toUpperCase()}
-                        </div>
-                      )}
-
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "flex-start" }}>
-                          <div style={{ minWidth: 0 }}>
-                            <div style={{ fontWeight: 900, fontSize: 20, lineHeight: 1.15 }}>
-                              {a.name}
-                            </div>
-                            <div style={{ opacity: 0.82, marginTop: 4, fontSize: 14 }}>
-                              {[a.genre, a.location].filter(Boolean).join(" • ")}
-                            </div>
-                          </div>
-
-                          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
-                            <Pill>Status: {a.status}</Pill>
-                            <Pill>Votes: {toNumber(a.votes, 0)}</Pill>
-                          </div>
-                        </div>
-
-                        {a.bio ? (
-                          <div style={{ marginTop: 10, opacity: 0.88, lineHeight: 1.4 }}>
-                            {a.bio}
-                          </div>
-                        ) : null}
-
-                        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 12 }}>
-                          {tab === "pending" ? (
-                            <>
-                              <PrimaryBtn
-                                disabled={busy}
-                                onClick={() => doAction(api.adminApproveArtist, a.id)}
-                                title="Approve → becomes active"
-                              >
-                                {busy ? "Working…" : "Approve"}
-                              </PrimaryBtn>
-                              <DangerBtn
-                                disabled={busy}
-                                onClick={() => doAction(api.adminRejectArtist, a.id)}
-                                title="Reject → moves to rejected"
-                              >
-                                {busy ? "Working…" : "Reject"}
-                              </DangerBtn>
-                            </>
-                          ) : null}
-
-                          {tab === "rejected" ? (
-                            <>
-                              <PrimaryBtn
-                                disabled={busy}
-                                onClick={() => doAction(api.adminRestoreArtist, a.id)}
-                                title="Restore → returns to pending"
-                              >
-                                {busy ? "Working…" : "Restore → Pending"}
-                              </PrimaryBtn>
-                              <DangerBtn
-                                disabled={busy}
-                                onClick={() => doAction(api.adminDeleteArtist, a.id)}
-                                title="Delete permanently from store (if supported)"
-                              >
-                                {busy ? "Working…" : "Delete"}
-                              </DangerBtn>
-                            </>
-                          ) : null}
-
-                          {tab === "active" ? (
-                            <>
-                              <DangerBtn
-                                disabled={busy}
-                                onClick={() => doAction(api.adminRejectArtist, a.id)}
-                                title="Reject active artist"
-                              >
-                                {busy ? "Working…" : "Reject"}
-                              </DangerBtn>
-                              <DangerBtn
-                                disabled={busy}
-                                onClick={() => doAction(api.adminDeleteArtist, a.id)}
-                                title="Delete active artist"
-                              >
-                                {busy ? "Working…" : "Delete"}
-                              </DangerBtn>
-                            </>
-                          ) : null}
-
-                          <SoftBtn
-                            disabled={busy}
-                            onClick={() => navigator.clipboard?.writeText(a.id)}
-                            title="Copy artist ID"
-                          >
-                            Copy ID
-                          </SoftBtn>
-                        </div>
-
-                        <div style={{ opacity: 0.7, marginTop: 10, fontSize: 12 }}>
-                          ID: {a.id}
-                          {a.createdAt ? ` • Created: ${a.createdAt}` : ""}
-                          {a.updatedAt ? ` • Updated: ${a.updatedAt}` : ""}
-                        </div>
-                      </div>
+        <div style={styles.tableWrap}>
+          <table style={styles.table}>
+            <thead>
+              <tr>
+                <th style={styles.th}>Name</th>
+                <th style={styles.th}>Status</th>
+                <th style={styles.th}>Votes</th>
+                <th style={styles.th}>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {list.map((a) => (
+                <tr key={a.id}>
+                  <td style={styles.td}>
+                    <div style={{ fontWeight: 700 }}>{a.name}</div>
+                    <div style={styles.muted}>
+                      {a.genre || "—"} • {a.location || "—"}
                     </div>
-                  );
-                })}
-            </div>
-          )}
-        </div>
-
-        <div style={{ opacity: 0.7, marginTop: 14, fontSize: 13, lineHeight: 1.4 }}>
-          Notes:
-          <div>• This page uses backend routes under <b>/admin/*</b>.</div>
-          <div>• If backend has ADMIN_KEY enabled, add <b>VITE_ADMIN_KEY</b> in your frontend env.</div>
+                  </td>
+                  <td style={styles.td}>
+                    <span style={styles.badge}>{a.status}</span>
+                  </td>
+                  <td style={styles.td}>{a.votes ?? 0}</td>
+                  <td style={styles.td}>
+                    <div style={styles.row}>
+                      <button
+                        style={styles.btnSmall}
+                        onClick={() => onApprove(a.id)}
+                      >
+                        Approve
+                      </button>
+                      <button
+                        style={styles.btnSmallSecondary}
+                        onClick={() => onReject(a.id)}
+                      >
+                        Reject
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+              {list.length === 0 ? (
+                <tr>
+                  <td style={styles.td} colSpan={4}>
+                    <div style={styles.muted}>No records.</div>
+                  </td>
+                </tr>
+              ) : null}
+            </tbody>
+          </table>
         </div>
       </div>
     </div>
   );
 }
 
-function TopNav() {
-  const linkStyle = ({ isActive }) => ({
+/* -----------------------------
+   Styles (simple + mobile safe)
+----------------------------- */
+const styles = {
+  page: {
+    minHeight: "100vh",
+    fontFamily:
+      'ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial',
+    background: "#0b0b10",
+    color: "#ffffff",
+  },
+  header: {
+    padding: "16px 16px 10px",
+    borderBottom: "1px solid rgba(255,255,255,0.08)",
+    display: "flex",
+    alignItems: "flex-end",
+    justifyContent: "space-between",
+    gap: 12,
+    flexWrap: "wrap",
+  },
+  brand: { display: "flex", gap: 10, alignItems: "center" },
+  logoDot: {
+    width: 14,
+    height: 14,
+    borderRadius: 999,
+    background: "linear-gradient(90deg, #7c3aed, #f97316)",
+  },
+  title: { fontSize: 18, fontWeight: 800, letterSpacing: 0.2 },
+  subtitle: { fontSize: 12, opacity: 0.7 },
+  apiBase: { fontSize: 12, opacity: 0.65 },
+
+  nav: {
+    padding: "10px 16px",
+    display: "flex",
+    gap: 10,
+    borderBottom: "1px solid rgba(255,255,255,0.08)",
+  },
+  navLink: (active) => ({
+    padding: "8px 10px",
+    borderRadius: 10,
     textDecoration: "none",
-    color: "white",
-    borderRadius: 14,
-    padding: "10px 14px",
+    color: "#fff",
+    background: active ? "rgba(124,58,237,0.25)" : "rgba(255,255,255,0.06)",
+    border: active
+      ? "1px solid rgba(124,58,237,0.5)"
+      : "1px solid rgba(255,255,255,0.10)",
+  }),
+
+  main: { padding: 16, maxWidth: 1100, margin: "0 auto" },
+  footer: {
+    padding: 14,
+    textAlign: "center",
+    fontSize: 12,
+    opacity: 0.65,
+    borderTop: "1px solid rgba(255,255,255,0.08)",
+  },
+
+  stack: { display: "flex", flexDirection: "column", gap: 14 },
+  row: { display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" },
+  rowBetween: {
+    display: "flex",
+    justifyContent: "space-between",
+    gap: 10,
+    alignItems: "center",
+    flexWrap: "wrap",
+  },
+  card: {
+    background: "rgba(255,255,255,0.06)",
+    border: "1px solid rgba(255,255,255,0.10)",
+    borderRadius: 16,
+    padding: 14,
+  },
+  grid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
+    gap: 12,
+  },
+  h2: { margin: 0, fontSize: 16, fontWeight: 800 },
+  p: { marginTop: 8, marginBottom: 0, opacity: 0.9, lineHeight: 1.35 },
+  muted: { marginTop: 8, opacity: 0.7, fontSize: 12 },
+
+  input: {
+    padding: "10px 12px",
+    borderRadius: 12,
     border: "1px solid rgba(255,255,255,0.12)",
-    background: isActive ? "rgba(154,74,255,0.22)" : "rgba(255,255,255,0.06)",
-    fontWeight: 900,
-  });
+    background: "rgba(0,0,0,0.3)",
+    color: "#fff",
+    outline: "none",
+    minWidth: 220,
+    flex: 1,
+  },
+  textarea: {
+    padding: "10px 12px",
+    borderRadius: 12,
+    border: "1px solid rgba(255,255,255,0.12)",
+    background: "rgba(0,0,0,0.3)",
+    color: "#fff",
+    outline: "none",
+    width: "100%",
+    resize: "vertical",
+  },
+  select: {
+    padding: "10px 12px",
+    borderRadius: 12,
+    border: "1px solid rgba(255,255,255,0.12)",
+    background: "rgba(0,0,0,0.3)",
+    color: "#fff",
+    outline: "none",
+  },
 
-  return (
-    <div
-      style={{
-        maxWidth: 980,
-        margin: "0 auto",
-        padding: "14px 16px",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
-        gap: 12,
-      }}
-    >
-      <div style={{ fontWeight: 900, fontSize: 28 }}>
-        iBand<span style={{ color: "#FFB100" }}>byte</span>
-      </div>
+  btn: {
+    padding: "10px 12px",
+    borderRadius: 12,
+    border: "1px solid rgba(124,58,237,0.6)",
+    background: "rgba(124,58,237,0.25)",
+    color: "#fff",
+    fontWeight: 700,
+  },
+  btnSecondary: {
+    padding: "10px 12px",
+    borderRadius: 12,
+    border: "1px solid rgba(255,255,255,0.14)",
+    background: "rgba(255,255,255,0.06)",
+    color: "#fff",
+    fontWeight: 700,
+  },
+  btnSmall: {
+    padding: "8px 10px",
+    borderRadius: 10,
+    border: "1px solid rgba(34,197,94,0.55)",
+    background: "rgba(34,197,94,0.22)",
+    color: "#fff",
+    fontWeight: 800,
+  },
+  btnSmallSecondary: {
+    padding: "8px 10px",
+    borderRadius: 10,
+    border: "1px solid rgba(248,113,113,0.55)",
+    background: "rgba(248,113,113,0.22)",
+    color: "#fff",
+    fontWeight: 800,
+  },
 
-      <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-        <NavLink to="/" style={linkStyle} end>
-          Home
-        </NavLink>
+  badges: { marginTop: 8, display: "flex", gap: 8, flexWrap: "wrap" },
+  badge: {
+    display: "inline-flex",
+    alignItems: "center",
+    padding: "4px 8px",
+    borderRadius: 999,
+    fontSize: 12,
+    border: "1px solid rgba(255,255,255,0.14)",
+    background: "rgba(255,255,255,0.06)",
+  },
+  artistName: { fontSize: 16, fontWeight: 900 },
+  cardTop: { display: "flex", justifyContent: "space-between", gap: 10 },
 
-        <NavLink to="/artists" style={linkStyle}>
-          Artists
-        </NavLink>
+  error: {
+    marginTop: 10,
+    padding: "10px 12px",
+    borderRadius: 12,
+    border: "1px solid rgba(248,113,113,0.45)",
+    background: "rgba(248,113,113,0.15)",
+  },
 
-        <NavLink to="/admin" style={linkStyle}>
-          Admin
-        </NavLink>
-      </div>
-    </div>
-  );
-}
-
-export default function App() {
-  return (
-    <div
-      style={{
-        minHeight: "100vh",
-        color: "white",
-        background:
-          "radial-gradient(1200px 700px at 20% 10%, rgba(154,74,255,0.35), transparent), radial-gradient(1000px 600px at 80% 20%, rgba(255,147,43,0.25), transparent), #05050a",
-      }}
-    >
-      <TopNav />
-
-      <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/artists" element={<Artists />} />
-        <Route path="/artists/:id" element={<ArtistDetail />} />
-
-        {/* Phase 2.2.3: Admin moderation UI */}
-        <Route path="/admin" element={<AdminModeration />} />
-
-        {/* Prevent blank route */}
-        <Route path="*" element={<Home />} />
-      </Routes>
-    </div>
-  );
-}
+  tableWrap: { overflowX: "auto", marginTop: 10 },
+  table: { width: "100%", borderCollapse: "collapse", minWidth: 520 },
+  th: {
+    textAlign: "left",
+    padding: "10px 8px",
+    fontSize: 12,
+    opacity: 0.75,
+    borderBottom: "1px solid rgba(255,255,255,0.12)",
+  },
+  td: {
+    padding: "10px 8px",
+    borderBottom: "1px solid rgba(255,255,255,0.08)",
+    verticalAlign: "top",
+  },
+};
