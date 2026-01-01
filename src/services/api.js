@@ -1,259 +1,207 @@
-/**
- * iBand Frontend API Client (SINGLE SOURCE OF TRUTH)
- * - One client for ALL backend calls
- * - Mobile-safe timeouts + normalized errors
- * - Supports optional admin auth via VITE_ADMIN_KEY (sent as x-admin-key)
- */
+// src/services/api.js
+// iBand Frontend API Client (ESM)
+// - Public endpoints: /health, /artists, /comments (if present)
+// - Admin endpoints: /admin/artists, /admin/stats, /admin/artists/:id/approve, /reject
+//
+// Admin key handling:
+// - Stored in localStorage under "IBAND_ADMIN_KEY"
+// - Sent as header "x-admin-key" ONLY for /admin/* calls
 
-export const API_BASE =
-  (import.meta?.env?.VITE_API_BASE_URL || "").trim().replace(/\/+$/, "") ||
-  "https://iband-backend-first-1.onrender.com";
+const DEFAULT_BASE =
+  "https://iband-backend-first-1.onrender.com"; // safe fallback
 
-const DEFAULT_TIMEOUT_MS = 15000;
+const API_BASE =
+  (import.meta?.env?.VITE_API_BASE_URL ||
+    import.meta?.env?.VITE_API_URL ||
+    "").trim() || DEFAULT_BASE;
 
 function joinUrl(base, path) {
-  if (!path) return base;
-  if (/^https?:\/\//i.test(path)) return path;
-  const cleanBase = String(base || "").replace(/\/+$/, "");
-  const cleanPath = String(path || "").replace(/^\/+/, "");
-  return `${cleanBase}/${cleanPath}`;
+  const b = String(base || "").replace(/\/+$/, "");
+  const p = String(path || "").replace(/^\/+/, "");
+  return `${b}/${p}`;
 }
 
-function makeError(message, status, data, url) {
-  const err = new Error(message);
-  err.status = status ?? 0;
-  err.data = data ?? null;
-  err.url = url ?? null;
-  return err;
-}
+async function fetchJson(url, options = {}) {
+  const res = await fetch(url, options);
+  const text = await res.text();
 
-function getAdminKey() {
-  const k = String(import.meta?.env?.VITE_ADMIN_KEY || "").trim();
-  return k || "";
-}
-
-export async function apiFetch(path, options = {}) {
-  const url = joinUrl(API_BASE, path);
-
-  const timeoutMs =
-    typeof options.timeoutMs === "number" ? options.timeoutMs : DEFAULT_TIMEOUT_MS;
-
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
-
-  const headers = {
-    Accept: "application/json",
-    ...(options.headers || {}),
-  };
-
-  // Optional admin key header (only when provided)
-  if (options.useAdminKey) {
-    const adminKey = getAdminKey();
-    if (adminKey) headers["x-admin-key"] = adminKey;
-  }
-
-  const hasBody = options.body !== undefined && options.body !== null;
-
-  let body = options.body;
-  const isFormData = typeof FormData !== "undefined" && body instanceof FormData;
-
-  if (hasBody && !isFormData && typeof body === "object" && !(body instanceof Blob)) {
-    headers["Content-Type"] = "application/json";
-    body = JSON.stringify(body);
-  } else if (hasBody && typeof body === "string") {
-    headers["Content-Type"] = headers["Content-Type"] || "application/json";
-  }
-
+  let json;
   try {
-    const res = await fetch(url, {
-      method: options.method || "GET",
-      headers,
-      body: hasBody ? body : undefined,
-      signal: controller.signal,
-      mode: "cors",
-      credentials: "omit",
-    });
+    json = text ? JSON.parse(text) : null;
+  } catch {
+    json = { success: false, error: "Invalid JSON response", raw: text };
+  }
 
-    const text = await res.text();
-    let data = null;
+  if (!res.ok) {
+    const msg =
+      json?.message ||
+      json?.error ||
+      `Request failed (${res.status} ${res.statusText})`;
+    const err = new Error(msg);
+    err.status = res.status;
+    err.data = json;
+    throw err;
+  }
 
-    if (text) {
-      try {
-        data = JSON.parse(text);
-      } catch {
-        data = text;
-      }
-    }
+  return json;
+}
 
-    if (!res.ok) {
-      const msg =
-        (data && typeof data === "object" && (data.error || data.message)) ||
-        `Request failed (${res.status})`;
-      throw makeError(msg, res.status, data, url);
-    }
-
-    return data;
-  } catch (e) {
-    if (e?.name === "AbortError") {
-      throw makeError("Request timed out", 408, null, url);
-    }
-    if (e?.status) throw e;
-    throw makeError(e?.message || "Network error", 0, null, url);
-  } finally {
-    clearTimeout(timer);
+// ----------------------
+// Admin Key Helpers
+// ----------------------
+export function getAdminKey() {
+  try {
+    return localStorage.getItem("IBAND_ADMIN_KEY") || "";
+  } catch {
+    return "";
   }
 }
 
-/**
- * Backend endpoints in play:
- * Public:
- * - GET  /health
- * - GET  /artists
- * - GET  /artists/:id
- * - POST /artists
- * - POST /artists/:id/votes  { amount }
- * Comments:
- * - GET  /comments?artistId=:id
- * - POST /comments
- * - GET  /artists/:id/comments
- * - POST /artists/:id/comments
- * Admin (Phase 2.2.3):
- * - GET    /admin/artists?status=pending
- * - POST   /admin/artists/:id/approve
- * - POST   /admin/artists/:id/reject
- * - POST   /admin/artists/:id/restore
- * - DELETE /admin/artists/:id
- * - GET    /admin/stats
- */
+export function setAdminKey(key) {
+  try {
+    localStorage.setItem("IBAND_ADMIN_KEY", String(key || "").trim());
+    return true;
+  } catch {
+    return false;
+  }
+}
 
-export const api = {
-  // ----------------------
-  // Health
-  // ----------------------
-  health: () => apiFetch("/health"),
+export function clearAdminKey() {
+  try {
+    localStorage.removeItem("IBAND_ADMIN_KEY");
+    return true;
+  } catch {
+    return false;
+  }
+}
 
-  // ----------------------
-  // Artists (public)
-  // ----------------------
-  listArtists: (params = {}) => {
-    const q = new URLSearchParams();
-    for (const [k, v] of Object.entries(params)) {
-      if (v === undefined || v === null) continue;
-      const s = String(v).trim();
-      if (!s) continue;
-      q.set(k, s);
-    }
-    const qs = q.toString();
-    return apiFetch(qs ? `/artists?${qs}` : "/artists");
-  },
+function adminHeaders(extra = {}) {
+  const key = getAdminKey().trim();
+  return {
+    "Content-Type": "application/json",
+    ...(key ? { "x-admin-key": key } : {}),
+    ...extra,
+  };
+}
 
-  getArtist: (id) => apiFetch(`/artists/${encodeURIComponent(id)}`),
+// ----------------------
+// Health
+// ----------------------
+export async function getHealth() {
+  return fetchJson(joinUrl(API_BASE, "/health"), {
+    method: "GET",
+    headers: { "Content-Type": "application/json" },
+  });
+}
 
-  createArtist: (payload) =>
-    apiFetch("/artists", {
-      method: "POST",
-      body: payload,
-    }),
+// ----------------------
+// Artists (Public)
+// ----------------------
+export async function listArtists(params = {}) {
+  const usp = new URLSearchParams();
+  for (const [k, v] of Object.entries(params || {})) {
+    if (v === undefined || v === null || v === "") continue;
+    usp.set(k, String(v));
+  }
 
-  // submission helper (defaults status to pending if not provided)
-  submitArtist: (payload) => {
-    const body = { ...(payload || {}) };
-    if (!body.status) body.status = "pending";
-    return apiFetch("/artists", { method: "POST", body });
-  },
+  const url = joinUrl(
+    API_BASE,
+    `/artists${usp.toString() ? `?${usp.toString()}` : ""}`
+  );
 
-  voteArtist: (artistId, amount = 1) =>
-    apiFetch(`/artists/${encodeURIComponent(artistId)}/votes`, {
-      method: "POST",
-      body: { amount },
-    }),
+  return fetchJson(url, {
+    method: "GET",
+    headers: { "Content-Type": "application/json" },
+  });
+}
 
-  // ----------------------
-  // Comments
-  // ----------------------
-  listComments: (artistId, params = {}) => {
-    const q = new URLSearchParams();
-    if (artistId) q.set("artistId", String(artistId));
-    for (const [k, v] of Object.entries(params)) {
-      if (v === undefined || v === null) continue;
-      const s = String(v).trim();
-      if (!s) continue;
-      q.set(k, s);
-    }
-    return apiFetch(`/comments?${q.toString()}`);
-  },
+export async function getArtist(id) {
+  const url = joinUrl(API_BASE, `/artists/${encodeURIComponent(String(id))}`);
+  return fetchJson(url, {
+    method: "GET",
+    headers: { "Content-Type": "application/json" },
+  });
+}
 
-  addComment: ({ artistId, name, text }) =>
-    apiFetch("/comments", {
-      method: "POST",
-      body: { artistId, name, text },
-    }),
+export async function submitArtist(payload) {
+  // For your current backend, POST /artists creates an artist.
+  // If you want submissions to be "pending" by default, send status:"pending".
+  const url = joinUrl(API_BASE, "/artists");
+  return fetchJson(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload || {}),
+  });
+}
 
-  listArtistComments: (artistId, params = {}) => {
-    const q = new URLSearchParams();
-    for (const [k, v] of Object.entries(params)) {
-      if (v === undefined || v === null) continue;
-      const s = String(v).trim();
-      if (!s) continue;
-      q.set(k, s);
-    }
-    const qs = q.toString();
-    return apiFetch(
-      qs
-        ? `/artists/${encodeURIComponent(artistId)}/comments?${qs}`
-        : `/artists/${encodeURIComponent(artistId)}/comments`
-    );
-  },
+export async function voteArtist(id, amount = 1) {
+  const url = joinUrl(
+    API_BASE,
+    `/artists/${encodeURIComponent(String(id))}/votes`
+  );
+  return fetchJson(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ amount }),
+  });
+}
 
-  addArtistComment: (artistId, { name, text }) =>
-    apiFetch(`/artists/${encodeURIComponent(artistId)}/comments`, {
-      method: "POST",
-      body: { name, text },
-    }),
+// ----------------------
+// Admin (Moderation)
+// ----------------------
+export async function adminListArtists(params = {}) {
+  const usp = new URLSearchParams();
+  for (const [k, v] of Object.entries(params || {})) {
+    if (v === undefined || v === null || v === "") continue;
+    usp.set(k, String(v));
+  }
 
-  // ----------------------
-  // Admin (moderation)
-  // ----------------------
-  adminListArtists: (params = {}) => {
-    const q = new URLSearchParams();
-    for (const [k, v] of Object.entries(params)) {
-      if (v === undefined || v === null) continue;
-      const s = String(v).trim();
-      if (!s) continue;
-      q.set(k, s);
-    }
-    const qs = q.toString();
-    return apiFetch(qs ? `/admin/artists?${qs}` : "/admin/artists", {
-      useAdminKey: true,
-    });
-  },
+  const url = joinUrl(
+    API_BASE,
+    `/admin/artists${usp.toString() ? `?${usp.toString()}` : ""}`
+  );
 
-  adminGetArtist: (id) =>
-    apiFetch(`/admin/artists/${encodeURIComponent(id)}`, { useAdminKey: true }),
+  return fetchJson(url, {
+    method: "GET",
+    headers: adminHeaders(),
+  });
+}
 
-  adminApproveArtist: (id) =>
-    apiFetch(`/admin/artists/${encodeURIComponent(id)}/approve`, {
-      method: "POST",
-      useAdminKey: true,
-    }),
+export async function adminStats() {
+  const url = joinUrl(API_BASE, "/admin/stats");
+  return fetchJson(url, {
+    method: "GET",
+    headers: adminHeaders(),
+  });
+}
 
-  adminRejectArtist: (id) =>
-    apiFetch(`/admin/artists/${encodeURIComponent(id)}/reject`, {
-      method: "POST",
-      useAdminKey: true,
-    }),
+export async function adminApproveArtist(id) {
+  const url = joinUrl(
+    API_BASE,
+    `/admin/artists/${encodeURIComponent(String(id))}/approve`
+  );
+  return fetchJson(url, {
+    method: "POST",
+    headers: adminHeaders(),
+    body: JSON.stringify({}), // keep body valid for Hoppscotch-style servers
+  });
+}
 
-  adminRestoreArtist: (id) =>
-    apiFetch(`/admin/artists/${encodeURIComponent(id)}/restore`, {
-      method: "POST",
-      useAdminKey: true,
-    }),
+export async function adminRejectArtist(id) {
+  const url = joinUrl(
+    API_BASE,
+    `/admin/artists/${encodeURIComponent(String(id))}/reject`
+  );
+  return fetchJson(url, {
+    method: "POST",
+    headers: adminHeaders(),
+    body: JSON.stringify({}),
+  });
+}
 
-  adminDeleteArtist: (id) =>
-    apiFetch(`/admin/artists/${encodeURIComponent(id)}`, {
-      method: "DELETE",
-      useAdminKey: true,
-    }),
-
-  adminStats: () => apiFetch("/admin/stats", { useAdminKey: true }),
-};
+// ----------------------
+// Export base (optional use in UI)
+// ----------------------
+export function getApiBase() {
+  return API_BASE;
+}
