@@ -24,7 +24,7 @@ function getRoute() {
 function Nav({ route }) {
   return (
     <nav style={styles.nav}>
-      <a style={styles.navLink(route === "/" )} href="#/">
+      <a style={styles.navLink(route === "/")} href="#/">
         Artists
       </a>
       <a style={styles.navLink(route === "/submit")} href="#/submit">
@@ -99,7 +99,6 @@ function ArtistsPage() {
       setHealth(h);
 
       const res = await listArtists(q ? { q } : {});
-      // Backend returns {success:true, data:[...], meta:{...}} for /artists
       setArtists(res?.data || []);
     } catch (e) {
       setError(e?.message || "Failed to load.");
@@ -119,9 +118,7 @@ function ArtistsPage() {
         <h2 style={styles.h2}>Artists</h2>
         <p style={styles.p}>
           {health?.success ? "Backend: OK ✅" : "Backend: …"}{" "}
-          <span style={{ opacity: 0.7 }}>
-            ({health?.service || "iband-backend"})
-          </span>
+          <span style={{ opacity: 0.7 }}>({health?.service || "iband-backend"})</span>
         </p>
 
         <div style={styles.row}>
@@ -217,7 +214,6 @@ function SubmitPage() {
     setStatusMsg("");
     setBusy(true);
     try {
-      // Send status pending by default (moderation flow)
       const payload = { name, genre, location, bio, status: "pending" };
       const res = await submitArtist(payload);
       if (res?.success) {
@@ -239,7 +235,9 @@ function SubmitPage() {
   return (
     <div style={styles.card}>
       <h2 style={styles.h2}>Submit Artist</h2>
-      <p style={styles.p}>Submissions go in as <b>pending</b> for admin approval.</p>
+      <p style={styles.p}>
+        Submissions go in as <b>pending</b> for admin approval.
+      </p>
 
       <form onSubmit={onSubmit} style={styles.stack}>
         <input
@@ -279,7 +277,9 @@ function SubmitPage() {
 }
 
 /* -----------------------------
-   Admin Page (Moderation)
+   Admin Page (Mobile-first)
+   - No wide table
+   - Actions always visible
 ----------------------------- */
 function AdminPage() {
   const [adminKey, setAdminKeyState] = useState(getAdminKey());
@@ -304,7 +304,6 @@ function AdminPage() {
       setStats(s?.data || null);
 
       const res = await adminListArtists(statusParam);
-      // admin endpoints return {success:true, page, limit, total, data:[...]}
       setList(res?.data || []);
     } catch (e) {
       setErr(e?.message || "Admin request failed");
@@ -397,11 +396,7 @@ function AdminPage() {
         </div>
 
         <div style={styles.row}>
-          <select
-            style={styles.select}
-            value={filter}
-            onChange={(e) => setFilter(e.target.value)}
-          >
+          <select style={styles.select} value={filter} onChange={(e) => setFilter(e.target.value)}>
             <option value="pending">pending</option>
             <option value="active">active</option>
             <option value="rejected">rejected</option>
@@ -410,56 +405,34 @@ function AdminPage() {
           <div style={styles.muted}>Showing: {filter}</div>
         </div>
 
-        <div style={styles.tableWrap}>
-          <table style={styles.table}>
-            <thead>
-              <tr>
-                <th style={styles.th}>Name</th>
-                <th style={styles.th}>Status</th>
-                <th style={styles.th}>Votes</th>
-                <th style={styles.th}>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {list.map((a) => (
-                <tr key={a.id}>
-                  <td style={styles.td}>
-                    <div style={{ fontWeight: 700 }}>{a.name}</div>
-                    <div style={styles.muted}>
-                      {a.genre || "—"} • {a.location || "—"}
-                    </div>
-                  </td>
-                  <td style={styles.td}>
+        <div style={styles.stack}>
+          {list.map((a) => (
+            <div key={a.id} style={styles.adminCard}>
+              <div style={styles.adminCardTop}>
+                <div>
+                  <div style={styles.adminName}>{a.name}</div>
+                  <div style={styles.muted}>
+                    {a.genre || "—"} • {a.location || "—"}
+                  </div>
+                  <div style={styles.badges}>
                     <span style={styles.badge}>{a.status}</span>
-                  </td>
-                  <td style={styles.td}>{a.votes ?? 0}</td>
-                  <td style={styles.td}>
-                    <div style={styles.row}>
-                      <button
-                        style={styles.btnSmall}
-                        onClick={() => onApprove(a.id)}
-                      >
-                        Approve
-                      </button>
-                      <button
-                        style={styles.btnSmallSecondary}
-                        onClick={() => onReject(a.id)}
-                      >
-                        Reject
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-              {list.length === 0 ? (
-                <tr>
-                  <td style={styles.td} colSpan={4}>
-                    <div style={styles.muted}>No records.</div>
-                  </td>
-                </tr>
-              ) : null}
-            </tbody>
-          </table>
+                    <span style={styles.badge}>votes: {a.votes ?? 0}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div style={styles.adminActions}>
+                <button style={styles.btnApprove} onClick={() => onApprove(a.id)}>
+                  Approve
+                </button>
+                <button style={styles.btnReject} onClick={() => onReject(a.id)}>
+                  Reject
+                </button>
+              </div>
+            </div>
+          ))}
+
+          {list.length === 0 ? <div style={styles.muted}>No records.</div> : null}
         </div>
       </div>
     </div>
@@ -592,22 +565,6 @@ const styles = {
     color: "#fff",
     fontWeight: 700,
   },
-  btnSmall: {
-    padding: "8px 10px",
-    borderRadius: 10,
-    border: "1px solid rgba(34,197,94,0.55)",
-    background: "rgba(34,197,94,0.22)",
-    color: "#fff",
-    fontWeight: 800,
-  },
-  btnSmallSecondary: {
-    padding: "8px 10px",
-    borderRadius: 10,
-    border: "1px solid rgba(248,113,113,0.55)",
-    background: "rgba(248,113,113,0.22)",
-    color: "#fff",
-    fontWeight: 800,
-  },
 
   badges: { marginTop: 8, display: "flex", gap: 8, flexWrap: "wrap" },
   badge: {
@@ -630,18 +587,40 @@ const styles = {
     background: "rgba(248,113,113,0.15)",
   },
 
-  tableWrap: { overflowX: "auto", marginTop: 10 },
-  table: { width: "100%", borderCollapse: "collapse", minWidth: 520 },
-  th: {
-    textAlign: "left",
-    padding: "10px 8px",
-    fontSize: 12,
-    opacity: 0.75,
-    borderBottom: "1px solid rgba(255,255,255,0.12)",
+  // Admin cards (mobile-first)
+  adminCard: {
+    background: "rgba(255,255,255,0.05)",
+    border: "1px solid rgba(255,255,255,0.10)",
+    borderRadius: 16,
+    padding: 12,
   },
-  td: {
-    padding: "10px 8px",
-    borderBottom: "1px solid rgba(255,255,255,0.08)",
-    verticalAlign: "top",
+  adminCardTop: { display: "flex", justifyContent: "space-between", gap: 10 },
+  adminName: { fontSize: 16, fontWeight: 900 },
+
+  adminActions: {
+    marginTop: 10,
+    display: "flex",
+    gap: 10,
+    flexWrap: "wrap",
+  },
+  btnApprove: {
+    flex: 1,
+    minWidth: 130,
+    padding: "10px 12px",
+    borderRadius: 12,
+    border: "1px solid rgba(34,197,94,0.55)",
+    background: "rgba(34,197,94,0.22)",
+    color: "#fff",
+    fontWeight: 900,
+  },
+  btnReject: {
+    flex: 1,
+    minWidth: 130,
+    padding: "10px 12px",
+    borderRadius: 12,
+    border: "1px solid rgba(248,113,113,0.55)",
+    background: "rgba(248,113,113,0.22)",
+    color: "#fff",
+    fontWeight: 900,
   },
 };
