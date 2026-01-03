@@ -82,6 +82,7 @@ export default function App() {
 
 /* -----------------------------
    Artists Page (Public)
+   RULE: Public page shows ONLY ACTIVE artists
 ----------------------------- */
 function ArtistsPage() {
   const [health, setHealth] = useState(null);
@@ -98,7 +99,11 @@ function ArtistsPage() {
       const h = await getHealth();
       setHealth(h);
 
-      const res = await listArtists(q ? { q } : {});
+      // IMPORTANT: Public list is ALWAYS active only
+      const params = { status: "active" };
+      if (q && q.trim()) params.q = q.trim();
+
+      const res = await listArtists(params);
       setArtists(res?.data || []);
     } catch (e) {
       setError(e?.message || "Failed to load.");
@@ -133,6 +138,10 @@ function ArtistsPage() {
           </button>
         </div>
 
+        <div style={styles.muted}>
+          Public view shows <b>active</b> artists only.
+        </div>
+
         {error ? <div style={styles.error}>{error}</div> : null}
       </div>
 
@@ -155,7 +164,16 @@ function ArtistCard({ artist }) {
   const [votes, setVotes] = useState(Number(artist?.votes || 0));
   const [msg, setMsg] = useState("");
 
+  const status = (artist?.status || "active").toLowerCase();
+  const canVote = status === "active";
+
   async function onVote() {
+    if (!canVote) {
+      setMsg("Voting disabled (not active)");
+      setTimeout(() => setMsg(""), 1200);
+      return;
+    }
+
     setMsg("");
     setBusy(true);
     try {
@@ -181,7 +199,7 @@ function ArtistCard({ artist }) {
             {artist?.genre || "—"} • {artist?.location || "—"}
           </div>
           <div style={styles.badges}>
-            <span style={styles.badge}>{artist?.status || "active"}</span>
+            <span style={styles.badge}>{status}</span>
             <span style={styles.badge}>votes: {votes}</span>
           </div>
         </div>
@@ -189,8 +207,13 @@ function ArtistCard({ artist }) {
 
       {artist?.bio ? <p style={styles.p}>{artist.bio}</p> : null}
 
-      <button style={styles.btn} onClick={onVote} disabled={busy}>
-        {busy ? "Voting…" : "Vote +1"}
+      <button
+        style={canVote ? styles.btn : styles.btnDisabled}
+        onClick={onVote}
+        disabled={busy || !canVote}
+        title={!canVote ? "Only active artists can receive votes" : "Vote"}
+      >
+        {busy ? "Voting…" : canVote ? "Vote +1" : "Voting disabled"}
       </button>
 
       {msg ? <div style={styles.muted}>{msg}</div> : null}
@@ -278,8 +301,6 @@ function SubmitPage() {
 
 /* -----------------------------
    Admin Page (Mobile-first)
-   - No wide table
-   - Actions always visible
 ----------------------------- */
 function AdminPage() {
   const [adminKey, setAdminKeyState] = useState(getAdminKey());
@@ -555,6 +576,14 @@ const styles = {
     border: "1px solid rgba(124,58,237,0.6)",
     background: "rgba(124,58,237,0.25)",
     color: "#fff",
+    fontWeight: 700,
+  },
+  btnDisabled: {
+    padding: "10px 12px",
+    borderRadius: 12,
+    border: "1px solid rgba(255,255,255,0.12)",
+    background: "rgba(255,255,255,0.06)",
+    color: "rgba(255,255,255,0.7)",
     fontWeight: 700,
   },
   btnSecondary: {
