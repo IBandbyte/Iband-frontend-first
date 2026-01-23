@@ -3,6 +3,10 @@
 // - Works on Vercel
 // - Supports admin header x-admin-key via localStorage
 // - Uses VITE_API_BASE if set, otherwise stored API base, otherwise Render default
+//
+// Canonical backend routes use /api/*
+// This client also includes a safe fallback: if /api/* returns 404,
+// it retries once without the /api prefix (legacy compatibility).
 
 const LS_API_BASE = "iband_api_base";
 const LS_ADMIN_KEY = "iband_admin_key";
@@ -57,7 +61,6 @@ function buildUrl(path) {
 function makeHeaders({ admin = false, json = true } = {}) {
   const h = {};
   if (json) h["Content-Type"] = "application/json";
-
   if (admin) {
     const k = getAdminKey();
     if (k) h["x-admin-key"] = k;
@@ -65,7 +68,10 @@ function makeHeaders({ admin = false, json = true } = {}) {
   return h;
 }
 
-async function request(path, { method = "GET", body, admin = false } = {}) {
+async function requestOnce(
+  path,
+  { method = "GET", body, admin = false } = {}
+) {
   const url = buildUrl(path);
 
   const opts = {
@@ -88,66 +94,150 @@ async function request(path, { method = "GET", body, admin = false } = {}) {
     data = { raw: text };
   }
 
-  if (!res.ok) {
+  return { res, data };
+}
+
+// Canonical: /api/*
+// Safe fallback: if 404, retry once without /api prefix (legacy compatibility)
+async function request(path, { method = "GET", body, admin = false } = {}) {
+  const first = await requestOnce(path, { method, body, admin });
+
+  if (first.res.ok) return first.data;
+
+  // fallback only if 404 and path starts with /api/
+  if (first.res.status === 404 && String(path).startsWith("/api/")) {
+    const legacyPath = String(path).replace(/^\/api\//, "/");
+    const second = await requestOnce(legacyPath, { method, body, admin });
+    if (second.res.ok) return second.data;
+
     const msg =
-      data?.message ||
-      data?.error ||
-      `Request failed (${res.status})`;
+      second.data?.message ||
+      second.data?.error ||
+      `Request failed (${second.res.status})`;
     throw new Error(msg);
   }
 
-  return data;
+  const msg =
+    first.data?.message ||
+    first.data?.error ||
+    `Request failed (${first.res.status})`;
+  throw new Error(msg);
 }
 
 /* -----------------------------
-   Public
+   Public (canonical /api/*)
 ----------------------------- */
 
 export function getHealth() {
-  return request("/health", { method: "GET" });
+  // health might be /health or /api/health depending on backend;
+  // use canonical first + fallback.
+  return request("/api/health", { method: "GET" });
 }
 
 export function listArtists(params = {}) {
   const qs = new URLSearchParams(params).toString();
-  return request(qs ? `/artists?${qs}` : "/artists", { method: "GET" });
+  return request(qs ? `/api/artists?${qs}` : "/api/artists", { method: "GET" });
 }
 
 export function submitArtist(payload) {
-  return request("/artists", { method: "POST", body: payload });
+  return request("/api/artists", { method: "POST", body: payload });
 }
 
 export function voteArtist(id, amount = 1) {
-  return request(`/artists/${encodeURIComponent(id)}/votes`, {
+  return request(`/api/artists/${encodeURIComponent(id)}/votes`, {
     method: "POST",
     body: { amount },
   });
 }
 
 /* -----------------------------
-   Admin
+   Comments (public)
+----------------------------- */
+
+export function listCommentsByArtist(artistId) {
+  return request(`/api/comments/by-artist/${encodeURIComponent(artistId)}`, {
+    method: "GET",
+  });
+}
+
+export function createComment(payload) {
+  return request("/api/comments", { method: "POST", body: payload });
+}
+
+/* -----------------------------
+   Admin (canonical /api/admin/*)
 ----------------------------- */
 
 export function adminListArtists(params = {}) {
   const qs = new URLSearchParams(params).toString();
-  return request(qs ? `/admin/artists?${qs}` : "/admin/artists", {
+  return request(qs ? `/api/admin/artists?${qs}` : "/api/admin/artists", {
     method: "GET",
     admin: true,
   });
 }
 
 export function adminStats() {
-  return request("/admin/stats", { method: "GET", admin: true });
+  return request("/api/admin/stats", { method: "GET", admin: true });
 }
 
 export function adminApproveArtist(id) {
-  return request(`/admin/artists/${encodeURIComponent(id)}/approve`, {
+  return request(`/api/admin/artists/${encodeURIComponent(id)}/approve`, {
     method: "POST",
     admin: true,
   });
 }
 
 export function adminRejectArtist(id) {
-  return request(`/admin/artists/${encodeURIComponent(id)}/reject`, {
+  return request(`/api/admin/artists/${encodeURIComponent(id)}/reject`, {
+    method: "POST",
+    admin: true,
+  });
+}
+
+/* -----------------------------
+   Admin Comments (canonical /api/admin/comments/*)
+----------------------------- */
+
+export function adminListComments(params = {}) {
+  const qs = new URLSearchParams(params).toString();
+  return request(qs ? `/api/admin/comments?${qs}` : "/api/admin/comments", {
+    method: "GET",
+    admin: true,
+  });
+}
+
+export function adminGetComment(id) {
+  return request(`/api/admin/comments/${encodeURIComponent(id)}`, {
+    method: "GET",
+    admin: true,
+  });
+}
+
+export function adminPatchComment(id, payload) {
+  return request(`/api/admin/comments/${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    admin: true,
+    body: payload,
+  });
+}
+
+export function adminDeleteComment(id) {
+  return request(`/api/admin/comments/${encodeURIComponent(id)}`, {
+    method: "DELETE",
+    admin: true,
+  });
+}
+
+export function adminFlagComment(id, { code = "flag", reason = "" } = {}) {
+  return request(`/api/admin/comments/${encodeURIComponent(id)}/flag`, {
+    method: "POST",
+    admin: true,
+    body: { code, reason },
+  });
+}
+
+export function adminClearCommentFlags(id) {
+  return request(`/api/admin/comments/${encodeURIComponent(id)}/flags/clear`, {
     method: "POST",
     admin: true,
   });
