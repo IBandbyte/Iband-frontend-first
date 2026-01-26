@@ -7,9 +7,16 @@ function safeText(v) {
   return String(v);
 }
 
-function toNumber(v, fallback = 0) {
-  const n = Number(v);
-  return Number.isFinite(n) ? n : fallback;
+function toArray(v) {
+  return Array.isArray(v) ? v : [];
+}
+
+function readAdminKey() {
+  try {
+    return safeText(localStorage.getItem("iband_admin_key") || "");
+  } catch {
+    return "";
+  }
 }
 
 function normalizeArtist(raw) {
@@ -20,10 +27,73 @@ function normalizeArtist(raw) {
     genre: safeText(a.genre || a.primaryGenre || ""),
     location: safeText(a.location || a.city || a.country || ""),
     bio: safeText(a.bio || a.description || ""),
-    status: safeText(a.status || ""),
-    votes: toNumber(a.votes, 0),
+    votes: Number.isFinite(Number(a.votes)) ? Number(a.votes) : 0,
+    status: safeText(a.status || "active"),
     imageUrl: safeText(a.imageUrl || a.image || ""),
   };
+}
+
+async function fetchJson(url, opts) {
+  const res = await fetch(url, opts);
+  const text = await res.text();
+  let data = null;
+  try {
+    data = text ? JSON.parse(text) : null;
+  } catch {
+    data = null;
+  }
+  if (!res.ok) {
+    const msg =
+      safeText(data?.message) ||
+      safeText(data?.error) ||
+      `Request failed (${res.status})`;
+    const err = new Error(msg);
+    err.status = res.status;
+    err.data = data;
+    throw err;
+  }
+  return data;
+}
+
+async function robustListArtists({ q, status }) {
+  // 1) Prefer api client if present
+  if (api && typeof api.listArtists === "function") {
+    const payload = await api.listArtists({ q, status });
+
+    // Accept multiple shapes
+    const candidates = [
+      payload?.artists,
+      payload?.data?.artists,
+      payload?.data?.items,
+      payload?.data,
+      payload,
+    ];
+
+    for (const c of candidates) {
+      if (Array.isArray(c)) return c;
+    }
+
+    // Some APIs return { success, count, artists: [] }
+    if (payload && typeof payload === "object" && Array.isArray(payload.artists)) {
+      return payload.artists;
+    }
+
+    return [];
+  }
+
+  // 2) Fallback direct fetch to backend
+  const params = new URLSearchParams();
+  if (q) params.set("q", q);
+  if (status) params.set("status", status);
+
+  const url = `${API_BASE}/api/artists${params.toString() ? `?${params}` : ""}`;
+  const data = await fetchJson(url);
+
+  if (Array.isArray(data?.artists)) return data.artists;
+  if (Array.isArray(data?.data?.artists)) return data.data.artists;
+  if (Array.isArray(data?.data?.items)) return data.data.items;
+
+  return [];
 }
 
 function Pill({ children }) {
@@ -44,19 +114,19 @@ function Pill({ children }) {
   );
 }
 
-function PrimaryBtn({ children, onClick, disabled, type = "button" }) {
+function Btn({ children, onClick, disabled, soft }) {
   return (
     <button
-      type={type}
       onClick={onClick}
       disabled={disabled}
       style={{
         borderRadius: 16,
         padding: "12px 16px",
         border: "1px solid rgba(255,255,255,0.12)",
-        background:
-          "linear-gradient(90deg, rgba(154,74,255,0.95), rgba(255,147,43,0.95))",
-        color: "black",
+        background: soft
+          ? "rgba(255,255,255,0.08)"
+          : "linear-gradient(90deg, rgba(154,74,255,0.95), rgba(255,147,43,0.95))",
+        color: soft ? "white" : "black",
         fontWeight: 900,
         cursor: disabled ? "not-allowed" : "pointer",
         opacity: disabled ? 0.8 : 1,
@@ -64,26 +134,6 @@ function PrimaryBtn({ children, onClick, disabled, type = "button" }) {
     >
       {children}
     </button>
-  );
-}
-
-function SoftLink({ children, to }) {
-  return (
-    <Link
-      to={to}
-      style={{
-        textDecoration: "none",
-        borderRadius: 16,
-        padding: "12px 16px",
-        border: "1px solid rgba(255,255,255,0.12)",
-        background: "rgba(255,255,255,0.08)",
-        color: "white",
-        fontWeight: 900,
-        display: "inline-block",
-      }}
-    >
-      {children}
-    </Link>
   );
 }
 
@@ -106,48 +156,42 @@ function Card({ children }) {
 
 export default function Artists() {
   const [q, setQ] = useState("");
-  const [status, setStatus] = useState("active"); // public view = active only by default
-
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [items, setItems] = useState([]);
 
+  const adminKey = useMemo(() => readAdminKey(), []);
+  const canSeeToggle = Boolean(adminKey);
+  const [showPending, setShowPending] = useState(false);
+
+  const status = useMemo(() => {
+    // Public default: active only
+    // Admin toggle: include pending too
+    return showPending ? "all" : "active";
+  }, [showPending]);
+
   const subtitle = useMemo(() => {
-    const s = status === "all" ? "all" : status;
-    const query = safeText(q).trim();
-    return query ? `Showing: ${s} • Search: "${query}"` : `Showing: ${s}`;
-  }, [q, status]);
+    return showPending ? "active + pending" : "active only";
+  }, [showPending]);
 
   async function load() {
     setLoading(true);
     setError("");
-
     try {
-      const params = {
+      const raw = await robustListArtists({
         q: safeText(q).trim(),
-        status: status === "all" ? undefined : status,
-        limit: 50,
-        page: 1,
-      };
+        status,
+      });
 
-      const res = await api.listArtists(params);
+      const normalized = toArray(raw)
+        .map(normalizeArtist)
+        .filter((a) => a.id && a.name);
 
-      // Accept multiple shapes:
-      // - { data: { items: [...] } }
-      // - { data: [...] }
-      // - { items: [...] }
-      // - { artists: [...] }
-      // - [...]
-      const raw =
-        (res && res.data && Array.isArray(res.data) && res.data) ||
-        (res && res.data && Array.isArray(res.data.items) && res.data.items) ||
-        (res && Array.isArray(res.items) && res.items) ||
-        (res && Array.isArray(res.artists) && res.artists) ||
-        (Array.isArray(res) && res) ||
-        [];
+      // If backend ignores status=all and returns pending too, we still filter for public mode
+      const finalList =
+        showPending ? normalized : normalized.filter((a) => a.status !== "pending");
 
-      const normalized = raw.map(normalizeArtist).filter((a) => a.id || a.name);
-      setItems(normalized);
+      setItems(finalList);
     } catch (e) {
       setItems([]);
       setError(e?.message || "Failed to load artists");
@@ -163,37 +207,17 @@ export default function Artists() {
 
   return (
     <div style={{ maxWidth: 900, margin: "0 auto", padding: "28px 16px" }}>
-      <h1 style={{ fontSize: 56, margin: 0, letterSpacing: -1 }}>Artists</h1>
+      <h1 style={{ fontSize: 60, margin: 0, letterSpacing: -1 }}>Artists</h1>
 
       <p style={{ opacity: 0.85, marginTop: 10 }}>
-        API: {API_BASE}
+        API: {API_BASE} • Public view shows <b>{subtitle}</b>
       </p>
 
-      <div style={{ marginTop: 14, display: "flex", gap: 10, flexWrap: "wrap" }}>
-        <SoftLink to="/submit">+ Submit Artist</SoftLink>
-      </div>
-
-      {error ? (
-        <div
-          style={{
-            marginTop: 16,
-            padding: 14,
-            borderRadius: 16,
-            border: "1px solid rgba(255,64,64,0.35)",
-            background: "rgba(120,0,0,0.20)",
-          }}
-        >
-          <div style={{ fontWeight: 900, fontSize: 18 }}>Error</div>
-          <div style={{ opacity: 0.9, marginTop: 6 }}>{error}</div>
-          <div style={{ opacity: 0.7, marginTop: 8, fontSize: 13 }}>
-            If Render cold-starts, hit Search once.
-          </div>
-        </div>
-      ) : null}
-
       <Card>
-        <div style={{ fontWeight: 900, fontSize: 22 }}>Search</div>
-        <div style={{ opacity: 0.75, marginTop: 6 }}>{subtitle}</div>
+        <div style={{ fontWeight: 900, fontSize: 22 }}>Artists</div>
+        <div style={{ opacity: 0.75, marginTop: 6 }}>
+          Backend: … (iband-backend)
+        </div>
 
         <div style={{ marginTop: 14, display: "grid", gap: 10 }}>
           <input
@@ -212,138 +236,174 @@ export default function Artists() {
             }}
           />
 
-          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
-            <select
-              value={status}
-              onChange={(e) => setStatus(e.target.value)}
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+            <Btn onClick={load} disabled={loading}>
+              {loading ? "Searching…" : "Search"}
+            </Btn>
+
+            <Btn onClick={load} disabled={loading} soft>
+              {loading ? "Loading…" : "Refresh"}
+            </Btn>
+
+            <Link
+              to="/submit"
               style={{
-                padding: "12px 14px",
+                textDecoration: "none",
                 borderRadius: 16,
+                padding: "12px 16px",
                 border: "1px solid rgba(255,255,255,0.12)",
-                background: "rgba(0,0,0,0.25)",
+                background: "rgba(255,255,255,0.08)",
                 color: "white",
-                outline: "none",
-                fontSize: 15,
+                fontWeight: 900,
+                display: "inline-block",
+              }}
+            >
+              Submit Artist →
+            </Link>
+          </div>
+
+          {canSeeToggle ? (
+            <label
+              style={{
+                display: "flex",
+                gap: 10,
+                alignItems: "center",
+                marginTop: 6,
+                opacity: 0.9,
                 fontWeight: 800,
               }}
             >
-              <option value="active">active (public)</option>
-              <option value="pending">pending</option>
-              <option value="rejected">rejected</option>
-              <option value="all">all</option>
-            </select>
-
-            <PrimaryBtn onClick={load} disabled={loading}>
-              {loading ? "Loading…" : "Search"}
-            </PrimaryBtn>
-
-            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-              <Pill>Total: {items.length}</Pill>
-              <Pill>View: {status}</Pill>
+              <input
+                type="checkbox"
+                checked={showPending}
+                onChange={(e) => setShowPending(e.target.checked)}
+                style={{ width: 18, height: 18 }}
+              />
+              Show pending too (Admin/Dev)
+            </label>
+          ) : (
+            <div style={{ opacity: 0.7, marginTop: 6 }}>
+              Public view shows <b>active</b> artists only.
             </div>
-          </div>
+          )}
 
-          <div style={{ opacity: 0.7, fontSize: 13 }}>
-            Public view shows <b>active</b> artists only by default.
-          </div>
+          {error ? (
+            <div
+              style={{
+                marginTop: 10,
+                padding: 14,
+                borderRadius: 16,
+                border: "1px solid rgba(255,64,64,0.35)",
+                background: "rgba(120,0,0,0.20)",
+              }}
+            >
+              <div style={{ fontWeight: 900, fontSize: 18 }}>API Error</div>
+              <div style={{ opacity: 0.9, marginTop: 6 }}>{error}</div>
+              <div style={{ opacity: 0.7, marginTop: 8, fontSize: 13 }}>
+                If Render cold-starts, refresh once.
+              </div>
+            </div>
+          ) : null}
         </div>
       </Card>
 
       <Card>
-        <div style={{ fontWeight: 900, fontSize: 22 }}>Results</div>
-
         {!loading && items.length === 0 ? (
-          <div style={{ marginTop: 12, opacity: 0.75 }}>
-            No artists found.
-          </div>
+          <div style={{ opacity: 0.75, fontSize: 18 }}>No artists found.</div>
         ) : null}
 
-        <div style={{ marginTop: 14, display: "grid", gap: 12 }}>
-          {items.map((a) => {
-            const meta = [a.genre, a.location].filter(Boolean).join(" • ");
-            return (
-              <div
-                key={a.id || a.name}
-                style={{
-                  borderRadius: 18,
-                  border: "1px solid rgba(255,255,255,0.10)",
-                  background: "rgba(0,0,0,0.25)",
-                  padding: 14,
-                  display: "flex",
-                  gap: 12,
-                  alignItems: "flex-start",
-                }}
-              >
-                {a.imageUrl ? (
-                  <img
-                    src={a.imageUrl}
-                    alt={a.name}
+        <div style={{ display: "grid", gap: 12 }}>
+          {items.map((a) => (
+            <div
+              key={a.id}
+              style={{
+                borderRadius: 16,
+                padding: "14px 14px",
+                border: "1px solid rgba(255,255,255,0.10)",
+                background: "rgba(0,0,0,0.25)",
+                display: "flex",
+                gap: 12,
+                alignItems: "flex-start",
+              }}
+            >
+              {a.imageUrl ? (
+                <img
+                  src={a.imageUrl}
+                  alt={a.name}
+                  style={{
+                    width: 64,
+                    height: 64,
+                    borderRadius: 14,
+                    objectFit: "cover",
+                    border: "1px solid rgba(255,255,255,0.10)",
+                  }}
+                />
+              ) : (
+                <div
+                  style={{
+                    width: 64,
+                    height: 64,
+                    borderRadius: 14,
+                    border: "1px solid rgba(255,255,255,0.10)",
+                    background: "rgba(255,255,255,0.05)",
+                    display: "grid",
+                    placeItems: "center",
+                    fontWeight: 900,
+                    fontSize: 22,
+                    color: "rgba(255,255,255,0.75)",
+                    flex: "0 0 auto",
+                  }}
+                >
+                  {a.name?.slice(0, 1)?.toUpperCase() || "A"}
+                </div>
+              )}
+
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div
+                  style={{
+                    display: "flex",
+                    gap: 10,
+                    alignItems: "center",
+                    flexWrap: "wrap",
+                  }}
+                >
+                  <div style={{ fontWeight: 900, fontSize: 20 }}>{a.name}</div>
+                  <Pill>{a.status}</Pill>
+                  <Pill>Votes: {a.votes}</Pill>
+                </div>
+
+                <div style={{ opacity: 0.8, marginTop: 6 }}>
+                  {[a.genre, a.location].filter(Boolean).join(" • ")}
+                </div>
+
+                {a.bio ? (
+                  <div style={{ opacity: 0.9, marginTop: 8, lineHeight: 1.45 }}>
+                    {a.bio.length > 160 ? `${a.bio.slice(0, 160)}…` : a.bio}
+                  </div>
+                ) : null}
+
+                <div style={{ marginTop: 10, display: "flex", gap: 10, flexWrap: "wrap" }}>
+                  <Link
+                    to={`/artist/${encodeURIComponent(a.id)}`}
                     style={{
-                      width: 72,
-                      height: 72,
+                      textDecoration: "none",
                       borderRadius: 16,
-                      objectFit: "cover",
-                      border: "1px solid rgba(255,255,255,0.10)",
-                      flex: "0 0 auto",
-                    }}
-                  />
-                ) : (
-                  <div
-                    style={{
-                      width: 72,
-                      height: 72,
-                      borderRadius: 16,
-                      border: "1px solid rgba(255,255,255,0.10)",
-                      background: "rgba(255,255,255,0.05)",
-                      display: "grid",
-                      placeItems: "center",
+                      padding: "10px 14px",
+                      border: "1px solid rgba(255,255,255,0.12)",
+                      background: "rgba(255,255,255,0.08)",
+                      color: "white",
                       fontWeight: 900,
-                      fontSize: 26,
-                      color: "rgba(255,255,255,0.75)",
-                      flex: "0 0 auto",
+                      display: "inline-block",
                     }}
                   >
-                    {(a.name?.slice(0, 1) || "A").toUpperCase()}
-                  </div>
-                )}
+                    View →
+                  </Link>
 
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontWeight: 900, fontSize: 20, lineHeight: 1.1 }}>
-                    {a.name}
-                  </div>
-                  {meta ? (
-                    <div style={{ opacity: 0.78, marginTop: 6 }}>
-                      {meta}
-                    </div>
-                  ) : null}
-
-                  <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 10 }}>
-                    <Pill>Votes: {toNumber(a.votes, 0)}</Pill>
-                    {a.status ? <Pill>Status: {a.status}</Pill> : null}
-                    {a.id ? <Pill>ID: {a.id}</Pill> : null}
-                  </div>
-
-                  <div style={{ marginTop: 12 }}>
-                    <Link
-                      to={`/artist/${encodeURIComponent(a.id || "demo")}`}
-                      style={{
-                        textDecoration: "none",
-                        borderRadius: 16,
-                        padding: "10px 14px",
-                        border: "1px solid rgba(255,255,255,0.12)",
-                        background: "rgba(255,255,255,0.08)",
-                        color: "white",
-                        fontWeight: 900,
-                        display: "inline-block",
-                      }}
-                    >
-                      View Artist →
-                    </Link>
-                  </div>
+                  <span style={{ opacity: 0.65, fontSize: 12 }}>ID: {a.id}</span>
                 </div>
               </div>
-            );
-          })}
+            </div>
+          ))}
         </div>
       </Card>
     </div>
