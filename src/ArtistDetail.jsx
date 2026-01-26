@@ -123,6 +123,26 @@ function Card({ children }) {
   );
 }
 
+/* -----------------------------
+   Backend-accurate public comments API
+   - POST /api/comments  { artistId, author, text }
+   - GET  /api/comments/by-artist/:artistId  (returns ONLY approved)
+----------------------------- */
+async function fetchJson(url, opts = {}) {
+  const res = await fetch(url, opts);
+  const text = await res.text();
+  let data = null;
+  try {
+    data = text ? JSON.parse(text) : null;
+  } catch {
+    data = { raw: text };
+  }
+  if (!res.ok) {
+    throw new Error(data?.message || `Request failed (${res.status})`);
+  }
+  return data;
+}
+
 export default function ArtistDetail() {
   const { id } = useParams();
 
@@ -132,6 +152,8 @@ export default function ArtistDetail() {
   const [posting, setPosting] = useState(false);
 
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
+
   const [artist, setArtist] = useState(null);
   const [lastFetchMs, setLastFetchMs] = useState(0);
 
@@ -148,6 +170,7 @@ export default function ArtistDetail() {
 
     setLoadingArtist(true);
     setError("");
+    setNotice("");
 
     const started = Date.now();
     try {
@@ -175,20 +198,18 @@ export default function ArtistDetail() {
     setError("");
 
     try {
-      const payload = await api.listComments(id, { limit: 50, page: 1 });
+      const url = `${API_BASE}/api/comments/by-artist/${encodeURIComponent(id)}`;
+      const payload = await fetchJson(url, { method: "GET" });
 
-      const items =
-        (payload && payload.data && payload.data.items && Array.isArray(payload.data.items)
-          ? payload.data.items
-          : []) || [];
+      const items = Array.isArray(payload?.comments) ? payload.comments : [];
 
-      // Normalize minimally
       const normalized = items
         .map((c) => ({
           id: safeText(c.id || c._id || ""),
           artistId: safeText(c.artistId || id),
-          name: safeText(c.name || "Anonymous"),
+          name: safeText(c.author || c.name || "Anonymous"),
           text: safeText(c.text || ""),
+          status: safeText(c.status || ""),
           createdAt: safeText(c.createdAt || ""),
         }))
         .filter((c) => c.text);
@@ -211,6 +232,8 @@ export default function ArtistDetail() {
 
     setVoting(true);
     setError("");
+    setNotice("");
+
     try {
       await api.voteArtist(id, 1);
       await loadArtist();
@@ -224,7 +247,7 @@ export default function ArtistDetail() {
   async function postComment() {
     if (!id) return;
 
-    const name = commentName.trim();
+    const author = commentName.trim() || "Anonymous";
     const text = commentText.trim();
 
     if (!text) {
@@ -234,15 +257,29 @@ export default function ArtistDetail() {
 
     setPosting(true);
     setError("");
+    setNotice("");
 
     try {
-      await api.addComment({
-        artistId: id,
-        name: name || "Anonymous",
-        text,
+      const url = `${API_BASE}/api/comments`;
+      await fetchJson(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          artistId: id,
+          author,
+          text,
+        }),
       });
 
       setCommentText("");
+
+      // Important: public GET only returns approved.
+      // New comment is pending → it won't show until admin approves.
+      setNotice(
+        "✅ Comment submitted! It’s now pending approval and will appear publicly once approved in Admin."
+      );
+
+      // Refresh anyway (will typically still show 0 until approved)
       await loadComments();
     } catch (e) {
       setError(e?.message || "Failed to post comment");
@@ -300,6 +337,21 @@ export default function ArtistDetail() {
           <div style={{ opacity: 0.7, marginTop: 8, fontSize: 13 }}>
             If Render cold-starts, hit Refresh once.
           </div>
+        </div>
+      ) : null}
+
+      {notice ? (
+        <div
+          style={{
+            marginTop: 16,
+            padding: 14,
+            borderRadius: 16,
+            border: "1px solid rgba(80,200,120,0.30)",
+            background: "rgba(0,120,60,0.18)",
+          }}
+        >
+          <div style={{ fontWeight: 900, fontSize: 16 }}>Info</div>
+          <div style={{ opacity: 0.95, marginTop: 6 }}>{notice}</div>
         </div>
       ) : null}
 
@@ -423,7 +475,8 @@ export default function ArtistDetail() {
       <Card>
         <div style={{ fontWeight: 900, fontSize: 28 }}>Comments</div>
         <div style={{ opacity: 0.75, marginTop: 6 }}>
-          Live fan interaction • {loadingComments ? "Loading…" : `${comments.length} shown`}
+          Public feed shows <strong>approved</strong> only •{" "}
+          {loadingComments ? "Loading…" : `${comments.length} shown`}
         </div>
 
         <div style={{ marginTop: 14, display: "grid", gap: 10 }}>
@@ -474,7 +527,9 @@ export default function ArtistDetail() {
 
         <div style={{ marginTop: 16, display: "grid", gap: 10 }}>
           {!loadingComments && comments.length === 0 ? (
-            <div style={{ opacity: 0.75 }}>No comments yet. Be the first 🔥</div>
+            <div style={{ opacity: 0.75 }}>
+              No approved comments yet. Post one — then approve it in Admin 🔥
+            </div>
           ) : null}
 
           {comments.map((c) => (
