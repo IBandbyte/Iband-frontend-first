@@ -1,8 +1,10 @@
 // src/services/api.js
-// iBand Frontend API Client (ESM)
-// Works on Vercel (Vite)
-// - API base uses VITE_API_BASE if set, else localStorage override, else Render default
-// - Admin key uses localStorage (iband_admin_key) so you can toggle it without redeploy
+// iBand Frontend API Client (Vite / Vercel friendly)
+// Goals:
+// - Backwards compatible named exports used by src/App.jsx
+// - New `api` client used by ArtistDetail.jsx
+// - Canonical `/api/*` routing with legacy fallback when needed
+// - Admin header support via localStorage ("iband_admin_key")
 
 const LS_API_BASE = "iband_api_base";
 const LS_ADMIN_KEY = "iband_admin_key";
@@ -17,46 +19,51 @@ function normalizeBase(u) {
 }
 
 export function getApiBase() {
-  const envBase = (import.meta?.env?.VITE_API_BASE || "").trim();
-  const stored = (typeof window !== "undefined" && window.localStorage)
-    ? (localStorage.getItem(LS_API_BASE) || "").trim()
-    : "";
+  const envBase =
+    (typeof import.meta !== "undefined" &&
+      import.meta.env &&
+      import.meta.env.VITE_API_BASE) ||
+    "";
+
+  const stored =
+    (typeof window !== "undefined" &&
+      window.localStorage &&
+      window.localStorage.getItem(LS_API_BASE)) ||
+    "";
 
   return normalizeBase(envBase) || normalizeBase(stored) || DEFAULT_API_BASE;
 }
 
 export function setApiBase(base) {
-  if (typeof window === "undefined") return;
-  localStorage.setItem(LS_API_BASE, normalizeBase(base));
+  if (typeof window === "undefined" || !window.localStorage) return;
+  window.localStorage.setItem(LS_API_BASE, normalizeBase(base));
 }
 
 export function clearApiBase() {
-  if (typeof window === "undefined") return;
-  localStorage.removeItem(LS_API_BASE);
+  if (typeof window === "undefined" || !window.localStorage) return;
+  window.localStorage.removeItem(LS_API_BASE);
 }
 
 export function getAdminKey() {
-  if (typeof window === "undefined") return "";
-  return (localStorage.getItem(LS_ADMIN_KEY) || "").trim();
+  if (typeof window === "undefined" || !window.localStorage) return "";
+  return String(window.localStorage.getItem(LS_ADMIN_KEY) || "").trim();
 }
 
 export function setAdminKey(key) {
-  if (typeof window === "undefined") return;
-  localStorage.setItem(LS_ADMIN_KEY, String(key || "").trim());
+  if (typeof window === "undefined" || !window.localStorage) return;
+  window.localStorage.setItem(LS_ADMIN_KEY, String(key || "").trim());
 }
 
 export function clearAdminKey() {
-  if (typeof window === "undefined") return;
-  localStorage.removeItem(LS_ADMIN_KEY);
+  if (typeof window === "undefined" || !window.localStorage) return;
+  window.localStorage.removeItem(LS_ADMIN_KEY);
 }
 
 export const API_BASE = getApiBase();
 
-function buildUrl(path) {
-  const base = getApiBase();
+function buildUrl(base, path) {
   const p = String(path || "");
   if (!p) return base;
-  if (p.startsWith("http")) return p;
   if (!p.startsWith("/")) return `${base}/${p}`;
   return `${base}${p}`;
 }
@@ -64,17 +71,43 @@ function buildUrl(path) {
 function makeHeaders({ admin = false, json = true } = {}) {
   const h = {};
   if (json) h["Content-Type"] = "application/json";
-
   if (admin) {
     const k = getAdminKey();
     if (k) h["x-admin-key"] = k;
   }
-
   return h;
 }
 
+async function readResponse(res) {
+  const text = await res.text();
+  if (!text) return null;
+  try {
+    return JSON.parse(text);
+  } catch {
+    return { raw: text };
+  }
+}
+
+/**
+ * request(path, opts)
+ * - Always tries canonical `/api` first when path is not already `/api/...`
+ * - If it gets a 404, it retries the legacy path (without `/api`)
+ */
 async function request(path, { method = "GET", body, admin = false } = {}) {
-  const url = buildUrl(path);
+  const base = getApiBase();
+
+  const inputPath = String(path || "");
+  const canonicalPath = inputPath.startsWith("/api/")
+    ? inputPath
+    : inputPath.startsWith("/")
+      ? `/api${inputPath}`
+      : `/api/${inputPath}`;
+
+  const legacyPath = inputPath.startsWith("/api/")
+    ? inputPath.replace(/^\/api/, "")
+    : inputPath.startsWith("/")
+      ? inputPath
+      : `/${inputPath}`;
 
   const opts = {
     method,
@@ -85,14 +118,14 @@ async function request(path, { method = "GET", body, admin = false } = {}) {
     opts.body = JSON.stringify(body);
   }
 
-  const res = await fetch(url, opts);
+  // 1) Try canonical
+  let res = await fetch(buildUrl(base, canonicalPath), opts);
+  let data = await readResponse(res);
 
-  const text = await res.text();
-  let data = null;
-  try {
-    data = text ? JSON.parse(text) : null;
-  } catch {
-    data = { raw: text };
+  // 404 fallback → try legacy
+  if (res.status === 404 && canonicalPath !== legacyPath) {
+    res = await fetch(buildUrl(base, legacyPath), opts);
+    data = await readResponse(res);
   }
 
   if (!res.ok) {
@@ -103,112 +136,128 @@ async function request(path, { method = "GET", body, admin = false } = {}) {
   return data;
 }
 
-/* -----------------------------
-   Public API
------------------------------ */
+/* -------------------------------------------------------
+   Public (Backwards compatible named exports)
+------------------------------------------------------- */
 
-function getHealth() {
+export function getHealth() {
+  // supports either /api/health or /health due to fallback logic
   return request("/health", { method: "GET" });
 }
 
-function listArtists() {
-  return request("/api/artists", { method: "GET" });
-}
-
-function getArtist(id) {
-  return request(`/api/artists/${encodeURIComponent(id)}`, { method: "GET" });
-}
-
-// Voting varies per backend version — this keeps frontend stable.
-// If /api/votes exists: POST /api/votes { artistId, amount }
-// If not, fallback: POST /api/artists/:id/votes { amount }
-async function voteArtist(id, amount = 1) {
-  try {
-    return await request("/api/votes", {
-      method: "POST",
-      body: { artistId: id, amount },
-    });
-  } catch {
-    return request(`/api/artists/${encodeURIComponent(id)}/votes`, {
-      method: "POST",
-      body: { amount },
-    });
-  }
-}
-
-/* -----------------------------
-   Public Comments (backend accurate)
------------------------------ */
-
-function addComment({ artistId, author, text }) {
-  return request("/api/comments", {
-    method: "POST",
-    body: { artistId, author, text },
-  });
-}
-
-function listCommentsByArtist(artistId) {
-  return request(`/api/comments/by-artist/${encodeURIComponent(artistId)}`, {
-    method: "GET",
-  });
-}
-
-/* -----------------------------
-   Admin API
------------------------------ */
-
-function adminRoot() {
-  return request("/api/admin", { method: "GET", admin: true });
-}
-
-function adminListComments(params = {}) {
+export function listArtists(params = {}) {
   const qs = new URLSearchParams(params).toString();
-  return request(qs ? `/api/admin/comments?${qs}` : "/api/admin/comments", {
+  const path = qs ? `/artists?${qs}` : "/artists";
+  return request(path, { method: "GET" });
+}
+
+export function submitArtist(payload) {
+  return request("/artists", { method: "POST", body: payload });
+}
+
+export function voteArtist(id, amount = 1) {
+  return request(`/artists/${encodeURIComponent(id)}/votes`, {
+    method: "POST",
+    body: { amount },
+  });
+}
+
+/* -------------------------------------------------------
+   Comments (Public)
+------------------------------------------------------- */
+
+export function listComments(artistId, { limit = 50, page = 1 } = {}) {
+  const qs = new URLSearchParams({
+    artistId: String(artistId || ""),
+    limit: String(limit),
+    page: String(page),
+  }).toString();
+
+  return request(`/comments?${qs}`, { method: "GET" });
+}
+
+export function addComment(payload) {
+  // payload: { artistId, name|author, text }
+  return request("/comments", { method: "POST", body: payload });
+}
+
+/* -------------------------------------------------------
+   Admin (Artists)
+------------------------------------------------------- */
+
+export function adminListArtists(params = {}) {
+  const qs = new URLSearchParams(params).toString();
+  return request(qs ? `/admin/artists?${qs}` : "/admin/artists", {
     method: "GET",
     admin: true,
   });
 }
 
-function adminPatchComment(id, patch) {
-  return request(`/api/admin/comments/${encodeURIComponent(id)}`, {
+export function adminStats() {
+  return request("/admin/stats", { method: "GET", admin: true });
+}
+
+export function adminApproveArtist(id) {
+  return request(`/admin/artists/${encodeURIComponent(id)}/approve`, {
+    method: "POST",
+    admin: true,
+  });
+}
+
+export function adminRejectArtist(id) {
+  return request(`/admin/artists/${encodeURIComponent(id)}/reject`, {
+    method: "POST",
+    admin: true,
+  });
+}
+
+/* -------------------------------------------------------
+   Admin (Comments moderation)
+------------------------------------------------------- */
+
+export function adminListComments(status = "pending") {
+  const qs = new URLSearchParams({ status: String(status || "pending") }).toString();
+  return request(`/admin/comments?${qs}`, { method: "GET", admin: true });
+}
+
+export function adminPatchComment(id, patch = {}) {
+  return request(`/admin/comments/${encodeURIComponent(id)}`, {
     method: "PATCH",
     admin: true,
     body: patch,
   });
 }
 
-function adminDeleteComment(id) {
-  return request(`/api/admin/comments/${encodeURIComponent(id)}`, {
+export function adminDeleteComment(id) {
+  return request(`/admin/comments/${encodeURIComponent(id)}`, {
     method: "DELETE",
     admin: true,
   });
 }
 
-/* -----------------------------
-   Exported API surface
------------------------------ */
+/* -------------------------------------------------------
+   New API client (ArtistDetail.jsx expects: api.getArtist, api.voteArtist, etc.)
+------------------------------------------------------- */
 
 export const api = {
-  // base helpers
-  getApiBase,
-  setApiBase,
-  clearApiBase,
-  getAdminKey,
-  setAdminKey,
-  clearAdminKey,
-
-  // public
+  // artists
   getHealth,
   listArtists,
-  getArtist,
+  submitArtist,
   voteArtist,
 
-  // public comments
+  getArtist: (id) => request(`/artists/${encodeURIComponent(id)}`, { method: "GET" }),
+
+  // comments
+  listComments,
   addComment,
-  listCommentsByArtist,
 
   // admin
-  adminRoot,
+  adminListArtists,
+  adminStats,
+  adminApproveArtist,
+  adminRejectArtist,
+
   adminListComments,
   adminPatchComment,
   adminDeleteComment,
