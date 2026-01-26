@@ -1,5 +1,8 @@
 // src/services/api.js
-// iBand Frontend API Client (Stable + Vercel Ready + Backwards Compatible)
+// iBand Frontend API Client (ESM)
+// Works on Vercel (Vite)
+// - API base uses VITE_API_BASE if set, else localStorage override, else Render default
+// - Admin key uses localStorage (iband_admin_key) so you can toggle it without redeploy
 
 const LS_API_BASE = "iband_api_base";
 const LS_ADMIN_KEY = "iband_admin_key";
@@ -7,44 +10,55 @@ const LS_ADMIN_KEY = "iband_admin_key";
 // Default backend (Render)
 const DEFAULT_API_BASE = "https://iband-backend-first-1.onrender.com";
 
-/* -----------------------------
-   Helpers
------------------------------ */
-
 function normalizeBase(u) {
-  return String(u || "").trim().replace(/\/+$/, "");
+  const s = String(u || "").trim();
+  if (!s) return "";
+  return s.replace(/\/+$/, "");
 }
 
 export function getApiBase() {
-  const envBase = (import.meta.env && import.meta.env.VITE_API_BASE) || "";
-  const stored = localStorage.getItem(LS_API_BASE) || "";
+  const envBase = (import.meta?.env?.VITE_API_BASE || "").trim();
+  const stored = (typeof window !== "undefined" && window.localStorage)
+    ? (localStorage.getItem(LS_API_BASE) || "").trim()
+    : "";
+
   return normalizeBase(envBase) || normalizeBase(stored) || DEFAULT_API_BASE;
 }
 
 export function setApiBase(base) {
+  if (typeof window === "undefined") return;
   localStorage.setItem(LS_API_BASE, normalizeBase(base));
 }
 
 export function clearApiBase() {
+  if (typeof window === "undefined") return;
   localStorage.removeItem(LS_API_BASE);
 }
 
 export function getAdminKey() {
+  if (typeof window === "undefined") return "";
   return (localStorage.getItem(LS_ADMIN_KEY) || "").trim();
 }
 
 export function setAdminKey(key) {
+  if (typeof window === "undefined") return;
   localStorage.setItem(LS_ADMIN_KEY, String(key || "").trim());
 }
 
 export function clearAdminKey() {
+  if (typeof window === "undefined") return;
   localStorage.removeItem(LS_ADMIN_KEY);
 }
+
+export const API_BASE = getApiBase();
 
 function buildUrl(path) {
   const base = getApiBase();
   const p = String(path || "");
-  return p.startsWith("/") ? `${base}${p}` : `${base}/${p}`;
+  if (!p) return base;
+  if (p.startsWith("http")) return p;
+  if (!p.startsWith("/")) return `${base}/${p}`;
+  return `${base}${p}`;
 }
 
 function makeHeaders({ admin = false, json = true } = {}) {
@@ -55,6 +69,7 @@ function makeHeaders({ admin = false, json = true } = {}) {
     const k = getAdminKey();
     if (k) h["x-admin-key"] = k;
   }
+
   return h;
 }
 
@@ -72,7 +87,6 @@ async function request(path, { method = "GET", body, admin = false } = {}) {
 
   const res = await fetch(url, opts);
 
-  // Parse JSON safely
   const text = await res.text();
   let data = null;
   try {
@@ -82,10 +96,7 @@ async function request(path, { method = "GET", body, admin = false } = {}) {
   }
 
   if (!res.ok) {
-    const msg =
-      data?.message ||
-      data?.error ||
-      `Request failed (${res.status})`;
+    const msg = data?.message || data?.error || `Request failed (${res.status})`;
     throw new Error(msg);
   }
 
@@ -93,148 +104,112 @@ async function request(path, { method = "GET", body, admin = false } = {}) {
 }
 
 /* -----------------------------
-   Canonical routes (+ legacy fallback)
-   - Your backend now uses /api/*
-   - If anything still calls old /artists etc, we auto-fallback.
+   Public API
 ----------------------------- */
 
-async function requestWithLegacyFallback(
-  canonicalPath,
-  legacyPath,
-  opts = {}
-) {
+function getHealth() {
+  return request("/health", { method: "GET" });
+}
+
+function listArtists() {
+  return request("/api/artists", { method: "GET" });
+}
+
+function getArtist(id) {
+  return request(`/api/artists/${encodeURIComponent(id)}`, { method: "GET" });
+}
+
+// Voting varies per backend version — this keeps frontend stable.
+// If /api/votes exists: POST /api/votes { artistId, amount }
+// If not, fallback: POST /api/artists/:id/votes { amount }
+async function voteArtist(id, amount = 1) {
   try {
-    return await request(canonicalPath, opts);
-  } catch (err) {
-    // If the canonical path 404s, try legacy
-    const msg = String(err?.message || "");
-    if (msg.includes("404") || msg.toLowerCase().includes("not found")) {
-      return request(legacyPath, opts);
-    }
-    throw err;
+    return await request("/api/votes", {
+      method: "POST",
+      body: { artistId: id, amount },
+    });
+  } catch {
+    return request(`/api/artists/${encodeURIComponent(id)}/votes`, {
+      method: "POST",
+      body: { amount },
+    });
   }
 }
 
 /* -----------------------------
-   Public
+   Public Comments (backend accurate)
 ----------------------------- */
 
-export function getHealth() {
-  // canonical is /api/health, legacy was /health
-  return requestWithLegacyFallback("/api/health", "/health", { method: "GET" });
-}
-
-export function listArtists(params = {}) {
-  const qs = new URLSearchParams(params).toString();
-  const canonical = qs ? `/api/artists?${qs}` : "/api/artists";
-  const legacy = qs ? `/artists?${qs}` : "/artists";
-  return requestWithLegacyFallback(canonical, legacy, { method: "GET" });
-}
-
-export function submitArtist(payload) {
-  return requestWithLegacyFallback("/api/artists", "/artists", {
+function addComment({ artistId, author, text }) {
+  return request("/api/comments", {
     method: "POST",
-    body: payload,
+    body: { artistId, author, text },
   });
 }
 
-export function voteArtist(id, amount = 1) {
-  // canonical: /api/artists/:id/votes  (legacy: /artists/:id/votes)
-  const safeId = encodeURIComponent(id);
-  return requestWithLegacyFallback(
-    `/api/artists/${safeId}/votes`,
-    `/artists/${safeId}/votes`,
-    {
-      method: "POST",
-      body: { amount },
-    }
-  );
-}
-
-/* -----------------------------
-   Comments (Public)
------------------------------ */
-
-export function postComment(payload) {
-  return requestWithLegacyFallback("/api/comments", "/comments", {
-    method: "POST",
-    body: payload,
+function listCommentsByArtist(artistId) {
+  return request(`/api/comments/by-artist/${encodeURIComponent(artistId)}`, {
+    method: "GET",
   });
 }
 
-export function listComments(params = {}) {
-  const qs = new URLSearchParams(params).toString();
-  const canonical = qs ? `/api/comments?${qs}` : "/api/comments";
-  const legacy = qs ? `/comments?${qs}` : "/comments";
-  return requestWithLegacyFallback(canonical, legacy, { method: "GET" });
-}
-
 /* -----------------------------
-   Admin (Artists)
+   Admin API
 ----------------------------- */
 
-export function adminListArtists(params = {}) {
-  const qs = new URLSearchParams(params).toString();
-  const canonical = qs ? `/api/admin/artists?${qs}` : "/api/admin/artists";
-  const legacy = qs ? `/admin/artists?${qs}` : "/admin/artists";
+function adminRoot() {
+  return request("/api/admin", { method: "GET", admin: true });
+}
 
-  return requestWithLegacyFallback(canonical, legacy, {
+function adminListComments(params = {}) {
+  const qs = new URLSearchParams(params).toString();
+  return request(qs ? `/api/admin/comments?${qs}` : "/api/admin/comments", {
     method: "GET",
     admin: true,
   });
 }
 
-export function adminStats() {
-  return requestWithLegacyFallback("/api/admin/stats", "/admin/stats", {
-    method: "GET",
+function adminPatchComment(id, patch) {
+  return request(`/api/admin/comments/${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    admin: true,
+    body: patch,
+  });
+}
+
+function adminDeleteComment(id) {
+  return request(`/api/admin/comments/${encodeURIComponent(id)}`, {
+    method: "DELETE",
     admin: true,
   });
 }
 
-export function adminApproveArtist(id) {
-  const safeId = encodeURIComponent(id);
-  return requestWithLegacyFallback(
-    `/api/admin/artists/${safeId}/approve`,
-    `/admin/artists/${safeId}/approve`,
-    { method: "POST", admin: true }
-  );
-}
-
-export function adminRejectArtist(id) {
-  const safeId = encodeURIComponent(id);
-  return requestWithLegacyFallback(
-    `/api/admin/artists/${safeId}/reject`,
-    `/admin/artists/${safeId}/reject`,
-    { method: "POST", admin: true }
-  );
-}
-
 /* -----------------------------
-   Admin (Comments Moderation)
+   Exported API surface
 ----------------------------- */
 
-export function adminListComments(status = "pending") {
-  return requestWithLegacyFallback(
-    `/api/admin/comments?status=${encodeURIComponent(status)}`,
-    `/admin/comments?status=${encodeURIComponent(status)}`,
-    { method: "GET", admin: true }
-  );
-}
+export const api = {
+  // base helpers
+  getApiBase,
+  setApiBase,
+  clearApiBase,
+  getAdminKey,
+  setAdminKey,
+  clearAdminKey,
 
-export function adminUpdateComment(id, payload) {
-  const safeId = encodeURIComponent(id);
-  return requestWithLegacyFallback(
-    `/api/admin/comments/${safeId}`,
-    `/admin/comments/${safeId}`,
-    { method: "PATCH", body: payload, admin: true }
-  );
-}
+  // public
+  getHealth,
+  listArtists,
+  getArtist,
+  voteArtist,
 
-export function adminDeleteComment(id) {
-  const safeId = encodeURIComponent(id);
-  return requestWithLegacyFallback(
-    `/api/admin/comments/${safeId}`,
-    `/admin/comments/${safeId}`,
-    { method: "DELETE", admin: true }
-  );
-}
+  // public comments
+  addComment,
+  listCommentsByArtist,
+
+  // admin
+  adminRoot,
+  adminListComments,
+  adminPatchComment,
+  adminDeleteComment,
+};
