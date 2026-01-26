@@ -1,5 +1,5 @@
-import React, { useMemo, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import React, { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { api, API_BASE } from "./services/api";
 
 function safeText(v) {
@@ -7,63 +7,40 @@ function safeText(v) {
   return String(v);
 }
 
-function cleanUrl(v) {
-  const s = safeText(v).trim();
-  if (!s) return "";
-  if (s.startsWith("http://") || s.startsWith("https://")) return s;
-  // allow users to paste without protocol
-  return `https://${s}`;
+function toNumber(v, fallback = 0) {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : fallback;
 }
 
-function Field({ label, hint, children }) {
+function normalizeArtist(raw) {
+  const a = raw || {};
+  return {
+    id: safeText(a.id || a._id || a.slug || ""),
+    name: safeText(a.name || "Unnamed Artist"),
+    genre: safeText(a.genre || a.primaryGenre || ""),
+    location: safeText(a.location || a.city || a.country || ""),
+    bio: safeText(a.bio || a.description || ""),
+    status: safeText(a.status || ""),
+    votes: toNumber(a.votes, 0),
+    imageUrl: safeText(a.imageUrl || a.image || ""),
+  };
+}
+
+function Pill({ children }) {
   return (
-    <div style={{ marginTop: 14 }}>
-      <div style={{ fontWeight: 900, marginBottom: 6 }}>{label}</div>
+    <span
+      style={{
+        borderRadius: 999,
+        padding: "10px 14px",
+        border: "1px solid rgba(255,255,255,0.12)",
+        background: "rgba(255,255,255,0.06)",
+        fontSize: 13,
+        fontWeight: 900,
+        display: "inline-block",
+      }}
+    >
       {children}
-      {hint ? (
-        <div style={{ opacity: 0.7, fontSize: 13, marginTop: 6 }}>{hint}</div>
-      ) : null}
-    </div>
-  );
-}
-
-function Input(props) {
-  return (
-    <input
-      {...props}
-      style={{
-        width: "100%",
-        padding: "14px 14px",
-        borderRadius: 16,
-        border: "1px solid rgba(255,255,255,0.12)",
-        background: "rgba(0,0,0,0.25)",
-        color: "white",
-        outline: "none",
-        fontSize: 16,
-        ...(props.style || {}),
-      }}
-    />
-  );
-}
-
-function TextArea(props) {
-  return (
-    <textarea
-      {...props}
-      style={{
-        width: "100%",
-        padding: "14px 14px",
-        borderRadius: 16,
-        border: "1px solid rgba(255,255,255,0.12)",
-        background: "rgba(0,0,0,0.25)",
-        color: "white",
-        outline: "none",
-        fontSize: 16,
-        minHeight: 120,
-        resize: "vertical",
-        ...(props.style || {}),
-      }}
-    />
+    </span>
   );
 }
 
@@ -90,147 +67,110 @@ function PrimaryBtn({ children, onClick, disabled, type = "button" }) {
   );
 }
 
-function SoftBtn({ children, to, onClick, disabled, type = "button" }) {
-  const style = {
-    textDecoration: "none",
-    borderRadius: 16,
-    padding: "12px 16px",
-    border: "1px solid rgba(255,255,255,0.12)",
-    background: "rgba(255,255,255,0.08)",
-    color: "white",
-    fontWeight: 900,
-    cursor: disabled ? "not-allowed" : "pointer",
-    opacity: disabled ? 0.7 : 1,
-    display: "inline-block",
-  };
-
-  if (to) return <Link to={to} style={style}>{children}</Link>;
-
+function SoftLink({ children, to }) {
   return (
-    <button type={type} onClick={onClick} disabled={disabled} style={style}>
+    <Link
+      to={to}
+      style={{
+        textDecoration: "none",
+        borderRadius: 16,
+        padding: "12px 16px",
+        border: "1px solid rgba(255,255,255,0.12)",
+        background: "rgba(255,255,255,0.08)",
+        color: "white",
+        fontWeight: 900,
+        display: "inline-block",
+      }}
+    >
       {children}
-    </button>
+    </Link>
   );
 }
 
-export default function SubmitArtist() {
-  const nav = useNavigate();
+function Card({ children }) {
+  return (
+    <div
+      style={{
+        marginTop: 18,
+        borderRadius: 18,
+        border: "1px solid rgba(255,255,255,0.10)",
+        background: "rgba(0,0,0,0.35)",
+        padding: 18,
+        boxShadow: "0 8px 22px rgba(0,0,0,0.35)",
+      }}
+    >
+      {children}
+    </div>
+  );
+}
 
-  const [name, setName] = useState("");
-  const [genre, setGenre] = useState("");
-  const [location, setLocation] = useState("");
-  const [bio, setBio] = useState("");
-  const [imageUrl, setImageUrl] = useState("");
+export default function Artists() {
+  const [q, setQ] = useState("");
+  const [status, setStatus] = useState("active"); // public view = active only by default
 
-  const [instagram, setInstagram] = useState("");
-  const [tiktok, setTiktok] = useState("");
-  const [youtube, setYoutube] = useState("");
-  const [spotify, setSpotify] = useState("");
-  const [soundcloud, setSoundcloud] = useState("");
-  const [website, setWebsite] = useState("");
-
-  const [track1Title, setTrack1Title] = useState("");
-  const [track1Url, setTrack1Url] = useState("");
-  const [track1Platform, setTrack1Platform] = useState("");
-
-  const [track2Title, setTrack2Title] = useState("");
-  const [track2Url, setTrack2Url] = useState("");
-  const [track2Platform, setTrack2Platform] = useState("");
-
-  const [track3Title, setTrack3Title] = useState("");
-  const [track3Url, setTrack3Url] = useState("");
-  const [track3Platform, setTrack3Platform] = useState("");
-
-  const [submitting, setSubmitting] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [successMsg, setSuccessMsg] = useState("");
+  const [items, setItems] = useState([]);
 
-  const canSubmit = useMemo(() => {
-    return safeText(name).trim().length >= 2 && safeText(bio).trim().length >= 10;
-  }, [name, bio]);
+  const subtitle = useMemo(() => {
+    const s = status === "all" ? "all" : status;
+    const query = safeText(q).trim();
+    return query ? `Showing: ${s} • Search: "${query}"` : `Showing: ${s}`;
+  }, [q, status]);
 
-  function buildPayload() {
-    const tracks = [
-      { title: track1Title, url: track1Url, platform: track1Platform },
-      { title: track2Title, url: track2Url, platform: track2Platform },
-      { title: track3Title, url: track3Url, platform: track3Platform },
-    ]
-      .map((t) => ({
-        title: safeText(t.title).trim(),
-        url: cleanUrl(t.url),
-        platform: safeText(t.platform).trim(),
-      }))
-      .filter((t) => t.title || t.url);
-
-    return {
-      name: safeText(name).trim(),
-      genre: safeText(genre).trim(),
-      location: safeText(location).trim(),
-      bio: safeText(bio).trim(),
-      imageUrl: cleanUrl(imageUrl),
-
-      socials: {
-        instagram: cleanUrl(instagram),
-        tiktok: cleanUrl(tiktok),
-        youtube: cleanUrl(youtube),
-        spotify: cleanUrl(spotify),
-        soundcloud: cleanUrl(soundcloud),
-        website: cleanUrl(website),
-      },
-
-      tracks,
-
-      // submission intent (backend may ignore, but useful for admin flow)
-      status: "pending",
-      source: "web",
-    };
-  }
-
-  async function onSubmit(e) {
-    e?.preventDefault?.();
-    if (!canSubmit || submitting) return;
-
-    setSubmitting(true);
+  async function load() {
+    setLoading(true);
     setError("");
-    setSuccessMsg("");
 
     try {
-      const payload = buildPayload();
-      const res = await api.submitArtist(payload);
+      const params = {
+        q: safeText(q).trim(),
+        status: status === "all" ? undefined : status,
+        limit: 50,
+        page: 1,
+      };
 
-      const data =
-        (res && res.data && typeof res.data === "object" && res.data) ||
-        (res && res.artist && typeof res.artist === "object" && res.artist) ||
-        res ||
-        null;
+      const res = await api.listArtists(params);
 
-      const newId = safeText(data?.id || data?._id || data?.slug || "");
-      setSuccessMsg(
-        newId
-          ? `Submitted successfully ✅ (ID: ${newId}). Status: pending`
-          : "Submitted successfully ✅. Status: pending"
-      );
+      // Accept multiple shapes:
+      // - { data: { items: [...] } }
+      // - { data: [...] }
+      // - { items: [...] }
+      // - { artists: [...] }
+      // - [...]
+      const raw =
+        (res && res.data && Array.isArray(res.data) && res.data) ||
+        (res && res.data && Array.isArray(res.data.items) && res.data.items) ||
+        (res && Array.isArray(res.items) && res.items) ||
+        (res && Array.isArray(res.artists) && res.artists) ||
+        (Array.isArray(res) && res) ||
+        [];
 
-      // optional: route them back to Artists after a short delay feel
-      setTimeout(() => {
-        nav("/artists");
-      }, 900);
-    } catch (err) {
-      setError(err?.message || "Submission failed");
+      const normalized = raw.map(normalizeArtist).filter((a) => a.id || a.name);
+      setItems(normalized);
+    } catch (e) {
+      setItems([]);
+      setError(e?.message || "Failed to load artists");
     } finally {
-      setSubmitting(false);
+      setLoading(false);
     }
   }
 
+  useEffect(() => {
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   return (
     <div style={{ maxWidth: 900, margin: "0 auto", padding: "28px 16px" }}>
-      <h1 style={{ fontSize: 52, margin: 0, letterSpacing: -1 }}>Submit Artist</h1>
+      <h1 style={{ fontSize: 56, margin: 0, letterSpacing: -1 }}>Artists</h1>
+
       <p style={{ opacity: 0.85, marginTop: 10 }}>
-        Send your profile for approval • API: {API_BASE}
+        API: {API_BASE}
       </p>
 
-      <div style={{ marginTop: 14 }}>
-        <SoftBtn to="/artists">← Back to Artists</SoftBtn>
+      <div style={{ marginTop: 14, display: "flex", gap: 10, flexWrap: "wrap" }}>
+        <SoftLink to="/submit">+ Submit Artist</SoftLink>
       </div>
 
       {error ? (
@@ -245,152 +185,167 @@ export default function SubmitArtist() {
         >
           <div style={{ fontWeight: 900, fontSize: 18 }}>Error</div>
           <div style={{ opacity: 0.9, marginTop: 6 }}>{error}</div>
+          <div style={{ opacity: 0.7, marginTop: 8, fontSize: 13 }}>
+            If Render cold-starts, hit Search once.
+          </div>
         </div>
       ) : null}
 
-      {successMsg ? (
-        <div
-          style={{
-            marginTop: 16,
-            padding: 14,
-            borderRadius: 16,
-            border: "1px solid rgba(80,255,160,0.25)",
-            background: "rgba(0,80,40,0.20)",
-          }}
-        >
-          <div style={{ fontWeight: 900, fontSize: 18 }}>Success</div>
-          <div style={{ opacity: 0.92, marginTop: 6 }}>{successMsg}</div>
-        </div>
-      ) : null}
+      <Card>
+        <div style={{ fontWeight: 900, fontSize: 22 }}>Search</div>
+        <div style={{ opacity: 0.75, marginTop: 6 }}>{subtitle}</div>
 
-      <form
-        onSubmit={onSubmit}
-        style={{
-          marginTop: 18,
-          borderRadius: 18,
-          border: "1px solid rgba(255,255,255,0.10)",
-          background: "rgba(0,0,0,0.35)",
-          padding: 18,
-          boxShadow: "0 8px 22px rgba(0,0,0,0.35)",
-        }}
-      >
-        <Field label="Artist Name" hint="Required (min 2 chars)">
-          <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Demo Artist" />
-        </Field>
-
-        <Field label="Genre">
-          <Input value={genre} onChange={(e) => setGenre(e.target.value)} placeholder="e.g. Pop / Urban" />
-        </Field>
-
-        <Field label="Location">
-          <Input value={location} onChange={(e) => setLocation(e.target.value)} placeholder="e.g. London, UK" />
-        </Field>
-
-        <Field label="Bio" hint="Required (min 10 chars)">
-          <TextArea value={bio} onChange={(e) => setBio(e.target.value)} placeholder="Tell fans + labels what makes you different…" />
-        </Field>
-
-        <Field label="Profile Image URL" hint="Paste a public image link (optional)">
-          <Input value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} placeholder="https://..." />
-        </Field>
-
-        <div style={{ marginTop: 22, fontWeight: 900, fontSize: 18 }}>Socials (optional)</div>
-
-        <Field label="Instagram">
-          <Input value={instagram} onChange={(e) => setInstagram(e.target.value)} placeholder="instagram.com/..." />
-        </Field>
-
-        <Field label="TikTok">
-          <Input value={tiktok} onChange={(e) => setTiktok(e.target.value)} placeholder="tiktok.com/@..." />
-        </Field>
-
-        <Field label="YouTube">
-          <Input value={youtube} onChange={(e) => setYoutube(e.target.value)} placeholder="youtube.com/..." />
-        </Field>
-
-        <Field label="Spotify">
-          <Input value={spotify} onChange={(e) => setSpotify(e.target.value)} placeholder="open.spotify.com/..." />
-        </Field>
-
-        <Field label="SoundCloud">
-          <Input value={soundcloud} onChange={(e) => setSoundcloud(e.target.value)} placeholder="soundcloud.com/..." />
-        </Field>
-
-        <Field label="Website">
-          <Input value={website} onChange={(e) => setWebsite(e.target.value)} placeholder="yourwebsite.com" />
-        </Field>
-
-        <div style={{ marginTop: 22, fontWeight: 900, fontSize: 18 }}>
-          Tracks (optional — up to 3)
-        </div>
-
-        <div style={{ marginTop: 12, padding: 14, borderRadius: 16, border: "1px solid rgba(255,255,255,0.10)", background: "rgba(0,0,0,0.25)" }}>
-          <div style={{ fontWeight: 900, marginBottom: 10 }}>Track 1</div>
-          <Input value={track1Title} onChange={(e) => setTrack1Title(e.target.value)} placeholder="Title" />
-          <div style={{ height: 10 }} />
-          <Input value={track1Platform} onChange={(e) => setTrack1Platform(e.target.value)} placeholder="Platform (mp3 / YouTube / Spotify)" />
-          <div style={{ height: 10 }} />
-          <Input value={track1Url} onChange={(e) => setTrack1Url(e.target.value)} placeholder="Link (https://...)" />
-        </div>
-
-        <div style={{ marginTop: 12, padding: 14, borderRadius: 16, border: "1px solid rgba(255,255,255,0.10)", background: "rgba(0,0,0,0.25)" }}>
-          <div style={{ fontWeight: 900, marginBottom: 10 }}>Track 2</div>
-          <Input value={track2Title} onChange={(e) => setTrack2Title(e.target.value)} placeholder="Title" />
-          <div style={{ height: 10 }} />
-          <Input value={track2Platform} onChange={(e) => setTrack2Platform(e.target.value)} placeholder="Platform (mp3 / YouTube / Spotify)" />
-          <div style={{ height: 10 }} />
-          <Input value={track2Url} onChange={(e) => setTrack2Url(e.target.value)} placeholder="Link (https://...)" />
-        </div>
-
-        <div style={{ marginTop: 12, padding: 14, borderRadius: 16, border: "1px solid rgba(255,255,255,0.10)", background: "rgba(0,0,0,0.25)" }}>
-          <div style={{ fontWeight: 900, marginBottom: 10 }}>Track 3</div>
-          <Input value={track3Title} onChange={(e) => setTrack3Title(e.target.value)} placeholder="Title" />
-          <div style={{ height: 10 }} />
-          <Input value={track3Platform} onChange={(e) => setTrack3Platform(e.target.value)} placeholder="Platform (mp3 / YouTube / Spotify)" />
-          <div style={{ height: 10 }} />
-          <Input value={track3Url} onChange={(e) => setTrack3Url(e.target.value)} placeholder="Link (https://...)" />
-        </div>
-
-        <div style={{ marginTop: 18, display: "flex", gap: 10, flexWrap: "wrap" }}>
-          <PrimaryBtn type="submit" disabled={!canSubmit || submitting}>
-            {submitting ? "Submitting…" : "Submit for Approval"}
-          </PrimaryBtn>
-
-          <SoftBtn
-            onClick={() => {
-              setName("");
-              setGenre("");
-              setLocation("");
-              setBio("");
-              setImageUrl("");
-              setInstagram("");
-              setTiktok("");
-              setYoutube("");
-              setSpotify("");
-              setSoundcloud("");
-              setWebsite("");
-              setTrack1Title("");
-              setTrack1Platform("");
-              setTrack1Url("");
-              setTrack2Title("");
-              setTrack2Platform("");
-              setTrack2Url("");
-              setTrack3Title("");
-              setTrack3Platform("");
-              setTrack3Url("");
-              setError("");
-              setSuccessMsg("");
+        <div style={{ marginTop: 14, display: "grid", gap: 10 }}>
+          <input
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder="Search artists (name, genre, location)…"
+            style={{
+              width: "100%",
+              padding: "14px 14px",
+              borderRadius: 16,
+              border: "1px solid rgba(255,255,255,0.12)",
+              background: "rgba(0,0,0,0.25)",
+              color: "white",
+              outline: "none",
+              fontSize: 16,
             }}
-            disabled={submitting}
-          >
-            Clear
-          </SoftBtn>
-        </div>
+          />
 
-        <div style={{ opacity: 0.7, marginTop: 14, fontSize: 13 }}>
-          Note: submission is saved as <b>pending</b>. Next phase adds Admin approval + moderation.
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
+            <select
+              value={status}
+              onChange={(e) => setStatus(e.target.value)}
+              style={{
+                padding: "12px 14px",
+                borderRadius: 16,
+                border: "1px solid rgba(255,255,255,0.12)",
+                background: "rgba(0,0,0,0.25)",
+                color: "white",
+                outline: "none",
+                fontSize: 15,
+                fontWeight: 800,
+              }}
+            >
+              <option value="active">active (public)</option>
+              <option value="pending">pending</option>
+              <option value="rejected">rejected</option>
+              <option value="all">all</option>
+            </select>
+
+            <PrimaryBtn onClick={load} disabled={loading}>
+              {loading ? "Loading…" : "Search"}
+            </PrimaryBtn>
+
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+              <Pill>Total: {items.length}</Pill>
+              <Pill>View: {status}</Pill>
+            </div>
+          </div>
+
+          <div style={{ opacity: 0.7, fontSize: 13 }}>
+            Public view shows <b>active</b> artists only by default.
+          </div>
         </div>
-      </form>
+      </Card>
+
+      <Card>
+        <div style={{ fontWeight: 900, fontSize: 22 }}>Results</div>
+
+        {!loading && items.length === 0 ? (
+          <div style={{ marginTop: 12, opacity: 0.75 }}>
+            No artists found.
+          </div>
+        ) : null}
+
+        <div style={{ marginTop: 14, display: "grid", gap: 12 }}>
+          {items.map((a) => {
+            const meta = [a.genre, a.location].filter(Boolean).join(" • ");
+            return (
+              <div
+                key={a.id || a.name}
+                style={{
+                  borderRadius: 18,
+                  border: "1px solid rgba(255,255,255,0.10)",
+                  background: "rgba(0,0,0,0.25)",
+                  padding: 14,
+                  display: "flex",
+                  gap: 12,
+                  alignItems: "flex-start",
+                }}
+              >
+                {a.imageUrl ? (
+                  <img
+                    src={a.imageUrl}
+                    alt={a.name}
+                    style={{
+                      width: 72,
+                      height: 72,
+                      borderRadius: 16,
+                      objectFit: "cover",
+                      border: "1px solid rgba(255,255,255,0.10)",
+                      flex: "0 0 auto",
+                    }}
+                  />
+                ) : (
+                  <div
+                    style={{
+                      width: 72,
+                      height: 72,
+                      borderRadius: 16,
+                      border: "1px solid rgba(255,255,255,0.10)",
+                      background: "rgba(255,255,255,0.05)",
+                      display: "grid",
+                      placeItems: "center",
+                      fontWeight: 900,
+                      fontSize: 26,
+                      color: "rgba(255,255,255,0.75)",
+                      flex: "0 0 auto",
+                    }}
+                  >
+                    {(a.name?.slice(0, 1) || "A").toUpperCase()}
+                  </div>
+                )}
+
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontWeight: 900, fontSize: 20, lineHeight: 1.1 }}>
+                    {a.name}
+                  </div>
+                  {meta ? (
+                    <div style={{ opacity: 0.78, marginTop: 6 }}>
+                      {meta}
+                    </div>
+                  ) : null}
+
+                  <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 10 }}>
+                    <Pill>Votes: {toNumber(a.votes, 0)}</Pill>
+                    {a.status ? <Pill>Status: {a.status}</Pill> : null}
+                    {a.id ? <Pill>ID: {a.id}</Pill> : null}
+                  </div>
+
+                  <div style={{ marginTop: 12 }}>
+                    <Link
+                      to={`/artist/${encodeURIComponent(a.id || "demo")}`}
+                      style={{
+                        textDecoration: "none",
+                        borderRadius: 16,
+                        padding: "10px 14px",
+                        border: "1px solid rgba(255,255,255,0.12)",
+                        background: "rgba(255,255,255,0.08)",
+                        color: "white",
+                        fontWeight: 900,
+                        display: "inline-block",
+                      }}
+                    >
+                      View Artist →
+                    </Link>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </Card>
     </div>
   );
 }
