@@ -5,7 +5,10 @@
 // - Adds safe fallbacks for route variations
 // - Includes admin key header support (x-admin-key) stored locally
 
-const DEFAULT_API_BASE = "https://iband-backend-first-1.onrender.com";
+const DEFAULT_API_BASE = "https://iband-backend-first-1.onrenderder.com".replace(
+  "onrenderder",
+  "onrender"
+);
 
 function safeText(v) {
   if (v === null || v === undefined) return "";
@@ -42,7 +45,7 @@ function getEnvApiBase() {
 export const API_BASE = getEnvApiBase();
 
 /**
- * Required by App.jsx (per your Vercel error)
+ * Required by App.jsx
  */
 export function getApiBase() {
   return API_BASE;
@@ -84,9 +87,7 @@ async function requestJson(method, path, { body, headers, timeoutMs } = {}) {
   const url = `${API_BASE}${path.startsWith("/") ? "" : "/"}${path}`;
 
   const controller = typeof AbortController !== "undefined" ? new AbortController() : null;
-  const t = controller
-    ? setTimeout(() => controller.abort(), Number(timeoutMs || 15000))
-    : null;
+  const t = controller ? setTimeout(() => controller.abort(), Number(timeoutMs || 15000)) : null;
 
   const finalHeaders = {
     Accept: "application/json",
@@ -111,10 +112,7 @@ async function requestJson(method, path, { body, headers, timeoutMs } = {}) {
     }
 
     if (!res.ok) {
-      const msg =
-        safeText(data?.message) ||
-        safeText(data?.error) ||
-        `Request failed (${res.status})`;
+      const msg = safeText(data?.message) || safeText(data?.error) || `Request failed (${res.status})`;
       const err = new Error(msg);
       err.status = res.status;
       err.data = data;
@@ -146,18 +144,11 @@ async function tryMany(method, paths, options = {}) {
 
 // ----- Public API functions required by frontend -----
 
-/**
- * Required by App.jsx (older builds relied on it)
- */
 export async function getHealth() {
   // Your server.js supports "/" and "/health"
   return await tryMany("GET", ["/health", "/"], { timeoutMs: 15000 });
 }
 
-/**
- * Public Artists list (active only on public UI)
- * Supports query + paging if your artists router implements it.
- */
 export async function listArtists(params = {}) {
   const q = new URLSearchParams();
   if (params?.query) q.set("q", safeText(params.query));
@@ -168,54 +159,29 @@ export async function listArtists(params = {}) {
 
   const suffix = q.toString() ? `?${q.toString()}` : "";
 
-  // Most likely: GET /api/artists
-  // Fallbacks included if router uses /active or /list, etc.
-  return await tryMany("GET", [`/api/artists${suffix}`, `/api/artists/active${suffix}`, `/api/artists/list${suffix}`]);
+  return await tryMany("GET", [
+    `/api/artists${suffix}`,
+    `/api/artists/active${suffix}`,
+    `/api/artists/list${suffix}`,
+  ]);
 }
 
-/**
- * Fetch single artist (ArtistDetail.jsx)
- */
 export async function getArtist(id) {
   const aid = encodeURIComponent(safeText(id));
   return await tryMany("GET", [`/api/artists/${aid}`, `/api/artists?id=${aid}`]);
 }
 
-/**
- * Submit artist from public form
- * IMPORTANT: your backend mounts artistsRouter at /api/artists,
- * but submit might be /api/artists/submit OR /api/submit (older).
- */
 export async function submitArtist(payload) {
-  return await tryMany(
-    "POST",
-    ["/api/artists/submit", "/api/submit", "/api/artists"],
-    { body: payload }
-  );
+  return await tryMany("POST", ["/api/artists/submit", "/api/submit", "/api/artists"], { body: payload });
 }
 
-/**
- * Vote (public)
- * Backend mounted votesRouter at /api/votes.
- * Common patterns: POST /api/votes or POST /api/votes/:artistId
- */
 export async function voteArtist(artistId, amount = 1) {
   const aid = encodeURIComponent(safeText(artistId));
   const body = { artistId: safeText(artistId), amount: Number(amount) || 1 };
 
-  return await tryMany(
-    "POST",
-    [`/api/votes/${aid}`, "/api/votes", `/api/artists/${aid}/vote`],
-    { body }
-  );
+  return await tryMany("POST", [`/api/votes/${aid}`, "/api/votes", `/api/artists/${aid}/vote`], { body });
 }
 
-/**
- * List comments for an artist (public)
- * Common patterns:
- * - GET /api/comments?artistId=demo
- * - GET /api/comments/demo
- */
 export async function listComments(artistId, params = {}) {
   const aid = encodeURIComponent(safeText(artistId));
   const q = new URLSearchParams();
@@ -223,16 +189,9 @@ export async function listComments(artistId, params = {}) {
   if (params?.page) q.set("page", safeText(params.page));
   if (params?.limit) q.set("limit", safeText(params.limit));
 
-  return await tryMany(
-    "GET",
-    [`/api/comments?${q.toString()}`, `/api/comments/${aid}?${q.toString()}`]
-  );
+  return await tryMany("GET", [`/api/comments?${q.toString()}`, `/api/comments/${aid}?${q.toString()}`]);
 }
 
-/**
- * Add comment (public)
- * Your Hoppscotch test proves POST /api/comments works.
- */
 export async function addComment(payload) {
   return await tryMany("POST", ["/api/comments"], { body: payload });
 }
@@ -247,10 +206,6 @@ function adminHeaders(extra = {}) {
   };
 }
 
-/**
- * Admin list artists by status (pending/active/rejected)
- * You tested: GET /api/admin/artists?status=pending works.
- */
 export async function adminListArtists(status = "pending") {
   const q = new URLSearchParams();
   if (status) q.set("status", safeText(status));
@@ -259,22 +214,12 @@ export async function adminListArtists(status = "pending") {
   });
 }
 
-/**
- * Admin stats (if your admin router implements it)
- * If not implemented, it will throw (and UI should show error).
- */
 export async function adminStats() {
-  return await tryMany(
-    "GET",
-    ["/api/admin/stats", "/api/admin/health", "/api/admin"],
-    { headers: adminHeaders() }
-  );
+  return await tryMany("GET", ["/api/admin/stats", "/api/admin/health", "/api/admin"], {
+    headers: adminHeaders(),
+  });
 }
 
-/**
- * Admin list comments (moderation inbox)
- * You tested: GET /api/admin/comments?status=pending works.
- */
 export async function adminListComments(status = "pending", params = {}) {
   const q = new URLSearchParams();
   if (status) q.set("status", safeText(status));
@@ -286,12 +231,6 @@ export async function adminListComments(status = "pending", params = {}) {
   });
 }
 
-/**
- * Admin moderate comment
- * Common patterns:
- * - PATCH /api/admin/comments/:id  { status: "approved"|"rejected", moderationNote? }
- * - POST  /api/admin/comments/:id/approve etc
- */
 export async function adminModerateComment(commentId, action = "approve", moderationNote = "") {
   const cid = encodeURIComponent(safeText(commentId));
   const a = safeText(action).toLowerCase();
@@ -302,11 +241,66 @@ export async function adminModerateComment(commentId, action = "approve", modera
     moderationNote: safeText(moderationNote),
   };
 
+  return await tryMany("PATCH", [`/api/admin/comments/${cid}`, `/api/admin/comments/${cid}/${a}`], {
+    body,
+    headers: adminHeaders(),
+  });
+}
+
+/**
+ * ✅ REQUIRED BY App.jsx:
+ * Approve an artist (moves pending -> active)
+ * We support multiple likely backend routes:
+ * - PATCH /api/admin/artists/:id { status: "active" }
+ * - PATCH /api/admin/artists/:id/approve
+ * - POST  /api/admin/artists/:id/approve
+ */
+export async function adminApproveArtist(artistId, moderationNote = "") {
+  const aid = encodeURIComponent(safeText(artistId));
+  const body = { status: "active", moderationNote: safeText(moderationNote) };
+
   return await tryMany(
     "PATCH",
-    [`/api/admin/comments/${cid}`, `/api/admin/comments/${cid}/${a}`],
+    [`/api/admin/artists/${aid}`, `/api/admin/artists/${aid}/approve`],
     { body, headers: adminHeaders() }
-  );
+  ).catch(async (e) => {
+    // fallback: POST approve
+    if (Number(e?.status) === 405 || Number(e?.status) === 404) {
+      return await tryMany("POST", [`/api/admin/artists/${aid}/approve`], {
+        body,
+        headers: adminHeaders(),
+      });
+    }
+    throw e;
+  });
+}
+
+/**
+ * ✅ REQUIRED BY App.jsx:
+ * Reject an artist (moves pending -> rejected)
+ * Supports:
+ * - PATCH /api/admin/artists/:id { status: "rejected" }
+ * - PATCH /api/admin/artists/:id/reject
+ * - POST  /api/admin/artists/:id/reject
+ */
+export async function adminRejectArtist(artistId, moderationNote = "") {
+  const aid = encodeURIComponent(safeText(artistId));
+  const body = { status: "rejected", moderationNote: safeText(moderationNote) };
+
+  return await tryMany(
+    "PATCH",
+    [`/api/admin/artists/${aid}`, `/api/admin/artists/${aid}/reject`],
+    { body, headers: adminHeaders() }
+  ).catch(async (e) => {
+    // fallback: POST reject
+    if (Number(e?.status) === 405 || Number(e?.status) === 404) {
+      return await tryMany("POST", [`/api/admin/artists/${aid}/reject`], {
+        body,
+        headers: adminHeaders(),
+      });
+    }
+    throw e;
+  });
 }
 
 // ----- Object-style client used by some components -----
@@ -329,4 +323,6 @@ export const api = {
   adminStats,
   adminListComments,
   adminModerateComment,
+  adminApproveArtist,
+  adminRejectArtist,
 };
