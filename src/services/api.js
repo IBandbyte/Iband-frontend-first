@@ -2,12 +2,10 @@
 // iBand Frontend API Client (authoritative bridge)
 // - Works with Render backend mounted at /api/*
 // - Keeps backwards-compatible exports for App.jsx + ArtistDetail.jsx
-// - Normalizes common response shapes so UI never “misses” data
+// - Adds safe fallbacks for route variations
+// - Includes admin key header support (x-admin-key) stored locally
 
-const DEFAULT_API_BASE = "https://iband-backend-first-1.onrenderder.com".replace(
-  "onrenderder",
-  "onrender"
-);
+const DEFAULT_API_BASE = "https://iband-backend-first-1.onrender.com";
 
 function safeText(v) {
   if (v === null || v === undefined) return "";
@@ -19,6 +17,7 @@ function stripTrailingSlash(s) {
 }
 
 function getEnvApiBase() {
+  // Vite: import.meta.env.VITE_API_BASE
   try {
     if (
       typeof import.meta !== "undefined" &&
@@ -30,6 +29,7 @@ function getEnvApiBase() {
   } catch {
     // ignore
   }
+  // Allow runtime override in browser (optional)
   try {
     if (typeof window !== "undefined" && window.__IBAND_API_BASE__) {
       return stripTrailingSlash(window.__IBAND_API_BASE__);
@@ -40,8 +40,14 @@ function getEnvApiBase() {
   return stripTrailingSlash(DEFAULT_API_BASE);
 }
 
+/**
+ * Public constant used by UI
+ */
 export const API_BASE = getEnvApiBase();
 
+/**
+ * Required by App.jsx
+ */
 export function getApiBase() {
   return API_BASE;
 }
@@ -127,6 +133,7 @@ async function requestJson(method, path, { body, headers, timeoutMs } = {}) {
   }
 }
 
+// Try multiple endpoints (prevents “guessing”, reduces back-and-forth)
 async function tryMany(method, paths, options = {}) {
   let lastErr = null;
   for (const p of paths) {
@@ -135,52 +142,17 @@ async function tryMany(method, paths, options = {}) {
     } catch (e) {
       lastErr = e;
       const status = Number(e?.status || 0);
+      // Only continue on common “route mismatch” errors
       if (![404, 405].includes(status)) throw e;
     }
   }
   throw lastErr || new Error("Request failed");
 }
 
-// ----- Normalizers (THIS is what fixes “No artists found”) -----
-export function normalizeArtistsResponse(res) {
-  if (!res) return { success: true, count: 0, artists: [] };
+// ----- Public API functions required by frontend -----
 
-  if (Array.isArray(res)) {
-    return { success: true, count: res.length, artists: res };
-  }
-
-  if (Array.isArray(res?.artists)) {
-    return {
-      success: res?.success !== false,
-      count: Number(res?.count ?? res.artists.length) || res.artists.length,
-      artists: res.artists,
-    };
-  }
-
-  if (Array.isArray(res?.data?.artists)) {
-    return {
-      success: res?.data?.success !== false,
-      count:
-        Number(res?.data?.count ?? res.data.artists.length) ||
-        res.data.artists.length,
-      artists: res.data.artists,
-    };
-  }
-
-  if (Array.isArray(res?.data)) {
-    return { success: true, count: res.data.length, artists: res.data };
-  }
-
-  return { success: res?.success !== false, count: 0, artists: [] };
-}
-
-export function normalizeArtistResponse(res) {
-  if (!res) return null;
-  return res?.artist || res?.data?.artist || res?.data || res;
-}
-
-// ----- Public API functions -----
 export async function getHealth() {
+  // Your server.js supports "/" and "/health"
   return await tryMany("GET", ["/health", "/"], { timeoutMs: 15000 });
 }
 
@@ -194,34 +166,30 @@ export async function listArtists(params = {}) {
 
   const suffix = q.toString() ? `?${q.toString()}` : "";
 
-  const raw = await tryMany("GET", [
+  return await tryMany("GET", [
     `/api/artists${suffix}`,
     `/api/artists/active${suffix}`,
     `/api/artists/list${suffix}`,
   ]);
-
-  return normalizeArtistsResponse(raw);
 }
 
 export async function getArtist(id) {
   const aid = encodeURIComponent(safeText(id));
-  const raw = await tryMany("GET", [
-    `/api/artists/${aid}`,
-    `/api/artists?id=${aid}`,
-  ]);
-  return normalizeArtistResponse(raw);
+  return await tryMany("GET", [`/api/artists/${aid}`, `/api/artists?id=${aid}`]);
 }
 
 export async function submitArtist(payload) {
-  const raw = await tryMany("POST", ["/api/artists/submit", "/api/submit", "/api/artists"], {
-    body: payload,
-  });
-  return normalizeArtistResponse(raw) || raw;
+  return await tryMany(
+    "POST",
+    ["/api/artists/submit", "/api/submit", "/api/artists"],
+    { body: payload }
+  );
 }
 
 export async function voteArtist(artistId, amount = 1) {
   const aid = encodeURIComponent(safeText(artistId));
   const body = { artistId: safeText(artistId), amount: Number(amount) || 1 };
+
   return await tryMany(
     "POST",
     [`/api/votes/${aid}`, "/api/votes", `/api/artists/${aid}/vote`],
@@ -247,9 +215,13 @@ export async function addComment(payload) {
 }
 
 // ----- Admin API -----
+
 function adminHeaders(extra = {}) {
   const key = getAdminKey();
-  return { ...(key ? { "x-admin-key": key } : {}), ...extra };
+  return {
+    ...(key ? { "x-admin-key": key } : {}),
+    ...extra,
+  };
 }
 
 export async function adminListArtists(status = "pending") {
@@ -262,6 +234,33 @@ export async function adminListArtists(status = "pending") {
 
 export async function adminStats() {
   return await tryMany("GET", ["/api/admin/stats", "/api/admin/health", "/api/admin"], {
+    headers: adminHeaders(),
+  });
+}
+
+export async function adminListComments(status = "pending", params = {}) {
+  const q = new URLSearchParams();
+  if (status) q.set("status", safeText(status));
+  if (params?.page) q.set("page", safeText(params.page));
+  if (params?.limit) q.set("limit", safeText(params.limit));
+
+  return await requestJson("GET", `/api/admin/comments?${q.toString()}`, {
+    headers: adminHeaders(),
+  });
+}
+
+export async function adminModerateComment(commentId, action = "approve", moderationNote = "") {
+  const cid = encodeURIComponent(safeText(commentId));
+  const a = safeText(action).toLowerCase();
+
+  const body = {
+    action: a,
+    status: a === "reject" || a === "rejected" ? "rejected" : "approved",
+    moderationNote: safeText(moderationNote),
+  };
+
+  return await tryMany("PATCH", [`/api/admin/comments/${cid}`, `/api/admin/comments/${cid}/${a}`], {
+    body,
     headers: adminHeaders(),
   });
 }
@@ -304,7 +303,7 @@ export async function adminRejectArtist(artistId, moderationNote = "") {
   });
 }
 
-// ----- Object-style client -----
+// ----- Object-style client used by some components -----
 export const api = {
   getHealth,
   listArtists,
@@ -315,6 +314,8 @@ export const api = {
   addComment,
   adminListArtists,
   adminStats,
+  adminListComments,
+  adminModerateComment,
   adminApproveArtist,
   adminRejectArtist,
 };
