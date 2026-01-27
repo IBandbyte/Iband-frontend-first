@@ -1,10 +1,15 @@
 // src/services/api.js
-// iBand Frontend API Client (authoritative bridge)
-// - Works with Render backend mounted at /api/*
-// - Keeps backwards-compatible exports for App.jsx + ArtistDetail.jsx
-// - Adds safe fallbacks for route variations
-// - Includes admin key header support (x-admin-key) stored locally
+// iBand Frontend API Client (SINGLE SOURCE OF TRUTH)
+// - Matches backend routes mounted in server.js:
+//   /api/artists, /api/votes, /api/comments, /api/admin/*
+// - Keeps stable exports used across App/Artists/Submit/ArtistDetail/Admin
+// - Supports localStorage overrides for API base + admin key
+// - Always throws clean Error(message) on non-2xx
 
+const LS_API_BASE = "iband_api_base";
+const LS_ADMIN_KEY = "iband_admin_key";
+
+// Render backend (default)
 const DEFAULT_API_BASE = "https://iband-backend-first-1.onrender.com";
 
 function safeText(v) {
@@ -12,54 +17,73 @@ function safeText(v) {
   return String(v);
 }
 
-function stripTrailingSlash(s) {
-  return safeText(s).replace(/\/+$/, "");
+function normalizeBase(u) {
+  const s = safeText(u).trim();
+  if (!s) return "";
+  return s.replace(/\/+$/, "");
 }
 
-function getEnvApiBase() {
-  // Vite: import.meta.env.VITE_API_BASE
-  try {
-    if (
-      typeof import.meta !== "undefined" &&
-      import.meta.env &&
-      import.meta.env.VITE_API_BASE
-    ) {
-      return stripTrailingSlash(import.meta.env.VITE_API_BASE);
-    }
-  } catch {
-    // ignore
-  }
-  // Allow runtime override in browser (optional)
-  try {
-    if (typeof window !== "undefined" && window.__IBAND_API_BASE__) {
-      return stripTrailingSlash(window.__IBAND_API_BASE__);
-    }
-  } catch {
-    // ignore
-  }
-  return stripTrailingSlash(DEFAULT_API_BASE);
-}
-
-/**
- * Public constant used by UI
- */
-export const API_BASE = getEnvApiBase();
-
-/**
- * Required by App.jsx
- */
 export function getApiBase() {
-  return API_BASE;
+  // Vite env override
+  let envBase = "";
+  try {
+    envBase =
+      (typeof import.meta !== "undefined" &&
+        import.meta.env &&
+        import.meta.env.VITE_API_BASE) ||
+      "";
+  } catch {
+    envBase = "";
+  }
+
+  // localStorage override
+  let stored = "";
+  try {
+    stored = localStorage.getItem(LS_API_BASE) || "";
+  } catch {
+    stored = "";
+  }
+
+  return normalizeBase(envBase) || normalizeBase(stored) || DEFAULT_API_BASE;
 }
 
-// ----- Admin key helpers -----
-const ADMIN_KEY_STORAGE = "iband_admin_key";
+export function setApiBase(base) {
+  try {
+    localStorage.setItem(LS_API_BASE, normalizeBase(base));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function clearApiBase() {
+  try {
+    localStorage.removeItem(LS_API_BASE);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+// Constant for UI display (note: getApiBase() is the runtime truth)
+export const API_BASE = getApiBase();
+
+/* -----------------------
+   Admin key helpers
+------------------------ */
+export function getAdminKey() {
+  try {
+    return safeText(localStorage.getItem(LS_ADMIN_KEY)).trim();
+  } catch {
+    return "";
+  }
+}
 
 export function setAdminKey(key) {
   try {
     const v = safeText(key).trim();
     if (!v) return false;
-    localStorage.setItem(ADMIN_KEY_STORAGE, v);
+    localStorage.setItem(LS_ADMIN_KEY, v);
     return true;
   } catch {
     return false;
@@ -68,42 +92,50 @@ export function setAdminKey(key) {
 
 export function clearAdminKey() {
   try {
-    localStorage.removeItem(ADMIN_KEY_STORAGE);
+    localStorage.removeItem(LS_ADMIN_KEY);
     return true;
   } catch {
     return false;
   }
 }
 
-export function getAdminKey() {
-  try {
-    return safeText(localStorage.getItem(ADMIN_KEY_STORAGE)).trim();
-  } catch {
-    return "";
-  }
+/* -----------------------
+   Core request layer
+------------------------ */
+function buildUrl(path) {
+  const base = getApiBase();
+  const p = safeText(path);
+  if (!p.startsWith("/")) return `${base}/${p}`;
+  return `${base}${p}`;
 }
 
-// ----- Low-level request helper -----
-async function requestJson(method, path, { body, headers, timeoutMs } = {}) {
-  const url = `${API_BASE}${path.startsWith("/") ? "" : "/"}${path}`;
-
-  const controller =
-    typeof AbortController !== "undefined" ? new AbortController() : null;
-  const t = controller
-    ? setTimeout(() => controller.abort(), Number(timeoutMs || 15000))
-    : null;
-
-  const finalHeaders = {
+function makeHeaders({ json = true, admin = false, extra = {} } = {}) {
+  const h = {
     Accept: "application/json",
-    ...(body ? { "Content-Type": "application/json" } : {}),
-    ...(headers || {}),
+    ...extra,
   };
+
+  if (json) h["Content-Type"] = "application/json";
+
+  if (admin) {
+    const k = getAdminKey();
+    if (k) h["x-admin-key"] = k;
+  }
+
+  return h;
+}
+
+async function request(path, { method = "GET", body, admin = false, timeoutMs = 15000 } = {}) {
+  const url = buildUrl(path);
+
+  const controller = typeof AbortController !== "undefined" ? new AbortController() : null;
+  const t = controller ? setTimeout(() => controller.abort(), timeoutMs) : null;
 
   try {
     const res = await fetch(url, {
       method,
-      headers: finalHeaders,
-      body: body ? JSON.stringify(body) : undefined,
+      headers: makeHeaders({ json: body !== undefined, admin }),
+      body: body !== undefined ? JSON.stringify(body) : undefined,
       signal: controller ? controller.signal : undefined,
     });
 
@@ -120,6 +152,7 @@ async function requestJson(method, path, { body, headers, timeoutMs } = {}) {
         safeText(data?.message) ||
         safeText(data?.error) ||
         `Request failed (${res.status})`;
+
       const err = new Error(msg);
       err.status = res.status;
       err.data = data;
@@ -133,189 +166,265 @@ async function requestJson(method, path, { body, headers, timeoutMs } = {}) {
   }
 }
 
-// Try multiple endpoints (prevents “guessing”, reduces back-and-forth)
 async function tryMany(method, paths, options = {}) {
   let lastErr = null;
+
   for (const p of paths) {
     try {
-      return await requestJson(method, p, options);
+      return await request(p, { ...options, method });
     } catch (e) {
       lastErr = e;
       const status = Number(e?.status || 0);
-      // Only continue on common “route mismatch” errors
+
+      // Only continue on common route mismatch cases
       if (![404, 405].includes(status)) throw e;
     }
   }
+
   throw lastErr || new Error("Request failed");
 }
 
-// ----- Public API functions required by frontend -----
+/* -----------------------
+   PUBLIC API (frontend)
+------------------------ */
 
-export async function getHealth() {
-  // Your server.js supports "/" and "/health"
-  return await tryMany("GET", ["/health", "/"], { timeoutMs: 15000 });
+// Required by App.jsx
+export function getHealth() {
+  // backend supports /health and /
+  return tryMany("GET", ["/health", "/"], { timeoutMs: 15000 });
 }
 
-export async function listArtists(params = {}) {
+// Artists list (public)
+export function listArtists(params = {}) {
   const q = new URLSearchParams();
-  if (params?.query) q.set("q", safeText(params.query));
-  if (params?.search) q.set("q", safeText(params.search));
-  if (params?.status) q.set("status", safeText(params.status));
-  if (params?.page) q.set("page", safeText(params.page));
-  if (params?.limit) q.set("limit", safeText(params.limit));
+
+  const query = safeText(params.query || params.search || params.q).trim();
+  const status = safeText(params.status).trim();
+  const page = safeText(params.page).trim();
+  const limit = safeText(params.limit).trim();
+
+  if (query) q.set("q", query);
+  if (status) q.set("status", status);
+  if (page) q.set("page", page);
+  if (limit) q.set("limit", limit);
 
   const suffix = q.toString() ? `?${q.toString()}` : "";
 
-  return await tryMany("GET", [
-    `/api/artists${suffix}`,
-    `/api/artists/active${suffix}`,
-    `/api/artists/list${suffix}`,
-  ]);
+  return tryMany("GET", [`/api/artists${suffix}`], { timeoutMs: 15000 });
 }
 
-export async function getArtist(id) {
+// Single artist
+export function getArtist(id) {
   const aid = encodeURIComponent(safeText(id));
-  return await tryMany("GET", [`/api/artists/${aid}`, `/api/artists?id=${aid}`]);
+  return tryMany("GET", [`/api/artists/${aid}`], { timeoutMs: 15000 });
 }
 
-export async function submitArtist(payload) {
-  return await tryMany(
-    "POST",
-    ["/api/artists/submit", "/api/submit", "/api/artists"],
-    { body: payload }
-  );
+// Submit artist (public)
+export function submitArtist(payload) {
+  return tryMany("POST", ["/api/artists"], { body: payload, timeoutMs: 15000 });
 }
 
-export async function voteArtist(artistId, amount = 1) {
+// Vote artist (public)
+export function voteArtist(artistId, amount = 1) {
   const aid = encodeURIComponent(safeText(artistId));
   const body = { artistId: safeText(artistId), amount: Number(amount) || 1 };
 
-  return await tryMany(
+  // Support common vote route variations (keeps frontend resilient)
+  return tryMany(
     "POST",
-    [`/api/votes/${aid}`, "/api/votes", `/api/artists/${aid}/vote`],
-    { body }
+    [
+      `/api/votes/${aid}`,     // common
+      "/api/votes",            // body-driven
+      `/api/artists/${aid}/votes`, // alternative
+      `/api/artists/${aid}/vote`,  // alternative
+    ],
+    { body, timeoutMs: 15000 }
   );
 }
 
-export async function listComments(artistId, params = {}) {
+// List public comments for an artist (backend may filter approved)
+export function listComments(artistId, params = {}) {
+  const q = new URLSearchParams();
+  const aid = safeText(artistId);
+
+  q.set("artistId", aid);
+
+  const page = safeText(params.page).trim();
+  const limit = safeText(params.limit).trim();
+  if (page) q.set("page", page);
+  if (limit) q.set("limit", limit);
+
+  return tryMany("GET", [`/api/comments?${q.toString()}`], { timeoutMs: 15000 });
+}
+
+// Add comment (public) — backend expects: { artistId, author, text }
+export function addComment(payload) {
+  return tryMany("POST", ["/api/comments"], { body: payload, timeoutMs: 15000 });
+}
+
+/* -----------------------
+   ADMIN API (frontend)
+------------------------ */
+
+export function adminListArtists(params = {}) {
+  const q = new URLSearchParams();
+
+  const status = safeText(params.status || "pending").trim();
+  const page = safeText(params.page).trim();
+  const limit = safeText(params.limit).trim();
+
+  if (status) q.set("status", status);
+  if (page) q.set("page", page);
+  if (limit) q.set("limit", limit);
+
+  return request(`/api/admin/artists?${q.toString()}`, {
+    method: "GET",
+    admin: true,
+    timeoutMs: 15000,
+  });
+}
+
+// App.jsx expects this to exist (even if backend doesn't implement stats yet)
+export function adminStats() {
+  // Prefer /api/admin (always exists) and allow /api/admin/stats if you add it later
+  return tryMany("GET", ["/api/admin/stats", "/api/admin"], {
+    admin: true,
+    timeoutMs: 15000,
+  });
+}
+
+export function adminApproveArtist(artistId, moderationNote = "") {
   const aid = encodeURIComponent(safeText(artistId));
-  const q = new URLSearchParams();
-  q.set("artistId", safeText(artistId));
-  if (params?.page) q.set("page", safeText(params.page));
-  if (params?.limit) q.set("limit", safeText(params.limit));
 
-  return await tryMany("GET", [
-    `/api/comments?${q.toString()}`,
-    `/api/comments/${aid}?${q.toString()}`,
-  ]);
-}
-
-export async function addComment(payload) {
-  return await tryMany("POST", ["/api/comments"], { body: payload });
-}
-
-// ----- Admin API -----
-
-function adminHeaders(extra = {}) {
-  const key = getAdminKey();
-  return {
-    ...(key ? { "x-admin-key": key } : {}),
-    ...extra,
-  };
-}
-
-export async function adminListArtists(status = "pending") {
-  const q = new URLSearchParams();
-  if (status) q.set("status", safeText(status));
-  return await requestJson("GET", `/api/admin/artists?${q.toString()}`, {
-    headers: adminHeaders(),
-  });
-}
-
-export async function adminStats() {
-  return await tryMany("GET", ["/api/admin/stats", "/api/admin/health", "/api/admin"], {
-    headers: adminHeaders(),
-  });
-}
-
-export async function adminListComments(status = "pending", params = {}) {
-  const q = new URLSearchParams();
-  if (status) q.set("status", safeText(status));
-  if (params?.page) q.set("page", safeText(params.page));
-  if (params?.limit) q.set("limit", safeText(params.limit));
-
-  return await requestJson("GET", `/api/admin/comments?${q.toString()}`, {
-    headers: adminHeaders(),
-  });
-}
-
-export async function adminModerateComment(commentId, action = "approve", moderationNote = "") {
-  const cid = encodeURIComponent(safeText(commentId));
-  const a = safeText(action).toLowerCase();
-
-  const body = {
-    action: a,
-    status: a === "reject" || a === "rejected" ? "rejected" : "approved",
-    moderationNote: safeText(moderationNote),
-  };
-
-  return await tryMany("PATCH", [`/api/admin/comments/${cid}`, `/api/admin/comments/${cid}/${a}`], {
-    body,
-    headers: adminHeaders(),
-  });
-}
-
-export async function adminApproveArtist(artistId, moderationNote = "") {
-  const aid = encodeURIComponent(safeText(artistId));
-  const body = { status: "active", moderationNote: safeText(moderationNote) };
-
-  return await tryMany(
-    "PATCH",
-    [`/api/admin/artists/${aid}`, `/api/admin/artists/${aid}/approve`],
-    { body, headers: adminHeaders() }
-  ).catch(async (e) => {
-    if (Number(e?.status) === 405 || Number(e?.status) === 404) {
-      return await tryMany("POST", [`/api/admin/artists/${aid}/approve`], {
-        body,
-        headers: adminHeaders(),
+  // Future-proof: support both PATCH and POST style approvals
+  return tryMany(
+    "POST",
+    [`/api/admin/artists/${aid}/approve`],
+    { admin: true, body: { moderationNote: safeText(moderationNote) }, timeoutMs: 15000 }
+  ).catch((e) => {
+    const status = Number(e?.status || 0);
+    if ([404, 405].includes(status)) {
+      return request(`/api/admin/artists/${aid}`, {
+        method: "PATCH",
+        admin: true,
+        timeoutMs: 15000,
+        body: { status: "active", moderationNote: safeText(moderationNote) },
       });
     }
     throw e;
   });
 }
 
-export async function adminRejectArtist(artistId, moderationNote = "") {
+export function adminRejectArtist(artistId, moderationNote = "") {
   const aid = encodeURIComponent(safeText(artistId));
-  const body = { status: "rejected", moderationNote: safeText(moderationNote) };
 
-  return await tryMany(
-    "PATCH",
-    [`/api/admin/artists/${aid}`, `/api/admin/artists/${aid}/reject`],
-    { body, headers: adminHeaders() }
-  ).catch(async (e) => {
-    if (Number(e?.status) === 405 || Number(e?.status) === 404) {
-      return await tryMany("POST", [`/api/admin/artists/${aid}/reject`], {
-        body,
-        headers: adminHeaders(),
+  return tryMany(
+    "POST",
+    [`/api/admin/artists/${aid}/reject`],
+    { admin: true, body: { moderationNote: safeText(moderationNote) }, timeoutMs: 15000 }
+  ).catch((e) => {
+    const status = Number(e?.status || 0);
+    if ([404, 405].includes(status)) {
+      return request(`/api/admin/artists/${aid}`, {
+        method: "PATCH",
+        admin: true,
+        timeoutMs: 15000,
+        body: { status: "rejected", moderationNote: safeText(moderationNote) },
       });
     }
     throw e;
   });
 }
 
-// ----- Object-style client used by some components -----
+export function adminListComments(params = {}) {
+  const q = new URLSearchParams();
+
+  const status = safeText(params.status || "pending").trim();
+  const artistId = safeText(params.artistId).trim();
+  const flagged = params.flagged === true ? "true" : "";
+
+  if (status) q.set("status", status);
+  if (artistId) q.set("artistId", artistId);
+  if (flagged) q.set("flagged", flagged);
+
+  return request(`/api/admin/comments?${q.toString()}`, {
+    method: "GET",
+    admin: true,
+    timeoutMs: 15000,
+  });
+}
+
+export function adminPatchComment(id, patch = {}) {
+  const cid = encodeURIComponent(safeText(id));
+  return request(`/api/admin/comments/${cid}`, {
+    method: "PATCH",
+    admin: true,
+    timeoutMs: 15000,
+    body: patch,
+  });
+}
+
+export function adminDeleteComment(id) {
+  const cid = encodeURIComponent(safeText(id));
+  return request(`/api/admin/comments/${cid}`, {
+    method: "DELETE",
+    admin: true,
+    timeoutMs: 15000,
+  });
+}
+
+export function adminFlagComment(id, { code = "flag", reason = "" } = {}) {
+  const cid = encodeURIComponent(safeText(id));
+  return request(`/api/admin/comments/${cid}/flag`, {
+    method: "POST",
+    admin: true,
+    timeoutMs: 15000,
+    body: { code, reason },
+  });
+}
+
+export function adminClearFlags(id) {
+  const cid = encodeURIComponent(safeText(id));
+  return request(`/api/admin/comments/${cid}/flags/clear`, {
+    method: "POST",
+    admin: true,
+    timeoutMs: 15000,
+  });
+}
+
+/* -----------------------
+   Object-style client (used across components)
+------------------------ */
 export const api = {
+  // config
+  getApiBase,
+  setApiBase,
+  clearApiBase,
+
+  // health
   getHealth,
+
+  // artists
   listArtists,
   getArtist,
   submitArtist,
   voteArtist,
+
+  // comments
   listComments,
   addComment,
+
+  // admin
+  getAdminKey,
+  setAdminKey,
+  clearAdminKey,
   adminListArtists,
   adminStats,
-  adminListComments,
-  adminModerateComment,
   adminApproveArtist,
   adminRejectArtist,
+  adminListComments,
+  adminPatchComment,
+  adminDeleteComment,
+  adminFlagComment,
+  adminClearFlags,
 };
