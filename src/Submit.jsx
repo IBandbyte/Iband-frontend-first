@@ -1,3 +1,4 @@
+// src/Submit.jsx
 import React, { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { api, API_BASE } from "./services/api";
@@ -167,6 +168,7 @@ export default function Submit() {
       location: safeText(location).trim(),
       bio: safeText(bio).trim(),
       imageUrl: cleanUrl(imageUrl),
+
       socials: {
         instagram: cleanUrl(instagram),
         tiktok: cleanUrl(tiktok),
@@ -175,7 +177,10 @@ export default function Submit() {
         soundcloud: cleanUrl(soundcloud),
         website: cleanUrl(website),
       },
+
       tracks,
+
+      // backend will enforce pending for public submissions
       status: "pending",
       source: "web",
     };
@@ -191,9 +196,15 @@ export default function Submit() {
 
     try {
       const payload = buildPayload();
-      const artist = await api.submitArtist(payload);
+      const res = await api.submitArtist(payload);
 
-      const newId = safeText(artist?.id || artist?._id || artist?.slug || "");
+      const data =
+        (res && res.artist && typeof res.artist === "object" && res.artist) ||
+        (res && res.data && typeof res.data === "object" && res.data) ||
+        (res && typeof res === "object" && res) ||
+        null;
+
+      const newId = safeText(data?.id || data?._id || data?.slug || "");
       setSuccessMsg(
         newId
           ? `Submitted successfully ✅ (ID: ${newId}). Status: pending`
@@ -210,6 +221,36 @@ export default function Submit() {
     }
   }
 
+  function clearAll() {
+    setName("");
+    setGenre("");
+    setLocation("");
+    setBio("");
+    setImageUrl("");
+
+    setInstagram("");
+    setTiktok("");
+    setYoutube("");
+    setSpotify("");
+    setSoundcloud("");
+    setWebsite("");
+
+    setTrack1Title("");
+    setTrack1Platform("");
+    setTrack1Url("");
+
+    setTrack2Title("");
+    setTrack2Platform("");
+    setTrack2Url("");
+
+    setTrack3Title("");
+    setTrack3Platform("");
+    setTrack3Url("");
+
+    setError("");
+    setSuccessMsg("");
+  }
+
   return (
     <div style={{ maxWidth: 900, margin: "0 auto", padding: "28px 16px" }}>
       <h1 style={{ fontSize: 52, margin: 0, letterSpacing: -1 }}>Submit Artist</h1>
@@ -217,8 +258,9 @@ export default function Submit() {
         Send your profile for approval • API: {API_BASE}
       </p>
 
-      <div style={{ marginTop: 14 }}>
+      <div style={{ marginTop: 14, display: "flex", gap: 10, flexWrap: "wrap" }}>
         <SoftBtn to="/artists">← Back to Artists</SoftBtn>
+        <SoftBtn to="/admin">Admin</SoftBtn>
       </div>
 
       {error ? (
@@ -312,7 +354,15 @@ export default function Submit() {
           Tracks (optional — up to 3)
         </div>
 
-        <div style={{ marginTop: 12, padding: 14, borderRadius: 16, border: "1px solid rgba(255,255,255,0.10)", background: "rgba(0,0,0,0.25)" }}>
+        <div
+          style={{
+            marginTop: 12,
+            padding: 14,
+            borderRadius: 16,
+            border: "1px solid rgba(255,255,255,0.10)",
+            background: "rgba(0,0,0,0.25)",
+          }}
+        >
           <div style={{ fontWeight: 900, marginBottom: 10 }}>Track 1</div>
           <Input value={track1Title} onChange={(e) => setTrack1Title(e.target.value)} placeholder="Title" />
           <div style={{ height: 10 }} />
@@ -321,7 +371,15 @@ export default function Submit() {
           <Input value={track1Url} onChange={(e) => setTrack1Url(e.target.value)} placeholder="Link (https://...)" />
         </div>
 
-        <div style={{ marginTop: 12, padding: 14, borderRadius: 16, border: "1px solid rgba(255,255,255,0.10)", background: "rgba(0,0,0,0.25)" }}>
+        <div
+          style={{
+            marginTop: 12,
+            padding: 14,
+            borderRadius: 16,
+            border: "1px solid rgba(255,255,255,0.10)",
+            background: "rgba(0,0,0,0.25)",
+          }}
+        >
           <div style={{ fontWeight: 900, marginBottom: 10 }}>Track 2</div>
           <Input value={track2Title} onChange={(e) => setTrack2Title(e.target.value)} placeholder="Title" />
           <div style={{ height: 10 }} />
@@ -330,7 +388,15 @@ export default function Submit() {
           <Input value={track2Url} onChange={(e) => setTrack2Url(e.target.value)} placeholder="Link (https://...)" />
         </div>
 
-        <div style={{ marginTop: 12, padding: 14, borderRadius: 16, border: "1px solid rgba(255,255,255,0.10)", background: "rgba(0,0,0,0.25)" }}>
+        <div
+          style={{
+            marginTop: 12,
+            padding: 14,
+            borderRadius: 16,
+            border: "1px solid rgba(255,255,255,0.10)",
+            background: "rgba(0,0,0,0.25)",
+          }}
+        >
           <div style={{ fontWeight: 900, marginBottom: 10 }}>Track 3</div>
           <Input value={track3Title} onChange={(e) => setTrack3Title(e.target.value)} placeholder="Title" />
           <div style={{ height: 10 }} />
@@ -344,33 +410,7 @@ export default function Submit() {
             {submitting ? "Submitting…" : "Submit for Approval"}
           </PrimaryBtn>
 
-          <SoftBtn
-            onClick={() => {
-              setName("");
-              setGenre("");
-              setLocation("");
-              setBio("");
-              setImageUrl("");
-              setInstagram("");
-              setTiktok("");
-              setYoutube("");
-              setSpotify("");
-              setSoundcloud("");
-              setWebsite("");
-              setTrack1Title("");
-              setTrack1Platform("");
-              setTrack1Url("");
-              setTrack2Title("");
-              setTrack2Platform("");
-              setTrack2Url("");
-              setTrack3Title("");
-              setTrack3Platform("");
-              setTrack3Url("");
-              setError("");
-              setSuccessMsg("");
-            }}
-            disabled={submitting}
-          >
+          <SoftBtn onClick={clearAll} disabled={submitting}>
             Clear
           </SoftBtn>
         </div>
