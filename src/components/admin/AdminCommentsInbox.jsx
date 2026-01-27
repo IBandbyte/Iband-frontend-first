@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { api, API_BASE } from "../../services/api";
 
-const STATUSES = ["pending", "approved", "hidden", "rejected"];
+const STATUSES = ["pending", "active", "rejected"];
 
 function safeText(v) {
   if (v === null || v === undefined) return "";
@@ -65,7 +65,7 @@ function Input({ value, onChange, placeholder, type = "text" }) {
   );
 }
 
-function SmallBtn({ children, onClick, variant = "soft", disabled }) {
+function Btn({ children, onClick, variant = "soft", disabled }) {
   const styles = {
     soft: {
       background: "rgba(255,255,255,0.08)",
@@ -103,116 +103,63 @@ function SmallBtn({ children, onClick, variant = "soft", disabled }) {
   );
 }
 
-export default function AdminCommentsInbox() {
+export default function AdminArtistsInbox() {
   const [adminKey, setAdminKey] = useState(api.getAdminKey());
   const [status, setStatus] = useState("pending");
-  const [artistId, setArtistId] = useState("");
-  const [flaggedOnly, setFlaggedOnly] = useState(false);
 
   const [loading, setLoading] = useState(false);
   const [workingId, setWorkingId] = useState("");
   const [error, setError] = useState("");
-  const [comments, setComments] = useState([]);
-
-  const [flagCode, setFlagCode] = useState("spam");
-  const [flagReason, setFlagReason] = useState("");
-
-  const [noteApprove, setNoteApprove] = useState("Approved for display");
-  const [noteHidden, setNoteHidden] = useState("Hidden by admin");
-  const [noteRejected, setNoteRejected] = useState("Rejected by admin");
-
-  const canUseAdmin = useMemo(() => safeText(adminKey).trim().length > 0, [adminKey]);
+  const [artists, setArtists] = useState([]);
 
   async function load() {
     setLoading(true);
     setError("");
 
     try {
-      // ensure api uses latest admin key
       api.setAdminKey(adminKey);
 
-      const res = await api.adminListComments({
-        status,
-        artistId: safeText(artistId).trim() || undefined,
-        flagged: flaggedOnly || undefined,
-      });
+      const res = await api.adminListArtists(status);
 
-      setComments(Array.isArray(res?.comments) ? res.comments : []);
+      setArtists(Array.isArray(res?.artists) ? res.artists : []);
     } catch (e) {
-      setComments([]);
-      setError(safeText(e?.message) || "Failed to load admin comments");
+      setArtists([]);
+      setError(safeText(e?.message) || "Failed to load artists");
     } finally {
       setLoading(false);
     }
   }
 
   useEffect(() => {
-    // auto-refresh when filters change (only if admin key present)
-    if (canUseAdmin) load();
+    if (adminKey) load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [status, flaggedOnly]);
+  }, [status]);
 
-  async function patchStatus(id, nextStatus, note) {
+  async function approve(id) {
     setWorkingId(id);
     setError("");
+
     try {
       api.setAdminKey(adminKey);
-
-      await api.adminPatchComment(id, {
-        status: nextStatus,
-        moderatedBy: "Admin",
-        moderationNote: note,
-      });
-
+      await api.adminApproveArtist(id, "Approved by admin inbox ✅");
       await load();
     } catch (e) {
-      setError(safeText(e?.message) || "Failed to update comment status");
+      setError(safeText(e?.message) || "Approve failed");
     } finally {
       setWorkingId("");
     }
   }
 
-  async function del(id) {
+  async function reject(id) {
     setWorkingId(id);
     setError("");
-    try {
-      api.setAdminKey(adminKey);
-      await api.adminDeleteComment(id);
-      await load();
-    } catch (e) {
-      setError(safeText(e?.message) || "Failed to delete comment");
-    } finally {
-      setWorkingId("");
-    }
-  }
 
-  async function flag(id) {
-    setWorkingId(id);
-    setError("");
     try {
       api.setAdminKey(adminKey);
-      await api.adminFlagComment(id, {
-        code: safeText(flagCode).trim() || "flag",
-        reason: safeText(flagReason).trim(),
-      });
-      setFlagReason("");
+      await api.adminRejectArtist(id, "Rejected by admin inbox ❌");
       await load();
     } catch (e) {
-      setError(safeText(e?.message) || "Failed to flag comment");
-    } finally {
-      setWorkingId("");
-    }
-  }
-
-  async function clearFlags(id) {
-    setWorkingId(id);
-    setError("");
-    try {
-      api.setAdminKey(adminKey);
-      await api.adminClearFlags(id);
-      await load();
-    } catch (e) {
-      setError(safeText(e?.message) || "Failed to clear flags");
+      setError(safeText(e?.message) || "Reject failed");
     } finally {
       setWorkingId("");
     }
@@ -220,11 +167,11 @@ export default function AdminCommentsInbox() {
 
   return (
     <div style={{ maxWidth: 980, margin: "0 auto", padding: "28px 16px", color: "#fff" }}>
-      <h1 style={{ fontSize: 46, margin: 0, letterSpacing: -1 }}>Admin · Comments Inbox</h1>
+      <h1 style={{ fontSize: 46, margin: 0 }}>Admin · Artists Inbox</h1>
       <p style={{ opacity: 0.85, marginTop: 10 }}>Backend: {API_BASE}</p>
 
       <Card>
-        <div style={{ fontWeight: 900, fontSize: 18 }}>Admin Key</div>
+        <div style={{ fontWeight: 900 }}>Admin Key</div>
         <div style={{ marginTop: 10 }}>
           <Input
             value={adminKey}
@@ -232,50 +179,16 @@ export default function AdminCommentsInbox() {
               setAdminKey(v);
               api.setAdminKey(v);
             }}
-            placeholder="Paste x-admin-key here (stored locally)"
+            placeholder="Paste x-admin-key here"
             type="password"
           />
-        </div>
-
-        <div style={{ marginTop: 10, display: "flex", gap: 10, flexWrap: "wrap" }}>
-          <SmallBtn
-            variant="soft"
-            onClick={() => {
-              api.setAdminKey(adminKey);
-              load();
-            }}
-            disabled={!canUseAdmin || loading}
-          >
-            {loading ? "Loading…" : "Refresh"}
-          </SmallBtn>
-
-          <SmallBtn
-            variant="danger"
-            onClick={() => {
-              api.clearAdminKey();
-              setAdminKey("");
-              setComments([]);
-            }}
-          >
-            Clear Saved Key
-          </SmallBtn>
-
-          {!canUseAdmin ? (
-            <span style={{ opacity: 0.75 }}>
-              Add your admin key to enable moderation.
-            </span>
-          ) : (
-            <span style={{ opacity: 0.75 }}>
-              Key stored in this browser only.
-            </span>
-          )}
         </div>
 
         {error ? <div style={{ marginTop: 12, color: "#ffb3b3" }}>{error}</div> : null}
       </Card>
 
       <Card>
-        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
           {STATUSES.map((s) => (
             <Pill key={s} active={status === s} onClick={() => setStatus(s)}>
               {s.toUpperCase()}
@@ -284,206 +197,66 @@ export default function AdminCommentsInbox() {
 
           <div style={{ flex: 1 }} />
 
-          <label style={{ display: "flex", alignItems: "center", gap: 8, opacity: 0.9 }}>
-            <input
-              type="checkbox"
-              checked={flaggedOnly}
-              onChange={(e) => setFlaggedOnly(e.target.checked)}
-            />
-            Flagged only
-          </label>
-        </div>
-
-        <div style={{ marginTop: 12, display: "grid", gap: 10 }}>
-          <div>
-            <div style={{ fontWeight: 900, marginBottom: 6 }}>Filter by Artist ID (optional)</div>
-            <Input
-              value={artistId}
-              onChange={(v) => setArtistId(v)}
-              placeholder="e.g. demo"
-            />
-            <div style={{ marginTop: 10, display: "flex", gap: 10, flexWrap: "wrap" }}>
-              <SmallBtn
-                variant="soft"
-                onClick={() => {
-                  if (!canUseAdmin) return;
-                  load();
-                }}
-                disabled={!canUseAdmin || loading}
-              >
-                Apply Filter
-              </SmallBtn>
-
-              <SmallBtn
-                variant="soft"
-                onClick={() => {
-                  setArtistId("");
-                  if (canUseAdmin) load();
-                }}
-                disabled={loading}
-              >
-                Clear Filter
-              </SmallBtn>
-            </div>
-          </div>
-
-          <div style={{ borderTop: "1px solid rgba(255,255,255,0.10)", paddingTop: 12 }}>
-            <div style={{ fontWeight: 900, marginBottom: 6 }}>Flag tools (per comment)</div>
-            <div style={{ display: "grid", gap: 10 }}>
-              <Input value={flagCode} onChange={setFlagCode} placeholder="Flag code (e.g. spam)" />
-              <Input value={flagReason} onChange={setFlagReason} placeholder="Reason (optional)" />
-            </div>
-          </div>
+          <Btn variant="soft" onClick={load} disabled={loading}>
+            {loading ? "Loading…" : "Refresh"}
+          </Btn>
         </div>
       </Card>
 
       <Card>
-        <div style={{ fontWeight: 900, fontSize: 22 }}>Results</div>
+        <div style={{ fontWeight: 900, fontSize: 22 }}>Artists</div>
         <div style={{ opacity: 0.75, marginTop: 6 }}>
-          {loading ? "Loading…" : `${comments.length} comment(s)`}
+          {loading ? "Loading…" : `${artists.length} artist(s)`}
         </div>
 
-        {!loading && comments.length === 0 ? (
-          <div style={{ marginTop: 12, opacity: 0.75 }}>No comments in this state.</div>
-        ) : null}
+        {artists.map((a) => {
+          const id = safeText(a?.id);
+          const isWorking = workingId === id;
 
-        <div style={{ marginTop: 12, display: "grid", gap: 12 }}>
-          {comments.map((c) => {
-            const id = safeText(c?.id);
-            const flags = Array.isArray(c?.flags) ? c.flags : [];
-            const isWorking = workingId === id;
+          return (
+            <div
+              key={id}
+              style={{
+                marginTop: 12,
+                padding: 14,
+                borderRadius: 16,
+                border: "1px solid rgba(255,255,255,0.10)",
+                background: "rgba(0,0,0,0.25)",
+              }}
+            >
+              <div style={{ fontWeight: 900, fontSize: 18 }}>{safeText(a?.name)}</div>
+              <div style={{ opacity: 0.8, marginTop: 4 }}>
+                {safeText(a?.genre)} • {safeText(a?.location)}
+              </div>
 
-            return (
-              <div
-                key={id || Math.random()}
-                style={{
-                  padding: 14,
-                  borderRadius: 16,
-                  border: "1px solid rgba(255,255,255,0.10)",
-                  background: "rgba(0,0,0,0.25)",
-                }}
-              >
-                <div style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
-                  <div style={{ fontWeight: 900 }}>
-                    {safeText(c?.author || "Anonymous")}
-                    <span style={{ opacity: 0.75, fontWeight: 800 }}>
-                      {" "}
-                      → {safeText(c?.artistId)}
-                    </span>
-                  </div>
-                  <div style={{ opacity: 0.6, fontSize: 12 }}>
-                    {c?.createdAt ? new Date(c.createdAt).toLocaleString() : ""}
-                  </div>
-                </div>
+              <div style={{ marginTop: 10, opacity: 0.9 }}>
+                {safeText(a?.bio).slice(0, 160)}
+              </div>
 
-                <div style={{ marginTop: 10, opacity: 0.95, lineHeight: 1.45 }}>
-                  {safeText(c?.text)}
-                </div>
-
-                <div style={{ marginTop: 10, display: "flex", gap: 10, flexWrap: "wrap" }}>
-                  <span style={{ opacity: 0.8 }}>
-                    Status: <b>{safeText(c?.status)}</b>
-                  </span>
-                  <span style={{ opacity: 0.8 }}>
-                    ID: <b>{id}</b>
-                  </span>
-                </div>
-
-                {flags.length > 0 ? (
-                  <div
-                    style={{
-                      marginTop: 10,
-                      padding: 10,
-                      borderRadius: 14,
-                      border: "1px solid rgba(255,147,43,0.35)",
-                      background: "rgba(255,147,43,0.10)",
-                    }}
+              <div style={{ marginTop: 12, display: "flex", gap: 10, flexWrap: "wrap" }}>
+                {status !== "active" ? (
+                  <Btn
+                    variant="primary"
+                    disabled={isWorking}
+                    onClick={() => approve(id)}
                   >
-                    <div style={{ fontWeight: 900 }}>Flags ({flags.length})</div>
-                    <div style={{ marginTop: 6, display: "grid", gap: 6 }}>
-                      {flags.slice(0, 5).map((f, idx) => (
-                        <div key={`${id}-flag-${idx}`} style={{ opacity: 0.9, fontSize: 13 }}>
-                          • <b>{safeText(f?.code)}</b> {safeText(f?.reason)}
-                          <span style={{ opacity: 0.7 }}>
-                            {" "}
-                            {f?.at ? `(${new Date(f.at).toLocaleString()})` : ""}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
+                    {isWorking ? "Working…" : "Approve"}
+                  </Btn>
                 ) : null}
 
-                <div style={{ marginTop: 12, display: "flex", gap: 10, flexWrap: "wrap" }}>
-                  {safeText(c?.status) !== "approved" ? (
-                    <SmallBtn
-                      variant="primary"
-                      disabled={isWorking || !canUseAdmin}
-                      onClick={() => patchStatus(id, "approved", noteApprove)}
-                    >
-                      {isWorking ? "Working…" : "Approve"}
-                    </SmallBtn>
-                  ) : null}
-
-                  {safeText(c?.status) !== "hidden" ? (
-                    <SmallBtn
-                      variant="soft"
-                      disabled={isWorking || !canUseAdmin}
-                      onClick={() => patchStatus(id, "hidden", noteHidden)}
-                    >
-                      {isWorking ? "Working…" : "Hide"}
-                    </SmallBtn>
-                  ) : null}
-
-                  {safeText(c?.status) !== "rejected" ? (
-                    <SmallBtn
-                      variant="soft"
-                      disabled={isWorking || !canUseAdmin}
-                      onClick={() => patchStatus(id, "rejected", noteRejected)}
-                    >
-                      {isWorking ? "Working…" : "Reject"}
-                    </SmallBtn>
-                  ) : null}
-
-                  <SmallBtn
-                    variant="soft"
-                    disabled={isWorking || !canUseAdmin}
-                    onClick={() => flag(id)}
-                  >
-                    {isWorking ? "Working…" : "Flag"}
-                  </SmallBtn>
-
-                  {flags.length > 0 ? (
-                    <SmallBtn
-                      variant="soft"
-                      disabled={isWorking || !canUseAdmin}
-                      onClick={() => clearFlags(id)}
-                    >
-                      {isWorking ? "Working…" : "Clear Flags"}
-                    </SmallBtn>
-                  ) : null}
-
-                  <SmallBtn
+                {status !== "rejected" ? (
+                  <Btn
                     variant="danger"
-                    disabled={isWorking || !canUseAdmin}
-                    onClick={() => del(id)}
+                    disabled={isWorking}
+                    onClick={() => reject(id)}
                   >
-                    {isWorking ? "Working…" : "Delete"}
-                  </SmallBtn>
-                </div>
-
-                <div style={{ marginTop: 12, opacity: 0.7, fontSize: 13 }}>
-                  Notes:
-                  <div style={{ marginTop: 6, display: "grid", gap: 6 }}>
-                    <Input value={noteApprove} onChange={setNoteApprove} placeholder="Approve note" />
-                    <Input value={noteHidden} onChange={setNoteHidden} placeholder="Hide note" />
-                    <Input value={noteRejected} onChange={setNoteRejected} placeholder="Reject note" />
-                  </div>
-                </div>
+                    {isWorking ? "Working…" : "Reject"}
+                  </Btn>
+                ) : null}
               </div>
-            );
-          })}
-        </div>
+            </div>
+          );
+        })}
       </Card>
     </div>
   );
