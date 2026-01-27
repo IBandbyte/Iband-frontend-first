@@ -167,7 +167,6 @@ export default function Submit() {
       location: safeText(location).trim(),
       bio: safeText(bio).trim(),
       imageUrl: cleanUrl(imageUrl),
-
       socials: {
         instagram: cleanUrl(instagram),
         tiktok: cleanUrl(tiktok),
@@ -176,9 +175,7 @@ export default function Submit() {
         soundcloud: cleanUrl(soundcloud),
         website: cleanUrl(website),
       },
-
       tracks,
-
       status: "pending",
       source: "web",
     };
@@ -194,15 +191,9 @@ export default function Submit() {
 
     try {
       const payload = buildPayload();
-      const res = await api.submitArtist(payload);
+      const artist = await api.submitArtist(payload);
 
-      const data =
-        (res && res.data && typeof res.data === "object" && res.data) ||
-        (res && res.artist && typeof res.artist === "object" && res.artist) ||
-        res ||
-        null;
-
-      const newId = safeText(data?.id || data?._id || data?.slug || "");
+      const newId = safeText(artist?.id || artist?._id || artist?.slug || "");
       setSuccessMsg(
         newId
           ? `Submitted successfully ✅ (ID: ${newId}). Status: pending`
