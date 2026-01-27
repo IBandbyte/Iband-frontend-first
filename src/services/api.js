@@ -2,8 +2,7 @@
 // iBand Frontend API Client (authoritative bridge)
 // - Works with Render backend mounted at /api/*
 // - Keeps backwards-compatible exports for App.jsx + ArtistDetail.jsx
-// - Adds safe fallbacks for route variations
-// - Includes admin key header support (x-admin-key) stored locally
+// - Normalizes common response shapes so UI never “misses” data
 
 const DEFAULT_API_BASE = "https://iband-backend-first-1.onrenderder.com".replace(
   "onrenderder",
@@ -20,15 +19,17 @@ function stripTrailingSlash(s) {
 }
 
 function getEnvApiBase() {
-  // Vite: import.meta.env.VITE_API_BASE
   try {
-    if (typeof import.meta !== "undefined" && import.meta.env && import.meta.env.VITE_API_BASE) {
+    if (
+      typeof import.meta !== "undefined" &&
+      import.meta.env &&
+      import.meta.env.VITE_API_BASE
+    ) {
       return stripTrailingSlash(import.meta.env.VITE_API_BASE);
     }
   } catch {
     // ignore
   }
-  // Allow runtime override in browser (optional)
   try {
     if (typeof window !== "undefined" && window.__IBAND_API_BASE__) {
       return stripTrailingSlash(window.__IBAND_API_BASE__);
@@ -39,14 +40,8 @@ function getEnvApiBase() {
   return stripTrailingSlash(DEFAULT_API_BASE);
 }
 
-/**
- * Public constant used by UI
- */
 export const API_BASE = getEnvApiBase();
 
-/**
- * Required by App.jsx
- */
 export function getApiBase() {
   return API_BASE;
 }
@@ -86,8 +81,11 @@ export function getAdminKey() {
 async function requestJson(method, path, { body, headers, timeoutMs } = {}) {
   const url = `${API_BASE}${path.startsWith("/") ? "" : "/"}${path}`;
 
-  const controller = typeof AbortController !== "undefined" ? new AbortController() : null;
-  const t = controller ? setTimeout(() => controller.abort(), Number(timeoutMs || 15000)) : null;
+  const controller =
+    typeof AbortController !== "undefined" ? new AbortController() : null;
+  const t = controller
+    ? setTimeout(() => controller.abort(), Number(timeoutMs || 15000))
+    : null;
 
   const finalHeaders = {
     Accept: "application/json",
@@ -112,7 +110,10 @@ async function requestJson(method, path, { body, headers, timeoutMs } = {}) {
     }
 
     if (!res.ok) {
-      const msg = safeText(data?.message) || safeText(data?.error) || `Request failed (${res.status})`;
+      const msg =
+        safeText(data?.message) ||
+        safeText(data?.error) ||
+        `Request failed (${res.status})`;
       const err = new Error(msg);
       err.status = res.status;
       err.data = data;
@@ -126,7 +127,6 @@ async function requestJson(method, path, { body, headers, timeoutMs } = {}) {
   }
 }
 
-// Try multiple endpoints (prevents “guessing”, reduces back-and-forth)
 async function tryMany(method, paths, options = {}) {
   let lastErr = null;
   for (const p of paths) {
@@ -135,17 +135,52 @@ async function tryMany(method, paths, options = {}) {
     } catch (e) {
       lastErr = e;
       const status = Number(e?.status || 0);
-      // Only continue on common “route mismatch” errors
       if (![404, 405].includes(status)) throw e;
     }
   }
   throw lastErr || new Error("Request failed");
 }
 
-// ----- Public API functions required by frontend -----
+// ----- Normalizers (THIS is what fixes “No artists found”) -----
+export function normalizeArtistsResponse(res) {
+  if (!res) return { success: true, count: 0, artists: [] };
 
+  if (Array.isArray(res)) {
+    return { success: true, count: res.length, artists: res };
+  }
+
+  if (Array.isArray(res?.artists)) {
+    return {
+      success: res?.success !== false,
+      count: Number(res?.count ?? res.artists.length) || res.artists.length,
+      artists: res.artists,
+    };
+  }
+
+  if (Array.isArray(res?.data?.artists)) {
+    return {
+      success: res?.data?.success !== false,
+      count:
+        Number(res?.data?.count ?? res.data.artists.length) ||
+        res.data.artists.length,
+      artists: res.data.artists,
+    };
+  }
+
+  if (Array.isArray(res?.data)) {
+    return { success: true, count: res.data.length, artists: res.data };
+  }
+
+  return { success: res?.success !== false, count: 0, artists: [] };
+}
+
+export function normalizeArtistResponse(res) {
+  if (!res) return null;
+  return res?.artist || res?.data?.artist || res?.data || res;
+}
+
+// ----- Public API functions -----
 export async function getHealth() {
-  // Your server.js supports "/" and "/health"
   return await tryMany("GET", ["/health", "/"], { timeoutMs: 15000 });
 }
 
@@ -159,27 +194,39 @@ export async function listArtists(params = {}) {
 
   const suffix = q.toString() ? `?${q.toString()}` : "";
 
-  return await tryMany("GET", [
+  const raw = await tryMany("GET", [
     `/api/artists${suffix}`,
     `/api/artists/active${suffix}`,
     `/api/artists/list${suffix}`,
   ]);
+
+  return normalizeArtistsResponse(raw);
 }
 
 export async function getArtist(id) {
   const aid = encodeURIComponent(safeText(id));
-  return await tryMany("GET", [`/api/artists/${aid}`, `/api/artists?id=${aid}`]);
+  const raw = await tryMany("GET", [
+    `/api/artists/${aid}`,
+    `/api/artists?id=${aid}`,
+  ]);
+  return normalizeArtistResponse(raw);
 }
 
 export async function submitArtist(payload) {
-  return await tryMany("POST", ["/api/artists/submit", "/api/submit", "/api/artists"], { body: payload });
+  const raw = await tryMany("POST", ["/api/artists/submit", "/api/submit", "/api/artists"], {
+    body: payload,
+  });
+  return normalizeArtistResponse(raw) || raw;
 }
 
 export async function voteArtist(artistId, amount = 1) {
   const aid = encodeURIComponent(safeText(artistId));
   const body = { artistId: safeText(artistId), amount: Number(amount) || 1 };
-
-  return await tryMany("POST", [`/api/votes/${aid}`, "/api/votes", `/api/artists/${aid}/vote`], { body });
+  return await tryMany(
+    "POST",
+    [`/api/votes/${aid}`, "/api/votes", `/api/artists/${aid}/vote`],
+    { body }
+  );
 }
 
 export async function listComments(artistId, params = {}) {
@@ -189,7 +236,10 @@ export async function listComments(artistId, params = {}) {
   if (params?.page) q.set("page", safeText(params.page));
   if (params?.limit) q.set("limit", safeText(params.limit));
 
-  return await tryMany("GET", [`/api/comments?${q.toString()}`, `/api/comments/${aid}?${q.toString()}`]);
+  return await tryMany("GET", [
+    `/api/comments?${q.toString()}`,
+    `/api/comments/${aid}?${q.toString()}`,
+  ]);
 }
 
 export async function addComment(payload) {
@@ -197,13 +247,9 @@ export async function addComment(payload) {
 }
 
 // ----- Admin API -----
-
 function adminHeaders(extra = {}) {
   const key = getAdminKey();
-  return {
-    ...(key ? { "x-admin-key": key } : {}),
-    ...extra,
-  };
+  return { ...(key ? { "x-admin-key": key } : {}), ...extra };
 }
 
 export async function adminListArtists(status = "pending") {
@@ -220,41 +266,6 @@ export async function adminStats() {
   });
 }
 
-export async function adminListComments(status = "pending", params = {}) {
-  const q = new URLSearchParams();
-  if (status) q.set("status", safeText(status));
-  if (params?.page) q.set("page", safeText(params.page));
-  if (params?.limit) q.set("limit", safeText(params.limit));
-
-  return await requestJson("GET", `/api/admin/comments?${q.toString()}`, {
-    headers: adminHeaders(),
-  });
-}
-
-export async function adminModerateComment(commentId, action = "approve", moderationNote = "") {
-  const cid = encodeURIComponent(safeText(commentId));
-  const a = safeText(action).toLowerCase();
-
-  const body = {
-    action: a,
-    status: a === "reject" || a === "rejected" ? "rejected" : "approved",
-    moderationNote: safeText(moderationNote),
-  };
-
-  return await tryMany("PATCH", [`/api/admin/comments/${cid}`, `/api/admin/comments/${cid}/${a}`], {
-    body,
-    headers: adminHeaders(),
-  });
-}
-
-/**
- * ✅ REQUIRED BY App.jsx:
- * Approve an artist (moves pending -> active)
- * We support multiple likely backend routes:
- * - PATCH /api/admin/artists/:id { status: "active" }
- * - PATCH /api/admin/artists/:id/approve
- * - POST  /api/admin/artists/:id/approve
- */
 export async function adminApproveArtist(artistId, moderationNote = "") {
   const aid = encodeURIComponent(safeText(artistId));
   const body = { status: "active", moderationNote: safeText(moderationNote) };
@@ -264,7 +275,6 @@ export async function adminApproveArtist(artistId, moderationNote = "") {
     [`/api/admin/artists/${aid}`, `/api/admin/artists/${aid}/approve`],
     { body, headers: adminHeaders() }
   ).catch(async (e) => {
-    // fallback: POST approve
     if (Number(e?.status) === 405 || Number(e?.status) === 404) {
       return await tryMany("POST", [`/api/admin/artists/${aid}/approve`], {
         body,
@@ -275,14 +285,6 @@ export async function adminApproveArtist(artistId, moderationNote = "") {
   });
 }
 
-/**
- * ✅ REQUIRED BY App.jsx:
- * Reject an artist (moves pending -> rejected)
- * Supports:
- * - PATCH /api/admin/artists/:id { status: "rejected" }
- * - PATCH /api/admin/artists/:id/reject
- * - POST  /api/admin/artists/:id/reject
- */
 export async function adminRejectArtist(artistId, moderationNote = "") {
   const aid = encodeURIComponent(safeText(artistId));
   const body = { status: "rejected", moderationNote: safeText(moderationNote) };
@@ -292,7 +294,6 @@ export async function adminRejectArtist(artistId, moderationNote = "") {
     [`/api/admin/artists/${aid}`, `/api/admin/artists/${aid}/reject`],
     { body, headers: adminHeaders() }
   ).catch(async (e) => {
-    // fallback: POST reject
     if (Number(e?.status) === 405 || Number(e?.status) === 404) {
       return await tryMany("POST", [`/api/admin/artists/${aid}/reject`], {
         body,
@@ -303,26 +304,17 @@ export async function adminRejectArtist(artistId, moderationNote = "") {
   });
 }
 
-// ----- Object-style client used by some components -----
+// ----- Object-style client -----
 export const api = {
-  // health
   getHealth,
-
-  // artists
   listArtists,
   getArtist,
   submitArtist,
   voteArtist,
-
-  // comments
   listComments,
   addComment,
-
-  // admin
   adminListArtists,
   adminStats,
-  adminListComments,
-  adminModerateComment,
   adminApproveArtist,
   adminRejectArtist,
 };
