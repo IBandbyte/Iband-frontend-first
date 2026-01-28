@@ -1,89 +1,117 @@
 // src/services/api.js
-// iBand Frontend API Client (SINGLE SOURCE OF TRUTH)
-// - Matches backend routes mounted in server.js:
-//   /api/artists, /api/votes, /api/comments, /api/admin/*
-// - Keeps stable exports used across App/Artists/Submit/ArtistDetail/Admin
-// - Supports localStorage overrides for API base + admin key
-// - Always throws clean Error(message) on non-2xx
+// iBand Frontend API Client (single source of truth)
+//
+// Goals:
+// - Always hit the correct Render backend (even if env var has typos like "onrenderder")
+// - Keep backwards-compatible exports used by App.jsx / Artists.jsx / Submit.jsx / ArtistDetail.jsx / Admin
+// - Provide safe fallbacks for route variations (tryMany)
+// - Support admin key via localStorage "x-admin-key"
 
-const LS_API_BASE = "iband_api_base";
-const LS_ADMIN_KEY = "iband_admin_key";
+const DEFAULT_API_BASE_RAW = "https://iband-backend-first-1.onrender.com";
 
-// Render backend (default)
-const DEFAULT_API_BASE = "https://iband-backend-first-1.onrender.com";
-
+// ---------- tiny utils ----------
 function safeText(v) {
   if (v === null || v === undefined) return "";
   return String(v);
 }
 
-function normalizeBase(u) {
-  const s = safeText(u).trim();
-  if (!s) return "";
-  return s.replace(/\/+$/, "");
+function stripTrailingSlash(s) {
+  return safeText(s).replace(/\/+$/, "");
 }
 
+function ensureHttps(url) {
+  const u = safeText(url).trim();
+  if (!u) return "";
+  if (u.startsWith("http://") || u.startsWith("https://")) return u;
+  // If someone put just domain in env var, we force https
+  return `https://${u}`;
+}
+
+/**
+ * Normalize API base to avoid common misconfig:
+ * - Fix "onrenderder" -> "onrender"
+ * - Force https
+ * - Remove trailing slashes
+ * - Remove trailing "/api" if user included it
+ */
+function normalizeApiBase(input) {
+  let v = safeText(input).trim();
+
+  // Nothing? return empty; caller will fallback.
+  if (!v) return "";
+
+  // Fix the most common typo (your screenshots show it)
+  v = v.replace(/onrenderder\.com/gi, "onrender.com");
+
+  // Force https if missing
+  v = ensureHttps(v);
+
+  // Remove trailing slash
+  v = stripTrailingSlash(v);
+
+  // If someone set base as ".../api", strip it (we add /api in routes)
+  v = v.replace(/\/api$/i, "");
+
+  // Safety: remove trailing slash again after stripping /api
+  v = stripTrailingSlash(v);
+
+  return v;
+}
+
+/**
+ * Pull base from env, window override, else default.
+ * NOTE: Even if VITE_API_BASE is wrong, normalizeApiBase() fixes it.
+ */
+function getEnvApiBase() {
+  // 1) Vite env
+  try {
+    if (
+      typeof import.meta !== "undefined" &&
+      import.meta.env &&
+      import.meta.env.VITE_API_BASE
+    ) {
+      const normalized = normalizeApiBase(import.meta.env.VITE_API_BASE);
+      if (normalized) return normalized;
+    }
+  } catch {
+    // ignore
+  }
+
+  // 2) runtime override (optional)
+  try {
+    if (typeof window !== "undefined" && window.__IBAND_API_BASE__) {
+      const normalized = normalizeApiBase(window.__IBAND_API_BASE__);
+      if (normalized) return normalized;
+    }
+  } catch {
+    // ignore
+  }
+
+  // 3) default
+  return normalizeApiBase(DEFAULT_API_BASE_RAW);
+}
+
+/**
+ * Public constant used by UI (displayed in App/Artists etc.)
+ * This is authoritative after normalization.
+ */
+export const API_BASE = getEnvApiBase();
+
+/**
+ * Required by App.jsx (backwards-compatible)
+ */
 export function getApiBase() {
-  // Vite env override
-  let envBase = "";
-  try {
-    envBase =
-      (typeof import.meta !== "undefined" &&
-        import.meta.env &&
-        import.meta.env.VITE_API_BASE) ||
-      "";
-  } catch {
-    envBase = "";
-  }
-
-  // localStorage override
-  let stored = "";
-  try {
-    stored = localStorage.getItem(LS_API_BASE) || "";
-  } catch {
-    stored = "";
-  }
-
-  return normalizeBase(envBase) || normalizeBase(stored) || DEFAULT_API_BASE;
+  return API_BASE;
 }
 
-export function setApiBase(base) {
-  try {
-    localStorage.setItem(LS_API_BASE, normalizeBase(base));
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-export function clearApiBase() {
-  try {
-    localStorage.removeItem(LS_API_BASE);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-// Constant for UI display (note: getApiBase() is the runtime truth)
-export const API_BASE = getApiBase();
-
-/* -----------------------
-   Admin key helpers
------------------------- */
-export function getAdminKey() {
-  try {
-    return safeText(localStorage.getItem(LS_ADMIN_KEY)).trim();
-  } catch {
-    return "";
-  }
-}
+// ---------- Admin key helpers ----------
+const ADMIN_KEY_STORAGE = "iband_admin_key";
 
 export function setAdminKey(key) {
   try {
     const v = safeText(key).trim();
     if (!v) return false;
-    localStorage.setItem(LS_ADMIN_KEY, v);
+    localStorage.setItem(ADMIN_KEY_STORAGE, v);
     return true;
   } catch {
     return false;
@@ -92,55 +120,58 @@ export function setAdminKey(key) {
 
 export function clearAdminKey() {
   try {
-    localStorage.removeItem(LS_ADMIN_KEY);
+    localStorage.removeItem(ADMIN_KEY_STORAGE);
     return true;
   } catch {
     return false;
   }
 }
 
-/* -----------------------
-   Core request layer
------------------------- */
-function buildUrl(path) {
-  const base = getApiBase();
-  const p = safeText(path);
-  if (!p.startsWith("/")) return `${base}/${p}`;
-  return `${base}${p}`;
+export function getAdminKey() {
+  try {
+    return safeText(localStorage.getItem(ADMIN_KEY_STORAGE)).trim();
+  } catch {
+    return "";
+  }
 }
 
-function makeHeaders({ json = true, admin = false, extra = {} } = {}) {
-  const h = {
-    Accept: "application/json",
+function adminHeaders(extra = {}) {
+  const key = getAdminKey();
+  return {
+    ...(key ? { "x-admin-key": key } : {}),
     ...extra,
   };
-
-  if (json) h["Content-Type"] = "application/json";
-
-  if (admin) {
-    const k = getAdminKey();
-    if (k) h["x-admin-key"] = k;
-  }
-
-  return h;
 }
 
-async function request(path, { method = "GET", body, admin = false, timeoutMs = 15000 } = {}) {
-  const url = buildUrl(path);
+// ---------- Low-level request helper ----------
+async function requestJson(method, path, { body, headers, timeoutMs } = {}) {
+  const base = API_BASE; // already normalized
+  const url = `${base}${path.startsWith("/") ? "" : "/"}${path}`;
 
-  const controller = typeof AbortController !== "undefined" ? new AbortController() : null;
-  const t = controller ? setTimeout(() => controller.abort(), timeoutMs) : null;
+  const controller =
+    typeof AbortController !== "undefined" ? new AbortController() : null;
+
+  const t = controller
+    ? setTimeout(() => controller.abort(), Number(timeoutMs || 15000))
+    : null;
+
+  const finalHeaders = {
+    Accept: "application/json",
+    ...(body ? { "Content-Type": "application/json" } : {}),
+    ...(headers || {}),
+  };
 
   try {
     const res = await fetch(url, {
       method,
-      headers: makeHeaders({ json: body !== undefined, admin }),
-      body: body !== undefined ? JSON.stringify(body) : undefined,
+      headers: finalHeaders,
+      body: body ? JSON.stringify(body) : undefined,
       signal: controller ? controller.signal : undefined,
     });
 
     const text = await res.text();
     let data = null;
+
     try {
       data = text ? JSON.parse(text) : null;
     } catch {
@@ -166,17 +197,18 @@ async function request(path, { method = "GET", body, admin = false, timeoutMs = 
   }
 }
 
+// Try multiple endpoints to reduce back-and-forth route guessing.
 async function tryMany(method, paths, options = {}) {
   let lastErr = null;
 
   for (const p of paths) {
     try {
-      return await request(p, { ...options, method });
+      return await requestJson(method, p, options);
     } catch (e) {
       lastErr = e;
       const status = Number(e?.status || 0);
 
-      // Only continue on common route mismatch cases
+      // Only continue on common mismatch errors
       if (![404, 405].includes(status)) throw e;
     }
   }
@@ -184,223 +216,153 @@ async function tryMany(method, paths, options = {}) {
   throw lastErr || new Error("Request failed");
 }
 
-/* -----------------------
-   PUBLIC API (frontend)
------------------------- */
-
-// Required by App.jsx
-export function getHealth() {
-  // backend supports /health and /
-  return tryMany("GET", ["/health", "/"], { timeoutMs: 15000 });
+// ---------- Public API (used by frontend pages) ----------
+export async function getHealth() {
+  // backend supports "/" and "/health" (based on your tests)
+  return await tryMany("GET", ["/health", "/"], { timeoutMs: 15000 });
 }
 
-// Artists list (public)
-export function listArtists(params = {}) {
+export async function listArtists(params = {}) {
   const q = new URLSearchParams();
-
-  const query = safeText(params.query || params.search || params.q).trim();
-  const status = safeText(params.status).trim();
-  const page = safeText(params.page).trim();
-  const limit = safeText(params.limit).trim();
-
-  if (query) q.set("q", query);
-  if (status) q.set("status", status);
-  if (page) q.set("page", page);
-  if (limit) q.set("limit", limit);
+  if (params?.query) q.set("q", safeText(params.query));
+  if (params?.search) q.set("q", safeText(params.search));
+  if (params?.status) q.set("status", safeText(params.status));
+  if (params?.page) q.set("page", safeText(params.page));
+  if (params?.limit) q.set("limit", safeText(params.limit));
 
   const suffix = q.toString() ? `?${q.toString()}` : "";
 
-  return tryMany("GET", [`/api/artists${suffix}`], { timeoutMs: 15000 });
+  return await tryMany("GET", [
+    `/api/artists${suffix}`,
+    `/api/artists/active${suffix}`,
+    `/api/artists/list${suffix}`,
+  ]);
 }
 
-// Single artist
-export function getArtist(id) {
+export async function getArtist(id) {
   const aid = encodeURIComponent(safeText(id));
-  return tryMany("GET", [`/api/artists/${aid}`], { timeoutMs: 15000 });
+  return await tryMany("GET", [`/api/artists/${aid}`, `/api/artists?id=${aid}`]);
 }
 
-// Submit artist (public)
-export function submitArtist(payload) {
-  return tryMany("POST", ["/api/artists"], { body: payload, timeoutMs: 15000 });
-}
-
-// Vote artist (public)
-export function voteArtist(artistId, amount = 1) {
-  const aid = encodeURIComponent(safeText(artistId));
-  const body = { artistId: safeText(artistId), amount: Number(amount) || 1 };
-
-  // Support common vote route variations (keeps frontend resilient)
-  return tryMany(
+export async function submitArtist(payload) {
+  return await tryMany(
     "POST",
-    [
-      `/api/votes/${aid}`,     // common
-      "/api/votes",            // body-driven
-      `/api/artists/${aid}/votes`, // alternative
-      `/api/artists/${aid}/vote`,  // alternative
-    ],
-    { body, timeoutMs: 15000 }
+    ["/api/artists/submit", "/api/submit", "/api/artists"],
+    { body: payload }
   );
 }
 
-// List public comments for an artist (backend may filter approved)
-export function listComments(artistId, params = {}) {
-  const q = new URLSearchParams();
-  const aid = safeText(artistId);
-
-  q.set("artistId", aid);
-
-  const page = safeText(params.page).trim();
-  const limit = safeText(params.limit).trim();
-  if (page) q.set("page", page);
-  if (limit) q.set("limit", limit);
-
-  return tryMany("GET", [`/api/comments?${q.toString()}`], { timeoutMs: 15000 });
-}
-
-// Add comment (public) — backend expects: { artistId, author, text }
-export function addComment(payload) {
-  return tryMany("POST", ["/api/comments"], { body: payload, timeoutMs: 15000 });
-}
-
-/* -----------------------
-   ADMIN API (frontend)
------------------------- */
-
-export function adminListArtists(params = {}) {
-  const q = new URLSearchParams();
-
-  const status = safeText(params.status || "pending").trim();
-  const page = safeText(params.page).trim();
-  const limit = safeText(params.limit).trim();
-
-  if (status) q.set("status", status);
-  if (page) q.set("page", page);
-  if (limit) q.set("limit", limit);
-
-  return request(`/api/admin/artists?${q.toString()}`, {
-    method: "GET",
-    admin: true,
-    timeoutMs: 15000,
-  });
-}
-
-// App.jsx expects this to exist (even if backend doesn't implement stats yet)
-export function adminStats() {
-  // Prefer /api/admin (always exists) and allow /api/admin/stats if you add it later
-  return tryMany("GET", ["/api/admin/stats", "/api/admin"], {
-    admin: true,
-    timeoutMs: 15000,
-  });
-}
-
-export function adminApproveArtist(artistId, moderationNote = "") {
+export async function voteArtist(artistId, amount = 1) {
   const aid = encodeURIComponent(safeText(artistId));
+  const body = { artistId: safeText(artistId), amount: Number(amount) || 1 };
 
-  // Future-proof: support both PATCH and POST style approvals
-  return tryMany(
+  return await tryMany(
     "POST",
-    [`/api/admin/artists/${aid}/approve`],
-    { admin: true, body: { moderationNote: safeText(moderationNote) }, timeoutMs: 15000 }
-  ).catch((e) => {
-    const status = Number(e?.status || 0);
-    if ([404, 405].includes(status)) {
-      return request(`/api/admin/artists/${aid}`, {
-        method: "PATCH",
-        admin: true,
-        timeoutMs: 15000,
-        body: { status: "active", moderationNote: safeText(moderationNote) },
+    [`/api/votes/${aid}`, "/api/votes", `/api/artists/${aid}/vote`],
+    { body }
+  );
+}
+
+export async function listComments(artistId, params = {}) {
+  const aid = encodeURIComponent(safeText(artistId));
+  const q = new URLSearchParams();
+  q.set("artistId", safeText(artistId));
+  if (params?.page) q.set("page", safeText(params.page));
+  if (params?.limit) q.set("limit", safeText(params.limit));
+
+  return await tryMany("GET", [
+    `/api/comments?${q.toString()}`,
+    `/api/comments/${aid}?${q.toString()}`,
+  ]);
+}
+
+export async function addComment(payload) {
+  return await tryMany("POST", ["/api/comments"], { body: payload });
+}
+
+// ---------- Admin API ----------
+export async function adminStats() {
+  return await tryMany("GET", ["/api/admin/stats", "/api/admin/health", "/api/admin"], {
+    headers: adminHeaders(),
+  });
+}
+
+export async function adminListArtists(status = "pending") {
+  const q = new URLSearchParams();
+  if (status) q.set("status", safeText(status));
+
+  return await requestJson("GET", `/api/admin/artists?${q.toString()}`, {
+    headers: adminHeaders(),
+  });
+}
+
+export async function adminListComments(status = "pending", params = {}) {
+  const q = new URLSearchParams();
+  if (status) q.set("status", safeText(status));
+  if (params?.page) q.set("page", safeText(params.page));
+  if (params?.limit) q.set("limit", safeText(params.limit));
+
+  return await requestJson("GET", `/api/admin/comments?${q.toString()}`, {
+    headers: adminHeaders(),
+  });
+}
+
+export async function adminModerateComment(commentId, action = "approve", moderationNote = "") {
+  const cid = encodeURIComponent(safeText(commentId));
+  const a = safeText(action).toLowerCase();
+
+  const body = {
+    action: a,
+    status: a === "reject" || a === "rejected" ? "rejected" : "approved",
+    moderationNote: safeText(moderationNote),
+  };
+
+  return await tryMany("PATCH", [`/api/admin/comments/${cid}`, `/api/admin/comments/${cid}/${a}`], {
+    body,
+    headers: adminHeaders(),
+  });
+}
+
+export async function adminApproveArtist(artistId, moderationNote = "") {
+  const aid = encodeURIComponent(safeText(artistId));
+  const body = { status: "active", moderationNote: safeText(moderationNote) };
+
+  return await tryMany(
+    "PATCH",
+    [`/api/admin/artists/${aid}`, `/api/admin/artists/${aid}/approve`],
+    { body, headers: adminHeaders() }
+  ).catch(async (e) => {
+    if (Number(e?.status) === 405 || Number(e?.status) === 404) {
+      return await tryMany("POST", [`/api/admin/artists/${aid}/approve`], {
+        body,
+        headers: adminHeaders(),
       });
     }
     throw e;
   });
 }
 
-export function adminRejectArtist(artistId, moderationNote = "") {
+export async function adminRejectArtist(artistId, moderationNote = "") {
   const aid = encodeURIComponent(safeText(artistId));
+  const body = { status: "rejected", moderationNote: safeText(moderationNote) };
 
-  return tryMany(
-    "POST",
-    [`/api/admin/artists/${aid}/reject`],
-    { admin: true, body: { moderationNote: safeText(moderationNote) }, timeoutMs: 15000 }
-  ).catch((e) => {
-    const status = Number(e?.status || 0);
-    if ([404, 405].includes(status)) {
-      return request(`/api/admin/artists/${aid}`, {
-        method: "PATCH",
-        admin: true,
-        timeoutMs: 15000,
-        body: { status: "rejected", moderationNote: safeText(moderationNote) },
+  return await tryMany(
+    "PATCH",
+    [`/api/admin/artists/${aid}`, `/api/admin/artists/${aid}/reject`],
+    { body, headers: adminHeaders() }
+  ).catch(async (e) => {
+    if (Number(e?.status) === 405 || Number(e?.status) === 404) {
+      return await tryMany("POST", [`/api/admin/artists/${aid}/reject`], {
+        body,
+        headers: adminHeaders(),
       });
     }
     throw e;
   });
 }
 
-export function adminListComments(params = {}) {
-  const q = new URLSearchParams();
-
-  const status = safeText(params.status || "pending").trim();
-  const artistId = safeText(params.artistId).trim();
-  const flagged = params.flagged === true ? "true" : "";
-
-  if (status) q.set("status", status);
-  if (artistId) q.set("artistId", artistId);
-  if (flagged) q.set("flagged", flagged);
-
-  return request(`/api/admin/comments?${q.toString()}`, {
-    method: "GET",
-    admin: true,
-    timeoutMs: 15000,
-  });
-}
-
-export function adminPatchComment(id, patch = {}) {
-  const cid = encodeURIComponent(safeText(id));
-  return request(`/api/admin/comments/${cid}`, {
-    method: "PATCH",
-    admin: true,
-    timeoutMs: 15000,
-    body: patch,
-  });
-}
-
-export function adminDeleteComment(id) {
-  const cid = encodeURIComponent(safeText(id));
-  return request(`/api/admin/comments/${cid}`, {
-    method: "DELETE",
-    admin: true,
-    timeoutMs: 15000,
-  });
-}
-
-export function adminFlagComment(id, { code = "flag", reason = "" } = {}) {
-  const cid = encodeURIComponent(safeText(id));
-  return request(`/api/admin/comments/${cid}/flag`, {
-    method: "POST",
-    admin: true,
-    timeoutMs: 15000,
-    body: { code, reason },
-  });
-}
-
-export function adminClearFlags(id) {
-  const cid = encodeURIComponent(safeText(id));
-  return request(`/api/admin/comments/${cid}/flags/clear`, {
-    method: "POST",
-    admin: true,
-    timeoutMs: 15000,
-  });
-}
-
-/* -----------------------
-   Object-style client (used across components)
------------------------- */
+// ---------- Object-style client used by some components ----------
 export const api = {
-  // config
-  getApiBase,
-  setApiBase,
-  clearApiBase,
-
   // health
   getHealth,
 
@@ -415,16 +377,10 @@ export const api = {
   addComment,
 
   // admin
-  getAdminKey,
-  setAdminKey,
-  clearAdminKey,
-  adminListArtists,
   adminStats,
+  adminListArtists,
+  adminListComments,
+  adminModerateComment,
   adminApproveArtist,
   adminRejectArtist,
-  adminListComments,
-  adminPatchComment,
-  adminDeleteComment,
-  adminFlagComment,
-  adminClearFlags,
 };
