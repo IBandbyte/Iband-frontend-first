@@ -1,15 +1,17 @@
 // src/services/api.js
 // iBand Frontend API Client (single source of truth)
-//
-// Goals:
-// - Always hit the correct Render backend (even if env var has typos like "onrenderder")
-// - Keep backwards-compatible exports used by App.jsx / Artists.jsx / Submit.jsx / ArtistDetail.jsx / Admin
-// - Provide safe fallbacks for route variations (tryMany)
-// - Support admin key via localStorage "x-admin-key"
+// - Hardens API base resolution (fixes "onrenderder" typo even if env is wrong)
+// - Works with Render backend mounted at /api/*
+// - Keeps backwards-compatible exports for App.jsx + ArtistDetail.jsx + Artists.jsx + Submit.jsx + Admin
+// - Adds safe fallbacks for route variations
+// - Includes admin key header support (x-admin-key) stored locally
 
-const DEFAULT_API_BASE_RAW = "https://iband-backend-first-1.onrender.com";
+const FALLBACK_RENDER_BASE = "https://iband-backend-first-1.onrender.com";
 
-// ---------- tiny utils ----------
+// ✅ We keep your legacy default but harden it anyway
+const DEFAULT_API_BASE = "https://iband-backend-first-1.onrenderder.com";
+
+// -------------------- small helpers --------------------
 function safeText(v) {
   if (v === null || v === undefined) return "";
   return String(v);
@@ -23,88 +25,89 @@ function ensureHttps(url) {
   const u = safeText(url).trim();
   if (!u) return "";
   if (u.startsWith("http://") || u.startsWith("https://")) return u;
-  // If someone put just domain in env var, we force https
+  // If user accidentally sets "iband-backend-first-1.onrender.com"
   return `https://${u}`;
 }
 
-/**
- * Normalize API base to avoid common misconfig:
- * - Fix "onrenderder" -> "onrender"
- * - Force https
- * - Remove trailing slashes
- * - Remove trailing "/api" if user included it
- */
 function normalizeApiBase(input) {
-  let v = safeText(input).trim();
+  // 1) Trim
+  let base = safeText(input).trim();
 
-  // Nothing? return empty; caller will fallback.
-  if (!v) return "";
+  // 2) If empty -> return empty (caller will fallback)
+  if (!base) return "";
 
-  // Fix the most common typo (your screenshots show it)
-  v = v.replace(/onrenderder\.com/gi, "onrender.com");
+  // 3) Fix common typo no matter where it appears
+  base = base.replaceAll("onrenderder.com", "onrender.com");
+  base = base.replaceAll("onrenderder", "onrender");
 
-  // Force https if missing
-  v = ensureHttps(v);
+  // 4) Ensure protocol + remove trailing slashes
+  base = stripTrailingSlash(ensureHttps(base));
 
-  // Remove trailing slash
-  v = stripTrailingSlash(v);
+  // 5) Basic sanity: must look like http(s)://something.something
+  const ok = /^https?:\/\/[^/\s]+\.[^/\s]+/i.test(base);
+  if (!ok) return "";
 
-  // If someone set base as ".../api", strip it (we add /api in routes)
-  v = v.replace(/\/api$/i, "");
-
-  // Safety: remove trailing slash again after stripping /api
-  v = stripTrailingSlash(v);
-
-  return v;
+  return base;
 }
 
-/**
- * Pull base from env, window override, else default.
- * NOTE: Even if VITE_API_BASE is wrong, normalizeApiBase() fixes it.
- */
-function getEnvApiBase() {
-  // 1) Vite env
+function pickApiBase() {
+  // Priority:
+  // 1) Vite env VITE_API_BASE
+  // 2) runtime override window.__IBAND_API_BASE__
+  // 3) hard fallback Render base
+
+  let candidate = "";
+
+  // Vite: import.meta.env.VITE_API_BASE
   try {
-    if (
-      typeof import.meta !== "undefined" &&
-      import.meta.env &&
-      import.meta.env.VITE_API_BASE
-    ) {
-      const normalized = normalizeApiBase(import.meta.env.VITE_API_BASE);
-      if (normalized) return normalized;
+    if (typeof import.meta !== "undefined" && import.meta.env && import.meta.env.VITE_API_BASE) {
+      candidate = import.meta.env.VITE_API_BASE;
     }
   } catch {
     // ignore
   }
 
-  // 2) runtime override (optional)
-  try {
-    if (typeof window !== "undefined" && window.__IBAND_API_BASE__) {
-      const normalized = normalizeApiBase(window.__IBAND_API_BASE__);
-      if (normalized) return normalized;
+  // optional runtime override
+  if (!candidate) {
+    try {
+      if (typeof window !== "undefined" && window.__IBAND_API_BASE__) {
+        candidate = window.__IBAND_API_BASE__;
+      }
+    } catch {
+      // ignore
     }
-  } catch {
-    // ignore
   }
 
-  // 3) default
-  return normalizeApiBase(DEFAULT_API_BASE_RAW);
+  // normalize env candidate
+  const normalizedCandidate = normalizeApiBase(candidate);
+
+  // normalize DEFAULT + FALLBACK too
+  const normalizedDefault = normalizeApiBase(DEFAULT_API_BASE);
+  const normalizedFallback = normalizeApiBase(FALLBACK_RENDER_BASE);
+
+  // If env candidate is valid, use it
+  if (normalizedCandidate) return normalizedCandidate;
+
+  // Otherwise use default (even if typo, normalizeApiBase fixes it)
+  if (normalizedDefault) return normalizedDefault;
+
+  // Absolute last resort
+  return normalizedFallback;
 }
 
 /**
- * Public constant used by UI (displayed in App/Artists etc.)
- * This is authoritative after normalization.
+ * Public constant used by UI
  */
-export const API_BASE = getEnvApiBase();
+export const API_BASE = pickApiBase();
 
 /**
- * Required by App.jsx (backwards-compatible)
+ * Required by App.jsx
  */
 export function getApiBase() {
   return API_BASE;
 }
 
-// ---------- Admin key helpers ----------
+// -------------------- Admin key helpers --------------------
 const ADMIN_KEY_STORAGE = "iband_admin_key";
 
 export function setAdminKey(key) {
@@ -135,25 +138,12 @@ export function getAdminKey() {
   }
 }
 
-function adminHeaders(extra = {}) {
-  const key = getAdminKey();
-  return {
-    ...(key ? { "x-admin-key": key } : {}),
-    ...extra,
-  };
-}
-
-// ---------- Low-level request helper ----------
+// -------------------- Low-level request helper --------------------
 async function requestJson(method, path, { body, headers, timeoutMs } = {}) {
-  const base = API_BASE; // already normalized
-  const url = `${base}${path.startsWith("/") ? "" : "/"}${path}`;
+  const url = `${API_BASE}${path.startsWith("/") ? "" : "/"}${path}`;
 
-  const controller =
-    typeof AbortController !== "undefined" ? new AbortController() : null;
-
-  const t = controller
-    ? setTimeout(() => controller.abort(), Number(timeoutMs || 15000))
-    : null;
+  const controller = typeof AbortController !== "undefined" ? new AbortController() : null;
+  const t = controller ? setTimeout(() => controller.abort(), Number(timeoutMs || 15000)) : null;
 
   const finalHeaders = {
     Accept: "application/json",
@@ -171,7 +161,6 @@ async function requestJson(method, path, { body, headers, timeoutMs } = {}) {
 
     const text = await res.text();
     let data = null;
-
     try {
       data = text ? JSON.parse(text) : null;
     } catch {
@@ -179,11 +168,7 @@ async function requestJson(method, path, { body, headers, timeoutMs } = {}) {
     }
 
     if (!res.ok) {
-      const msg =
-        safeText(data?.message) ||
-        safeText(data?.error) ||
-        `Request failed (${res.status})`;
-
+      const msg = safeText(data?.message) || safeText(data?.error) || `Request failed (${res.status})`;
       const err = new Error(msg);
       err.status = res.status;
       err.data = data;
@@ -197,28 +182,25 @@ async function requestJson(method, path, { body, headers, timeoutMs } = {}) {
   }
 }
 
-// Try multiple endpoints to reduce back-and-forth route guessing.
+// Try multiple endpoints (prevents “guessing”, reduces back-and-forth)
 async function tryMany(method, paths, options = {}) {
   let lastErr = null;
-
   for (const p of paths) {
     try {
       return await requestJson(method, p, options);
     } catch (e) {
       lastErr = e;
       const status = Number(e?.status || 0);
-
-      // Only continue on common mismatch errors
+      // Only continue on common “route mismatch” errors
       if (![404, 405].includes(status)) throw e;
     }
   }
-
   throw lastErr || new Error("Request failed");
 }
 
-// ---------- Public API (used by frontend pages) ----------
+// -------------------- Public API functions required by frontend --------------------
 export async function getHealth() {
-  // backend supports "/" and "/health" (based on your tests)
+  // server supports "/" and "/health"
   return await tryMany("GET", ["/health", "/"], { timeoutMs: 15000 });
 }
 
@@ -245,22 +227,14 @@ export async function getArtist(id) {
 }
 
 export async function submitArtist(payload) {
-  return await tryMany(
-    "POST",
-    ["/api/artists/submit", "/api/submit", "/api/artists"],
-    { body: payload }
-  );
+  return await tryMany("POST", ["/api/artists/submit", "/api/submit", "/api/artists"], { body: payload });
 }
 
 export async function voteArtist(artistId, amount = 1) {
   const aid = encodeURIComponent(safeText(artistId));
   const body = { artistId: safeText(artistId), amount: Number(amount) || 1 };
 
-  return await tryMany(
-    "POST",
-    [`/api/votes/${aid}`, "/api/votes", `/api/artists/${aid}/vote`],
-    { body }
-  );
+  return await tryMany("POST", [`/api/votes/${aid}`, "/api/votes", `/api/artists/${aid}/vote`], { body });
 }
 
 export async function listComments(artistId, params = {}) {
@@ -270,28 +244,32 @@ export async function listComments(artistId, params = {}) {
   if (params?.page) q.set("page", safeText(params.page));
   if (params?.limit) q.set("limit", safeText(params.limit));
 
-  return await tryMany("GET", [
-    `/api/comments?${q.toString()}`,
-    `/api/comments/${aid}?${q.toString()}`,
-  ]);
+  return await tryMany("GET", [`/api/comments?${q.toString()}`, `/api/comments/${aid}?${q.toString()}`]);
 }
 
 export async function addComment(payload) {
   return await tryMany("POST", ["/api/comments"], { body: payload });
 }
 
-// ---------- Admin API ----------
-export async function adminStats() {
-  return await tryMany("GET", ["/api/admin/stats", "/api/admin/health", "/api/admin"], {
-    headers: adminHeaders(),
-  });
+// -------------------- Admin API --------------------
+function adminHeaders(extra = {}) {
+  const key = getAdminKey();
+  return {
+    ...(key ? { "x-admin-key": key } : {}),
+    ...extra,
+  };
 }
 
 export async function adminListArtists(status = "pending") {
   const q = new URLSearchParams();
   if (status) q.set("status", safeText(status));
-
   return await requestJson("GET", `/api/admin/artists?${q.toString()}`, {
+    headers: adminHeaders(),
+  });
+}
+
+export async function adminStats() {
+  return await tryMany("GET", ["/api/admin/stats", "/api/admin/health", "/api/admin"], {
     headers: adminHeaders(),
   });
 }
@@ -361,7 +339,7 @@ export async function adminRejectArtist(artistId, moderationNote = "") {
   });
 }
 
-// ---------- Object-style client used by some components ----------
+// Object-style client used by components
 export const api = {
   // health
   getHealth,
@@ -377,8 +355,8 @@ export const api = {
   addComment,
 
   // admin
-  adminStats,
   adminListArtists,
+  adminStats,
   adminListComments,
   adminModerateComment,
   adminApproveArtist,
