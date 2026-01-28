@@ -1,156 +1,68 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { api, API_BASE } from "./services/api";
+import { api } from "./services/api";
 
 function safeText(v) {
   if (v === null || v === undefined) return "";
   return String(v);
 }
 
-function toNumber(v, fallback = 0) {
-  const n = Number(v);
-  return Number.isFinite(n) ? n : fallback;
+function normalizeArtist(res) {
+  if (!res) return null;
+
+  // Common shapes:
+  // { artist: {...} }
+  // { data: {...} }
+  // { success:true, artist:{...} }
+  // or the artist object directly
+  if (res.artist && typeof res.artist === "object") return res.artist;
+  if (res.data && typeof res.data === "object") return res.data;
+  if (res.result && typeof res.result === "object") return res.result;
+
+  // If it already looks like an artist object
+  if (res.name || res.genre || res.location || res.id || res._id) return res;
+
+  return null;
 }
 
-function normalizeArtist(raw) {
-  const a = raw || {};
-  const socials = a.socials || {};
-  const tracks = Array.isArray(a.tracks) ? a.tracks : [];
+function normalizeComments(res) {
+  if (!res) return [];
 
+  // Common shapes:
+  // { comments: [...] }
+  // { data: [...] }
+  // { items: [...] }
+  // or array directly
+  if (Array.isArray(res)) return res;
+  if (Array.isArray(res.comments)) return res.comments;
+  if (Array.isArray(res.data)) return res.data;
+  if (Array.isArray(res.items)) return res.items;
+
+  return [];
+}
+
+function pillStyle(active) {
   return {
-    id: safeText(a.id || a._id || a.slug || ""),
-    name: safeText(a.name || "Unnamed Artist"),
-    genre: safeText(a.genre || a.primaryGenre || ""),
-    location: safeText(a.location || a.city || a.country || ""),
-    bio: safeText(a.bio || a.description || ""),
-    status: safeText(a.status || "active"),
-    votes: toNumber(a.votes, 0),
-    imageUrl: safeText(a.imageUrl || a.image || ""),
-    socials: {
-      instagram: safeText(socials.instagram || ""),
-      tiktok: safeText(socials.tiktok || ""),
-      youtube: safeText(socials.youtube || ""),
-      spotify: safeText(socials.spotify || ""),
-      soundcloud: safeText(socials.soundcloud || ""),
-      website: safeText(socials.website || ""),
-    },
-    tracks: tracks
-      .map((t) => ({
-        title: safeText(t.title || ""),
-        url: safeText(t.url || ""),
-        platform: safeText(t.platform || ""),
-        durationSec: toNumber(t.durationSec, 0),
-      }))
-      .filter((t) => t.title || t.url),
+    textDecoration: "none",
+    borderRadius: 16,
+    padding: "10px 14px",
+    border: "1px solid rgba(255,255,255,0.12)",
+    background: active ? "rgba(154,74,255,0.25)" : "rgba(255,255,255,0.08)",
+    color: "white",
+    fontWeight: 900,
+    display: "inline-block",
   };
-}
-
-function normalizeComments(payload, artistId) {
-  // Backend (current): { success, artistId, count, comments: [] }
-  if (payload && Array.isArray(payload.comments)) {
-    return payload.comments
-      .map((c) => ({
-        id: safeText(c.id || c._id || ""),
-        artistId: safeText(c.artistId || artistId || ""),
-        author: safeText(c.author || c.name || "Anonymous"),
-        text: safeText(c.text || ""),
-        status: safeText(c.status || ""),
-        createdAt: safeText(c.createdAt || ""),
-      }))
-      .filter((c) => c.text);
-  }
-
-  // Fallback legacy shapes: { data: { items: [] } }
-  const items =
-    (payload &&
-      payload.data &&
-      Array.isArray(payload.data.items) &&
-      payload.data.items) ||
-    [];
-
-  return items
-    .map((c) => ({
-      id: safeText(c.id || c._id || ""),
-      artistId: safeText(c.artistId || artistId || ""),
-      author: safeText(c.author || c.name || "Anonymous"),
-      text: safeText(c.text || ""),
-      status: safeText(c.status || ""),
-      createdAt: safeText(c.createdAt || ""),
-    }))
-    .filter((c) => c.text);
-}
-
-function Pill({ children }) {
-  return (
-    <span
-      style={{
-        borderRadius: 999,
-        padding: "10px 14px",
-        border: "1px solid rgba(255,255,255,0.12)",
-        background: "rgba(255,255,255,0.06)",
-        fontSize: 13,
-        fontWeight: 900,
-        display: "inline-block",
-      }}
-    >
-      {children}
-    </span>
-  );
-}
-
-function PrimaryBtn({ children, onClick, disabled, type = "button" }) {
-  return (
-    <button
-      type={type}
-      onClick={onClick}
-      disabled={disabled}
-      style={{
-        borderRadius: 16,
-        padding: "12px 16px",
-        border: "1px solid rgba(255,255,255,0.12)",
-        background:
-          "linear-gradient(90deg, rgba(154,74,255,0.95), rgba(255,147,43,0.95))",
-        color: "black",
-        fontWeight: 900,
-        cursor: disabled ? "not-allowed" : "pointer",
-        opacity: disabled ? 0.8 : 1,
-      }}
-    >
-      {children}
-    </button>
-  );
-}
-
-function SoftBtn({ children, onClick, disabled }) {
-  return (
-    <button
-      onClick={onClick}
-      disabled={disabled}
-      style={{
-        borderRadius: 16,
-        padding: "12px 16px",
-        border: "1px solid rgba(255,255,255,0.12)",
-        background: "rgba(255,255,255,0.08)",
-        color: "white",
-        fontWeight: 900,
-        cursor: disabled ? "not-allowed" : "pointer",
-        opacity: disabled ? 0.7 : 1,
-      }}
-    >
-      {children}
-    </button>
-  );
 }
 
 function Card({ children }) {
   return (
     <div
       style={{
-        marginTop: 18,
+        marginTop: 14,
+        padding: 16,
         borderRadius: 18,
         border: "1px solid rgba(255,255,255,0.10)",
         background: "rgba(0,0,0,0.35)",
-        padding: 18,
         boxShadow: "0 8px 22px rgba(0,0,0,0.35)",
       }}
     >
@@ -160,377 +72,385 @@ function Card({ children }) {
 }
 
 export default function ArtistDetail() {
-  const { id } = useParams();
+  const params = useParams();
+  const artistId = safeText(params?.id);
 
-  const [loadingArtist, setLoadingArtist] = useState(false);
-  const [loadingComments, setLoadingComments] = useState(false);
-  const [voting, setVoting] = useState(false);
-  const [posting, setPosting] = useState(false);
-
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
   const [artist, setArtist] = useState(null);
+
+  const [voteLoading, setVoteLoading] = useState(false);
+  const [voteError, setVoteError] = useState("");
+  const [voteSuccess, setVoteSuccess] = useState("");
+
+  const [commentsLoading, setCommentsLoading] = useState(false);
+  const [commentsError, setCommentsError] = useState("");
   const [comments, setComments] = useState([]);
-  const [lastFetchMs, setLastFetchMs] = useState(0);
 
-  const [commentAuthor, setCommentAuthor] = useState("");
+  const [commentName, setCommentName] = useState("");
   const [commentText, setCommentText] = useState("");
+  const [commentLoading, setCommentLoading] = useState(false);
+  const [commentSuccess, setCommentSuccess] = useState("");
 
-  const subtitle = useMemo(() => {
-    return artist ? [artist.genre, artist.location].filter(Boolean).join(" • ") : "";
-  }, [artist]);
+  const displayId = useMemo(() => {
+    const a = artist;
+    return safeText(a?.id || a?._id || artistId);
+  }, [artist, artistId]);
 
   async function loadArtist() {
-    if (!id) return;
+    if (!artistId) {
+      setArtist(null);
+      setError("Missing artist id in URL.");
+      return;
+    }
 
-    setLoadingArtist(true);
+    setLoading(true);
     setError("");
 
-    const started = Date.now();
     try {
-      const payload = await api.getArtist(id);
+      const res = await api.getArtist(artistId);
+      const a = normalizeArtist(res);
 
-      // prefer explicit artist keys if present, else treat payload as the artist object
-      const raw =
-        (payload && payload.artist && typeof payload.artist === "object" && payload.artist) ||
-        (payload && payload.data && typeof payload.data === "object" && payload.data) ||
-        payload;
+      if (!a) {
+        setArtist(null);
+        setError("Artist not found (unexpected response shape).");
+        return;
+      }
 
-      setArtist(normalizeArtist(raw || {}));
+      setArtist(a);
     } catch (e) {
       setArtist(null);
-      setError(e?.message || "Failed to load artist");
+      setError(safeText(e?.message) || "Could not load artist.");
     } finally {
-      setLastFetchMs(Date.now() - started);
-      setLoadingArtist(false);
+      setLoading(false);
     }
   }
 
   async function loadComments() {
-    if (!id) return;
+    if (!artistId) return;
 
-    setLoadingComments(true);
-    setError("");
+    setCommentsLoading(true);
+    setCommentsError("");
 
     try {
-      const payload = await api.listComments(id, { limit: 50, page: 1 });
-      const normalized = normalizeComments(payload, id);
-
-      // Public view should normally show approved only (backend filters)
-      setComments(normalized);
+      const res = await api.listComments(artistId, { limit: 50 });
+      setComments(normalizeComments(res));
     } catch (e) {
       setComments([]);
-      setError(e?.message || "Failed to load comments");
+      setCommentsError(safeText(e?.message) || "Could not load comments.");
     } finally {
-      setLoadingComments(false);
+      setCommentsLoading(false);
     }
   }
 
-  async function refreshAll() {
-    await Promise.all([loadArtist(), loadComments()]);
-  }
+  async function vote(amount = 1) {
+    if (!artistId) return;
 
-  async function vote() {
-    if (!id) return;
+    setVoteLoading(true);
+    setVoteError("");
+    setVoteSuccess("");
 
-    setVoting(true);
-    setError("");
     try {
-      await api.voteArtist(id, 1);
-      await loadArtist();
+      const res = await api.voteArtist(artistId, amount);
+
+      // Try to update local votes if response contains it
+      const updatedArtist = normalizeArtist(res) || res?.artist || res?.data;
+      if (updatedArtist && typeof updatedArtist === "object") {
+        setArtist((prev) => ({
+          ...(prev || {}),
+          ...updatedArtist,
+        }));
+      } else {
+        // fallback: reload artist
+        await loadArtist();
+      }
+
+      setVoteSuccess("Vote recorded ✅");
+      setTimeout(() => setVoteSuccess(""), 2000);
     } catch (e) {
-      setError(e?.message || "Vote failed");
+      setVoteError(safeText(e?.message) || "Voting failed.");
     } finally {
-      setVoting(false);
+      setVoteLoading(false);
     }
   }
 
-  async function postComment() {
-    if (!id) return;
+  async function submitComment() {
+    const name = safeText(commentName).trim();
+    const text = safeText(commentText).trim();
 
-    const author = commentAuthor.trim();
-    const text = commentText.trim();
+    setCommentSuccess("");
+    setCommentsError("");
 
+    if (!artistId) {
+      setCommentsError("Missing artist id.");
+      return;
+    }
     if (!text) {
-      setError("Please write a comment first.");
+      setCommentsError("Please write a comment first.");
       return;
     }
 
-    setPosting(true);
-    setError("");
+    setCommentLoading(true);
 
     try {
-      await api.addComment({
-        artistId: id,
-        author: author || "Anonymous",
+      const payload = {
+        artistId,
+        name: name || "Anonymous",
         text,
-      });
+      };
+
+      await api.addComment(payload);
 
       setCommentText("");
+      setCommentSuccess("Comment submitted ✅ (may require moderation)");
+      setTimeout(() => setCommentSuccess(""), 2500);
+
       await loadComments();
     } catch (e) {
-      setError(e?.message || "Failed to post comment");
+      setCommentsError(safeText(e?.message) || "Could not submit comment.");
     } finally {
-      setPosting(false);
+      setCommentLoading(false);
     }
   }
 
   useEffect(() => {
-    refreshAll();
+    loadArtist();
+    loadComments();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id]);
+  }, [artistId]);
 
   return (
     <div style={{ maxWidth: 900, margin: "0 auto", padding: "28px 16px" }}>
-      <h1 style={{ fontSize: 60, margin: 0, letterSpacing: -1 }}>
-        {artist?.name || (loadingArtist ? "Loading…" : "Artist")}
-      </h1>
+      <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+        <div>
+          <h1 style={{ fontSize: 46, margin: 0, letterSpacing: -1 }}>
+            Artist Profile
+          </h1>
+          <p style={{ opacity: 0.85, marginTop: 10 }}>
+            ID: <b>{displayId || "—"}</b>
+          </p>
+        </div>
 
-      <p style={{ opacity: 0.85, marginTop: 10 }}>
-        API: {API_BASE}
-        {lastFetchMs ? ` • ${lastFetchMs}ms` : ""}
-      </p>
-
-      <div style={{ marginTop: 14 }}>
-        <Link
-          to="/artists"
-          style={{
-            textDecoration: "none",
-            borderRadius: 16,
-            padding: "12px 16px",
-            border: "1px solid rgba(255,255,255,0.12)",
-            background: "rgba(255,255,255,0.08)",
-            color: "white",
-            fontWeight: 900,
-            display: "inline-block",
-          }}
-        >
-          ← Back
-        </Link>
+        <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+          <Link to="/artists" style={pillStyle(false)}>
+            ← Back to Artists
+          </Link>
+        </div>
       </div>
 
-      {error ? (
-        <div
-          style={{
-            marginTop: 16,
-            padding: 14,
-            borderRadius: 16,
-            border: "1px solid rgba(255,64,64,0.35)",
-            background: "rgba(120,0,0,0.20)",
-          }}
-        >
-          <div style={{ fontWeight: 900, fontSize: 18 }}>Error</div>
-          <div style={{ opacity: 0.9, marginTop: 6 }}>{error}</div>
-          <div style={{ opacity: 0.7, marginTop: 8, fontSize: 13 }}>
-            If Render cold-starts, hit Refresh once.
-          </div>
-        </div>
-      ) : null}
+      <Card>
+        {loading ? (
+          <div style={{ opacity: 0.85 }}>Loading artist…</div>
+        ) : null}
 
-      {artist ? (
-        <Card>
-          <div style={{ display: "flex", gap: 14, alignItems: "flex-start" }}>
-            {artist.imageUrl ? (
-              <img
-                src={artist.imageUrl}
-                alt={artist.name}
+        {error ? (
+          <div style={{ opacity: 0.9, color: "#ffb3b3" }}>{error}</div>
+        ) : null}
+
+        {!loading && !error && artist ? (
+          <>
+            <div style={{ fontWeight: 900, fontSize: 28 }}>
+              {safeText(artist?.name || "Unnamed Artist")}
+            </div>
+
+            <div style={{ opacity: 0.85, marginTop: 8 }}>
+              {safeText(artist?.genre)} • {safeText(artist?.location)} •{" "}
+              <b>{safeText(artist?.status || "active")}</b>
+            </div>
+
+            <div style={{ opacity: 0.9, marginTop: 12, lineHeight: 1.45 }}>
+              {safeText(artist?.bio) || "No bio yet."}
+            </div>
+
+            <div style={{ marginTop: 14, opacity: 0.9 }}>
+              Votes: <b>{Number(artist?.votes || 0)}</b>
+            </div>
+
+            <div style={{ marginTop: 12, display: "flex", gap: 10, flexWrap: "wrap" }}>
+              <button
+                onClick={() => vote(1)}
+                disabled={voteLoading}
                 style={{
-                  width: 110,
-                  height: 110,
-                  borderRadius: 18,
-                  objectFit: "cover",
-                  border: "1px solid rgba(255,255,255,0.10)",
-                }}
-              />
-            ) : (
-              <div
-                style={{
-                  width: 110,
-                  height: 110,
-                  borderRadius: 18,
-                  border: "1px solid rgba(255,255,255,0.10)",
-                  background: "rgba(255,255,255,0.05)",
-                  display: "grid",
-                  placeItems: "center",
+                  borderRadius: 16,
+                  padding: "12px 16px",
+                  border: "1px solid rgba(255,255,255,0.12)",
+                  background: "rgba(154,74,255,0.25)",
+                  color: "white",
                   fontWeight: 900,
-                  fontSize: 30,
-                  color: "rgba(255,255,255,0.75)",
+                  cursor: voteLoading ? "not-allowed" : "pointer",
+                  opacity: voteLoading ? 0.8 : 1,
                 }}
               >
-                {artist.name?.slice(0, 1)?.toUpperCase() || "A"}
-              </div>
-            )}
+                {voteLoading ? "Voting…" : "🔥 Vote"}
+              </button>
 
-            <div style={{ flex: 1, minWidth: 0 }}>
-              {subtitle ? (
-                <div style={{ opacity: 0.85, fontSize: 18 }}>{subtitle}</div>
-              ) : null}
-
-              {artist.bio ? (
-                <div style={{ marginTop: 10, opacity: 0.9, lineHeight: 1.45 }}>
-                  {artist.bio}
-                </div>
-              ) : null}
-
-              <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 14 }}>
-                <Pill>Votes: {toNumber(artist.votes, 0)}</Pill>
-                <Pill>Status: {artist.status}</Pill>
-                <Pill>ID: {artist.id}</Pill>
-              </div>
-
-              <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 14 }}>
-                <PrimaryBtn onClick={vote} disabled={voting || loadingArtist}>
-                  {voting ? "Voting…" : "Vote +1"}
-                </PrimaryBtn>
-
-                <SoftBtn onClick={refreshAll} disabled={loadingArtist || loadingComments}>
-                  {loadingArtist || loadingComments ? "Loading…" : "Refresh"}
-                </SoftBtn>
-              </div>
+              <button
+                onClick={() => vote(5)}
+                disabled={voteLoading}
+                style={{
+                  borderRadius: 16,
+                  padding: "12px 16px",
+                  border: "1px solid rgba(255,255,255,0.12)",
+                  background: "rgba(255,255,255,0.08)",
+                  color: "white",
+                  fontWeight: 900,
+                  cursor: voteLoading ? "not-allowed" : "pointer",
+                  opacity: voteLoading ? 0.8 : 1,
+                }}
+              >
+                {voteLoading ? "Voting…" : "⚡ Vote +5"}
+              </button>
             </div>
-          </div>
 
-          {artist.tracks.length ? (
-            <div style={{ marginTop: 18 }}>
-              <div style={{ fontWeight: 900, fontSize: 22, marginBottom: 10 }}>
-                Tracks
+            {voteError ? (
+              <div style={{ marginTop: 10, color: "#ffb3b3", opacity: 0.95 }}>
+                {voteError}
               </div>
+            ) : null}
 
-              <div style={{ display: "grid", gap: 10 }}>
-                {artist.tracks.slice(0, 5).map((t, idx) => (
-                  <div
-                    key={`${artist.id}-track-${idx}`}
-                    style={{
-                      borderRadius: 16,
-                      padding: "12px 14px",
-                      border: "1px solid rgba(255,255,255,0.10)",
-                      background: "rgba(0,0,0,0.25)",
-                      display: "flex",
-                      justifyContent: "space-between",
-                      gap: 10,
-                      alignItems: "center",
-                    }}
-                  >
-                    <div style={{ minWidth: 0 }}>
-                      <div style={{ fontWeight: 900, fontSize: 18 }}>
-                        {t.title || "Track"}
-                      </div>
-                      <div style={{ opacity: 0.75, fontSize: 13, marginTop: 4 }}>
-                        {[t.platform, t.durationSec ? `${t.durationSec}s` : ""]
-                          .filter(Boolean)
-                          .join(" • ")}
-                      </div>
-                    </div>
-
-                    {t.url && t.url.startsWith("http") ? (
-                      <a
-                        href={t.url}
-                        target="_blank"
-                        rel="noreferrer"
-                        style={{
-                          textDecoration: "none",
-                          borderRadius: 16,
-                          padding: "10px 14px",
-                          border: "1px solid rgba(255,255,255,0.12)",
-                          background: "rgba(255,255,255,0.08)",
-                          color: "white",
-                          fontWeight: 900,
-                          whiteSpace: "nowrap",
-                        }}
-                      >
-                        Open
-                      </a>
-                    ) : null}
-                  </div>
-                ))}
+            {voteSuccess ? (
+              <div style={{ marginTop: 10, color: "#b9ffcf", opacity: 0.95 }}>
+                {voteSuccess}
               </div>
-            </div>
-          ) : null}
-        </Card>
-      ) : null}
+            ) : null}
+          </>
+        ) : null}
+      </Card>
 
-      {/* COMMENTS */}
       <Card>
-        <div style={{ fontWeight: 900, fontSize: 28 }}>Comments</div>
-        <div style={{ opacity: 0.75, marginTop: 6 }}>
-          Fans can comment • {loadingComments ? "Loading…" : `${comments.length} shown`}
-        </div>
+        <div style={{ fontWeight: 900, fontSize: 22 }}>Comments</div>
 
-        <div style={{ marginTop: 14, display: "grid", gap: 10 }}>
-          <input
-            value={commentAuthor}
-            onChange={(e) => setCommentAuthor(e.target.value)}
-            placeholder="Your name (optional)"
-            style={{
-              width: "100%",
-              padding: "14px 14px",
-              borderRadius: 16,
-              border: "1px solid rgba(255,255,255,0.12)",
-              background: "rgba(0,0,0,0.25)",
-              color: "white",
-              outline: "none",
-              fontSize: 16,
-            }}
-          />
+        {commentsLoading ? (
+          <div style={{ marginTop: 10, opacity: 0.8 }}>Loading comments…</div>
+        ) : null}
 
-          <textarea
-            value={commentText}
-            onChange={(e) => setCommentText(e.target.value)}
-            placeholder="Write a comment…"
-            rows={4}
-            style={{
-              width: "100%",
-              padding: "14px 14px",
-              borderRadius: 16,
-              border: "1px solid rgba(255,255,255,0.12)",
-              background: "rgba(0,0,0,0.25)",
-              color: "white",
-              outline: "none",
-              fontSize: 16,
-              resize: "vertical",
-            }}
-          />
-
-          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-            <PrimaryBtn onClick={postComment} disabled={posting || !id} type="button">
-              {posting ? "Posting…" : "Post Comment"}
-            </PrimaryBtn>
-
-            <SoftBtn onClick={loadComments} disabled={loadingComments || !id}>
-              {loadingComments ? "Loading…" : "Refresh Comments"}
-            </SoftBtn>
+        {commentsError ? (
+          <div style={{ marginTop: 10, color: "#ffb3b3", opacity: 0.95 }}>
+            {commentsError}
           </div>
+        ) : null}
 
-          <div style={{ opacity: 0.7, fontSize: 13, marginTop: 2 }}>
-            Note: comments appear publicly once approved by Admin.
+        {!commentsLoading && !commentsError && (!comments || comments.length === 0) ? (
+          <div style={{ marginTop: 10, opacity: 0.8 }}>
+            No comments yet.
           </div>
-        </div>
+        ) : null}
 
-        <div style={{ marginTop: 16, display: "grid", gap: 10 }}>
-          {!loadingComments && comments.length === 0 ? (
-            <div style={{ opacity: 0.75 }}>No comments yet. Be the first 🔥</div>
-          ) : null}
-
-          {comments.map((c) => (
-            <div
-              key={c.id || `${c.author}-${c.createdAt}`}
-              style={{
-                borderRadius: 16,
-                padding: "12px 14px",
-                border: "1px solid rgba(255,255,255,0.10)",
-                background: "rgba(0,0,0,0.25)",
-              }}
-            >
-              <div style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
-                <div style={{ fontWeight: 900 }}>{c.author || "Anonymous"}</div>
-                <div style={{ opacity: 0.6, fontSize: 12 }}>
-                  {c.createdAt ? new Date(c.createdAt).toLocaleString() : ""}
+        {!commentsLoading && comments && comments.length > 0 ? (
+          <div style={{ marginTop: 12, display: "grid", gap: 10 }}>
+            {comments.map((c) => {
+              const cid = safeText(c?.id || c?._id || c?.commentId || "");
+              return (
+                <div
+                  key={cid || Math.random()}
+                  style={{
+                    padding: 14,
+                    borderRadius: 16,
+                    border: "1px solid rgba(255,255,255,0.10)",
+                    background: "rgba(0,0,0,0.25)",
+                  }}
+                >
+                  <div style={{ fontWeight: 900 }}>
+                    {safeText(c?.name || "Anonymous")}
+                  </div>
+                  <div style={{ opacity: 0.9, marginTop: 6, lineHeight: 1.4 }}>
+                    {safeText(c?.text || c?.comment || "")}
+                  </div>
+                  <div style={{ opacity: 0.65, marginTop: 8, fontSize: 12 }}>
+                    {safeText(c?.status || "")}
+                  </div>
                 </div>
-              </div>
-              <div style={{ marginTop: 8, opacity: 0.95, lineHeight: 1.45 }}>
-                {c.text}
-              </div>
+              );
+            })}
+          </div>
+        ) : null}
+
+        <div style={{ marginTop: 16, borderTop: "1px solid rgba(255,255,255,0.10)", paddingTop: 16 }}>
+          <div style={{ fontWeight: 900, fontSize: 18 }}>Add a comment</div>
+
+          <div style={{ marginTop: 10, display: "grid", gap: 10 }}>
+            <input
+              value={commentName}
+              onChange={(e) => setCommentName(e.target.value)}
+              placeholder="Your name (optional)"
+              style={{
+                width: "100%",
+                padding: "14px 14px",
+                borderRadius: 16,
+                border: "1px solid rgba(255,255,255,0.12)",
+                background: "rgba(0,0,0,0.25)",
+                color: "white",
+                outline: "none",
+                fontSize: 16,
+              }}
+            />
+
+            <textarea
+              value={commentText}
+              onChange={(e) => setCommentText(e.target.value)}
+              placeholder="Write your comment…"
+              rows={4}
+              style={{
+                width: "100%",
+                padding: "14px 14px",
+                borderRadius: 16,
+                border: "1px solid rgba(255,255,255,0.12)",
+                background: "rgba(0,0,0,0.25)",
+                color: "white",
+                outline: "none",
+                fontSize: 16,
+                resize: "vertical",
+              }}
+            />
+
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+              <button
+                onClick={submitComment}
+                disabled={commentLoading}
+                style={{
+                  borderRadius: 16,
+                  padding: "12px 16px",
+                  border: "1px solid rgba(255,255,255,0.12)",
+                  background: "rgba(154,74,255,0.25)",
+                  color: "white",
+                  fontWeight: 900,
+                  cursor: commentLoading ? "not-allowed" : "pointer",
+                  opacity: commentLoading ? 0.8 : 1,
+                }}
+              >
+                {commentLoading ? "Submitting…" : "Submit Comment"}
+              </button>
+
+              <button
+                onClick={() => {
+                  setCommentName("");
+                  setCommentText("");
+                  setCommentSuccess("");
+                  setCommentsError("");
+                }}
+                disabled={commentLoading}
+                style={{
+                  borderRadius: 16,
+                  padding: "12px 16px",
+                  border: "1px solid rgba(255,255,255,0.12)",
+                  background: "rgba(255,255,255,0.08)",
+                  color: "white",
+                  fontWeight: 900,
+                  cursor: commentLoading ? "not-allowed" : "pointer",
+                  opacity: commentLoading ? 0.8 : 1,
+                }}
+              >
+                Clear
+              </button>
             </div>
-          ))}
+
+            {commentSuccess ? (
+              <div style={{ marginTop: 6, color: "#b9ffcf", opacity: 0.95 }}>
+                {commentSuccess}
+              </div>
+            ) : null}
+          </div>
         </div>
       </Card>
     </div>
