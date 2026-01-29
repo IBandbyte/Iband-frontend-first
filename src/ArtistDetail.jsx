@@ -7,6 +7,19 @@ function safeText(v) {
   return String(v);
 }
 
+function pillStyle(active) {
+  return {
+    textDecoration: "none",
+    borderRadius: 16,
+    padding: "10px 14px",
+    border: "1px solid rgba(255,255,255,0.12)",
+    background: active ? "rgba(154,74,255,0.25)" : "rgba(255,255,255,0.08)",
+    color: "white",
+    fontWeight: 900,
+    display: "inline-block",
+  };
+}
+
 function Card({ children }) {
   return (
     <div
@@ -24,173 +37,95 @@ function Card({ children }) {
   );
 }
 
-function pillStyle() {
-  return {
-    textDecoration: "none",
-    borderRadius: 16,
-    padding: "10px 14px",
-    border: "1px solid rgba(255,255,255,0.12)",
-    background: "rgba(255,255,255,0.08)",
-    color: "white",
-    fontWeight: 900,
-    display: "inline-block",
-  };
+function normalizeArtist(res) {
+  if (!res) return null;
+
+  if (res.artist && typeof res.artist === "object") return res.artist;
+
+  if (Array.isArray(res.artists) && res.artists.length > 0) return res.artists[0];
+
+  if (res.id || res._id || res.name) return res;
+
+  return null;
 }
 
-function primaryButtonStyle(disabled) {
-  return {
-    borderRadius: 16,
-    padding: "12px 16px",
-    border: "1px solid rgba(255,255,255,0.12)",
-    background: "rgba(154,74,255,0.25)",
-    color: "white",
-    fontWeight: 900,
-    cursor: disabled ? "not-allowed" : "pointer",
-    opacity: disabled ? 0.8 : 1,
-  };
-}
-
-function dangerButtonStyle(disabled) {
-  return {
-    borderRadius: 16,
-    padding: "12px 16px",
-    border: "1px solid rgba(255,255,255,0.12)",
-    background: "rgba(255,70,70,0.18)",
-    color: "white",
-    fontWeight: 900,
-    cursor: disabled ? "not-allowed" : "pointer",
-    opacity: disabled ? 0.8 : 1,
-  };
-}
-
-function normalizeArtistResponse(res, id) {
-  // Accept many possible response shapes without breaking UI.
-  // Typical shapes we’ve seen / expect:
-  // - { success:true, artist:{...} }
-  // - { artist:{...} }
-  // - { success:true, artists:[...] }
-  // - { id, name, ... } (direct artist)
-  // - { data:{ artist:{...} } } (nested)
-  const rid = safeText(id);
-
-  const direct = res && typeof res === "object" ? res : null;
-
-  const candidate =
-    direct?.artist ||
-    direct?.data?.artist ||
-    (Array.isArray(direct?.artists)
-      ? direct.artists.find((a) => safeText(a?.id || a?._id) === rid) || null
-      : null) ||
-    (direct?.id || direct?._id ? direct : null);
-
-  if (!candidate) return null;
-
-  return {
-    id: safeText(candidate?.id || candidate?._id || rid),
-    name: safeText(candidate?.name || "Unnamed Artist"),
-    genre: safeText(candidate?.genre),
-    location: safeText(candidate?.location),
-    bio: safeText(candidate?.bio),
-    status: safeText(candidate?.status),
-    votes: Number(candidate?.votes || 0),
-    createdAt: safeText(candidate?.createdAt),
-    updatedAt: safeText(candidate?.updatedAt),
-  };
-}
-
-function normalizeCommentsResponse(res) {
-  // Accept:
-  // - { success:true, comments:[...] }
-  // - { comments:[...] }
-  // - [...] (array)
-  const direct = res && typeof res === "object" ? res : null;
-  const list = Array.isArray(res)
-    ? res
-    : Array.isArray(direct?.comments)
-    ? direct.comments
-    : [];
-
-  return list.map((c) => ({
-    id: safeText(c?.id || c?._id),
-    artistId: safeText(c?.artistId),
-    name: safeText(c?.name || c?.author || ""),
-    text: safeText(c?.text || c?.comment || c?.body || ""),
-    status: safeText(c?.status || ""),
-    createdAt: safeText(c?.createdAt),
-  }));
+function normalizeComments(res) {
+  if (!res) return [];
+  if (Array.isArray(res)) return res;
+  if (Array.isArray(res.comments)) return res.comments;
+  if (Array.isArray(res.data)) return res.data;
+  return [];
 }
 
 export default function ArtistDetail() {
-  const params = useParams();
-  const artistId = safeText(params?.id);
+  const { id } = useParams();
 
-  const [loading, setLoading] = useState(false);
-  const [voteLoading, setVoteLoading] = useState(false);
-  const [commentsLoading, setCommentsLoading] = useState(false);
-
+  const [loadingArtist, setLoadingArtist] = useState(false);
+  const [artistErr, setArtistErr] = useState("");
   const [artist, setArtist] = useState(null);
-  const [artistError, setArtistError] = useState("");
 
+  const [voting, setVoting] = useState(false);
+  const [voteErr, setVoteErr] = useState("");
+
+  const [loadingComments, setLoadingComments] = useState(false);
+  const [commentsErr, setCommentsErr] = useState("");
   const [comments, setComments] = useState([]);
-  const [commentsError, setCommentsError] = useState("");
-  const [commentsAvailable, setCommentsAvailable] = useState(true);
 
   const [commentName, setCommentName] = useState("");
   const [commentText, setCommentText] = useState("");
-  const canSubmitComment = useMemo(
-    () => safeText(commentText).trim().length > 0 && !commentsLoading,
-    [commentText, commentsLoading]
-  );
+  const [postingComment, setPostingComment] = useState(false);
+  const [postCommentErr, setPostCommentErr] = useState("");
+  const [postCommentOk, setPostCommentOk] = useState("");
+
+  const artistId = useMemo(() => safeText(id).trim(), [id]);
 
   async function loadArtist() {
     if (!artistId) return;
-    setLoading(true);
-    setArtistError("");
+
+    setLoadingArtist(true);
+    setArtistErr("");
+    setArtist(null);
 
     try {
       const res = await api.getArtist(artistId);
-      const normalized = normalizeArtistResponse(res, artistId);
+      const a = normalizeArtist(res);
 
-      if (!normalized) {
+      if (!a) {
+        setArtistErr("Artist not found (unexpected response shape).");
         setArtist(null);
-        setArtistError("Artist not found (unexpected response shape).");
       } else {
-        setArtist(normalized);
+        setArtist(a);
       }
     } catch (e) {
       setArtist(null);
-      setArtistError(safeText(e?.message) || "Artist not found.");
+      setArtistErr(safeText(e?.message) || "Could not load artist.");
     } finally {
-      setLoading(false);
+      setLoadingArtist(false);
     }
   }
 
   async function loadComments() {
     if (!artistId) return;
 
-    setCommentsLoading(true);
-    setCommentsError("");
+    setLoadingComments(true);
+    setCommentsErr("");
+    setComments([]);
 
     try {
-      const res = await api.listComments(artistId, { limit: 50, page: 1 });
-      const normalized = normalizeCommentsResponse(res);
-
-      setCommentsAvailable(true);
-      setComments(normalized);
+      const res = await api.listComments(artistId, { page: 1, limit: 50 });
+      setComments(normalizeComments(res));
     } catch (e) {
-      // If route doesn’t exist yet, don’t treat as “fatal”
       const status = Number(e?.status || 0);
-      if ([404, 405].includes(status) || safeText(e?.message).toLowerCase().includes("route")) {
-        setCommentsAvailable(false);
+
+      if (status === 404 || status === 405) {
         setComments([]);
-        setCommentsError("");
+        setCommentsErr("Comments API not available yet.");
       } else {
-        setCommentsAvailable(true);
         setComments([]);
-        setCommentsError(safeText(e?.message) || "Could not load comments.");
+        setCommentsErr(safeText(e?.message) || "Could not load comments.");
       }
     } finally {
-      setCommentsLoading(false);
+      setLoadingComments(false);
     }
   }
 
@@ -200,162 +135,285 @@ export default function ArtistDetail() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [artistId]);
 
-  async function handleVote(amount) {
+  async function handleVote(amount = 1) {
     if (!artistId) return;
 
-    setVoteLoading(true);
+    setVoting(true);
+    setVoteErr("");
+
     try {
       const res = await api.voteArtist(artistId, amount);
 
-      // Try to pull updated votes from multiple shapes:
-      const updatedVotes =
-        Number(res?.artist?.votes) ||
-        Number(res?.data?.artist?.votes) ||
-        Number(res?.votes);
+      const a =
+        normalizeArtist(res) ||
+        normalizeArtist(res?.data) ||
+        normalizeArtist(res?.artist);
 
-      if (artist && Number.isFinite(updatedVotes) && updatedVotes >= 0) {
-        setArtist({ ...artist, votes: updatedVotes });
-      } else if (artist) {
-        // optimistic fallback
-        setArtist({ ...artist, votes: Number(artist.votes || 0) + Number(amount || 1) });
+      if (a) {
+        setArtist(a);
+      } else {
+        setArtist((prev) => {
+          if (!prev) return prev;
+          const currentVotes = Number(prev?.votes || 0);
+          return { ...prev, votes: currentVotes + Number(amount || 1) };
+        });
       }
-
-      // Re-fetch to stay authoritative (but don’t block UX if it fails)
-      loadArtist();
     } catch (e) {
-      // If vote API isn’t ready, show an error inside the artist card
-      setArtistError(safeText(e?.message) || "Voting failed.");
+      setVoteErr(safeText(e?.message) || "Vote failed.");
     } finally {
-      setVoteLoading(false);
+      setVoting(false);
     }
   }
 
   async function handleSubmitComment() {
-    if (!canSubmitComment) return;
+    setPostCommentErr("");
+    setPostCommentOk("");
 
-    setCommentsLoading(true);
-    setCommentsError("");
+    const text = safeText(commentText).trim();
+    if (!text) {
+      setPostCommentErr("Please write a comment.");
+      return;
+    }
+
+    setPostingComment(true);
 
     try {
       await api.addComment({
         artistId,
         name: safeText(commentName).trim(),
-        text: safeText(commentText).trim(),
+        text,
       });
 
+      setPostCommentOk("Comment submitted.");
       setCommentText("");
-      // reload list if supported
+      setCommentName("");
+
       await loadComments();
     } catch (e) {
       const status = Number(e?.status || 0);
-      if ([404, 405].includes(status) || safeText(e?.message).toLowerCase().includes("route")) {
-        setCommentsAvailable(false);
-        setCommentsError("");
+      if (status === 404 || status === 405) {
+        setPostCommentErr("Comments API not available yet.");
       } else {
-        setCommentsAvailable(true);
-        setCommentsError(safeText(e?.message) || "Could not submit comment.");
+        setPostCommentErr(safeText(e?.message) || "Comment failed.");
       }
     } finally {
-      setCommentsLoading(false);
+      setPostingComment(false);
     }
   }
 
+  const displayId = safeText(artist?.id || artist?._id || artistId);
+  const displayName = safeText(artist?.name || "Artist");
+  const displayGenre = safeText(artist?.genre || "");
+  const displayLocation = safeText(artist?.location || "");
+  const displayBio = safeText(artist?.bio || "");
+  const displayVotes = Number(artist?.votes || 0);
+
   return (
     <div style={{ maxWidth: 900, margin: "0 auto", padding: "28px 16px" }}>
-      <h1 style={{ fontSize: 52, margin: 0, letterSpacing: -1 }}>Artist Profile</h1>
+      <h1 style={{ fontSize: 52, margin: 0, letterSpacing: -1 }}>
+        Artist Profile
+      </h1>
 
       <p style={{ opacity: 0.85, marginTop: 10 }}>
         API: {API_BASE}
-      </p>
-
-      <p style={{ opacity: 0.85, marginTop: 4 }}>
-        ID: <b>{artistId || "-"}</b>
+        <br />
+        ID: <b>{displayId}</b>
       </p>
 
       <div style={{ marginTop: 14, display: "flex", gap: 10, flexWrap: "wrap" }}>
-        <Link to="/artists" style={pillStyle()}>
+        <Link to="/artists" style={pillStyle(false)}>
           ← Back to Artists
         </Link>
-
-        <Link to="/admin" style={pillStyle()}>
+        <Link to="/admin" style={pillStyle(false)}>
           Admin
         </Link>
       </div>
 
       <Card>
-        <div style={{ fontWeight: 900, fontSize: 22 }}>Artist</div>
-
-        {loading ? (
-          <div style={{ marginTop: 12, opacity: 0.8 }}>Loading…</div>
-        ) : null}
-
-        {!loading && artistError ? (
-          <div style={{ marginTop: 12, opacity: 0.9, color: "#ffb3b3" }}>{artistError}</div>
-        ) : null}
-
-        {!loading && artist ? (
+        {loadingArtist ? (
+          <div style={{ opacity: 0.8 }}>Loading artist…</div>
+        ) : artistErr ? (
+          <div style={{ opacity: 0.9, color: "#ffb3b3" }}>{artistErr}</div>
+        ) : artist ? (
           <>
-            <div style={{ marginTop: 10, fontWeight: 900, fontSize: 20 }}>{safeText(artist.name)}</div>
+            <div style={{ fontWeight: 900, fontSize: 28 }}>{displayName}</div>
 
-            <div style={{ opacity: 0.8, marginTop: 6 }}>
-              {safeText(artist.genre)} • {safeText(artist.location)} •{" "}
-              <b>{safeText(artist.status || "active")}</b>
+            <div style={{ opacity: 0.8, marginTop: 8 }}>
+              {displayGenre} {displayGenre && displayLocation ? "•" : ""}{" "}
+              {displayLocation}
             </div>
 
-            {artist.bio ? (
-              <div style={{ opacity: 0.85, marginTop: 10, lineHeight: 1.45 }}>{safeText(artist.bio)}</div>
+            {displayBio ? (
+              <div style={{ opacity: 0.9, marginTop: 12, lineHeight: 1.55 }}>
+                {displayBio}
+              </div>
             ) : null}
 
-            <div style={{ marginTop: 12, display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-              <span style={{ fontWeight: 900 }}>
-                Votes: <span style={{ opacity: 0.9 }}>{Number(artist.votes || 0)}</span>
-              </span>
+            <div style={{ marginTop: 14, display: "flex", gap: 10, flexWrap: "wrap" }}>
+              <span style={pillStyle(true)}>Votes: {displayVotes}</span>
 
               <button
                 onClick={() => handleVote(1)}
-                disabled={voteLoading}
-                style={primaryButtonStyle(voteLoading)}
+                disabled={voting}
+                style={{
+                  borderRadius: 16,
+                  padding: "10px 14px",
+                  border: "1px solid rgba(255,255,255,0.12)",
+                  background: "rgba(154,74,255,0.25)",
+                  color: "white",
+                  fontWeight: 900,
+                  cursor: voting ? "not-allowed" : "pointer",
+                  opacity: voting ? 0.8 : 1,
+                }}
               >
-                {voteLoading ? "Voting…" : "Vote +1"}
-              </button>
-
-              <button
-                onClick={() => handleVote(-1)}
-                disabled={voteLoading}
-                style={dangerButtonStyle(voteLoading)}
-              >
-                {voteLoading ? "Voting…" : "Vote -1"}
+                {voting ? "Voting…" : "Vote +1"}
               </button>
             </div>
+
+            {voteErr ? (
+              <div style={{ marginTop: 12, opacity: 0.9, color: "#ffb3b3" }}>
+                {voteErr}
+              </div>
+            ) : null}
           </>
-        ) : null}
+        ) : (
+          <div style={{ opacity: 0.8 }}>No artist loaded.</div>
+        )}
       </Card>
 
       <Card>
-        <div style={{ fontWeight: 900, fontSize: 22 }}>Comments</div>
+        <div style={{ fontWeight: 900, fontSize: 28 }}>Comments</div>
 
-        {!commentsAvailable ? (
+        {loadingComments ? (
+          <div style={{ marginTop: 12, opacity: 0.8 }}>Loading comments…</div>
+        ) : commentsErr ? (
           <div style={{ marginTop: 12, opacity: 0.9, color: "#ffb3b3" }}>
-            Comments API not available yet.
+            {commentsErr}
+          </div>
+        ) : comments.length === 0 ? (
+          <div style={{ marginTop: 12, opacity: 0.8 }}>No comments yet.</div>
+        ) : (
+          <div style={{ marginTop: 12, display: "grid", gap: 10 }}>
+            {comments.map((c, idx) => (
+              <div
+                key={safeText(c?.id || c?._id || idx)}
+                style={{
+                  padding: 14,
+                  borderRadius: 16,
+                  border: "1px solid rgba(255,255,255,0.10)",
+                  background: "rgba(0,0,0,0.25)",
+                }}
+              >
+                <div style={{ fontWeight: 900 }}>
+                  {safeText(c?.name || "Anonymous")}
+                </div>
+                <div style={{ opacity: 0.9, marginTop: 6, lineHeight: 1.5 }}>
+                  {safeText(c?.text || c?.comment || "")}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </Card>
+
+      <Card>
+        <div style={{ fontWeight: 900, fontSize: 28 }}>Add a comment</div>
+
+        <div style={{ marginTop: 10 }}>
+          <input
+            value={commentName}
+            onChange={(e) => setCommentName(e.target.value)}
+            placeholder="Your name (optional)"
+            style={{
+              width: "100%",
+              padding: "14px 14px",
+              borderRadius: 16,
+              border: "1px solid rgba(255,255,255,0.12)",
+              background: "rgba(0,0,0,0.25)",
+              color: "white",
+              outline: "none",
+              fontSize: 16,
+            }}
+          />
+        </div>
+
+        <div style={{ marginTop: 10 }}>
+          <textarea
+            value={commentText}
+            onChange={(e) => setCommentText(e.target.value)}
+            placeholder="Write your comment…"
+            rows={5}
+            style={{
+              width: "100%",
+              padding: "14px 14px",
+              borderRadius: 16,
+              border: "1px solid rgba(255,255,255,0.12)",
+              background: "rgba(0,0,0,0.25)",
+              color: "white",
+              outline: "none",
+              fontSize: 16,
+              resize: "vertical",
+            }}
+          />
+        </div>
+
+        <div style={{ marginTop: 12, display: "flex", gap: 10, flexWrap: "wrap" }}>
+          <button
+            onClick={handleSubmitComment}
+            disabled={postingComment}
+            style={{
+              borderRadius: 16,
+              padding: "12px 16px",
+              border: "1px solid rgba(255,255,255,0.12)",
+              background: "rgba(154,74,255,0.25)",
+              color: "white",
+              fontWeight: 900,
+              cursor: postingComment ? "not-allowed" : "pointer",
+              opacity: postingComment ? 0.8 : 1,
+            }}
+          >
+            {postingComment ? "Submitting…" : "Submit Comment"}
+          </button>
+
+          <button
+            onClick={() => {
+              setCommentName("");
+              setCommentText("");
+              setPostCommentErr("");
+              setPostCommentOk("");
+            }}
+            style={{
+              borderRadius: 16,
+              padding: "12px 16px",
+              border: "1px solid rgba(255,255,255,0.12)",
+              background: "rgba(255,255,255,0.08)",
+              color: "white",
+              fontWeight: 900,
+              cursor: "pointer",
+            }}
+          >
+            Clear
+          </button>
+        </div>
+
+        {postCommentErr ? (
+          <div style={{ marginTop: 12, opacity: 0.9, color: "#ffb3b3" }}>
+            {postCommentErr}
           </div>
         ) : null}
 
-        {commentsAvailable && commentsLoading ? (
-          <div style={{ marginTop: 12, opacity: 0.8 }}>Loading…</div>
+        {postCommentOk ? (
+          <div style={{ marginTop: 12, opacity: 0.9, color: "#baffc9" }}>
+            {postCommentOk}
+          </div>
         ) : null}
 
-        {commentsAvailable && !commentsLoading && commentsError ? (
-          <div style={{ marginTop: 12, opacity: 0.9, color: "#ffb3b3" }}>{commentsError}</div>
-        ) : null}
-
-        {commentsAvailable && !commentsLoading && (!comments || comments.length === 0) ? (
-          <div style={{ marginTop: 12, opacity: 0.8 }}>No comments yet.</div>
-        ) : null}
-
-        {commentsAvailable && !commentsLoading && comments && comments.length > 0 ? (
-          <div style={{ marginTop: 12, display: "grid", gap: 12 }}>
-            {comments.map((c) => (
-              <div
-                key={c.id || Math.random()}
-                style={{
-                  padding
+        <div style={{ marginTop: 12, opacity: 0.6, fontSize: 13, lineHeight: 1.5 }}>
+          Note: if the backend comments routes aren’t deployed yet, this page will
+          show “Comments API not available yet.” (That’s expected until backend is
+          ready.)
+        </div>
+      </Card>
+    </div>
+  );
+}
