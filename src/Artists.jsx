@@ -39,27 +39,33 @@ function Card({ children }) {
   );
 }
 
-// Normalizes many backend shapes into an array of artists
+// ✅ single place to interpret backend response shapes
 function extractArtists(res) {
-  if (!res) return [];
+  // common shapes:
+  // { artists: [...] }
+  // { success: true, count: n, artists: [...] }
+  // { data: { artists: [...] } }
+  // { data: { success, count, artists: [...] } }
+  // { items: [...] } / { results: [...] }
+  // direct array [...]
+  if (Array.isArray(res)) return { artists: res, count: res.length, shape: "array" };
 
-  // Most common: { success, count, artists: [...] }
-  if (Array.isArray(res?.artists)) return res.artists;
+  const artists =
+    (Array.isArray(res?.artists) && res.artists) ||
+    (Array.isArray(res?.data?.artists) && res.data.artists) ||
+    (Array.isArray(res?.data?.data?.artists) && res.data.data.artists) ||
+    (Array.isArray(res?.items) && res.items) ||
+    (Array.isArray(res?.results) && res.results) ||
+    [];
 
-  // Sometimes: { data: { artists: [...] } } (axios-like)
-  if (Array.isArray(res?.data?.artists)) return res.data.artists;
+  const count =
+    Number(res?.count) ||
+    Number(res?.data?.count) ||
+    Number(res?.data?.data?.count) ||
+    artists.length;
 
-  // Sometimes: { data: [...] }
-  if (Array.isArray(res?.data)) return res.data;
-
-  // Sometimes: { items: [...] } or { results: [...] }
-  if (Array.isArray(res?.items)) return res.items;
-  if (Array.isArray(res?.results)) return res.results;
-
-  // Sometimes backend returns array directly: [...]
-  if (Array.isArray(res)) return res;
-
-  return [];
+  const shapeKeys = res && typeof res === "object" ? Object.keys(res) : [];
+  return { artists, count, shape: shapeKeys };
 }
 
 export default function Artists() {
@@ -68,16 +74,26 @@ export default function Artists() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [artists, setArtists] = useState([]);
-  const [debug, setDebug] = useState(null);
+
+  // Debug only when explicitly requested: https://ibandbyte.com/artists?debug=1
+  const showDebug = useMemo(() => {
+    try {
+      if (typeof window === "undefined") return false;
+      return new URLSearchParams(window.location.search).get("debug") === "1";
+    } catch {
+      return false;
+    }
+  }, []);
 
   const canSearch = useMemo(() => safeText(q).trim().length >= 0, [q]);
+
+  const [debugInfo, setDebugInfo] = useState(null);
 
   async function load() {
     if (!canSearch) return;
 
     setLoading(true);
     setError("");
-    setDebug(null);
 
     try {
       const res = await api.listArtists({
@@ -85,39 +101,43 @@ export default function Artists() {
         query: safeText(q).trim() || "",
       });
 
-      const list = extractArtists(res);
+      const extracted = extractArtists(res);
 
-      setArtists(list);
+      setArtists(extracted.artists);
 
-      // tiny dev debug: helps if it ever breaks again
-      setDebug({
-        status,
-        query: safeText(q).trim() || "",
-        receivedType: Array.isArray(res) ? "array" : typeof res,
-        keys: res && typeof res === "object" ? Object.keys(res).slice(0, 12) : [],
-        count: Array.isArray(list) ? list.length : 0,
-      });
+      if (showDebug) {
+        setDebugInfo({
+          status,
+          query: safeText(q).trim() || "",
+          receivedType: typeof res,
+          keys:
+            res && typeof res === "object"
+              ? Object.keys(res)
+              : Array.isArray(res)
+              ? ["<array>"]
+              : [],
+          count: extracted.count,
+        });
+      } else {
+        setDebugInfo(null);
+      }
     } catch (e) {
       setArtists([]);
-
-      const msg =
-        safeText(e?.message) ||
-        safeText(e?.data?.message) ||
-        safeText(e?.data?.error) ||
-        "Could not load artists. Check API base + routes.";
-
-      setError(msg);
-
-      setDebug({
-        status,
-        query: safeText(q).trim() || "",
-        url: safeText(e?.url),
-        httpStatus: e?.status,
-        raw: e?.data || null,
-      });
+      setDebugInfo(null);
+      setError(
+        safeText(e?.message) || "Could not load artists. Check API base + routes."
+      );
     } finally {
       setLoading(false);
     }
+  }
+
+  function clear() {
+    setQ("");
+    setError("");
+    setArtists([]);
+    setDebugInfo(null);
+    // keep status unchanged
   }
 
   useEffect(() => {
@@ -133,13 +153,22 @@ export default function Artists() {
       </p>
 
       <div style={{ marginTop: 14, display: "flex", gap: 10, flexWrap: "wrap" }}>
-        <span style={pillStyle(status === "active")} onClick={() => setStatus("active")}>
+        <span
+          style={pillStyle(status === "active")}
+          onClick={() => setStatus("active")}
+        >
           Active
         </span>
-        <span style={pillStyle(status === "pending")} onClick={() => setStatus("pending")}>
+        <span
+          style={pillStyle(status === "pending")}
+          onClick={() => setStatus("pending")}
+        >
           Pending (dev)
         </span>
-        <span style={pillStyle(status === "rejected")} onClick={() => setStatus("rejected")}>
+        <span
+          style={pillStyle(status === "rejected")}
+          onClick={() => setStatus("rejected")}
+        >
           Rejected (dev)
         </span>
 
@@ -150,6 +179,7 @@ export default function Artists() {
 
       <Card>
         <div style={{ fontWeight: 900, fontSize: 22 }}>Search</div>
+
         <div style={{ marginTop: 10 }}>
           <input
             value={q}
@@ -181,20 +211,14 @@ export default function Artists() {
               fontWeight: 900,
               cursor: loading ? "not-allowed" : "pointer",
               opacity: loading ? 0.8 : 1,
+              minWidth: 110,
             }}
           >
             {loading ? "Loading…" : "Search"}
           </button>
 
           <button
-            onClick={() => {
-              setQ("");
-              setError("");
-              setArtists([]);
-              setDebug(null);
-              // reload after clear
-              setTimeout(() => load(), 0);
-            }}
+            onClick={clear}
             disabled={loading}
             style={{
               borderRadius: 16,
@@ -205,6 +229,7 @@ export default function Artists() {
               fontWeight: 900,
               cursor: loading ? "not-allowed" : "pointer",
               opacity: loading ? 0.8 : 1,
+              minWidth: 110,
             }}
           >
             Clear
@@ -212,22 +237,36 @@ export default function Artists() {
         </div>
 
         {error ? (
-          <div style={{ marginTop: 12, opacity: 0.95, color: "#ffb3b3", whiteSpace: "pre-wrap" }}>
+          <div style={{ marginTop: 12, opacity: 0.9, color: "#ffb3b3" }}>
             {error}
           </div>
         ) : null}
 
-        {debug ? (
-          <div style={{ marginTop: 12, opacity: 0.7, fontSize: 12, whiteSpace: "pre-wrap" }}>
-            Debug: {JSON.stringify(debug, null, 2)}
-          </div>
+        {showDebug && debugInfo ? (
+          <pre
+            style={{
+              marginTop: 12,
+              padding: 12,
+              borderRadius: 14,
+              border: "1px solid rgba(255,255,255,0.10)",
+              background: "rgba(0,0,0,0.25)",
+              overflowX: "auto",
+              whiteSpace: "pre-wrap",
+              wordBreak: "break-word",
+              opacity: 0.85,
+            }}
+          >
+            Debug: {JSON.stringify(debugInfo, null, 2)}
+          </pre>
         ) : null}
       </Card>
 
       <Card>
         <div style={{ fontWeight: 900, fontSize: 22 }}>Results</div>
 
-        {loading ? <div style={{ marginTop: 12, opacity: 0.8 }}>Loading…</div> : null}
+        {loading ? (
+          <div style={{ marginTop: 12, opacity: 0.8 }}>Loading…</div>
+        ) : null}
 
         {!loading && (!artists || artists.length === 0) ? (
           <div style={{ marginTop: 12, opacity: 0.8 }}>No artists found.</div>
@@ -235,13 +274,11 @@ export default function Artists() {
 
         {!loading && artists && artists.length > 0 ? (
           <div style={{ marginTop: 12, display: "grid", gap: 12 }}>
-            {artists.map((a, idx) => {
+            {artists.map((a) => {
               const id = safeText(a?.id || a?._id || a?.slug);
-              const key = id || `${safeText(a?.name)}-${idx}`;
-
               return (
                 <div
-                  key={key}
+                  key={id || Math.random()}
                   style={{
                     padding: 14,
                     borderRadius: 16,
@@ -252,12 +289,10 @@ export default function Artists() {
                   <div style={{ fontWeight: 900, fontSize: 18 }}>
                     {safeText(a?.name || "Unnamed Artist")}
                   </div>
-
                   <div style={{ opacity: 0.8, marginTop: 6 }}>
                     {safeText(a?.genre)} • {safeText(a?.location)} •{" "}
                     <b>{safeText(a?.status || status)}</b>
                   </div>
-
                   <div style={{ opacity: 0.85, marginTop: 8 }}>
                     {safeText(a?.bio).slice(0, 140)}
                     {safeText(a?.bio).length > 140 ? "…" : ""}
