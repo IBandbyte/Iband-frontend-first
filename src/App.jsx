@@ -5,7 +5,7 @@ import Artists from "./Artists";
 import Submit from "./Submit";
 import ArtistDetail from "./ArtistDetail";
 
-// ✅ Admin upgrade components
+// Admin upgrade components
 import AdminDashboard from "./components/admin/AdminDashboard";
 
 import { API_BASE } from "./services/api";
@@ -68,9 +68,7 @@ export default function App() {
           </div>
         </div>
 
-        <div style={{ opacity: 0.8, marginTop: 10 }}>
-          API: {API_BASE || API_BASE === "" ? API_BASE : API_BASE}
-        </div>
+        <div style={{ opacity: 0.8, marginTop: 10 }}>API: {API_BASE}</div>
 
         {/* Tabs */}
         <div style={{ marginTop: 18, display: "flex", gap: 12, flexWrap: "wrap" }}>
@@ -88,8 +86,8 @@ export default function App() {
             <Route path="/submit" element={<Submit />} />
             <Route path="/artist/:id" element={<ArtistDetail />} />
 
-            {/* ✅ Real Admin UI now */}
-            <Route path="/admin" element={<AdminDashboard />} />
+            {/* IMPORTANT: allow future subroutes under Admin */}
+            <Route path="/admin/*" element={<AdminDashboard />} />
 
             {/* fallback */}
             <Route path="*" element={<Navigate to="/artists" replace />} />
