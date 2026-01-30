@@ -226,30 +226,24 @@ export async function getArtist(id) {
 
 export async function submitArtist(payload) {
   // Backend canonical: POST /api/artists
-  return await tryMany("POST", ["/api/artists", "/api/artists/submit", "/api/submit"], {
-    body: payload,
-  });
+  return await tryMany(
+    "POST",
+    ["/api/artists", "/api/artists/submit", "/api/submit"],
+    {
+      body: payload,
+    }
+  );
 }
 
 export async function voteArtist(artistId, amount = 1) {
   const aid = encodeURIComponent(safeText(artistId));
 
-  // Backend canonical (in your project): votes router mounted at /api/votes
-  // Most common patterns supported:
-  // - POST /api/votes/:artistId { amount }
-  // - POST /api/votes { artistId, amount }
-  // - POST /api/artists/:id/votes { amount } (fallback)
   const bodyA = { amount: Number(amount) || 1 };
   const bodyB = { artistId: safeText(artistId), amount: Number(amount) || 1 };
 
-  return await tryMany(
-    "POST",
-    [`/api/votes/${aid}`, "/api/votes", `/api/artists/${aid}/votes`],
-    {
-      body: undefined,
-      // We'll try both body shapes by wrapping in a single attempt order
-    }
-  ).catch(async (e) => {
+  return await tryMany("POST", [`/api/votes/${aid}`, "/api/votes", `/api/artists/${aid}/votes`], {
+    body: undefined,
+  }).catch(async (e) => {
     const status = Number(e?.status || 0);
     if (![404, 405].includes(status)) throw e;
 
@@ -310,7 +304,6 @@ export async function adminApproveArtist(artistId, moderationNote = "") {
   const aid = encodeURIComponent(safeText(artistId));
   const body = { status: "active", moderationNote: safeText(moderationNote) };
 
-  // Support PATCH and POST approve flows
   return await tryMany(
     "PATCH",
     [`/api/admin/artists/${aid}`, `/api/admin/artists/${aid}/approve`],
@@ -345,7 +338,20 @@ export async function adminRejectArtist(artistId, moderationNote = "") {
   });
 }
 
-export async function adminListComments(params = {}) {
+/**
+ * ✅ Backwards compatible:
+ * - adminListComments({ status: "pending" })
+ * - adminListComments("pending", { flagged: true })
+ */
+export async function adminListComments(arg1 = {}, arg2 = {}) {
+  let params = {};
+
+  if (typeof arg1 === "string") {
+    params = { ...(arg2 || {}), status: arg1 };
+  } else {
+    params = arg1 || {};
+  }
+
   const q = new URLSearchParams();
   if (params?.status) q.set("status", safeText(params.status));
   if (params?.artistId) q.set("artistId", safeText(params.artistId));
@@ -373,10 +379,13 @@ export async function adminDeleteComment(commentId) {
   });
 }
 
-export async function adminFlagComment(commentId, code = "flag", reason = "") {
+export async function adminFlagComment(commentId, payload = {}) {
   const cid = encodeURIComponent(safeText(commentId));
+  const code = safeText(payload?.code || "flag") || "flag";
+  const reason = safeText(payload?.reason || "");
+
   return await requestJson("POST", `/api/admin/comments/${cid}/flag`, {
-    body: { code: safeText(code) || "flag", reason: safeText(reason) },
+    body: { code, reason },
     headers: adminHeaders(),
   });
 }
@@ -388,7 +397,12 @@ export async function adminClearCommentFlags(commentId) {
   });
 }
 
-export async function adminBulkCommentStatus(ids = [], status = "hidden", moderatedBy = "", moderationNote = "") {
+export async function adminBulkCommentStatus(
+  ids = [],
+  status = "hidden",
+  moderatedBy = "",
+  moderationNote = ""
+) {
   return await requestJson("POST", "/api/admin/comments/bulk/status", {
     body: {
       ids,
