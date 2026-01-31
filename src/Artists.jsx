@@ -43,24 +43,100 @@ function Card({ children }) {
 }
 
 /* -----------------------------
-   Extract Artists Safely
+   Extract Artists Safely (HARDENED)
 ----------------------------- */
 
 function extractArtists(res) {
   if (!res) return [];
 
-  if (Array.isArray(res.artists)) return res.artists;
-  if (Array.isArray(res.items)) return res.items;
-
-  if (res.data) {
-    if (Array.isArray(res.data.artists)) return res.data.artists;
-    if (Array.isArray(res.data.items)) return res.data.items;
-  }
-
-  // If backend ever returns the array raw
+  // raw array fallback
   if (Array.isArray(res)) return res;
 
+  // direct common keys
+  if (Array.isArray(res.artists)) return res.artists;
+  if (Array.isArray(res.items)) return res.items;
+  if (Array.isArray(res.results)) return res.results;
+
+  // nested common keys
+  if (res.data) {
+    if (Array.isArray(res.data)) return res.data;
+    if (Array.isArray(res.data.artists)) return res.data.artists;
+    if (Array.isArray(res.data.items)) return res.data.items;
+    if (Array.isArray(res.data.results)) return res.data.results;
+
+    // deep nesting (very common with wrappers)
+    if (res.data.data) {
+      if (Array.isArray(res.data.data)) return res.data.data;
+      if (Array.isArray(res.data.data.artists)) return res.data.data.artists;
+      if (Array.isArray(res.data.data.items)) return res.data.data.items;
+      if (Array.isArray(res.data.data.results)) return res.data.data.results;
+    }
+  }
+
+  // other wrappers
+  if (res.results) {
+    if (Array.isArray(res.results.artists)) return res.results.artists;
+    if (Array.isArray(res.results.items)) return res.results.items;
+    if (Array.isArray(res.results.data)) return res.results.data;
+  }
+
   return [];
+}
+
+function extractCount(res, extractedArtists) {
+  if (!res) return extractedArtists.length;
+
+  const direct =
+    Number(res.count) ||
+    Number(res.total) ||
+    Number(res.totalCount) ||
+    Number(res.length);
+
+  if (Number.isFinite(direct) && direct >= 0) return direct;
+
+  const nested =
+    Number(res?.data?.count) ||
+    Number(res?.data?.total) ||
+    Number(res?.data?.totalCount) ||
+    Number(res?.data?.data?.count) ||
+    Number(res?.results?.count) ||
+    Number(res?.results?.total);
+
+  if (Number.isFinite(nested) && nested >= 0) return nested;
+
+  return extractedArtists.length;
+}
+
+function extractDebugShape(res) {
+  try {
+    const keys = res && typeof res === "object" ? Object.keys(res) : [];
+    const dataKeys =
+      res?.data && typeof res.data === "object" ? Object.keys(res.data) : [];
+    const dataDataKeys =
+      res?.data?.data && typeof res.data.data === "object"
+        ? Object.keys(res.data.data)
+        : [];
+    const resultsKeys =
+      res?.results && typeof res.results === "object"
+        ? Object.keys(res.results)
+        : [];
+
+    return {
+      receivedType: Array.isArray(res) ? "array" : typeof res,
+      keys,
+      dataKeys,
+      dataDataKeys,
+      resultsKeys,
+      count:
+        res?.count ??
+        res?.data?.count ??
+        res?.data?.data?.count ??
+        res?.results?.count ??
+        null,
+    };
+  } catch {
+    return { receivedType: "unknown", keys: [], dataKeys: [], dataDataKeys: [], resultsKeys: [], count: null };
+  }
 }
 
 /* -----------------------------
@@ -75,26 +151,38 @@ export default function Artists() {
   const [error, setError] = useState("");
 
   const [artists, setArtists] = useState([]);
+  const [displayCount, setDisplayCount] = useState(0);
+  const [debug, setDebug] = useState(null);
 
+  // always true, but kept for clarity / future min-length rules
   const canSearch = useMemo(() => safeText(q).trim().length >= 0, [q]);
 
-  async function load() {
+  async function load(forcedQuery) {
     if (!canSearch) return;
 
     setLoading(true);
     setError("");
 
     try {
+      const queryToUse =
+        forcedQuery !== undefined ? safeText(forcedQuery).trim() : safeText(q).trim();
+
       const res = await api.listArtists({
         status,
-        query: safeText(q).trim(),
+        query: queryToUse,
       });
 
       const extracted = extractArtists(res);
-
       setArtists(extracted);
+
+      const cnt = extractCount(res, extracted);
+      setDisplayCount(cnt);
+
+      setDebug(extractDebugShape(res));
     } catch (e) {
       setArtists([]);
+      setDisplayCount(0);
+      setDebug(null);
       setError(
         safeText(e?.message) || "Could not load artists. Check API routes."
       );
@@ -105,7 +193,8 @@ export default function Artists() {
 
   function clearSearch() {
     setQ("");
-    load();
+    // prevent stale-state issue by forcing empty query
+    load("");
   }
 
   useEffect(() => {
@@ -172,7 +261,7 @@ export default function Artists() {
 
         <div style={{ marginTop: 12, display: "flex", gap: 10 }}>
           <button
-            onClick={load}
+            onClick={() => load()}
             disabled={loading}
             style={{
               borderRadius: 16,
@@ -204,8 +293,25 @@ export default function Artists() {
         </div>
 
         <div style={{ marginTop: 10, opacity: 0.7 }}>
-          Count: {artists.length}
+          Count: {displayCount}
         </div>
+
+        {debug ? (
+          <div
+            style={{
+              marginTop: 10,
+              opacity: 0.75,
+              fontSize: 12,
+              background: "rgba(0,0,0,0.25)",
+              border: "1px solid rgba(255,255,255,0.08)",
+              borderRadius: 14,
+              padding: 12,
+              overflowX: "auto",
+            }}
+          >
+            Debug: {JSON.stringify(debug, null, 2)}
+          </div>
+        ) : null}
 
         {error ? (
           <div style={{ marginTop: 10, color: "#ffb3b3" }}>{error}</div>
@@ -217,19 +323,18 @@ export default function Artists() {
         <div style={{ fontWeight: 900, fontSize: 22 }}>Results</div>
 
         {!loading && artists.length === 0 ? (
-          <div style={{ marginTop: 12, opacity: 0.8 }}>
-            No artists found.
-          </div>
+          <div style={{ marginTop: 12, opacity: 0.8 }}>No artists found.</div>
         ) : null}
 
         {artists.length > 0 ? (
           <div style={{ marginTop: 12, display: "grid", gap: 12 }}>
-            {artists.map((a) => {
-              const id = safeText(a.id || a._id);
+            {artists.map((a, idx) => {
+              const id = safeText(a?.id || a?._id || a?.artistId || "");
+              const key = id || `${safeText(a?.name)}-${idx}`;
 
               return (
                 <div
-                  key={id}
+                  key={key}
                   style={{
                     padding: 14,
                     borderRadius: 16,
@@ -238,30 +343,36 @@ export default function Artists() {
                   }}
                 >
                   <div style={{ fontWeight: 900, fontSize: 18 }}>
-                    {safeText(a.name)}
+                    {safeText(a?.name)}
                   </div>
 
                   <div style={{ opacity: 0.8, marginTop: 6 }}>
-                    {safeText(a.genre)} • {safeText(a.location)} •{" "}
-                    <b>{safeText(a.status)}</b>
+                    {safeText(a?.genre)} • {safeText(a?.location)} •{" "}
+                    <b>{safeText(a?.status)}</b>
                   </div>
 
                   <div style={{ marginTop: 10 }}>
-                    <Link
-                      to={`/artist/${encodeURIComponent(id)}`}
-                      style={{
-                        textDecoration: "none",
-                        borderRadius: 16,
-                        padding: "10px 14px",
-                        border: "1px solid rgba(255,255,255,0.12)",
-                        background: "rgba(255,255,255,0.08)",
-                        color: "white",
-                        fontWeight: 900,
-                        display: "inline-block",
-                      }}
-                    >
-                      View →
-                    </Link>
+                    {id ? (
+                      <Link
+                        to={`/artist/${encodeURIComponent(id)}`}
+                        style={{
+                          textDecoration: "none",
+                          borderRadius: 16,
+                          padding: "10px 14px",
+                          border: "1px solid rgba(255,255,255,0.12)",
+                          background: "rgba(255,255,255,0.08)",
+                          color: "white",
+                          fontWeight: 900,
+                          display: "inline-block",
+                        }}
+                      >
+                        View →
+                      </Link>
+                    ) : (
+                      <span style={{ opacity: 0.7 }}>
+                        Missing artist id (cannot link)
+                      </span>
+                    )}
                   </div>
                 </div>
               );
