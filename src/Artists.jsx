@@ -7,8 +7,29 @@ function safeText(v) {
   return String(v);
 }
 
+function normalizeArtistsResponse(res) {
+  // Supports:
+  // - { artists: [...] }
+  // - { data: { artists: [...] } }
+  // - { data: [...] }
+  // - [...] (rare)
+  const direct = res?.artists;
+  if (Array.isArray(direct)) return direct;
+
+  const dataArtists = res?.data?.artists;
+  if (Array.isArray(dataArtists)) return dataArtists;
+
+  const data = res?.data;
+  if (Array.isArray(data)) return data;
+
+  if (Array.isArray(res)) return res;
+
+  return [];
+}
+
 function pillStyle(active) {
   return {
+    appearance: "none",
     textDecoration: "none",
     borderRadius: 16,
     padding: "10px 14px",
@@ -18,7 +39,6 @@ function pillStyle(active) {
     fontWeight: 900,
     display: "inline-block",
     cursor: "pointer",
-    userSelect: "none",
   };
 }
 
@@ -39,140 +59,102 @@ function Card({ children }) {
   );
 }
 
-// ✅ single place to interpret backend response shapes
-function extractArtists(res) {
-  // common shapes:
-  // { artists: [...] }
-  // { success: true, count: n, artists: [...] }
-  // { data: { artists: [...] } }
-  // { data: { success, count, artists: [...] } }
-  // { items: [...] } / { results: [...] }
-  // direct array [...]
-  if (Array.isArray(res)) return { artists: res, count: res.length, shape: "array" };
-
-  const artists =
-    (Array.isArray(res?.artists) && res.artists) ||
-    (Array.isArray(res?.data?.artists) && res.data.artists) ||
-    (Array.isArray(res?.data?.data?.artists) && res.data.data.artists) ||
-    (Array.isArray(res?.items) && res.items) ||
-    (Array.isArray(res?.results) && res.results) ||
-    [];
-
-  const count =
-    Number(res?.count) ||
-    Number(res?.data?.count) ||
-    Number(res?.data?.data?.count) ||
-    artists.length;
-
-  const shapeKeys = res && typeof res === "object" ? Object.keys(res) : [];
-  return { artists, count, shape: shapeKeys };
-}
-
 export default function Artists() {
   const [q, setQ] = useState("");
-  const [status, setStatus] = useState("active"); // default public view
+  const [status, setStatus] = useState("active"); // public default
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [artists, setArtists] = useState([]);
+  const [lastMeta, setLastMeta] = useState({ count: 0, success: null });
 
-  // Debug only when explicitly requested: https://ibandbyte.com/artists?debug=1
-  const showDebug = useMemo(() => {
-    try {
-      if (typeof window === "undefined") return false;
-      return new URLSearchParams(window.location.search).get("debug") === "1";
-    } catch {
-      return false;
-    }
-  }, []);
+  const trimmedQ = useMemo(() => safeText(q).trim(), [q]);
 
-  const canSearch = useMemo(() => safeText(q).trim().length >= 0, [q]);
-
-  const [debugInfo, setDebugInfo] = useState(null);
-
-  async function load() {
-    if (!canSearch) return;
-
+  async function load(next = {}) {
     setLoading(true);
     setError("");
 
     try {
       const res = await api.listArtists({
-        status,
-        query: safeText(q).trim() || "",
+        status: next.status ?? status,
+        query: next.query ?? trimmedQ,
       });
 
-      const extracted = extractArtists(res);
+      const list = normalizeArtistsResponse(res);
 
-      setArtists(extracted.artists);
+      setArtists(list);
+      setLastMeta({
+        count:
+          Number(res?.count) ||
+          Number(res?.data?.count) ||
+          (Array.isArray(list) ? list.length : 0),
+        success:
+          typeof res?.success === "boolean"
+            ? res.success
+            : typeof res?.data?.success === "boolean"
+            ? res.data.success
+            : null,
+      });
 
-      if (showDebug) {
-        setDebugInfo({
-          status,
-          query: safeText(q).trim() || "",
-          receivedType: typeof res,
-          keys:
-            res && typeof res === "object"
-              ? Object.keys(res)
-              : Array.isArray(res)
-              ? ["<array>"]
-              : [],
-          count: extracted.count,
-        });
-      } else {
-        setDebugInfo(null);
+      if (!Array.isArray(list)) {
+        setError("Unexpected response shape (artists is not an array).");
+        setArtists([]);
       }
     } catch (e) {
       setArtists([]);
-      setDebugInfo(null);
+      setLastMeta({ count: 0, success: false });
+
       setError(
-        safeText(e?.message) || "Could not load artists. Check API base + routes."
+        safeText(e?.message) ||
+          "Could not load artists. Check API base + backend routes."
       );
     } finally {
       setLoading(false);
     }
   }
 
-  function clear() {
-    setQ("");
-    setError("");
-    setArtists([]);
-    setDebugInfo(null);
-    // keep status unchanged
-  }
-
+  // Auto-load when status changes (public UX)
   useEffect(() => {
-    load();
+    load({ status, query: trimmedQ });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status]);
+
+  function onClear() {
+    setQ("");
+    load({ status, query: "" });
+  }
 
   return (
     <div style={{ maxWidth: 900, margin: "0 auto", padding: "28px 16px" }}>
       <h1 style={{ fontSize: 52, margin: 0, letterSpacing: -1 }}>Artists</h1>
+
       <p style={{ opacity: 0.85, marginTop: 10 }}>
         Backend: {API_BASE} • Public view shows <b>active</b> artists only.
       </p>
 
       <div style={{ marginTop: 14, display: "flex", gap: 10, flexWrap: "wrap" }}>
-        <span
+        <button
+          type="button"
           style={pillStyle(status === "active")}
           onClick={() => setStatus("active")}
         >
           Active
-        </span>
-        <span
+        </button>
+        <button
+          type="button"
           style={pillStyle(status === "pending")}
           onClick={() => setStatus("pending")}
         >
           Pending (dev)
-        </span>
-        <span
+        </button>
+        <button
+          type="button"
           style={pillStyle(status === "rejected")}
           onClick={() => setStatus("rejected")}
         >
           Rejected (dev)
-        </span>
+        </button>
 
-        <Link to="/submit" style={{ ...pillStyle(false), cursor: "pointer" }}>
+        <Link to="/submit" style={pillStyle(false)}>
           + Submit Artist
         </Link>
       </div>
@@ -200,7 +182,8 @@ export default function Artists() {
 
         <div style={{ marginTop: 12, display: "flex", gap: 10, flexWrap: "wrap" }}>
           <button
-            onClick={load}
+            type="button"
+            onClick={() => load({ status, query: trimmedQ })}
             disabled={loading}
             style={{
               borderRadius: 16,
@@ -211,14 +194,15 @@ export default function Artists() {
               fontWeight: 900,
               cursor: loading ? "not-allowed" : "pointer",
               opacity: loading ? 0.8 : 1,
-              minWidth: 110,
+              minWidth: 120,
             }}
           >
             {loading ? "Loading…" : "Search"}
           </button>
 
           <button
-            onClick={clear}
+            type="button"
+            onClick={onClear}
             disabled={loading}
             style={{
               borderRadius: 16,
@@ -229,35 +213,22 @@ export default function Artists() {
               fontWeight: 900,
               cursor: loading ? "not-allowed" : "pointer",
               opacity: loading ? 0.8 : 1,
-              minWidth: 110,
+              minWidth: 120,
             }}
           >
             Clear
           </button>
+
+          <div style={{ opacity: 0.7, alignSelf: "center" }}>
+            {lastMeta?.success === false ? "API error" : null}
+            {lastMeta?.success !== false ? `Count: ${Number(lastMeta?.count || 0)}` : null}
+          </div>
         </div>
 
         {error ? (
           <div style={{ marginTop: 12, opacity: 0.9, color: "#ffb3b3" }}>
             {error}
           </div>
-        ) : null}
-
-        {showDebug && debugInfo ? (
-          <pre
-            style={{
-              marginTop: 12,
-              padding: 12,
-              borderRadius: 14,
-              border: "1px solid rgba(255,255,255,0.10)",
-              background: "rgba(0,0,0,0.25)",
-              overflowX: "auto",
-              whiteSpace: "pre-wrap",
-              wordBreak: "break-word",
-              opacity: 0.85,
-            }}
-          >
-            Debug: {JSON.stringify(debugInfo, null, 2)}
-          </pre>
         ) : null}
       </Card>
 
@@ -274,11 +245,13 @@ export default function Artists() {
 
         {!loading && artists && artists.length > 0 ? (
           <div style={{ marginTop: 12, display: "grid", gap: 12 }}>
-            {artists.map((a) => {
+            {artists.map((a, idx) => {
               const id = safeText(a?.id || a?._id || a?.slug);
+              const key = id || `row-${idx}`;
+
               return (
                 <div
-                  key={id || Math.random()}
+                  key={key}
                   style={{
                     padding: 14,
                     borderRadius: 16,
@@ -289,10 +262,12 @@ export default function Artists() {
                   <div style={{ fontWeight: 900, fontSize: 18 }}>
                     {safeText(a?.name || "Unnamed Artist")}
                   </div>
+
                   <div style={{ opacity: 0.8, marginTop: 6 }}>
                     {safeText(a?.genre)} • {safeText(a?.location)} •{" "}
                     <b>{safeText(a?.status || status)}</b>
                   </div>
+
                   <div style={{ opacity: 0.85, marginTop: 8 }}>
                     {safeText(a?.bio).slice(0, 140)}
                     {safeText(a?.bio).length > 140 ? "…" : ""}
