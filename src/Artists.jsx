@@ -49,22 +49,18 @@ function Card({ children }) {
 function extractArtists(res) {
   if (!res) return [];
 
-  // raw array fallback
   if (Array.isArray(res)) return res;
 
-  // direct common keys
   if (Array.isArray(res.artists)) return res.artists;
   if (Array.isArray(res.items)) return res.items;
   if (Array.isArray(res.results)) return res.results;
 
-  // nested common keys
   if (res.data) {
     if (Array.isArray(res.data)) return res.data;
     if (Array.isArray(res.data.artists)) return res.data.artists;
     if (Array.isArray(res.data.items)) return res.data.items;
     if (Array.isArray(res.data.results)) return res.data.results;
 
-    // deep nesting (very common with wrappers)
     if (res.data.data) {
       if (Array.isArray(res.data.data)) return res.data.data;
       if (Array.isArray(res.data.data.artists)) return res.data.data.artists;
@@ -73,7 +69,6 @@ function extractArtists(res) {
     }
   }
 
-  // other wrappers
   if (res.results) {
     if (Array.isArray(res.results.artists)) return res.results.artists;
     if (Array.isArray(res.results.items)) return res.results.items;
@@ -83,8 +78,8 @@ function extractArtists(res) {
   return [];
 }
 
-function extractCount(res, extractedArtists) {
-  if (!res) return extractedArtists.length;
+function extractBackendCount(res) {
+  if (!res) return null;
 
   const direct =
     Number(res.count) ||
@@ -104,10 +99,22 @@ function extractCount(res, extractedArtists) {
 
   if (Number.isFinite(nested) && nested >= 0) return nested;
 
-  return extractedArtists.length;
+  return null;
 }
 
-function extractDebugShape(res) {
+function computeDisplayCount(backendCount, extractedArtists) {
+  const len = extractedArtists.length;
+
+  // Our rule: artists array is the source of truth
+  if (len > 0) return len;
+
+  // If no artists, show backend count if present, otherwise 0
+  if (backendCount !== null && backendCount !== undefined) return backendCount;
+
+  return 0;
+}
+
+function extractDebugShape(res, extractedArtists) {
   try {
     const keys = res && typeof res === "object" ? Object.keys(res) : [];
     const dataKeys =
@@ -121,21 +128,40 @@ function extractDebugShape(res) {
         ? Object.keys(res.results)
         : [];
 
+    const first = extractedArtists?.[0] || null;
+
     return {
       receivedType: Array.isArray(res) ? "array" : typeof res,
       keys,
       dataKeys,
       dataDataKeys,
       resultsKeys,
-      count:
+      backendCount:
         res?.count ??
         res?.data?.count ??
         res?.data?.data?.count ??
         res?.results?.count ??
         null,
+      artistsLen: extractedArtists.length,
+      firstArtist: first
+        ? {
+            id: safeText(first.id || first._id || first.artistId || ""),
+            name: safeText(first.name || ""),
+            status: safeText(first.status || ""),
+          }
+        : null,
     };
   } catch {
-    return { receivedType: "unknown", keys: [], dataKeys: [], dataDataKeys: [], resultsKeys: [], count: null };
+    return {
+      receivedType: "unknown",
+      keys: [],
+      dataKeys: [],
+      dataDataKeys: [],
+      resultsKeys: [],
+      backendCount: null,
+      artistsLen: 0,
+      firstArtist: null,
+    };
   }
 }
 
@@ -151,10 +177,10 @@ export default function Artists() {
   const [error, setError] = useState("");
 
   const [artists, setArtists] = useState([]);
+  const [backendCount, setBackendCount] = useState(null);
   const [displayCount, setDisplayCount] = useState(0);
   const [debug, setDebug] = useState(null);
 
-  // always true, but kept for clarity / future min-length rules
   const canSearch = useMemo(() => safeText(q).trim().length >= 0, [q]);
 
   async function load(forcedQuery) {
@@ -165,7 +191,9 @@ export default function Artists() {
 
     try {
       const queryToUse =
-        forcedQuery !== undefined ? safeText(forcedQuery).trim() : safeText(q).trim();
+        forcedQuery !== undefined
+          ? safeText(forcedQuery).trim()
+          : safeText(q).trim();
 
       const res = await api.listArtists({
         status,
@@ -173,14 +201,15 @@ export default function Artists() {
       });
 
       const extracted = extractArtists(res);
+      const bc = extractBackendCount(res);
+
       setArtists(extracted);
-
-      const cnt = extractCount(res, extracted);
-      setDisplayCount(cnt);
-
-      setDebug(extractDebugShape(res));
+      setBackendCount(bc);
+      setDisplayCount(computeDisplayCount(bc, extracted));
+      setDebug(extractDebugShape(res, extracted));
     } catch (e) {
       setArtists([]);
+      setBackendCount(null);
       setDisplayCount(0);
       setDebug(null);
       setError(
@@ -193,7 +222,6 @@ export default function Artists() {
 
   function clearSearch() {
     setQ("");
-    // prevent stale-state issue by forcing empty query
     load("");
   }
 
@@ -294,6 +322,9 @@ export default function Artists() {
 
         <div style={{ marginTop: 10, opacity: 0.7 }}>
           Count: {displayCount}
+          {backendCount !== null ? (
+            <span style={{ opacity: 0.7 }}> (backend said {backendCount})</span>
+          ) : null}
         </div>
 
         {debug ? (
