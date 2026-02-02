@@ -1,6 +1,6 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { api, API_BASE, getApiBase } from "./services/api";
+import { api, API_BASE } from "./services/api";
 
 /* -----------------------------
    Helpers
@@ -25,6 +25,18 @@ function pillStyle(active) {
   };
 }
 
+function buttonStyle(primary) {
+  return {
+    borderRadius: 16,
+    padding: "12px 18px",
+    border: "1px solid rgba(255,255,255,0.12)",
+    background: primary ? "rgba(154,74,255,0.25)" : "rgba(255,255,255,0.08)",
+    color: "white",
+    fontWeight: 900,
+    cursor: "pointer",
+  };
+}
+
 function Card({ children }) {
   return (
     <div
@@ -44,7 +56,6 @@ function Card({ children }) {
 
 /* -----------------------------
    Extract Artists Safely
-   (handles many possible shapes)
 ----------------------------- */
 
 function extractArtists(res) {
@@ -52,70 +63,37 @@ function extractArtists(res) {
 
   if (Array.isArray(res.artists)) return res.artists;
   if (Array.isArray(res.items)) return res.items;
-  if (Array.isArray(res.results)) return res.results;
 
   if (res.data) {
     if (Array.isArray(res.data.artists)) return res.data.artists;
     if (Array.isArray(res.data.items)) return res.data.items;
-    if (Array.isArray(res.data.results)) return res.data.results;
-    if (res.data.data) {
-      if (Array.isArray(res.data.data.artists)) return res.data.data.artists;
-      if (Array.isArray(res.data.data.items)) return res.data.data.items;
-      if (Array.isArray(res.data.data.results)) return res.data.data.results;
-    }
   }
 
-  // if backend ever returns the array raw
   if (Array.isArray(res)) return res;
 
   return [];
 }
 
-function getId(a) {
-  return safeText(a?.id || a?._id || a?.slug || "");
+function debugShape(res) {
+  const receivedType = Array.isArray(res) ? "array" : typeof res;
+  const keys = res && typeof res === "object" && !Array.isArray(res) ? Object.keys(res) : [];
+  const dataKeys =
+    res && typeof res === "object" && res.data && typeof res.data === "object"
+      ? Object.keys(res.data)
+      : [];
+  const artists = extractArtists(res);
+  const count =
+    typeof res?.count === "number"
+      ? res.count
+      : typeof res?.data?.count === "number"
+      ? res.data.count
+      : artists.length;
+
+  return { receivedType, keys, dataKeys, count, artistsLen: artists.length };
 }
 
-/* -----------------------------
-   Canonical fetch fallback
-   (single purpose: stop "count 0" / empty render issues)
------------------------------ */
-
-async function canonicalFetchArtists({ status, q }) {
-  const base = safeText(getApiBase ? getApiBase() : API_BASE).trim();
-  const urlBase = base || API_BASE;
-
-  const params = new URLSearchParams();
-  if (status) params.set("status", safeText(status));
-  if (q) params.set("q", safeText(q));
-
-  const url = `${urlBase}/api/artists${params.toString() ? `?${params.toString()}` : ""}`;
-
-  const res = await fetch(url, {
-    method: "GET",
-    headers: { Accept: "application/json" },
-  });
-
-  const text = await res.text();
-  let data = null;
-  try {
-    data = text ? JSON.parse(text) : null;
-  } catch {
-    data = { raw: text };
-  }
-
-  if (!res.ok) {
-    const msg =
-      safeText(data?.message) ||
-      safeText(data?.error) ||
-      `Request failed (${res.status})`;
-    const err = new Error(msg);
-    err.status = res.status;
-    err.data = data;
-    err.url = url;
-    throw err;
-  }
-
-  return { url, data };
+function normalizeStatus(s) {
+  return safeText(s).trim().toLowerCase();
 }
 
 /* -----------------------------
@@ -131,147 +109,122 @@ export default function Artists() {
 
   const [artists, setArtists] = useState([]);
 
-  // Debug snapshot shown on page
-  const [debug, setDebug] = useState({
-    apiBase: safeText(API_BASE),
-    status: "active",
-    q: "",
-    primaryKeys: [],
-    primaryCount: 0,
-    primaryArtistsLen: 0,
-    fallbackUsed: false,
-    fallbackUrl: "",
-    fallbackKeys: [],
-    fallbackCount: 0,
-    fallbackArtistsLen: 0,
-    lastUpdatedAt: "",
-  });
+  // Debug state
+  const [debug, setDebug] = useState(null);
 
   const canSearch = useMemo(() => safeText(q).trim().length >= 0, [q]);
 
-  const inFlightRef = useRef(0);
-
-  async function load({ overrideQ, overrideStatus, forceCanonical = false } = {}) {
+  async function load({ forceAdminFallback = false } = {}) {
     if (!canSearch) return;
-
-    const reqId = ++inFlightRef.current;
-
-    const qTrim = safeText(overrideQ !== undefined ? overrideQ : q).trim();
-    const st = safeText(overrideStatus !== undefined ? overrideStatus : status).trim();
 
     setLoading(true);
     setError("");
 
+    const trimmedQ = safeText(q).trim();
+    const normalizedStatus = normalizeStatus(status);
+
+    const dbg = {
+      apiBase: API_BASE,
+      status: normalizedStatus,
+      q: trimmedQ,
+      primary: null,
+      adminFallback: {
+        attempted: false,
+        used: false,
+        shape: null,
+      },
+      lastUpdatedAt: new Date().toISOString(),
+    };
+
     try {
-      // 1) Primary: use api.js (single source of truth)
-      const primaryRes = await api.listArtists({
-        status: st,
-        query: qTrim,
+      // 1) Primary: PUBLIC list
+      const res = await api.listArtists({
+        status: normalizedStatus,
+        query: trimmedQ,
       });
 
-      const primaryArtists = extractArtists(primaryRes);
+      const primaryArtists = extractArtists(res);
+      dbg.primary = debugShape(res);
 
-      // Build debug snapshot for primary
-      const primaryKeys = primaryRes && typeof primaryRes === "object" ? Object.keys(primaryRes) : [];
-      const primaryCount =
-        typeof primaryRes?.count === "number"
-          ? primaryRes.count
-          : typeof primaryRes?.total === "number"
-            ? primaryRes.total
-            : Array.isArray(primaryArtists)
-              ? primaryArtists.length
-              : 0;
+      // If we got artists, render them immediately.
+      if (primaryArtists.length > 0 && !forceAdminFallback) {
+        setArtists(primaryArtists);
+        setDebug(dbg);
+        return;
+      }
 
-      // 2) If empty OR forced, attempt canonical direct GET /api/artists
-      let finalArtists = Array.isArray(primaryArtists) ? primaryArtists : [];
-      let fallbackUsed = false;
-      let fallbackUrl = "";
-      let fallbackKeys = [];
-      let fallbackCount = 0;
-      let fallbackArtistsLen = 0;
+      // 2) DEV fallback: ADMIN list (only if admin key is saved)
+      // We do this when:
+      // - forceAdminFallback is true OR
+      // - status is not "active" (pending/rejected are dev-only) OR
+      // - primary returned empty but we still want to see what's in admin
+      const shouldTryAdmin =
+        forceAdminFallback ||
+        normalizedStatus !== "active" ||
+        primaryArtists.length === 0;
 
-      if (forceCanonical || finalArtists.length === 0) {
+      if (shouldTryAdmin) {
+        dbg.adminFallback.attempted = true;
+
         try {
-          const fb = await canonicalFetchArtists({ status: st, q: qTrim });
-          fallbackUrl = safeText(fb?.url);
-          const fbRes = fb?.data;
-          fallbackKeys = fbRes && typeof fbRes === "object" ? Object.keys(fbRes) : [];
-          const fbArtists = extractArtists(fbRes);
-          fallbackArtistsLen = Array.isArray(fbArtists) ? fbArtists.length : 0;
+          const adminRes = await api.adminListArtists({
+            status: normalizedStatus,
+            q: trimmedQ,
+          });
 
-          fallbackCount =
-            typeof fbRes?.count === "number"
-              ? fbRes.count
-              : typeof fbRes?.total === "number"
-                ? fbRes.total
-                : fallbackArtistsLen;
+          const adminArtists = extractArtists(adminRes);
+          dbg.adminFallback.shape = debugShape(adminRes);
 
-          if (fallbackArtistsLen > 0) {
-            fallbackUsed = true;
-            finalArtists = fbArtists;
+          // If admin has artists, use them.
+          if (adminArtists.length > 0) {
+            dbg.adminFallback.used = true;
+            setArtists(adminArtists);
+            setDebug(dbg);
+            return;
           }
-        } catch (e) {
-          // fallback failed — keep primary result + show error only if primary empty
-          if (finalArtists.length === 0) {
-            throw e;
-          }
+        } catch (eAdmin) {
+          // If admin key isn't set, or route is protected, this may fail.
+          // We keep this silent and just continue to show primary result.
+          dbg.adminFallback.shape = {
+            error: safeText(eAdmin?.message || "Admin fallback failed"),
+            status: Number(eAdmin?.status || 0) || undefined,
+          };
         }
       }
 
-      // Only apply if this is latest request
-      if (reqId === inFlightRef.current) {
-        setArtists(Array.isArray(finalArtists) ? finalArtists : []);
+      // 3) No luck: show primary (empty) result.
+      setArtists(primaryArtists);
+      setDebug(dbg);
 
-        setDebug({
-          apiBase: safeText(getApiBase ? getApiBase() : API_BASE),
-          status: st,
-          q: qTrim,
-          primaryKeys,
-          primaryCount,
-          primaryArtistsLen: primaryArtists?.length || 0,
-          fallbackUsed,
-          fallbackUrl,
-          fallbackKeys,
-          fallbackCount,
-          fallbackArtistsLen,
-          lastUpdatedAt: new Date().toISOString(),
-        });
+      // Helpful error only if BOTH are empty and user searched something specific
+      if (trimmedQ && primaryArtists.length === 0) {
+        setError("No matching artists found on the current data source.");
       }
     } catch (e) {
-      if (reqId === inFlightRef.current) {
-        setArtists([]);
-        setDebug((d) => ({
-          ...d,
-          apiBase: safeText(getApiBase ? getApiBase() : API_BASE),
-          status: safeText(overrideStatus !== undefined ? overrideStatus : status),
-          q: safeText(overrideQ !== undefined ? overrideQ : q).trim(),
-          primaryKeys: [],
-          primaryCount: 0,
-          primaryArtistsLen: 0,
-          fallbackUsed: false,
-          fallbackUrl: safeText(e?.url || ""),
-          fallbackKeys: [],
-          fallbackCount: 0,
-          fallbackArtistsLen: 0,
-          lastUpdatedAt: new Date().toISOString(),
-        }));
+      setArtists([]);
+      setDebug({
+        apiBase: API_BASE,
+        status: normalizeStatus(status),
+        q: safeText(q).trim(),
+        error: safeText(e?.message) || "Could not load artists.",
+        statusCode: Number(e?.status || 0) || undefined,
+        lastUpdatedAt: new Date().toISOString(),
+      });
 
-        setError(
-          safeText(e?.message) || "Could not load artists. Check API routes."
-        );
-      }
+      setError(safeText(e?.message) || "Could not load artists. Check API routes.");
     } finally {
-      if (reqId === inFlightRef.current) setLoading(false);
+      setLoading(false);
     }
   }
 
   function clearSearch() {
     setQ("");
-    load({ overrideQ: "", overrideStatus: status });
+    // reload with empty search
+    load();
   }
 
   useEffect(() => {
-    load({ overrideStatus: status, overrideQ: safeText(q).trim() });
+    load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status]);
 
@@ -280,8 +233,7 @@ export default function Artists() {
       <h1 style={{ fontSize: 52, margin: 0, letterSpacing: -1 }}>Artists</h1>
 
       <p style={{ opacity: 0.85, marginTop: 10 }}>
-        Backend: {safeText(getApiBase ? getApiBase() : API_BASE)} • Public view shows{" "}
-        <b>active</b> artists only.
+        Backend: {API_BASE} • Public view shows <b>active</b> artists only.
       </p>
 
       {/* Status Pills */}
@@ -325,70 +277,38 @@ export default function Artists() {
         />
 
         <div style={{ marginTop: 12, display: "flex", gap: 10, flexWrap: "wrap" }}>
-          <button
-            onClick={() => load({ overrideQ: safeText(q).trim(), overrideStatus: status })}
-            disabled={loading}
-            style={{
-              borderRadius: 16,
-              padding: "12px 18px",
-              border: "1px solid rgba(255,255,255,0.12)",
-              background: "rgba(154,74,255,0.25)",
-              color: "white",
-              fontWeight: 900,
-              cursor: loading ? "not-allowed" : "pointer",
-              opacity: loading ? 0.8 : 1,
-            }}
-          >
+          <button onClick={() => load()} disabled={loading} style={buttonStyle(true)}>
             {loading ? "Loading…" : "Search"}
           </button>
 
-          <button
-            onClick={clearSearch}
-            disabled={loading}
-            style={{
-              borderRadius: 16,
-              padding: "12px 18px",
-              border: "1px solid rgba(255,255,255,0.12)",
-              background: "rgba(255,255,255,0.08)",
-              color: "white",
-              fontWeight: 900,
-              cursor: loading ? "not-allowed" : "pointer",
-              opacity: loading ? 0.8 : 1,
-            }}
-          >
+          <button onClick={clearSearch} disabled={loading} style={buttonStyle(false)}>
             Clear
           </button>
 
           <button
-            onClick={() => load({ overrideQ: safeText(q).trim(), overrideStatus: status, forceCanonical: true })}
+            onClick={() => load({ forceAdminFallback: true })}
             disabled={loading}
             style={{
-              borderRadius: 16,
-              padding: "12px 18px",
-              border: "1px solid rgba(255,255,255,0.12)",
-              background: "rgba(255,147,43,0.18)",
-              color: "white",
-              fontWeight: 900,
-              cursor: loading ? "not-allowed" : "pointer",
-              opacity: loading ? 0.8 : 1,
+              ...buttonStyle(false),
+              background: "rgba(255,147,43,0.14)",
+              border: "1px solid rgba(255,147,43,0.25)",
             }}
+            title="DEV: If public returns 0, try admin route (requires admin key saved in /admin)"
           >
             Force Canonical Fetch
           </button>
         </div>
 
-        <div style={{ marginTop: 10, opacity: 0.75 }}>
-          Showing: <b>{artists.length}</b> artists
-          {debug.fallbackUsed ? (
-            <span style={{ marginLeft: 8, opacity: 0.9 }}>
-              • <b>Fallback used</b>
+        <div style={{ marginTop: 10, opacity: 0.7 }}>
+          Showing: {artists.length} artists
+          {debug?.adminFallback?.used ? (
+            <span style={{ marginLeft: 10, color: "rgba(255,147,43,0.9)", fontWeight: 900 }}>
+              (admin fallback)
             </span>
           ) : null}
         </div>
 
-        {error ? (
-          <div style={{ marginTop: 10, color: "#ffb3b3" }}>{error}</div>
-        ) : null}
+        {error ? <div style={{ marginTop: 10, color: "#ffb3b3" }}>{error}</div> : null}
       </Card>
 
       {/* Debug */}
@@ -396,39 +316,19 @@ export default function Artists() {
         <div style={{ fontWeight: 900, fontSize: 22 }}>Debug</div>
         <pre
           style={{
-            marginTop: 12,
-            padding: 12,
-            borderRadius: 14,
+            marginTop: 10,
+            padding: 14,
+            borderRadius: 16,
             border: "1px solid rgba(255,255,255,0.10)",
-            background: "rgba(0,0,0,0.30)",
-            overflowX: "auto",
-            fontSize: 13,
-            lineHeight: 1.4,
+            background: "rgba(0,0,0,0.25)",
+            whiteSpace: "pre-wrap",
+            overflow: "hidden",
+            fontSize: 12,
+            lineHeight: 1.35,
             opacity: 0.9,
           }}
         >
-{JSON.stringify(
-  {
-    apiBase: debug.apiBase,
-    status: debug.status,
-    q: debug.q,
-    primary: {
-      keys: debug.primaryKeys,
-      count: debug.primaryCount,
-      artistsLen: debug.primaryArtistsLen,
-    },
-    fallback: {
-      used: debug.fallbackUsed,
-      url: debug.fallbackUrl,
-      keys: debug.fallbackKeys,
-      count: debug.fallbackCount,
-      artistsLen: debug.fallbackArtistsLen,
-    },
-    lastUpdatedAt: debug.lastUpdatedAt,
-  },
-  null,
-  2
-)}
+          {JSON.stringify(debug || { note: "No debug yet." }, null, 2)}
         </pre>
       </Card>
 
@@ -436,22 +336,18 @@ export default function Artists() {
       <Card>
         <div style={{ fontWeight: 900, fontSize: 22 }}>Results</div>
 
-        {loading ? (
-          <div style={{ marginTop: 12, opacity: 0.8 }}>Loading…</div>
-        ) : null}
-
         {!loading && artists.length === 0 ? (
           <div style={{ marginTop: 12, opacity: 0.8 }}>No artists found.</div>
         ) : null}
 
         {artists.length > 0 ? (
           <div style={{ marginTop: 12, display: "grid", gap: 12 }}>
-            {artists.map((a) => {
-              const id = getId(a);
+            {artists.map((a, idx) => {
+              const id = safeText(a.id || a._id || a.uuid || a.slug || idx);
 
               return (
                 <div
-                  key={id || `fallback-${Math.random()}`}
+                  key={id}
                   style={{
                     padding: 14,
                     borderRadius: 16,
@@ -459,22 +355,20 @@ export default function Artists() {
                     background: "rgba(0,0,0,0.25)",
                   }}
                 >
-                  <div style={{ fontWeight: 900, fontSize: 18 }}>
-                    {safeText(a?.name || "Unnamed Artist")}
-                  </div>
+                  <div style={{ fontWeight: 900, fontSize: 18 }}>{safeText(a.name)}</div>
 
                   <div style={{ opacity: 0.8, marginTop: 6 }}>
-                    {safeText(a?.genre)} • {safeText(a?.location)} •{" "}
-                    <b>{safeText(a?.status || status)}</b>
+                    {safeText(a.genre)} • {safeText(a.location)} • <b>{safeText(a.status)}</b>
                   </div>
 
-                  <div style={{ opacity: 0.8, marginTop: 6 }}>
-                    Votes: <b>{Number(a?.votes || 0)}</b>
-                  </div>
+                  {safeText(a.bio) ? (
+                    <div style={{ marginTop: 10, opacity: 0.78 }}>{safeText(a.bio)}</div>
+                  ) : null}
 
-                  <div style={{ marginTop: 10 }}>
+                  <div style={{ marginTop: 12 }}>
+                    {/* THIS is what you tap to view */}
                     <Link
-                      to={id ? `/artist/${encodeURIComponent(id)}` : "/artists"}
+                      to={`/artist/${encodeURIComponent(id)}`}
                       style={{
                         textDecoration: "none",
                         borderRadius: 16,
