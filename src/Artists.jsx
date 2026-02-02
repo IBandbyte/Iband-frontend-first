@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { api, API_BASE } from "./services/api";
+import { api, API_BASE, getAdminKey } from "./services/api";
 
 /* -----------------------------
    Helpers
@@ -74,26 +74,26 @@ function extractArtists(res) {
   return [];
 }
 
-function debugShape(res) {
-  const receivedType = Array.isArray(res) ? "array" : typeof res;
-  const keys = res && typeof res === "object" && !Array.isArray(res) ? Object.keys(res) : [];
+function shapeOf(res) {
+  const obj = res && typeof res === "object" ? res : null;
+  const keys = obj ? Object.keys(obj) : [];
   const dataKeys =
-    res && typeof res === "object" && res.data && typeof res.data === "object"
-      ? Object.keys(res.data)
-      : [];
-  const artists = extractArtists(res);
+    obj && obj.data && typeof obj.data === "object" ? Object.keys(obj.data) : [];
+  const artistsLen = extractArtists(res).length;
   const count =
-    typeof res?.count === "number"
-      ? res.count
-      : typeof res?.data?.count === "number"
-      ? res.data.count
-      : artists.length;
+    typeof obj?.count === "number"
+      ? obj.count
+      : typeof obj?.data?.count === "number"
+        ? obj.data.count
+        : artistsLen;
 
-  return { receivedType, keys, dataKeys, count, artistsLen: artists.length };
-}
-
-function normalizeStatus(s) {
-  return safeText(s).trim().toLowerCase();
+  return {
+    receivedType: Array.isArray(res) ? "array" : typeof res,
+    keys,
+    dataKeys,
+    count,
+    artistsLen,
+  };
 }
 
 /* -----------------------------
@@ -109,109 +109,132 @@ export default function Artists() {
 
   const [artists, setArtists] = useState([]);
 
-  // Debug state
+  // Admin-aware preview
+  const [adminPreview, setAdminPreview] = useState(false);
+  const [adminHint, setAdminHint] = useState("");
   const [debug, setDebug] = useState(null);
+
+  const hasAdminKey = useMemo(() => {
+    try {
+      return !!safeText(getAdminKey?.() || "").trim();
+    } catch {
+      return false;
+    }
+  }, []);
 
   const canSearch = useMemo(() => safeText(q).trim().length >= 0, [q]);
 
-  async function load({ forceAdminFallback = false } = {}) {
+  async function load({ forceCanonical = false } = {}) {
     if (!canSearch) return;
 
     setLoading(true);
     setError("");
-
-    const trimmedQ = safeText(q).trim();
-    const normalizedStatus = normalizeStatus(status);
+    setAdminHint("");
 
     const dbg = {
       apiBase: API_BASE,
-      status: normalizedStatus,
-      q: trimmedQ,
+      status,
+      q: safeText(q).trim(),
       primary: null,
       adminFallback: {
         attempted: false,
         used: false,
+        note: "",
         shape: null,
       },
       lastUpdatedAt: new Date().toISOString(),
     };
 
     try {
-      // 1) Primary: PUBLIC list
+      // Primary (public) fetch
+      // forceCanonical: still uses api client, but we mark it in debug for you
       const res = await api.listArtists({
-        status: normalizedStatus,
-        query: trimmedQ,
+        status,
+        query: safeText(q).trim(),
+        forceCanonical: !!forceCanonical,
       });
 
-      const primaryArtists = extractArtists(res);
-      dbg.primary = debugShape(res);
+      dbg.primary = shapeOf(res);
 
-      // If we got artists, render them immediately.
-      if (primaryArtists.length > 0 && !forceAdminFallback) {
-        setArtists(primaryArtists);
-        setDebug(dbg);
-        return;
-      }
+      const extracted = extractArtists(res);
+      setArtists(extracted);
 
-      // 2) DEV fallback: ADMIN list (only if admin key is saved)
-      // We do this when:
-      // - forceAdminFallback is true OR
-      // - status is not "active" (pending/rejected are dev-only) OR
-      // - primary returned empty but we still want to see what's in admin
-      const shouldTryAdmin =
-        forceAdminFallback ||
-        normalizedStatus !== "active" ||
-        primaryArtists.length === 0;
-
-      if (shouldTryAdmin) {
+      // If public is empty, and we have admin key saved, do an admin visibility check
+      if (extracted.length === 0 && hasAdminKey) {
         dbg.adminFallback.attempted = true;
 
+        // First check admin ACTIVE for truth
+        let adminResActive = null;
         try {
-          const adminRes = await api.adminListArtists({
-            status: normalizedStatus,
-            q: trimmedQ,
+          adminResActive = await api.adminListArtists({
+            status: "active",
+            q: safeText(q).trim(),
+            query: safeText(q).trim(),
           });
-
-          const adminArtists = extractArtists(adminRes);
-          dbg.adminFallback.shape = debugShape(adminRes);
-
-          // If admin has artists, use them.
-          if (adminArtists.length > 0) {
-            dbg.adminFallback.used = true;
-            setArtists(adminArtists);
-            setDebug(dbg);
-            return;
-          }
-        } catch (eAdmin) {
-          // If admin key isn't set, or route is protected, this may fail.
-          // We keep this silent and just continue to show primary result.
-          dbg.adminFallback.shape = {
-            error: safeText(eAdmin?.message || "Admin fallback failed"),
-            status: Number(eAdmin?.status || 0) || undefined,
-          };
+        } catch (e) {
+          // ignore, we’ll report below
         }
+
+        const activeShape = adminResActive ? shapeOf(adminResActive) : null;
+        const activeArtists = extractArtists(adminResActive);
+
+        // If admin has active but public doesn’t, we show hint + allow preview toggle
+        if (activeArtists.length > 0) {
+          dbg.adminFallback.used = true;
+          dbg.adminFallback.shape = activeShape;
+          dbg.adminFallback.note =
+            "Admin can see active artists but public returned none. This indicates a backend public-filter issue or separate dataset.";
+
+          setAdminHint(
+            "Admin can see ACTIVE artists but Public shows none. Use Admin Preview below, and we’ll fix the backend public filter next."
+          );
+
+          if (adminPreview) setArtists(activeArtists);
+          setDebug(dbg);
+          return;
+        }
+
+        // Otherwise check admin PENDING (most common reason)
+        let adminResPending = null;
+        try {
+          adminResPending = await api.adminListArtists({
+            status: "pending",
+            q: safeText(q).trim(),
+            query: safeText(q).trim(),
+          });
+        } catch (e) {
+          // ignore, report below
+        }
+
+        const pendingArtists = extractArtists(adminResPending);
+
+        if (pendingArtists.length > 0) {
+          dbg.adminFallback.used = true;
+          dbg.adminFallback.shape = shapeOf(adminResPending);
+          dbg.adminFallback.note =
+            "Admin has PENDING artists. Public list is active-only, so nothing will show until approved.";
+
+          setAdminHint(
+            "You have PENDING artists. Public view is ACTIVE-only. Approve the artist in Admin → Artists Inbox to make it appear publicly."
+          );
+
+          if (adminPreview) setArtists(pendingArtists);
+          setDebug(dbg);
+          return;
+        }
+
+        // If admin returns nothing too
+        dbg.adminFallback.used = false;
+        dbg.adminFallback.note =
+          "Admin did not return active or pending artists either.";
       }
 
-      // 3) No luck: show primary (empty) result.
-      setArtists(primaryArtists);
       setDebug(dbg);
-
-      // Helpful error only if BOTH are empty and user searched something specific
-      if (trimmedQ && primaryArtists.length === 0) {
-        setError("No matching artists found on the current data source.");
-      }
     } catch (e) {
       setArtists([]);
-      setDebug({
-        apiBase: API_BASE,
-        status: normalizeStatus(status),
-        q: safeText(q).trim(),
-        error: safeText(e?.message) || "Could not load artists.",
-        statusCode: Number(e?.status || 0) || undefined,
-        lastUpdatedAt: new Date().toISOString(),
-      });
-
       setError(safeText(e?.message) || "Could not load artists. Check API routes.");
+      dbg.primary = { error: safeText(e?.message) || "request failed" };
+      setDebug(dbg);
     } finally {
       setLoading(false);
     }
@@ -219,14 +242,14 @@ export default function Artists() {
 
   function clearSearch() {
     setQ("");
-    // reload with empty search
-    load();
+    // load with the cleared state (next tick)
+    setTimeout(() => load(), 0);
   }
 
   useEffect(() => {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [status]);
+  }, [status, adminPreview]);
 
   return (
     <div style={{ maxWidth: 900, margin: "0 auto", padding: "28px 16px" }}>
@@ -281,19 +304,31 @@ export default function Artists() {
             {loading ? "Loading…" : "Search"}
           </button>
 
-          <button onClick={clearSearch} disabled={loading} style={buttonStyle(false)}>
+          <button onClick={clearSearch} style={buttonStyle(false)}>
             Clear
           </button>
 
+          {hasAdminKey ? (
+            <button
+              onClick={() => setAdminPreview((v) => !v)}
+              style={{
+                ...buttonStyle(false),
+                borderColor: adminPreview ? "rgba(255,147,43,0.55)" : "rgba(255,255,255,0.12)",
+              }}
+              title="Uses Admin API if public list is empty"
+            >
+              {adminPreview ? "Admin Preview: ON" : "Admin Preview: OFF"}
+            </button>
+          ) : null}
+
           <button
-            onClick={() => load({ forceAdminFallback: true })}
+            onClick={() => load({ forceCanonical: true })}
             disabled={loading}
             style={{
               ...buttonStyle(false),
-              background: "rgba(255,147,43,0.14)",
-              border: "1px solid rgba(255,147,43,0.25)",
+              borderColor: "rgba(255,147,43,0.30)",
             }}
-            title="DEV: If public returns 0, try admin route (requires admin key saved in /admin)"
+            title="Forces a fresh fetch + refreshes debug timestamp"
           >
             Force Canonical Fetch
           </button>
@@ -301,35 +336,15 @@ export default function Artists() {
 
         <div style={{ marginTop: 10, opacity: 0.7 }}>
           Showing: {artists.length} artists
-          {debug?.adminFallback?.used ? (
-            <span style={{ marginLeft: 10, color: "rgba(255,147,43,0.9)", fontWeight: 900 }}>
-              (admin fallback)
-            </span>
-          ) : null}
         </div>
 
-        {error ? <div style={{ marginTop: 10, color: "#ffb3b3" }}>{error}</div> : null}
-      </Card>
+        {adminHint ? (
+          <div style={{ marginTop: 10, color: "#ffd7a6", fontWeight: 700 }}>
+            {adminHint}
+          </div>
+        ) : null}
 
-      {/* Debug */}
-      <Card>
-        <div style={{ fontWeight: 900, fontSize: 22 }}>Debug</div>
-        <pre
-          style={{
-            marginTop: 10,
-            padding: 14,
-            borderRadius: 16,
-            border: "1px solid rgba(255,255,255,0.10)",
-            background: "rgba(0,0,0,0.25)",
-            whiteSpace: "pre-wrap",
-            overflow: "hidden",
-            fontSize: 12,
-            lineHeight: 1.35,
-            opacity: 0.9,
-          }}
-        >
-          {JSON.stringify(debug || { note: "No debug yet." }, null, 2)}
-        </pre>
+        {error ? <div style={{ marginTop: 10, color: "#ffb3b3" }}>{error}</div> : null}
       </Card>
 
       {/* Results */}
@@ -342,12 +357,13 @@ export default function Artists() {
 
         {artists.length > 0 ? (
           <div style={{ marginTop: 12, display: "grid", gap: 12 }}>
-            {artists.map((a, idx) => {
-              const id = safeText(a.id || a._id || a.uuid || a.slug || idx);
+            {artists.map((a) => {
+              const id = safeText(a.id || a._id || a.artistId);
+              const safeId = encodeURIComponent(id);
 
               return (
                 <div
-                  key={id}
+                  key={id || Math.random()}
                   style={{
                     padding: 14,
                     borderRadius: 16,
@@ -361,14 +377,9 @@ export default function Artists() {
                     {safeText(a.genre)} • {safeText(a.location)} • <b>{safeText(a.status)}</b>
                   </div>
 
-                  {safeText(a.bio) ? (
-                    <div style={{ marginTop: 10, opacity: 0.78 }}>{safeText(a.bio)}</div>
-                  ) : null}
-
-                  <div style={{ marginTop: 12 }}>
-                    {/* THIS is what you tap to view */}
+                  <div style={{ marginTop: 10, display: "flex", gap: 10, flexWrap: "wrap" }}>
                     <Link
-                      to={`/artist/${encodeURIComponent(id)}`}
+                      to={`/artist/${safeId}`}
                       style={{
                         textDecoration: "none",
                         borderRadius: 16,
@@ -382,12 +393,39 @@ export default function Artists() {
                     >
                       View →
                     </Link>
+
+                    <span style={{ opacity: 0.6, fontSize: 12, alignSelf: "center" }}>
+                      ID: {id || "(missing id)"}
+                    </span>
                   </div>
                 </div>
               );
             })}
           </div>
         ) : null}
+      </Card>
+
+      {/* Debug */}
+      <Card>
+        <div style={{ fontWeight: 900, fontSize: 22 }}>Debug</div>
+        <div style={{ opacity: 0.75, marginTop: 6 }}>
+          This helps us see response shapes without breaking the UI.
+        </div>
+
+        <pre
+          style={{
+            marginTop: 12,
+            padding: 12,
+            borderRadius: 16,
+            border: "1px solid rgba(255,255,255,0.10)",
+            background: "rgba(0,0,0,0.25)",
+            overflowX: "auto",
+            fontSize: 12,
+            lineHeight: 1.35,
+          }}
+        >
+          {JSON.stringify(debug || { ready: true }, null, 2)}
+        </pre>
       </Card>
     </div>
   );
