@@ -1,104 +1,125 @@
-import React from "react";
-import { Routes, Route, Navigate, NavLink } from "react-router-dom";
-
+import { BrowserRouter, NavLink, Route, Routes } from "react-router-dom";
+import Feed from "./Feed";
 import Artists from "./Artists";
-import Submit from "./Submit";
 import ArtistDetail from "./ArtistDetail";
+import Submit from "./Submit";
 
-// Admin upgrade components
-import AdminDashboard from "./components/admin/AdminDashboard";
+function linkStyle({ isActive }) {
+  return {
+    color: isActive ? "#ffffff" : "rgba(255,255,255,0.65)",
+    textDecoration: "none",
+    fontWeight: isActive ? 800 : 600,
+    fontSize: "14px",
+    padding: "10px 14px",
+    borderRadius: "999px",
+    background: isActive ? "rgba(255,255,255,0.12)" : "transparent",
+    border: isActive
+      ? "1px solid rgba(255,255,255,0.15)"
+      : "1px solid transparent",
+    transition: "all 0.2s ease"
+  };
+}
 
-import { API_BASE } from "./services/api";
-
-function Pill({ to, children }) {
+function Shell({ children }) {
   return (
-    <NavLink
-      to={to}
-      style={({ isActive }) => ({
-        textDecoration: "none",
-        borderRadius: 18,
-        padding: "12px 18px",
-        border: "1px solid rgba(255,255,255,0.12)",
-        background: isActive
-          ? "rgba(154,74,255,0.28)"
-          : "rgba(255,255,255,0.08)",
-        color: "white",
-        fontWeight: 900,
-        display: "inline-block",
-        minWidth: 96,
-        textAlign: "center",
-      })}
-    >
-      {children}
-    </NavLink>
+    <div style={styles.appShell}>
+      <header style={styles.topBar}>
+        <div style={styles.logoWrap}>
+          <div style={styles.logoIcon}>🎵</div>
+          <div>
+            <div style={styles.logoText}>iBandbyte</div>
+            <div style={styles.logoSub}>Powered by Fans</div>
+          </div>
+        </div>
+
+        <nav style={styles.nav}>
+          <NavLink to="/" style={linkStyle} end>
+            Feed
+          </NavLink>
+
+          <NavLink to="/artists" style={linkStyle}>
+            Artists
+          </NavLink>
+
+          <NavLink to="/submit" style={linkStyle}>
+            Submit
+          </NavLink>
+        </nav>
+      </header>
+
+      <main style={styles.main}>{children}</main>
+    </div>
   );
 }
 
 export default function App() {
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        padding: "26px 16px",
-        background:
-          "radial-gradient(circle at 20% 10%, rgba(154,74,255,0.18), transparent 45%), radial-gradient(circle at 90% 20%, rgba(255,147,43,0.14), transparent 40%), linear-gradient(180deg, rgba(0,0,0,0.95), rgba(0,0,0,0.92))",
-        color: "white",
-      }}
-    >
-      <div style={{ maxWidth: 980, margin: "0 auto" }}>
-        {/* Header */}
-        <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-          <div
-            style={{
-              width: 14,
-              height: 14,
-              borderRadius: 999,
-              background:
-                "linear-gradient(90deg, rgba(154,74,255,1), rgba(255,147,43,1))",
-              boxShadow: "0 0 18px rgba(154,74,255,0.35)",
-            }}
-          />
-          <div>
-            <div style={{ fontSize: 44, fontWeight: 900, letterSpacing: -1 }}>
-              iBand
-            </div>
-            <div style={{ opacity: 0.85, marginTop: 2 }}>
-              Get Signed / Connect
-            </div>
-          </div>
-        </div>
+    <BrowserRouter>
+      <Shell>
+        <Routes>
+          {/* 🔥 HOME = FEED */}
+          <Route path="/" element={<Feed />} />
 
-        <div style={{ opacity: 0.8, marginTop: 10 }}>API: {API_BASE}</div>
-
-        {/* Tabs */}
-        <div style={{ marginTop: 18, display: "flex", gap: 12, flexWrap: "wrap" }}>
-          <Pill to="/artists">Artists</Pill>
-          <Pill to="/submit">Submit</Pill>
-          <Pill to="/admin">Admin</Pill>
-        </div>
-
-        {/* Routes */}
-        <div style={{ marginTop: 16 }}>
-          <Routes>
-            <Route path="/" element={<Navigate to="/artists" replace />} />
-
-            <Route path="/artists" element={<Artists />} />
-            <Route path="/submit" element={<Submit />} />
-            <Route path="/artist/:id" element={<ArtistDetail />} />
-
-            {/* IMPORTANT: allow future subroutes under Admin */}
-            <Route path="/admin/*" element={<AdminDashboard />} />
-
-            {/* fallback */}
-            <Route path="*" element={<Navigate to="/artists" replace />} />
-          </Routes>
-        </div>
-
-        {/* Footer */}
-        <div style={{ marginTop: 30, opacity: 0.55 }}>
-          Powered by Fans. A Platform for Artists and Influencers.
-        </div>
-      </div>
-    </div>
+          {/* EXISTING SCREENS (UNCHANGED) */}
+          <Route path="/artists" element={<Artists />} />
+          <Route path="/artists/:id" element={<ArtistDetail />} />
+          <Route path="/submit" element={<Submit />} />
+        </Routes>
+      </Shell>
+    </BrowserRouter>
   );
 }
+
+const styles = {
+  appShell: {
+    minHeight: "100vh",
+    background:
+      "linear-gradient(180deg, #050816 0%, #0f172a 40%, #111827 100%)",
+    color: "#ffffff",
+    fontFamily:
+      'Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
+  },
+  topBar: {
+    position: "sticky",
+    top: 0,
+    zIndex: 50,
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: "14px 18px",
+    backdropFilter: "blur(14px)",
+    background: "rgba(5, 8, 22, 0.75)",
+    borderBottom: "1px solid rgba(255,255,255,0.06)"
+  },
+  logoWrap: {
+    display: "flex",
+    alignItems: "center",
+    gap: "10px"
+  },
+  logoIcon: {
+    width: "40px",
+    height: "40px",
+    borderRadius: "999px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    background:
+      "linear-gradient(135deg, rgba(168,85,247,0.8), rgba(249,115,22,0.8))",
+    fontSize: "18px"
+  },
+  logoText: {
+    fontSize: "16px",
+    fontWeight: 800
+  },
+  logoSub: {
+    fontSize: "11px",
+    opacity: 0.7
+  },
+  nav: {
+    display: "flex",
+    gap: "10px"
+  },
+  main: {
+    padding: "10px 14px 40px"
+  }
+};
