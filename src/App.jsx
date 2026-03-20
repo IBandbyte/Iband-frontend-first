@@ -1,4 +1,4 @@
-import { BrowserRouter, NavLink, Route, Routes } from "react-router-dom";
+import { NavLink, Route, Routes } from "react-router-dom";
 import Feed from "./Feed";
 import Artists from "./Artists";
 import ArtistDetail from "./ArtistDetail";
@@ -54,19 +54,14 @@ function Shell({ children }) {
 
 export default function App() {
   return (
-    <BrowserRouter>
-      <Shell>
-        <Routes>
-          {/* 🔥 HOME = FEED */}
-          <Route path="/" element={<Feed />} />
-
-          {/* EXISTING SCREENS (UNCHANGED) */}
-          <Route path="/artists" element={<Artists />} />
-          <Route path="/artists/:id" element={<ArtistDetail />} />
-          <Route path="/submit" element={<Submit />} />
-        </Routes>
-      </Shell>
-    </BrowserRouter>
+    <Shell>
+      <Routes>
+        <Route path="/" element={<Feed />} />
+        <Route path="/artists" element={<Artists />} />
+        <Route path="/artists/:id" element={<ArtistDetail />} />
+        <Route path="/submit" element={<Submit />} />
+      </Routes>
+    </Shell>
   );
 }
 
@@ -87,9 +82,9 @@ const styles = {
     justifyContent: "space-between",
     alignItems: "center",
     padding: "14px 18px",
-    backdropFilter: "blur(14px)",
-    background: "rgba(5, 8, 22, 0.75)",
-    borderBottom: "1px solid rgba(255,255,255,0.06)"
+    backdropFilter: "blur(12px)",
+    background: "rgba(5,8,22,0.7)",
+    borderBottom: "1px solid rgba(255,255,255,0.05)"
   },
   logoWrap: {
     display: "flex",
@@ -97,29 +92,21 @@ const styles = {
     gap: "10px"
   },
   logoIcon: {
-    width: "40px",
-    height: "40px",
-    borderRadius: "999px",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    background:
-      "linear-gradient(135deg, rgba(168,85,247,0.8), rgba(249,115,22,0.8))",
-    fontSize: "18px"
+    fontSize: "22px"
   },
   logoText: {
-    fontSize: "16px",
-    fontWeight: 800
+    fontWeight: 800,
+    fontSize: "16px"
   },
   logoSub: {
     fontSize: "11px",
-    opacity: 0.7
+    opacity: 0.6
   },
   nav: {
     display: "flex",
     gap: "10px"
   },
   main: {
-    padding: "10px 14px 40px"
+    padding: "16px"
   }
 };
