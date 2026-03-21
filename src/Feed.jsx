@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   fetchSmartFeed,
   fetchPersonalisedFeed,
@@ -20,7 +20,9 @@ function normaliseSmartFeed(data) {
     priority: item.priority || "medium",
     action: item.action || "discover_artist",
     badge: "SMART",
-    profileHandle: `@${String(item.artist || "artist").toLowerCase().replace(/\s+/g, "")}`,
+    profileHandle: `@${String(item.artist || "artist")
+      .toLowerCase()
+      .replace(/\s+/g, "")}`,
     soundLabel: item.artist || "Original Sound",
     caption:
       item.feedReason ||
@@ -46,7 +48,9 @@ function normalisePersonalisedFeed(data) {
     priority: firstProfile?.engagementLevel || "medium",
     action: item.action || "discover_artist",
     badge: "FOR YOU",
-    profileHandle: `@${String(item.artist || "artist").toLowerCase().replace(/\s+/g, "")}`,
+    profileHandle: `@${String(item.artist || "artist")
+      .toLowerCase()
+      .replace(/\s+/g, "")}`,
     soundLabel: item.artist || "Personalised Track",
     caption:
       item.reason ||
@@ -69,7 +73,9 @@ function normalisePredictiveFeed(data) {
     priority: item.injectionTiming || "soon",
     action: item.predictedNextAction || "show_next",
     badge: "PREDICTED",
-    profileHandle: `@${String(item.recommendedArtist || "artist").toLowerCase().replace(/\s+/g, "")}`,
+    profileHandle: `@${String(item.recommendedArtist || "artist")
+      .toLowerCase()
+      .replace(/\s+/g, "")}`,
     soundLabel: item.recommendedArtist || "Predicted Sound",
     caption:
       item.reason ||
@@ -153,6 +159,12 @@ export default function Feed() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [activeTab, setActiveTab] = useState("For You");
+  const [reactionMenu, setReactionMenu] = useState({
+    open: false,
+    itemId: null
+  });
+
+  const holdTimerRef = useRef(null);
 
   useEffect(() => {
     let active = true;
@@ -187,6 +199,9 @@ export default function Feed() {
 
     return () => {
       active = false;
+      if (holdTimerRef.current) {
+        clearTimeout(holdTimerRef.current);
+      }
     };
   }, []);
 
@@ -198,12 +213,47 @@ export default function Feed() {
       .map((item, index) => ({
         ...item,
         orderLabel: index + 1,
-        likes: seededNumber(item.id, 1200, 42000),
+        supportCount: seededNumber(item.id, 1200, 42000),
         comments: seededNumber(`${item.id}-comments`, 18, 1800),
         saves: seededNumber(`${item.id}-saves`, 12, 3500),
         shares: seededNumber(`${item.id}-shares`, 10, 2400)
       }));
   }, [personalisedFeed, smartFeed, predictiveFeed]);
+
+  function handleSupportPressStart(itemId) {
+    if (holdTimerRef.current) {
+      clearTimeout(holdTimerRef.current);
+    }
+
+    holdTimerRef.current = setTimeout(() => {
+      setReactionMenu({
+        open: true,
+        itemId
+      });
+    }, 400);
+  }
+
+  function handleSupportPressEnd() {
+    if (holdTimerRef.current) {
+      clearTimeout(holdTimerRef.current);
+    }
+  }
+
+  function handleReactionSelect(reaction) {
+    console.log("iBand reaction selected:", reaction, "for item:", reactionMenu.itemId);
+
+    setReactionMenu({
+      open: false,
+      itemId: null
+    });
+  }
+
+  function closeReactionMenu() {
+    setReactionMenu({
+      open: false,
+      itemId: null
+    });
+  }
 
   return (
     <div style={styles.page}>
@@ -247,92 +297,203 @@ export default function Feed() {
         </div>
       ) : (
         <div style={styles.snapScroller}>
-          {feedItems.map((item, index) => (
-            <section
-              key={item.id}
-              style={{
-                ...styles.feedSlide,
-                background: getMockBackground(index)
-              }}
-            >
-              <div style={styles.backgroundGlow} />
-              <div style={styles.topTint} />
-              <div style={styles.bottomTint} />
+          {feedItems.map((item, index) => {
+            const isReactionMenuOpen =
+              reactionMenu.open && reactionMenu.itemId === item.id;
 
-              <div style={styles.rightRail}>
-                <button type="button" style={styles.profileStackButton} aria-label="Open profile">
-                  <div style={styles.profileAvatarCircle}>{item.icon}</div>
-                  <div style={styles.profilePlus}>+</div>
-                </button>
+            return (
+              <section
+                key={item.id}
+                style={{
+                  ...styles.feedSlide,
+                  background: getMockBackground(index)
+                }}
+                onClick={() => {
+                  if (isReactionMenuOpen) {
+                    closeReactionMenu();
+                  }
+                }}
+              >
+                <div style={styles.backgroundGlow} />
+                <div style={styles.topTint} />
+                <div style={styles.bottomTint} />
 
-                <button type="button" style={styles.railButton} aria-label="Like">
-                  <span style={styles.railIcon}>♡</span>
-                  <span style={styles.railCount}>{formatCompactNumber(item.likes)}</span>
-                </button>
+                <div style={styles.rightRail}>
+                  <button
+                    type="button"
+                    style={styles.profileStackButton}
+                    aria-label="Open profile"
+                  >
+                    <div style={styles.profileAvatarCircle}>🎸</div>
+                    <div style={styles.profilePlus}>+</div>
+                  </button>
 
-                <button type="button" style={styles.railButton} aria-label="Comments">
-                  <span style={styles.railIcon}>💬</span>
-                  <span style={styles.railCount}>{formatCompactNumber(item.comments)}</span>
-                </button>
+                  <div style={styles.supportWrap}>
+                    {isReactionMenuOpen && (
+                      <div style={styles.reactionMenu}>
+                        <button
+                          type="button"
+                          style={styles.reactionButton}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleReactionSelect("fire");
+                          }}
+                        >
+                          🔥
+                        </button>
+                        <button
+                          type="button"
+                          style={styles.reactionButton}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleReactionSelect("rocket");
+                          }}
+                        >
+                          🚀
+                        </button>
+                        <button
+                          type="button"
+                          style={styles.reactionButton}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleReactionSelect("boom");
+                          }}
+                        >
+                          💥
+                        </button>
+                        <button
+                          type="button"
+                          style={styles.reactionButton}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleReactionSelect("target");
+                          }}
+                        >
+                          🎯
+                        </button>
+                        <button
+                          type="button"
+                          style={styles.reactionButton}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleReactionSelect("bomb");
+                          }}
+                        >
+                          💣
+                        </button>
+                      </div>
+                    )}
 
-                <button type="button" style={styles.railButton} aria-label="Save">
-                  <span style={styles.railIcon}>🔖</span>
-                  <span style={styles.railCount}>{formatCompactNumber(item.saves)}</span>
-                </button>
+                    <button
+                      type="button"
+                      style={styles.railButton}
+                      aria-label="Support"
+                      onMouseDown={() => handleSupportPressStart(item.id)}
+                      onMouseUp={handleSupportPressEnd}
+                      onMouseLeave={handleSupportPressEnd}
+                      onTouchStart={() => handleSupportPressStart(item.id)}
+                      onTouchEnd={handleSupportPressEnd}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (!isReactionMenuOpen) {
+                          console.log("iBand support tapped for:", item.id);
+                        }
+                      }}
+                    >
+                      <span style={styles.railIcon}>🎧</span>
+                      <span style={styles.railCount}>
+                        {formatCompactNumber(item.supportCount)}
+                      </span>
+                    </button>
+                  </div>
 
-                <button type="button" style={styles.railButton} aria-label="Share">
-                  <span style={styles.railIcon}>↗</span>
-                  <span style={styles.railCount}>{formatCompactNumber(item.shares)}</span>
-                </button>
+                  <button
+                    type="button"
+                    style={styles.railButton}
+                    aria-label="Comments"
+                  >
+                    <span style={styles.railIcon}>💬</span>
+                    <span style={styles.railCount}>
+                      {formatCompactNumber(item.comments)}
+                    </span>
+                  </button>
 
-                <button type="button" style={styles.soundButton} aria-label="Open sound page">
-                  <div style={styles.soundDiscInner}>{item.icon}</div>
-                </button>
-              </div>
+                  <button
+                    type="button"
+                    style={styles.railButton}
+                    aria-label="Save"
+                  >
+                    <span style={styles.railIcon}>⭐</span>
+                    <span style={styles.railCount}>
+                      {formatCompactNumber(item.saves)}
+                    </span>
+                  </button>
 
-              <div style={styles.bottomOverlay}>
-                <div style={styles.identityRow}>
-                  <span style={styles.artistName}>{item.artist}</span>
-                  <span style={styles.verifiedDot}>✓</span>
+                  <button
+                    type="button"
+                    style={styles.railButton}
+                    aria-label="Spread"
+                  >
+                    <span style={styles.railIcon}>🚀</span>
+                    <span style={styles.railCount}>
+                      {formatCompactNumber(item.shares)}
+                    </span>
+                  </button>
+
+                  <button
+                    type="button"
+                    style={styles.soundButton}
+                    aria-label="Open sound page"
+                  >
+                    <div style={styles.soundDiscInner}>{item.icon}</div>
+                  </button>
                 </div>
 
-                <div style={styles.handleRow}>
-                  <span style={styles.handle}>{item.profileHandle}</span>
-                  <span style={{ ...styles.feedBadge, ...getBadgeStyle(item.badge) }}>
-                    {item.badge}
-                  </span>
+                <div style={styles.bottomOverlay}>
+                  <div style={styles.identityRow}>
+                    <span style={styles.artistName}>{item.artist}</span>
+                    <span style={styles.verifiedDot}>✓</span>
+                  </div>
+
+                  <div style={styles.handleRow}>
+                    <span style={styles.handle}>{item.profileHandle}</span>
+                    <span
+                      style={{
+                        ...styles.feedBadge,
+                        ...getBadgeStyle(item.badge)
+                      }}
+                    >
+                      {item.badge}
+                    </span>
+                  </div>
+
+                  <div style={styles.captionText}>{item.caption}</div>
+
+                  <div style={styles.subtitleText}>{item.subtitle}</div>
+
+                  <div style={styles.whyBox}>
+                    <div style={styles.whyLabel}>Why you are seeing this</div>
+                    <div style={styles.whyText}>{item.reason}</div>
+                  </div>
+
+                  <div style={styles.metaRow}>
+                    <span style={styles.metaSource}>{item.source}</span>
+                    <span style={styles.metaDivider}>•</span>
+                    <span style={styles.metaCountry}>{item.country}</span>
+                    <span style={styles.metaDivider}>•</span>
+                    <span style={styles.metaAction}>{item.action}</span>
+                  </div>
+
+                  <div style={styles.soundRow}>
+                    <span style={styles.soundNote}>♫</span>
+                    <span style={styles.soundText}>{item.soundLabel}</span>
+                  </div>
                 </div>
 
-                <div style={styles.captionText}>
-                  {item.caption}
-                </div>
-
-                <div style={styles.subtitleText}>
-                  {item.subtitle}
-                </div>
-
-                <div style={styles.whyBox}>
-                  <div style={styles.whyLabel}>Why you are seeing this</div>
-                  <div style={styles.whyText}>{item.reason}</div>
-                </div>
-
-                <div style={styles.metaRow}>
-                  <span style={styles.metaSource}>{item.source}</span>
-                  <span style={styles.metaDivider}>•</span>
-                  <span style={styles.metaCountry}>{item.country}</span>
-                  <span style={styles.metaDivider}>•</span>
-                  <span style={styles.metaAction}>{item.action}</span>
-                </div>
-
-                <div style={styles.soundRow}>
-                  <span style={styles.soundNote}>♫</span>
-                  <span style={styles.soundText}>{item.soundLabel}</span>
-                </div>
-              </div>
-
-              <div style={styles.orderBadge}>#{item.orderLabel}</div>
-            </section>
-          ))}
+                <div style={styles.orderBadge}>#{item.orderLabel}</div>
+              </section>
+            );
+          })}
         </div>
       )}
     </div>
@@ -513,6 +674,12 @@ const styles = {
     fontSize: "15px",
     lineHeight: 1
   },
+  supportWrap: {
+    position: "relative",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center"
+  },
   railButton: {
     appearance: "none",
     background: "transparent",
@@ -534,6 +701,30 @@ const styles = {
     fontSize: "13px",
     fontWeight: 700,
     textShadow: "0 4px 12px rgba(0,0,0,0.35)"
+  },
+  reactionMenu: {
+    position: "absolute",
+    right: "52px",
+    top: "0",
+    transform: "translateY(-10%)",
+    display: "flex",
+    alignItems: "center",
+    gap: "8px",
+    padding: "10px 12px",
+    borderRadius: "999px",
+    background: "rgba(0,0,0,0.86)",
+    border: "1px solid rgba(255,255,255,0.14)",
+    boxShadow: "0 12px 26px rgba(0,0,0,0.35)",
+    backdropFilter: "blur(12px)"
+  },
+  reactionButton: {
+    appearance: "none",
+    background: "transparent",
+    border: "none",
+    fontSize: "22px",
+    lineHeight: 1,
+    cursor: "pointer",
+    padding: 0
   },
   soundButton: {
     appearance: "none",
