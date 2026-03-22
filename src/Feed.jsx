@@ -706,9 +706,9 @@ const styles = {
   },
   reactionMenu: {
     position: "absolute",
-    right: "60px",
-    top: "50%",
-    transform: "translateY(-50%)",
+    right: "52px",
+    top: "0",
+    transform: "translateY(-10%)",
     display: "flex",
     alignItems: "center",
     gap: "10px",
