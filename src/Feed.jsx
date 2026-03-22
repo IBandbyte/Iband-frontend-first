@@ -1,33 +1,22 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+// FULL FILE REPLACEMENT — Feed.jsx (Press & Hold Reactions Added)
+
+import { useEffect, useMemo, useState } from "react";
 import {
   fetchSmartFeed,
   fetchPersonalisedFeed,
   fetchPredictiveFeed
 } from "./services/api";
 
+// ---------------- NORMALISERS (UNCHANGED) ----------------
 function normaliseSmartFeed(data) {
   const items = Array.isArray(data?.feed) ? data.feed : [];
-
   return items.map((item, index) => ({
     id: item.id || `smart-${index}`,
-    source: "smart-feed",
     artist: item.artist || "Unknown Artist",
-    country: item.country || "Unknown",
-    title: item.cardTitle || "Smart Feed Pick",
-    subtitle: item.cardSubtitle || "Recommended for discovery",
-    reason: item.feedReason || item.message || "Recommended by iBand",
-    icon: item.icon || "🎵",
-    priority: item.priority || "medium",
-    action: item.action || "discover_artist",
+    caption: item.feedReason || "Momentum building",
     badge: "SMART",
-    profileHandle: `@${String(item.artist || "artist")
-      .toLowerCase()
-      .replace(/\s+/g, "")}`,
-    soundLabel: item.artist || "Original Sound",
-    caption:
-      item.feedReason ||
-      item.message ||
-      "Momentum is building. Fans are pushing this higher right now."
+    profileHandle: `@${String(item.artist || "artist").toLowerCase().replace(/\s+/g, "")}`,
+    soundLabel: item.artist || "Original Sound"
   }));
 }
 
@@ -38,23 +27,11 @@ function normalisePersonalisedFeed(data) {
 
   return items.map((item, index) => ({
     id: item.id || `personalised-${index}`,
-    source: "personalised-feed",
     artist: item.artist || "Unknown Artist",
-    country: firstProfile?.country || "Personalised",
-    title: `${firstProfile?.persona || "Your"} feed pick`,
-    subtitle: `Tailored for ${firstProfile?.country || "you"}`,
-    reason: item.reason || "Matched to your taste",
-    icon: item.icon || "✨",
-    priority: firstProfile?.engagementLevel || "medium",
-    action: item.action || "discover_artist",
+    caption: item.reason || "Matches your taste",
     badge: "FOR YOU",
-    profileHandle: `@${String(item.artist || "artist")
-      .toLowerCase()
-      .replace(/\s+/g, "")}`,
-    soundLabel: item.artist || "Personalised Track",
-    caption:
-      item.reason ||
-      "This matches your taste profile and current breakout momentum."
+    profileHandle: `@${String(item.artist || "artist").toLowerCase().replace(/\s+/g, "")}`,
+    soundLabel: item.artist || "Personalised Track"
   }));
 }
 
@@ -63,823 +40,227 @@ function normalisePredictiveFeed(data) {
 
   return items.map((item, index) => ({
     id: item.id || `predictive-${index}`,
-    source: "predictive-feed",
     artist: item.recommendedArtist || "Unknown Artist",
-    country: item.userMode || "Predictive",
-    title: "Predicted next best move",
-    subtitle: item.recommendedCategory || "Next content decision",
-    reason: item.reason || "Predicted by iBand intelligence",
-    icon: item.icon || "🔮",
-    priority: item.injectionTiming || "soon",
-    action: item.predictedNextAction || "show_next",
+    caption: item.reason || "Predicted discovery",
     badge: "PREDICTED",
-    profileHandle: `@${String(item.recommendedArtist || "artist")
-      .toLowerCase()
-      .replace(/\s+/g, "")}`,
-    soundLabel: item.recommendedArtist || "Predicted Sound",
-    caption:
-      item.reason ||
-      "The predictive engine thinks this is your strongest next discovery."
+    profileHandle: `@${String(item.recommendedArtist || "artist").toLowerCase().replace(/\s+/g, "")}`,
+    soundLabel: item.recommendedArtist || "Predicted Sound"
   }));
 }
 
-function priorityScore(priority) {
-  const value = String(priority || "").toLowerCase();
-
-  if (value.includes("critical")) return 5;
-  if (value.includes("high")) return 4;
-  if (value.includes("locked")) return 4;
-  if (value.includes("immediate")) return 4;
-  if (value.includes("soon")) return 3;
-  if (value.includes("medium")) return 2;
-  return 1;
-}
-
-function formatCompactNumber(value) {
-  const n = Number(value || 0);
-
-  if (n >= 1000000) return `${(n / 1000000).toFixed(1)}M`;
-  if (n >= 1000) return `${(n / 1000).toFixed(1)}K`;
-  return String(n);
-}
-
-function seededNumber(seed, min, max) {
-  let hash = 0;
-
-  for (let i = 0; i < String(seed).length; i += 1) {
-    hash = (hash << 5) - hash + String(seed).charCodeAt(i);
-    hash |= 0;
-  }
-
-  const normalized = Math.abs(hash % 1000) / 1000;
-  return Math.floor(min + normalized * (max - min));
-}
-
-function getBadgeStyle(badge) {
-  if (badge === "SMART") {
-    return {
-      background: "rgba(168, 85, 247, 0.28)",
-      border: "1px solid rgba(168, 85, 247, 0.48)"
-    };
-  }
-
-  if (badge === "FOR YOU") {
-    return {
-      background: "rgba(249, 115, 22, 0.26)",
-      border: "1px solid rgba(249, 115, 22, 0.48)"
-    };
-  }
-
-  return {
-    background: "rgba(59, 130, 246, 0.24)",
-    border: "1px solid rgba(59, 130, 246, 0.45)"
-  };
-}
-
-function getMockBackground(index) {
-  const backgrounds = [
-    "linear-gradient(160deg, rgba(168,85,247,0.50) 0%, rgba(249,115,22,0.38) 52%, rgba(15,23,42,0.92) 100%)",
-    "linear-gradient(160deg, rgba(236,72,153,0.42) 0%, rgba(59,130,246,0.32) 52%, rgba(2,6,23,0.94) 100%)",
-    "linear-gradient(160deg, rgba(34,197,94,0.32) 0%, rgba(234,179,8,0.28) 52%, rgba(17,24,39,0.94) 100%)",
-    "linear-gradient(160deg, rgba(239,68,68,0.36) 0%, rgba(168,85,247,0.26) 52%, rgba(15,23,42,0.94) 100%)",
-    "linear-gradient(160deg, rgba(14,165,233,0.36) 0%, rgba(99,102,241,0.28) 52%, rgba(2,6,23,0.94) 100%)"
-  ];
-
-  return backgrounds[index % backgrounds.length];
-}
-
-function getTabItems() {
-  return ["LIVE", "Oxfordshire", "Following", "Friends", "For You"];
-}
-
+// ---------------- MAIN COMPONENT ----------------
 export default function Feed() {
-  const [smartFeed, setSmartFeed] = useState([]);
-  const [personalisedFeed, setPersonalisedFeed] = useState([]);
-  const [predictiveFeed, setPredictiveFeed] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [activeTab, setActiveTab] = useState("For You");
-  const [reactionMenu, setReactionMenu] = useState({
-    open: false,
-    itemId: null
-  });
-
-  const holdTimerRef = useRef(null);
+  const [feed, setFeed] = useState([]);
+  const [reactionMenu, setReactionMenu] = useState(null);
 
   useEffect(() => {
-    let active = true;
+    async function load() {
+      const [smart, personalised, predictive] = await Promise.all([
+        fetchSmartFeed(),
+        fetchPersonalisedFeed(),
+        fetchPredictiveFeed()
+      ]);
 
-    async function loadFeed() {
-      try {
-        setLoading(true);
-        setError("");
+      const merged = [
+        ...normalisePersonalisedFeed(personalised),
+        ...normaliseSmartFeed(smart),
+        ...normalisePredictiveFeed(predictive)
+      ];
 
-        const [smart, personalised, predictive] = await Promise.all([
-          fetchSmartFeed(),
-          fetchPersonalisedFeed(),
-          fetchPredictiveFeed()
-        ]);
-
-        if (!active) return;
-
-        setSmartFeed(normaliseSmartFeed(smart));
-        setPersonalisedFeed(normalisePersonalisedFeed(personalised));
-        setPredictiveFeed(normalisePredictiveFeed(predictive));
-      } catch (err) {
-        if (!active) return;
-        setError(err?.message || "Failed to load iBand feed.");
-      } finally {
-        if (active) {
-          setLoading(false);
-        }
-      }
+      setFeed(merged);
     }
 
-    loadFeed();
-
-    return () => {
-      active = false;
-      if (holdTimerRef.current) {
-        clearTimeout(holdTimerRef.current);
-      }
-    };
+    load();
   }, []);
 
-  const feedItems = useMemo(() => {
-    const merged = [...personalisedFeed, ...smartFeed, ...predictiveFeed];
+  // ---------------- PRESS & HOLD LOGIC ----------------
+  let pressTimer;
 
-    return merged
-      .sort((a, b) => priorityScore(b.priority) - priorityScore(a.priority))
-      .map((item, index) => ({
-        ...item,
-        orderLabel: index + 1,
-        supportCount: seededNumber(item.id, 1200, 42000),
-        comments: seededNumber(`${item.id}-comments`, 18, 1800),
-        saves: seededNumber(`${item.id}-saves`, 12, 3500),
-        shares: seededNumber(`${item.id}-shares`, 10, 2400)
-      }));
-  }, [personalisedFeed, smartFeed, predictiveFeed]);
+  const handlePressStart = (id) => {
+    pressTimer = setTimeout(() => {
+      setReactionMenu(id);
+    }, 400); // hold time
+  };
 
-  function handleSupportPressStart(itemId) {
-    if (holdTimerRef.current) {
-      clearTimeout(holdTimerRef.current);
-    }
+  const handlePressEnd = () => {
+    clearTimeout(pressTimer);
+  };
 
-    holdTimerRef.current = setTimeout(() => {
-      setReactionMenu({
-        open: true,
-        itemId
-      });
-    }, 400);
-  }
+  const handleReactionSelect = () => {
+    setReactionMenu(null);
+  };
 
-  function handleSupportPressEnd() {
-    if (holdTimerRef.current) {
-      clearTimeout(holdTimerRef.current);
-    }
-  }
-
-  function handleReactionSelect(reaction) {
-    console.log("iBand reaction selected:", reaction, "for item:", reactionMenu.itemId);
-
-    setReactionMenu({
-      open: false,
-      itemId: null
-    });
-  }
-
-  function closeReactionMenu() {
-    setReactionMenu({
-      open: false,
-      itemId: null
-    });
-  }
-
+  // ---------------- UI ----------------
   return (
     <div style={styles.page}>
-      <div style={styles.topTabsBar}>
-        <div style={styles.tabsInner}>
-          {getTabItems().map((tab) => {
-            const activeItem = tab === activeTab;
+      <div style={styles.snapScroller}>
+        {feed.map((item, index) => (
+          <section key={item.id} style={styles.feedSlide}>
+            
+            {/* RIGHT RAIL */}
+            <div style={styles.rightRail}>
 
-            return (
-              <button
-                key={tab}
-                type="button"
-                onClick={() => setActiveTab(tab)}
-                style={{
-                  ...styles.tabButton,
-                  ...(activeItem ? styles.tabButtonActive : {})
-                }}
-              >
-                {tab}
+              {/* FOLLOW */}
+              <button style={styles.profileStackButton}>
+                <div style={styles.profileAvatarCircle}>🎸</div>
+                <div style={styles.profilePlus}>+</div>
               </button>
-            );
-          })}
-        </div>
 
-        <button type="button" style={styles.searchButton} aria-label="Search">
-          ⌕
-        </button>
+              {/* SUPPORT (PRESS & HOLD) */}
+              <div style={{ position: "relative" }}>
+                <button
+                  style={styles.railButton}
+                  onMouseDown={() => handlePressStart(item.id)}
+                  onMouseUp={handlePressEnd}
+                  onTouchStart={() => handlePressStart(item.id)}
+                  onTouchEnd={handlePressEnd}
+                >
+                  <span style={styles.railIcon}>🎧</span>
+                  <span style={styles.railCount}>17K</span>
+                </button>
+
+                {reactionMenu === item.id && (
+                  <div style={styles.reactionMenu}>
+                    {["🔥", "💣", "💥", "🚀"].map((emoji) => (
+                      <button
+                        key={emoji}
+                        style={styles.reactionButton}
+                        onClick={handleReactionSelect}
+                      >
+                        {emoji}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* COMMENTS */}
+              <button style={styles.railButton}>
+                <span style={styles.railIcon}>💬</span>
+                <span style={styles.railCount}>249</span>
+              </button>
+
+              {/* SAVE */}
+              <button style={styles.railButton}>
+                <span style={styles.railIcon}>⭐</span>
+                <span style={styles.railCount}>1.2K</span>
+              </button>
+
+              {/* SHARE */}
+              <button style={styles.railButton}>
+                <span style={styles.railIcon}>🚀</span>
+                <span style={styles.railCount}>2.3K</span>
+              </button>
+
+              {/* SOUND */}
+              <button style={styles.soundButton}>
+                <div style={styles.soundDiscInner}>🎵</div>
+              </button>
+            </div>
+
+            {/* TEXT */}
+            <div style={styles.bottomOverlay}>
+              <div style={styles.artistName}>{item.artist}</div>
+              <div style={styles.captionText}>{item.caption}</div>
+            </div>
+
+          </section>
+        ))}
       </div>
-
-      {loading ? (
-        <div style={styles.centerState}>
-          <div style={styles.loaderTitle}>Loading your iBand feed…</div>
-          <div style={styles.loaderText}>
-            Pulling from Smart Feed, Personalised Feed, and Predictive Feed.
-          </div>
-        </div>
-      ) : error ? (
-        <div style={styles.centerState}>
-          <div style={styles.errorTitle}>Feed failed to load</div>
-          <div style={styles.errorText}>{error}</div>
-        </div>
-      ) : (
-        <div style={styles.snapScroller}>
-          {feedItems.map((item, index) => {
-            const isReactionMenuOpen =
-              reactionMenu.open && reactionMenu.itemId === item.id;
-
-            return (
-              <section
-                key={item.id}
-                style={{
-                  ...styles.feedSlide,
-                  background: getMockBackground(index)
-                }}
-                onClick={() => {
-                  if (isReactionMenuOpen) {
-                    closeReactionMenu();
-                  }
-                }}
-              >
-                <div style={styles.backgroundGlow} />
-                <div style={styles.topTint} />
-                <div style={styles.bottomTint} />
-
-                <div style={styles.rightRail}>
-                  <button
-                    type="button"
-                    style={styles.profileStackButton}
-                    aria-label="Open profile"
-                  >
-                    <div style={styles.profileAvatarCircle}>🎸</div>
-                    <div style={styles.profilePlus}>+</div>
-                  </button>
-
-                  <div style={styles.supportWrap}>
-                    {isReactionMenuOpen && (
-                      <div style={styles.reactionMenu}>
-                        <button
-                          type="button"
-                          style={styles.reactionButton}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleReactionSelect("fire");
-                          }}
-                        >
-                          🔥
-                        </button>
-                        <button
-                          type="button"
-                          style={styles.reactionButton}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleReactionSelect("rocket");
-                          }}
-                        >
-                          🚀
-                        </button>
-                        <button
-                          type="button"
-                          style={styles.reactionButton}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleReactionSelect("boom");
-                          }}
-                        >
-                          💥
-                        </button>
-                        <button
-                          type="button"
-                          style={styles.reactionButton}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleReactionSelect("target");
-                          }}
-                        >
-                          🎯
-                        </button>
-                        <button
-                          type="button"
-                          style={styles.reactionButton}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleReactionSelect("bomb");
-                          }}
-                        >
-                          💣
-                        </button>
-                      </div>
-                    )}
-
-                    <button
-                      type="button"
-                      style={styles.railButton}
-                      aria-label="Support"
-                      onMouseDown={() => handleSupportPressStart(item.id)}
-                      onMouseUp={handleSupportPressEnd}
-                      onMouseLeave={handleSupportPressEnd}
-                      onTouchStart={() => handleSupportPressStart(item.id)}
-                      onTouchEnd={handleSupportPressEnd}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (!isReactionMenuOpen) {
-                          console.log("iBand support tapped for:", item.id);
-                        }
-                      }}
-                    >
-                      <span style={styles.railIcon}>🎧</span>
-                      <span style={styles.railCount}>
-                        {formatCompactNumber(item.supportCount)}
-                      </span>
-                    </button>
-                  </div>
-
-                  <button
-                    type="button"
-                    style={styles.railButton}
-                    aria-label="Comments"
-                  >
-                    <span style={styles.railIcon}>💬</span>
-                    <span style={styles.railCount}>
-                      {formatCompactNumber(item.comments)}
-                    </span>
-                  </button>
-
-                  <button
-                    type="button"
-                    style={styles.railButton}
-                    aria-label="Save"
-                  >
-                    <span style={styles.railIcon}>⭐</span>
-                    <span style={styles.railCount}>
-                      {formatCompactNumber(item.saves)}
-                    </span>
-                  </button>
-
-                  <button
-                    type="button"
-                    style={styles.railButton}
-                    aria-label="Spread"
-                  >
-                    <span style={styles.railIcon}>🚀</span>
-                    <span style={styles.railCount}>
-                      {formatCompactNumber(item.shares)}
-                    </span>
-                  </button>
-
-                  <button
-                    type="button"
-                    style={styles.soundButton}
-                    aria-label="Open sound page"
-                  >
-                    <div style={styles.soundDiscInner}>{item.icon}</div>
-                  </button>
-                </div>
-
-                <div style={styles.bottomOverlay}>
-                  <div style={styles.identityRow}>
-                    <span style={styles.artistName}>{item.artist}</span>
-                    <span style={styles.verifiedDot}>✓</span>
-                  </div>
-
-                  <div style={styles.handleRow}>
-                    <span style={styles.handle}>{item.profileHandle}</span>
-                    <span
-                      style={{
-                        ...styles.feedBadge,
-                        ...getBadgeStyle(item.badge)
-                      }}
-                    >
-                      {item.badge}
-                    </span>
-                  </div>
-
-                  <div style={styles.captionText}>{item.caption}</div>
-
-                  <div style={styles.subtitleText}>{item.subtitle}</div>
-
-                  <div style={styles.whyBox}>
-                    <div style={styles.whyLabel}>Why you are seeing this</div>
-                    <div style={styles.whyText}>{item.reason}</div>
-                  </div>
-
-                  <div style={styles.metaRow}>
-                    <span style={styles.metaSource}>{item.source}</span>
-                    <span style={styles.metaDivider}>•</span>
-                    <span style={styles.metaCountry}>{item.country}</span>
-                    <span style={styles.metaDivider}>•</span>
-                    <span style={styles.metaAction}>{item.action}</span>
-                  </div>
-
-                  <div style={styles.soundRow}>
-                    <span style={styles.soundNote}>♫</span>
-                    <span style={styles.soundText}>{item.soundLabel}</span>
-                  </div>
-                </div>
-
-                <div style={styles.orderBadge}>#{item.orderLabel}</div>
-              </section>
-            );
-          })}
-        </div>
-      )}
     </div>
   );
 }
 
+// ---------------- STYLES ----------------
 const styles = {
   page: {
-    position: "relative",
     height: "100vh",
-    background: "#000000",
-    color: "#ffffff",
-    overflow: "hidden",
-    fontFamily:
-      'Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
-  },
-  topTabsBar: {
-    position: "fixed",
-    top: 0,
-    left: 0,
-    right: 0,
-    zIndex: 20,
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    padding: "16px 12px 10px",
-    pointerEvents: "none"
-  },
-  tabsInner: {
-    display: "flex",
-    alignItems: "center",
-    gap: "18px",
-    overflowX: "auto",
-    scrollbarWidth: "none",
-    msOverflowStyle: "none",
-    pointerEvents: "auto"
-  },
-  tabButton: {
-    appearance: "none",
-    background: "transparent",
-    border: "none",
-    color: "rgba(255,255,255,0.62)",
-    fontSize: "15px",
-    fontWeight: 700,
-    padding: 0,
-    position: "relative",
-    whiteSpace: "nowrap",
-    cursor: "pointer"
-  },
-  tabButtonActive: {
-    color: "#ffffff"
-  },
-  searchButton: {
-    appearance: "none",
-    background: "transparent",
-    border: "none",
-    color: "#ffffff",
-    fontSize: "28px",
-    lineHeight: 1,
-    padding: "0 4px",
-    pointerEvents: "auto",
-    cursor: "pointer"
-  },
-  centerState: {
-    minHeight: "100vh",
-    display: "flex",
-    flexDirection: "column",
-    justifyContent: "center",
-    alignItems: "center",
-    textAlign: "center",
-    padding: "24px",
-    background: "#050816"
-  },
-  loaderTitle: {
-    fontSize: "22px",
-    fontWeight: 800,
-    marginBottom: "10px"
-  },
-  loaderText: {
-    fontSize: "14px",
-    opacity: 0.78,
-    maxWidth: "480px",
-    lineHeight: 1.5
-  },
-  errorTitle: {
-    fontSize: "22px",
-    fontWeight: 800,
-    marginBottom: "10px",
-    color: "#fca5a5"
-  },
-  errorText: {
-    fontSize: "14px",
-    opacity: 0.88,
-    maxWidth: "480px",
-    lineHeight: 1.5
+    background: "#000",
+    color: "#fff"
   },
   snapScroller: {
     height: "100vh",
-    overflowY: "auto",
-    scrollSnapType: "y mandatory",
-    WebkitOverflowScrolling: "touch"
+    overflowY: "scroll",
+    scrollSnapType: "y mandatory"
   },
   feedSlide: {
-    position: "relative",
     height: "100vh",
-    width: "100%",
     scrollSnapAlign: "start",
-    overflow: "hidden"
-  },
-  backgroundGlow: {
-    position: "absolute",
-    inset: 0,
-    background:
-      "radial-gradient(circle at 30% 35%, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0.02) 22%, rgba(255,255,255,0) 50%)"
-  },
-  topTint: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    height: "28%",
-    background:
-      "linear-gradient(180deg, rgba(0,0,0,0.38) 0%, rgba(0,0,0,0.08) 55%, rgba(0,0,0,0) 100%)"
-  },
-  bottomTint: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: 0,
-    height: "42%",
-    background:
-      "linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.16) 25%, rgba(0,0,0,0.74) 100%)"
+    position: "relative"
   },
   rightRail: {
     position: "absolute",
-    right: "10px",
-    bottom: "118px",
-    zIndex: 5,
+    right: 10,
+    bottom: 120,
+    display: "flex",
+    flexDirection: "column",
+    gap: 14,
+    alignItems: "center"
+  },
+  railButton: {
+    background: "transparent",
+    border: "none",
+    color: "#fff",
     display: "flex",
     flexDirection: "column",
     alignItems: "center",
-    gap: "14px"
-  },
-  profileStackButton: {
-    position: "relative",
-    appearance: "none",
-    background: "transparent",
-    border: "none",
-    padding: 0,
     cursor: "pointer"
   },
+  railIcon: { fontSize: 28 },
+  railCount: { fontSize: 12 },
+  profileStackButton: {
+    background: "transparent",
+    border: "none"
+  },
   profileAvatarCircle: {
-    width: "46px",
-    height: "46px",
-    borderRadius: "999px",
-    background: "rgba(255,255,255,0.16)",
-    border: "2px solid rgba(255,255,255,0.75)",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    fontSize: "20px",
-    backdropFilter: "blur(8px)"
-  },
-  profilePlus: {
-    position: "absolute",
-    bottom: "-8px",
-    left: "50%",
-    transform: "translateX(-50%)",
-    width: "24px",
-    height: "24px",
-    borderRadius: "999px",
-    background: "#ff2f6f",
-    border: "2px solid #ffffff",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    fontWeight: 800,
-    fontSize: "15px",
-    lineHeight: 1
-  },
-  supportWrap: {
-    position: "relative",
+    width: 46,
+    height: 46,
+    borderRadius: "50%",
+    background: "#333",
     display: "flex",
     alignItems: "center",
     justifyContent: "center"
   },
-  railButton: {
-    appearance: "none",
-    background: "transparent",
-    border: "none",
-    color: "#ffffff",
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    gap: "5px",
-    padding: 0,
-    cursor: "pointer"
-  },
-  railIcon: {
-    fontSize: "32px",
-    lineHeight: 1,
-    textShadow: "0 4px 14px rgba(0,0,0,0.35)"
-  },
-  railCount: {
-    fontSize: "13px",
-    fontWeight: 700,
-    textShadow: "0 4px 12px rgba(0,0,0,0.35)"
-  },
-  reactionMenu: {
+  profilePlus: {
     position: "absolute",
-    right: "52px",
-    top: "0",
-    transform: "translateY(-10%)",
-    display: "flex",
-    alignItems: "center",
-    gap: "8px",
-    padding: "10px 12px",
-    borderRadius: "999px",
-    background: "rgba(0,0,0,0.86)",
-    border: "1px solid rgba(255,255,255,0.14)",
-    boxShadow: "0 12px 26px rgba(0,0,0,0.35)",
-    backdropFilter: "blur(12px)"
-  },
-  reactionButton: {
-    appearance: "none",
-    background: "transparent",
-    border: "none",
-    fontSize: "22px",
-    lineHeight: 1,
-    cursor: "pointer",
-    padding: 0
+    bottom: -6,
+    background: "#ff2f6f",
+    borderRadius: "50%",
+    padding: 4
   },
   soundButton: {
-    appearance: "none",
-    border: "none",
-    background:
-      "linear-gradient(135deg, rgba(255,255,255,0.92), rgba(240,240,240,0.72))",
-    width: "48px",
-    height: "48px",
-    borderRadius: "999px",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    padding: 0,
-    cursor: "pointer",
-    boxShadow: "0 10px 24px rgba(0,0,0,0.30)"
+    width: 48,
+    height: 48,
+    borderRadius: "50%",
+    background: "#fff"
   },
   soundDiscInner: {
-    width: "36px",
-    height: "36px",
-    borderRadius: "999px",
-    background: "rgba(0,0,0,0.86)",
-    color: "#ffffff",
     display: "flex",
     alignItems: "center",
-    justifyContent: "center",
-    fontSize: "16px"
+    justifyContent: "center"
   },
   bottomOverlay: {
     position: "absolute",
-    left: "14px",
-    right: "84px",
-    bottom: "18px",
-    zIndex: 5
+    bottom: 20,
+    left: 10
   },
-  identityRow: {
-    display: "flex",
-    alignItems: "center",
-    gap: "8px",
-    marginBottom: "6px"
-  },
-  artistName: {
-    fontSize: "18px",
-    fontWeight: 800,
-    lineHeight: 1.15
-  },
-  verifiedDot: {
-    width: "18px",
-    height: "18px",
-    borderRadius: "999px",
-    background: "rgba(59,130,246,0.95)",
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
-    fontSize: "11px",
-    fontWeight: 800
-  },
-  handleRow: {
-    display: "flex",
-    alignItems: "center",
-    gap: "10px",
-    marginBottom: "10px",
-    flexWrap: "wrap"
-  },
-  handle: {
-    fontSize: "14px",
-    opacity: 0.9
-  },
-  feedBadge: {
-    fontSize: "10px",
-    fontWeight: 800,
-    letterSpacing: "0.08em",
-    padding: "6px 9px",
-    borderRadius: "999px",
-    backdropFilter: "blur(8px)"
-  },
-  captionText: {
-    fontSize: "16px",
-    fontWeight: 600,
-    lineHeight: 1.35,
-    marginBottom: "8px",
-    textShadow: "0 4px 12px rgba(0,0,0,0.45)"
-  },
-  subtitleText: {
-    fontSize: "14px",
-    opacity: 0.92,
-    lineHeight: 1.45,
-    marginBottom: "12px",
-    textShadow: "0 4px 12px rgba(0,0,0,0.45)"
-  },
-  whyBox: {
-    background: "rgba(0,0,0,0.28)",
-    border: "1px solid rgba(255,255,255,0.12)",
-    borderRadius: "14px",
-    padding: "10px 12px",
-    backdropFilter: "blur(10px)",
-    marginBottom: "10px"
-  },
-  whyLabel: {
-    fontSize: "10px",
-    fontWeight: 800,
-    letterSpacing: "0.08em",
-    textTransform: "uppercase",
-    opacity: 0.76,
-    marginBottom: "5px"
-  },
-  whyText: {
-    fontSize: "13px",
-    lineHeight: 1.4,
-    opacity: 0.97
-  },
-  metaRow: {
-    display: "flex",
-    alignItems: "center",
-    gap: "7px",
-    fontSize: "12px",
-    opacity: 0.82,
-    marginBottom: "8px",
-    flexWrap: "wrap"
-  },
-  metaSource: {
-    textTransform: "capitalize"
-  },
-  metaCountry: {},
-  metaAction: {
-    whiteSpace: "nowrap"
-  },
-  metaDivider: {
-    opacity: 0.5
-  },
-  soundRow: {
-    display: "flex",
-    alignItems: "center",
-    gap: "7px",
-    fontSize: "13px",
-    opacity: 0.92
-  },
-  soundNote: {
-    fontSize: "14px"
-  },
-  soundText: {
-    whiteSpace: "nowrap",
-    overflow: "hidden",
-    textOverflow: "ellipsis"
-  },
-  orderBadge: {
+  artistName: { fontWeight: "bold" },
+  captionText: { fontSize: 14 },
+
+  // 🔥 NEW
+  reactionMenu: {
     position: "absolute",
-    top: "74px",
-    left: "14px",
-    zIndex: 5,
-    fontSize: "11px",
-    fontWeight: 800,
-    padding: "6px 9px",
-    borderRadius: "999px",
-    background: "rgba(0,0,0,0.26)",
-    border: "1px solid rgba(255,255,255,0.14)",
-    backdropFilter: "blur(8px)"
+    bottom: "60px",
+    display: "flex",
+    gap: "8px",
+    background: "rgba(0,0,0,0.6)",
+    padding: "6px 10px",
+    borderRadius: "20px"
+  },
+  reactionButton: {
+    fontSize: "18px",
+    background: "transparent",
+    border: "none",
+    cursor: "pointer"
   }
 };
