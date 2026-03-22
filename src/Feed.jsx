@@ -5,6 +5,81 @@ import {
   fetchPredictiveFeed
 } from "./services/api";
 
+const VIEW_DURATION_MS = 12 * 60 * 60 * 1000;
+const AUTO_FLIP_INTERVAL_MS = 2600;
+const HEARTBEAT_INTERVAL_MS = 700;
+
+const IBAND_LOGO_SVG = `
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#a855f7"/>
+      <stop offset="55%" stop-color="#f97316"/>
+      <stop offset="100%" stop-color="#5b1675"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="6" stdDeviation="6" flood-color="rgba(0,0,0,0.35)"/>
+    </filter>
+  </defs>
+  <circle cx="100" cy="100" r="96" fill="url(#g)"/>
+  <g opacity="0.18" fill="#14081f">
+    <circle cx="42" cy="76" r="20"/>
+    <circle cx="72" cy="112" r="16"/>
+    <circle cx="128" cy="94" r="14"/>
+    <circle cx="156" cy="122" r="18"/>
+  </g>
+  <g filter="url(#shadow)" fill="#fff8f2">
+    <rect x="95" y="32" width="12" height="90" rx="6"/>
+    <path d="M90 22c0-8 7-14 15-14h7c10 0 18 8 18 18 0 9-6 15-13 18l-8 3V22h-19z"/>
+    <circle cx="88" cy="30" r="4"/>
+    <circle cx="88" cy="46" r="4"/>
+    <circle cx="88" cy="62" r="4"/>
+  </g>
+</svg>
+`;
+
+const IBAND_LOGO_SRC = `data:image/svg+xml;utf8,${encodeURIComponent(IBAND_LOGO_SVG)}`;
+
+function svgDataUri(svg) {
+  return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+}
+
+function createArtistAvatarDataUri(name, index) {
+  const initials = String(name || "A")
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() || "")
+    .join("");
+
+  const gradients = [
+    ["#7c3aed", "#ea580c"],
+    ["#ec4899", "#2563eb"],
+    ["#059669", "#eab308"],
+    ["#dc2626", "#7c3aed"],
+    ["#0ea5e9", "#4f46e5"]
+  ];
+
+  const [c1, c2] = gradients[index % gradients.length];
+
+  const svg = `
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+    <defs>
+      <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0%" stop-color="${c1}"/>
+        <stop offset="100%" stop-color="${c2}"/>
+      </linearGradient>
+    </defs>
+    <rect width="200" height="200" rx="100" fill="url(#bg)"/>
+    <circle cx="100" cy="78" r="34" fill="rgba(255,255,255,0.22)"/>
+    <path d="M44 170c10-34 35-50 56-50s46 16 56 50" fill="rgba(255,255,255,0.22)"/>
+    <text x="100" y="116" text-anchor="middle" font-size="44" font-family="Arial, sans-serif" font-weight="700" fill="white">${initials}</text>
+  </svg>
+  `;
+
+  return svgDataUri(svg);
+}
+
 function normaliseSmartFeed(data) {
   const items = Array.isArray(data?.feed) ? data.feed : [];
 
@@ -152,6 +227,327 @@ function getTabItems() {
   return ["LIVE", "Oxfordshire", "Following", "Friends", "For You"];
 }
 
+function FeedSlide({
+  item,
+  index,
+  isReactionMenuOpen,
+  closeReactionMenu,
+  handleSupportPressStart,
+  handleSupportPressEnd,
+  handleReactionSelect
+}) {
+  const [followed, setFollowed] = useState(false);
+  const [showArtistFace, setShowArtistFace] = useState(false);
+  const [pulseOn, setPulseOn] = useState(false);
+  const [viewedAt, setViewedAt] = useState(null);
+
+  const slideRef = useRef(null);
+
+  useEffect(() => {
+    const flipTimer = setInterval(() => {
+      setShowArtistFace((prev) => !prev);
+    }, AUTO_FLIP_INTERVAL_MS);
+
+    return () => clearInterval(flipTimer);
+  }, []);
+
+  useEffect(() => {
+    if (followed) {
+      setPulseOn(false);
+      return;
+    }
+
+    const pulseTimer = setInterval(() => {
+      setPulseOn((prev) => !prev);
+    }, HEARTBEAT_INTERVAL_MS);
+
+    return () => clearInterval(pulseTimer);
+  }, [followed]);
+
+  useEffect(() => {
+    const node = slideRef.current;
+    if (!node) return undefined;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting && entry.intersectionRatio >= 0.7) {
+            setViewedAt((current) => current || Date.now());
+          }
+        });
+      },
+      {
+        threshold: [0.7]
+      }
+    );
+
+    observer.observe(node);
+
+    return () => observer.disconnect();
+  }, []);
+
+  const viewedActive =
+    viewedAt !== null && Date.now() - viewedAt < VIEW_DURATION_MS;
+
+  const showFreshRing = viewedAt === null;
+  const ringStyle = viewedActive
+    ? styles.profileAvatarViewedRing
+    : showFreshRing
+      ? styles.profileAvatarFreshRing
+      : null;
+
+  const profileGlow = followed
+    ? "0 0 0 rgba(0,0,0,0)"
+    : pulseOn
+      ? "0 0 20px rgba(255,47,111,0.42)"
+      : "0 0 0 rgba(0,0,0,0)";
+
+  const profileScale = followed ? 1 : pulseOn ? 1.08 : 1;
+
+  const profileImageSrc = item.profileImage || createArtistAvatarDataUri(item.artist, index);
+
+  return (
+    <section
+      ref={slideRef}
+      style={{
+        ...styles.feedSlide,
+        background: getMockBackground(index)
+      }}
+      onClick={() => {
+        if (isReactionMenuOpen) {
+          closeReactionMenu();
+        }
+      }}
+    >
+      <div style={styles.backgroundGlow} />
+      <div style={styles.topTint} />
+      <div style={styles.bottomTint} />
+
+      <div style={styles.rightRail}>
+        <div style={styles.profileStackWrap}>
+          <button
+            type="button"
+            style={{
+              ...styles.profileStackButton,
+              transform: `scale(${profileScale})`,
+              boxShadow: profileGlow
+            }}
+            aria-label="Open artist identity control"
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowArtistFace((prev) => !prev);
+              setViewedAt(Date.now());
+            }}
+          >
+            <div
+              style={{
+                ...styles.profileAvatarCircle,
+                ...(ringStyle || {})
+              }}
+            >
+              <div
+                style={{
+                  ...styles.profileFlipCard,
+                  transform: showArtistFace
+                    ? "rotateY(180deg)"
+                    : "rotateY(0deg)"
+                }}
+              >
+                <div style={styles.profileFaceFront}>
+                  <img
+                    src={IBAND_LOGO_SRC}
+                    alt="iBand logo"
+                    style={styles.profileImage}
+                  />
+                </div>
+
+                <div style={styles.profileFaceBack}>
+                  <img
+                    src={profileImageSrc}
+                    alt={item.artist}
+                    style={styles.profileImage}
+                  />
+                </div>
+              </div>
+            </div>
+          </button>
+
+          <button
+            type="button"
+            style={{
+              ...styles.profilePlus,
+              ...(followed ? styles.profilePlusFollowed : {})
+            }}
+            aria-label={followed ? "Following artist" : "Follow artist"}
+            onClick={(e) => {
+              e.stopPropagation();
+              setFollowed((prev) => !prev);
+            }}
+          >
+            {followed ? "✓" : "+"}
+          </button>
+        </div>
+
+        <div style={styles.supportWrap}>
+          {isReactionMenuOpen && (
+            <div style={styles.reactionMenu}>
+              <button
+                type="button"
+                style={styles.reactionButton}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleReactionSelect("fire");
+                }}
+              >
+                🔥
+              </button>
+              <button
+                type="button"
+                style={styles.reactionButton}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleReactionSelect("bomb");
+                }}
+              >
+                💣
+              </button>
+              <button
+                type="button"
+                style={styles.reactionButton}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleReactionSelect("boom");
+                }}
+              >
+                💥
+              </button>
+              <button
+                type="button"
+                style={styles.reactionButton}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleReactionSelect("rocket");
+                }}
+              >
+                🚀
+              </button>
+            </div>
+          )}
+
+          <button
+            type="button"
+            style={{
+              ...styles.railButton,
+              ...(isReactionMenuOpen ? styles.railButtonActive : {})
+            }}
+            aria-label="Support"
+            onMouseDown={() => handleSupportPressStart(item.id)}
+            onMouseUp={handleSupportPressEnd}
+            onMouseLeave={handleSupportPressEnd}
+            onTouchStart={() => handleSupportPressStart(item.id)}
+            onTouchEnd={handleSupportPressEnd}
+            onClick={(e) => {
+              e.stopPropagation();
+              if (!isReactionMenuOpen) {
+                console.log("iBand support tapped for:", item.id);
+              }
+            }}
+          >
+            <span style={styles.railIcon}>🎧</span>
+            <span style={styles.railCount}>
+              {formatCompactNumber(item.supportCount)}
+            </span>
+          </button>
+        </div>
+
+        <button
+          type="button"
+          style={styles.railButton}
+          aria-label="Comments"
+        >
+          <span style={styles.railIcon}>💬</span>
+          <span style={styles.railCount}>
+            {formatCompactNumber(item.comments)}
+          </span>
+        </button>
+
+        <button
+          type="button"
+          style={styles.railButton}
+          aria-label="Save"
+        >
+          <span style={styles.railIcon}>⭐</span>
+          <span style={styles.railCount}>
+            {formatCompactNumber(item.saves)}
+          </span>
+        </button>
+
+        <button
+          type="button"
+          style={styles.railButton}
+          aria-label="Spread"
+        >
+          <span style={styles.railIcon}>🚀</span>
+          <span style={styles.railCount}>
+            {formatCompactNumber(item.shares)}
+          </span>
+        </button>
+
+        <button
+          type="button"
+          style={styles.soundButton}
+          aria-label="Open sound page"
+        >
+          <div style={styles.soundDiscInner}>🎵</div>
+        </button>
+      </div>
+
+      <div style={styles.bottomOverlay}>
+        <div style={styles.identityRow}>
+          <span style={styles.artistName}>{item.artist}</span>
+          <span style={styles.verifiedDot}>✓</span>
+        </div>
+
+        <div style={styles.handleRow}>
+          <span style={styles.handle}>{item.profileHandle}</span>
+          <span
+            style={{
+              ...styles.feedBadge,
+              ...getBadgeStyle(item.badge)
+            }}
+          >
+            {item.badge}
+          </span>
+        </div>
+
+        <div style={styles.captionText}>{item.caption}</div>
+
+        <div style={styles.subtitleText}>{item.subtitle}</div>
+
+        <div style={styles.whyBox}>
+          <div style={styles.whyLabel}>Why you are seeing this</div>
+          <div style={styles.whyText}>{item.reason}</div>
+        </div>
+
+        <div style={styles.metaRow}>
+          <span style={styles.metaSource}>{item.source}</span>
+          <span style={styles.metaDivider}>•</span>
+          <span style={styles.metaCountry}>{item.country}</span>
+          <span style={styles.metaDivider}>•</span>
+          <span style={styles.metaAction}>{item.action}</span>
+        </div>
+
+        <div style={styles.soundRow}>
+          <span style={styles.soundNote}>♫</span>
+          <span style={styles.soundText}>{item.soundLabel}</span>
+        </div>
+      </div>
+
+      <div style={styles.orderBadge}>#{item.orderLabel}</div>
+    </section>
+  );
+}
+
 export default function Feed() {
   const [smartFeed, setSmartFeed] = useState([]);
   const [personalisedFeed, setPersonalisedFeed] = useState([]);
@@ -216,7 +612,9 @@ export default function Feed() {
         supportCount: seededNumber(item.id, 1200, 42000),
         comments: seededNumber(`${item.id}-comments`, 18, 1800),
         saves: seededNumber(`${item.id}-saves`, 12, 3500),
-        shares: seededNumber(`${item.id}-shares`, 10, 2400)
+        shares: seededNumber(`${item.id}-shares`, 10, 2400),
+        profileImage:
+          item.profileImage || createArtistAvatarDataUri(item.artist, index)
       }));
   }, [personalisedFeed, smartFeed, predictiveFeed]);
 
@@ -302,189 +700,16 @@ export default function Feed() {
               reactionMenu.open && reactionMenu.itemId === item.id;
 
             return (
-              <section
+              <FeedSlide
                 key={item.id}
-                style={{
-                  ...styles.feedSlide,
-                  background: getMockBackground(index)
-                }}
-                onClick={() => {
-                  if (isReactionMenuOpen) {
-                    closeReactionMenu();
-                  }
-                }}
-              >
-                <div style={styles.backgroundGlow} />
-                <div style={styles.topTint} />
-                <div style={styles.bottomTint} />
-
-                <div style={styles.rightRail}>
-                  <button
-                    type="button"
-                    style={styles.profileStackButton}
-                    aria-label="Follow artist"
-                  >
-                    <div style={styles.profileAvatarCircle}>🎸</div>
-                    <div style={styles.profilePlus}>+</div>
-                  </button>
-
-                  <div style={styles.supportWrap}>
-                    {isReactionMenuOpen && (
-                      <div style={styles.reactionMenu}>
-                        <button
-                          type="button"
-                          style={styles.reactionButton}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleReactionSelect("fire");
-                          }}
-                        >
-                          🔥
-                        </button>
-                        <button
-                          type="button"
-                          style={styles.reactionButton}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleReactionSelect("bomb");
-                          }}
-                        >
-                          💣
-                        </button>
-                        <button
-                          type="button"
-                          style={styles.reactionButton}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleReactionSelect("boom");
-                          }}
-                        >
-                          💥
-                        </button>
-                        <button
-                          type="button"
-                          style={styles.reactionButton}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleReactionSelect("rocket");
-                          }}
-                        >
-                          🚀
-                        </button>
-                      </div>
-                    )}
-
-                    <button
-                      type="button"
-                      style={{
-                        ...styles.railButton,
-                        ...(isReactionMenuOpen ? styles.railButtonActive : {})
-                      }}
-                      aria-label="Support"
-                      onMouseDown={() => handleSupportPressStart(item.id)}
-                      onMouseUp={handleSupportPressEnd}
-                      onMouseLeave={handleSupportPressEnd}
-                      onTouchStart={() => handleSupportPressStart(item.id)}
-                      onTouchEnd={handleSupportPressEnd}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (!isReactionMenuOpen) {
-                          console.log("iBand support tapped for:", item.id);
-                        }
-                      }}
-                    >
-                      <span style={styles.railIcon}>🎧</span>
-                      <span style={styles.railCount}>
-                        {formatCompactNumber(item.supportCount)}
-                      </span>
-                    </button>
-                  </div>
-
-                  <button
-                    type="button"
-                    style={styles.railButton}
-                    aria-label="Comments"
-                  >
-                    <span style={styles.railIcon}>💬</span>
-                    <span style={styles.railCount}>
-                      {formatCompactNumber(item.comments)}
-                    </span>
-                  </button>
-
-                  <button
-                    type="button"
-                    style={styles.railButton}
-                    aria-label="Save"
-                  >
-                    <span style={styles.railIcon}>⭐</span>
-                    <span style={styles.railCount}>
-                      {formatCompactNumber(item.saves)}
-                    </span>
-                  </button>
-
-                  <button
-                    type="button"
-                    style={styles.railButton}
-                    aria-label="Spread"
-                  >
-                    <span style={styles.railIcon}>🚀</span>
-                    <span style={styles.railCount}>
-                      {formatCompactNumber(item.shares)}
-                    </span>
-                  </button>
-
-                  <button
-                    type="button"
-                    style={styles.soundButton}
-                    aria-label="Open sound page"
-                  >
-                    <div style={styles.soundDiscInner}>🎵</div>
-                  </button>
-                </div>
-
-                <div style={styles.bottomOverlay}>
-                  <div style={styles.identityRow}>
-                    <span style={styles.artistName}>{item.artist}</span>
-                    <span style={styles.verifiedDot}>✓</span>
-                  </div>
-
-                  <div style={styles.handleRow}>
-                    <span style={styles.handle}>{item.profileHandle}</span>
-                    <span
-                      style={{
-                        ...styles.feedBadge,
-                        ...getBadgeStyle(item.badge)
-                      }}
-                    >
-                      {item.badge}
-                    </span>
-                  </div>
-
-                  <div style={styles.captionText}>{item.caption}</div>
-
-                  <div style={styles.subtitleText}>{item.subtitle}</div>
-
-                  <div style={styles.whyBox}>
-                    <div style={styles.whyLabel}>Why you are seeing this</div>
-                    <div style={styles.whyText}>{item.reason}</div>
-                  </div>
-
-                  <div style={styles.metaRow}>
-                    <span style={styles.metaSource}>{item.source}</span>
-                    <span style={styles.metaDivider}>•</span>
-                    <span style={styles.metaCountry}>{item.country}</span>
-                    <span style={styles.metaDivider}>•</span>
-                    <span style={styles.metaAction}>{item.action}</span>
-                  </div>
-
-                  <div style={styles.soundRow}>
-                    <span style={styles.soundNote}>♫</span>
-                    <span style={styles.soundText}>{item.soundLabel}</span>
-                  </div>
-                </div>
-
-                <div style={styles.orderBadge}>#{item.orderLabel}</div>
-              </section>
+                item={item}
+                index={index}
+                isReactionMenuOpen={isReactionMenuOpen}
+                closeReactionMenu={closeReactionMenu}
+                handleSupportPressStart={handleSupportPressStart}
+                handleSupportPressEnd={handleSupportPressEnd}
+                handleReactionSelect={handleReactionSelect}
+              />
             );
           })}
         </div>
@@ -647,25 +872,64 @@ const styles = {
     alignItems: "center",
     gap: "14px"
   },
+  profileStackWrap: {
+    position: "relative",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center"
+  },
   profileStackButton: {
     position: "relative",
     appearance: "none",
     background: "transparent",
     border: "none",
     padding: 0,
-    cursor: "pointer"
+    cursor: "pointer",
+    transition: "transform 0.18s ease, box-shadow 0.18s ease"
   },
   profileAvatarCircle: {
     width: "46px",
     height: "46px",
     borderRadius: "999px",
     background: "rgba(255,255,255,0.16)",
-    border: "2px solid rgba(255,255,255,0.75)",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
     fontSize: "20px",
-    backdropFilter: "blur(8px)"
+    backdropFilter: "blur(8px)",
+    overflow: "hidden"
+  },
+  profileAvatarFreshRing: {
+    border: "2px solid rgba(255,255,255,0.92)"
+  },
+  profileAvatarViewedRing: {
+    border: "2px dashed rgba(0,0,0,0.48)"
+  },
+  profileFlipCard: {
+    position: "relative",
+    width: "100%",
+    height: "100%",
+    transformStyle: "preserve-3d",
+    transition: "transform 0.32s ease"
+  },
+  profileFaceFront: {
+    position: "absolute",
+    inset: 0,
+    backfaceVisibility: "hidden",
+    WebkitBackfaceVisibility: "hidden"
+  },
+  profileFaceBack: {
+    position: "absolute",
+    inset: 0,
+    transform: "rotateY(180deg)",
+    backfaceVisibility: "hidden",
+    WebkitBackfaceVisibility: "hidden"
+  },
+  profileImage: {
+    width: "100%",
+    height: "100%",
+    objectFit: "cover",
+    display: "block"
   },
   profilePlus: {
     position: "absolute",
@@ -682,7 +946,12 @@ const styles = {
     justifyContent: "center",
     fontWeight: 800,
     fontSize: "15px",
-    lineHeight: 1
+    lineHeight: 1,
+    color: "#ffffff",
+    cursor: "pointer"
+  },
+  profilePlusFollowed: {
+    background: "#22c55e"
   },
   supportWrap: {
     position: "relative",
