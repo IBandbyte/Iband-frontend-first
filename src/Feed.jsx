@@ -495,11 +495,16 @@ export default function Feed() {
 
 const styles = {
   page: {
-    position: "relative",
-    height: "100vh",
+    position: "fixed",
+    inset: 0,
+    width: "100vw",
+    height: "100dvh",
     background: "#000000",
     color: "#ffffff",
     overflow: "hidden",
+    margin: 0,
+    padding: 0,
+    boxSizing: "border-box",
     fontFamily:
       'Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
   },
@@ -508,11 +513,13 @@ const styles = {
     top: 0,
     left: 0,
     right: 0,
+    width: "100vw",
     zIndex: 20,
     display: "flex",
     alignItems: "center",
     justifyContent: "space-between",
     padding: "16px 12px 10px",
+    boxSizing: "border-box",
     pointerEvents: "none"
   },
   tabsInner: {
@@ -551,14 +558,15 @@ const styles = {
     cursor: "pointer"
   },
   centerState: {
-    minHeight: "100vh",
+    minHeight: "100dvh",
     display: "flex",
     flexDirection: "column",
     justifyContent: "center",
     alignItems: "center",
     textAlign: "center",
     padding: "24px",
-    background: "#050816"
+    background: "#050816",
+    boxSizing: "border-box"
   },
   loaderTitle: {
     fontSize: "22px",
@@ -584,19 +592,23 @@ const styles = {
     lineHeight: 1.5
   },
   snapScroller: {
-    height: "100vh",
+    width: "100vw",
+    height: "100dvh",
     overflowY: "auto",
+    overflowX: "hidden",
     scrollSnapType: "y mandatory",
     WebkitOverflowScrolling: "touch",
     background: "#000000"
   },
   feedSlide: {
     position: "relative",
-    height: "100vh",
-    width: "100%",
-    minHeight: "100vh",
+    width: "100vw",
+    minWidth: "100vw",
+    height: "100dvh",
+    minHeight: "100dvh",
     scrollSnapAlign: "start",
-    overflow: "hidden"
+    overflow: "hidden",
+    boxSizing: "border-box"
   },
   backgroundGlow: {
     position: "absolute",
@@ -627,7 +639,7 @@ const styles = {
   },
   rightRail: {
     position: "absolute",
-    right: "10px",
+    right: "max(10px, env(safe-area-inset-right))",
     bottom: "118px",
     zIndex: 5,
     display: "flex",
@@ -757,7 +769,7 @@ const styles = {
   },
   bottomOverlay: {
     position: "absolute",
-    left: "14px",
+    left: "max(14px, env(safe-area-inset-left))",
     right: "84px",
     bottom: "18px",
     zIndex: 5
@@ -875,7 +887,7 @@ const styles = {
   orderBadge: {
     position: "absolute",
     top: "74px",
-    left: "14px",
+    left: "max(14px, env(safe-area-inset-left))",
     zIndex: 5,
     fontSize: "11px",
     fontWeight: 800,
