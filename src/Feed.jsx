@@ -376,7 +376,10 @@ export default function Feed() {
 
                     <button
                       type="button"
-                      style={styles.railButton}
+                      style={{
+                        ...styles.railButton,
+                        ...(isReactionMenuOpen ? styles.railButtonActive : {})
+                      }}
                       aria-label="Support"
                       onMouseDown={() => handleSupportPressStart(item.id)}
                       onMouseUp={handleSupportPressEnd}
@@ -685,7 +688,11 @@ const styles = {
     alignItems: "center",
     gap: "5px",
     padding: 0,
-    cursor: "pointer"
+    cursor: "pointer",
+    transition: "transform 0.15s ease"
+  },
+  railButtonActive: {
+    transform: "scale(1.15)"
   },
   railIcon: {
     fontSize: "32px",
@@ -699,19 +706,19 @@ const styles = {
   },
   reactionMenu: {
     position: "absolute",
-    right: "52px",
-    top: "0",
-    transform: "translateY(-10%)",
+    right: "60px",
+    top: "50%",
+    transform: "translateY(-50%)",
     display: "flex",
     alignItems: "center",
-    gap: "8px",
-    padding: "10px 12px",
+    gap: "10px",
+    padding: "10px 14px",
     borderRadius: "999px",
-    background: "rgba(0,0,0,0.86)",
-    border: "1px solid rgba(255,255,255,0.14)",
-    boxShadow: "0 12px 26px rgba(0,0,0,0.35)",
+    background: "rgba(0,0,0,0.92)",
+    border: "1px solid rgba(255,255,255,0.18)",
+    boxShadow: "0 14px 34px rgba(0,0,0,0.45)",
     backdropFilter: "blur(12px)",
-    zIndex: 6
+    zIndex: 10
   },
   reactionButton: {
     appearance: "none",
