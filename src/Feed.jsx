@@ -39,13 +39,37 @@ function createArtistAvatarDataUri(name, index) {
       </linearGradient>
     </defs>
     <rect width="200" height="200" rx="100" fill="url(#bg)"/>
-    <circle cx="100" cy="78" r="34" fill="rgba(255,255,255,0.22)"/>
-    <path d="M44 170c10-34 35-50 56-50s46 16 56 50" fill="rgba(255,255,255,0.22)"/>
-    <text x="100" y="116" text-anchor="middle" font-size="44" font-family="Arial, sans-serif" font-weight="700" fill="white">${initials}</text>
+    <circle cx="100" cy="74" r="34" fill="rgba(255,255,255,0.20)"/>
+    <path d="M42 168c10-34 35-50 58-50 22 0 47 16 58 50" fill="rgba(255,255,255,0.20)"/>
+    <text x="100" y="118" text-anchor="middle" font-size="44" font-family="Arial, sans-serif" font-weight="700" fill="white">${initials}</text>
   </svg>
   `;
 
   return svgDataUri(svg);
+}
+
+function pickImageUrl(item) {
+  return (
+    item?.imageUrl ||
+    item?.artistImage ||
+    item?.avatarUrl ||
+    item?.profileImage ||
+    item?.coverImage ||
+    item?.thumbnailUrl ||
+    ""
+  );
+}
+
+function pickHasNewPost(item, fallback = false) {
+  if (typeof item?.hasNewPost === "boolean") return item.hasNewPost;
+  if (typeof item?.hasFreshPost === "boolean") return item.hasFreshPost;
+  if (typeof item?.isNew === "boolean") return item.isNew;
+  if (typeof item?.isFresh === "boolean") return item.isFresh;
+  if (typeof item?.unseen === "boolean") return item.unseen;
+  if (typeof item?.hasUnseenContent === "boolean") return item.hasUnseenContent;
+  if (typeof item?.newUpload === "boolean") return item.newUpload;
+  if (typeof item?.freshDrop === "boolean") return item.freshDrop;
+  return fallback;
 }
 
 function normaliseSmartFeed(data) {
@@ -70,7 +94,9 @@ function normaliseSmartFeed(data) {
     caption:
       item.feedReason ||
       item.message ||
-      "Momentum is building. Fans are pushing this higher right now."
+      "Momentum is building. Fans are pushing this higher right now.",
+    profileImage: pickImageUrl(item),
+    hasNewPost: pickHasNewPost(item, index === 0)
   }));
 }
 
@@ -97,7 +123,9 @@ function normalisePersonalisedFeed(data) {
     soundLabel: item.artist || "Personalised Track",
     caption:
       item.reason ||
-      "This matches your taste profile and current breakout momentum."
+      "This matches your taste profile and current breakout momentum.",
+    profileImage: pickImageUrl(item) || pickImageUrl(firstProfile),
+    hasNewPost: pickHasNewPost(item, index === 0)
   }));
 }
 
@@ -122,7 +150,9 @@ function normalisePredictiveFeed(data) {
     soundLabel: item.recommendedArtist || "Predicted Sound",
     caption:
       item.reason ||
-      "The predictive engine thinks this is your strongest next discovery."
+      "The predictive engine thinks this is your strongest next discovery.",
+    profileImage: pickImageUrl(item),
+    hasNewPost: pickHasNewPost(item, false)
   }));
 }
 
@@ -195,6 +225,18 @@ function getTabItems() {
   return ["LIVE", "Oxfordshire", "Following", "Friends", "For You"];
 }
 
+function AvatarRing({ hasNewPost, children }) {
+  if (!hasNewPost) {
+    return <div style={styles.avatarSeenRing}>{children}</div>;
+  }
+
+  return (
+    <div style={styles.avatarFreshRingOuter}>
+      <div style={styles.avatarFreshRingInner}>{children}</div>
+    </div>
+  );
+}
+
 function FeedSlide({
   item,
   index,
@@ -231,19 +273,16 @@ function FeedSlide({
     return () => observer.disconnect();
   }, []);
 
-  const viewedActive =
-    viewedAt !== null && Date.now() - viewedAt < VIEW_DURATION_MS;
-
-  const showFreshRing = viewedAt === null;
-  const ringStyle = viewedActive
-    ? styles.profileAvatarViewedRing
-    : showFreshRing
-      ? styles.profileAvatarFreshRing
-      : null;
-
   const profileGlow = followed
     ? "0 0 0 rgba(0,0,0,0)"
-    : "0 0 10px rgba(255,255,255,0.14)";
+    : "0 0 12px rgba(255,255,255,0.12)";
+
+  const hasPhotoAvatar = Boolean(item.profileImage);
+  const avatarSrc = hasPhotoAvatar
+    ? item.profileImage
+    : item.fallbackAvatar || createArtistAvatarDataUri(item.artist, index);
+
+  const showNewContentRing = Boolean(item.hasNewPost);
 
   return (
     <section
@@ -270,29 +309,22 @@ function FeedSlide({
               ...styles.profileStackButton,
               boxShadow: profileGlow
             }}
-            aria-label="Open iBand artist control"
+            aria-label="Open artist profile"
             onClick={(e) => {
               e.stopPropagation();
               setViewedAt(Date.now());
-              console.log("iBand artist control tapped:", item.id);
+              console.log("iBand avatar tapped:", item.id);
             }}
           >
-            <div
-              style={{
-                ...styles.profileAvatarCircle,
-                ...(ringStyle || {})
-              }}
-            >
-              <div style={styles.profileFaceFront}>
-                <div style={styles.profileFaceFrontInner}>
-                  <img
-                    src={IBAND_LOGO_SRC}
-                    alt="iBand logo"
-                    style={styles.profileLogoImage}
-                  />
-                </div>
+            <AvatarRing hasNewPost={showNewContentRing}>
+              <div style={styles.profileAvatarCircle}>
+                <img
+                  src={avatarSrc || IBAND_LOGO_SRC}
+                  alt={item.artist}
+                  style={hasPhotoAvatar ? styles.profilePhotoImage : styles.profileFallbackImage}
+                />
               </div>
-            </div>
+            </AvatarRing>
           </button>
 
           <button
@@ -536,8 +568,7 @@ export default function Feed() {
         comments: seededNumber(`${item.id}-comments`, 18, 1800),
         saves: seededNumber(`${item.id}-saves`, 12, 3500),
         shares: seededNumber(`${item.id}-shares`, 10, 2400),
-        profileImage:
-          item.profileImage || createArtistAvatarDataUri(item.artist, index)
+        fallbackAvatar: IBAND_LOGO_SRC
       }));
   }, [personalisedFeed, smartFeed, predictiveFeed]);
 
@@ -797,11 +828,11 @@ const styles = {
   },
   profileStackWrap: {
     position: "relative",
+    width: "70px",
+    height: "70px",
     display: "flex",
     alignItems: "center",
-    justifyContent: "center",
-    width: "86px",
-    height: "86px"
+    justifyContent: "center"
   },
   profileStackButton: {
     position: "relative",
@@ -812,53 +843,67 @@ const styles = {
     cursor: "pointer",
     transition: "box-shadow 0.25s ease"
   },
-  profileAvatarCircle: {
-    width: "78px",
-    height: "78px",
+  avatarFreshRingOuter: {
+    width: "64px",
+    height: "64px",
     borderRadius: "999px",
-    background: "rgba(255,255,255,0.72)",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    overflow: "hidden",
-    boxShadow: "0 6px 14px rgba(0,0,0,0.10)"
-  },
-  profileAvatarFreshRing: {
-    border: "2px solid rgba(255,255,255,0.70)"
-  },
-  profileAvatarViewedRing: {
-    border: "2px dashed rgba(0,0,0,0.10)"
-  },
-  profileFaceFront: {
-    position: "absolute",
-    inset: 0,
-    backfaceVisibility: "hidden",
-    WebkitBackfaceVisibility: "hidden",
+    padding: "3px",
+    background: "linear-gradient(135deg, #00d2ff 0%, #34d399 50%, #3b82f6 100%)",
+    boxShadow: "0 8px 20px rgba(0,0,0,0.18)",
     display: "flex",
     alignItems: "center",
     justifyContent: "center"
   },
-  profileFaceFrontInner: {
+  avatarFreshRingInner: {
     width: "100%",
     height: "100%",
-    padding: "0",
-    boxSizing: "border-box",
     borderRadius: "999px",
-    overflow: "hidden"
+    padding: "2px",
+    background: "rgba(255,255,255,0.92)",
+    boxSizing: "border-box",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center"
   },
-  profileLogoImage: {
+  avatarSeenRing: {
+    width: "64px",
+    height: "64px",
+    borderRadius: "999px",
+    padding: "2px",
+    background: "rgba(255,255,255,0.26)",
+    boxShadow: "0 8px 20px rgba(0,0,0,0.12)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center"
+  },
+  profileAvatarCircle: {
+    width: "100%",
+    height: "100%",
+    borderRadius: "999px",
+    background: "#ffffff",
+    overflow: "hidden",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center"
+  },
+  profilePhotoImage: {
     width: "100%",
     height: "100%",
     objectFit: "cover",
-    display: "block",
-    borderRadius: "999px"
+    display: "block"
+  },
+  profileFallbackImage: {
+    width: "100%",
+    height: "100%",
+    objectFit: "cover",
+    display: "block"
   },
   profilePlus: {
     position: "absolute",
-    left: "2px",
-    top: "28px",
-    width: "32px",
-    height: "32px",
+    right: "2px",
+    bottom: "0px",
+    width: "28px",
+    height: "28px",
     borderRadius: "999px",
     background: "#ff2f6f",
     border: "3px solid #ffffff",
@@ -866,11 +911,11 @@ const styles = {
     alignItems: "center",
     justifyContent: "center",
     fontWeight: 800,
-    fontSize: "19px",
+    fontSize: "18px",
     lineHeight: 1,
     color: "#ffffff",
     cursor: "pointer",
-    boxShadow: "0 5px 12px rgba(0,0,0,0.20)",
+    boxShadow: "0 6px 14px rgba(0,0,0,0.22)",
     zIndex: 2
   },
   profilePlusFollowed: {
