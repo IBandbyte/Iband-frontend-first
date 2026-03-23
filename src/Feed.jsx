@@ -8,50 +8,66 @@ import { IBAND_LOGO_SRC } from "./components/ibandRailLogo";
 
 const VIEW_DURATION_MS = 12 * 60 * 60 * 1000;
 
-const IBAND_BRAND_BADGE_SRC =
+const IBAND_BRAND_LOCKUP_SRC =
   "data:image/svg+xml;utf8," +
   encodeURIComponent(`
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 220">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 980 280">
   <defs>
     <linearGradient id="brandBg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#a855f7"/>
-      <stop offset="52%" stop-color="#f97316"/>
-      <stop offset="100%" stop-color="#6d28d9"/>
+      <stop offset="0%" stop-color="#8b3dff"/>
+      <stop offset="50%" stop-color="#ff6b3d"/>
+      <stop offset="100%" stop-color="#5d2a91"/>
     </linearGradient>
-    <radialGradient id="brandGlow" cx="50%" cy="44%" r="62%">
-      <stop offset="0%" stop-color="rgba(255,255,255,0.20)"/>
+    <radialGradient id="brandGlow" cx="50%" cy="42%" r="60%">
+      <stop offset="0%" stop-color="rgba(255,255,255,0.16)"/>
       <stop offset="100%" stop-color="rgba(255,255,255,0)"/>
     </radialGradient>
+    <linearGradient id="guitarFade" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#fffdf8"/>
+      <stop offset="100%" stop-color="#f4e7d4"/>
+    </linearGradient>
   </defs>
 
-  <rect width="760" height="220" rx="20" fill="#ffffff"/>
+  <circle cx="140" cy="140" r="118" fill="url(#brandBg)"/>
+  <circle cx="140" cy="140" r="118" fill="url(#brandGlow)"/>
 
-  <g transform="translate(24 20)">
-    <circle cx="90" cy="90" r="82" fill="url(#brandBg)"/>
-    <circle cx="90" cy="90" r="82" fill="url(#brandGlow)"/>
-
-    <g opacity="0.12" fill="#5a1d6b">
-      <path d="M26 120c10-28 26-42 44-42 18 0 34 14 44 42H26z"/>
-      <path d="M86 138c8-24 22-36 38-36 15 0 29 12 38 36H86z"/>
-      <path d="M116 122c7-20 19-30 32-30 13 0 24 10 32 30H116z"/>
-      <circle cx="48" cy="74" r="13"/>
-      <circle cx="92" cy="92" r="11"/>
-      <circle cx="142" cy="86" r="12"/>
-    </g>
-
-    <g fill="#fffaf2">
-      <rect x="82" y="28" width="10" height="92" rx="5"/>
-      <path d="M76 20c0-8 6-14 14-14h6c11 0 20 9 20 20 0 9-5 16-13 20l-6 2V20H76z"/>
-      <circle cx="72" cy="36" r="4"/>
-      <circle cx="72" cy="50" r="4"/>
-      <circle cx="72" cy="64" r="4"/>
-    </g>
+  <g opacity="0.12" fill="#6b1d62">
+    <path d="M46 178c10-30 24-48 40-58 14-9 29-12 41-10-5-7-8-16-8-25 0-23 18-41 41-41 22 0 40 18 40 41 0 9-3 18-8 25 12-2 27 1 41 10 16 10 30 28 40 58H46z"/>
+    <circle cx="78" cy="106" r="18"/>
+    <circle cx="144" cy="126" r="16"/>
+    <circle cx="212" cy="110" r="19"/>
   </g>
 
-  <g transform="translate(205 28)" fill="#0f172a">
-    <text x="0" y="90" font-size="110" font-family="Arial, Helvetica, sans-serif" font-weight="700">iBand</text>
-    <text x="0" y="144" font-size="44" font-family="Arial, Helvetica, sans-serif" font-weight="500">Get Signed / Connect</text>
+  <g fill="url(#guitarFade)">
+    <rect x="133" y="42" width="14" height="116" rx="7"/>
+    <path d="M128 32c0-11 9-20 20-20h8c15 0 27 12 27 27 0 13-8 23-19 28l-9 3V32h-27z"/>
+    <circle cx="124" cy="54" r="5"/>
+    <circle cx="124" cy="74" r="5"/>
+    <circle cx="124" cy="94" r="5"/>
   </g>
+
+  <text
+    x="286"
+    y="154"
+    font-family="Arial, Helvetica, sans-serif"
+    font-size="116"
+    font-weight="700"
+    fill="#091426"
+    letter-spacing="-3"
+  >
+    iBand
+  </text>
+
+  <text
+    x="290"
+    y="212"
+    font-family="Arial, Helvetica, sans-serif"
+    font-size="44"
+    font-weight="500"
+    fill="#111827"
+  >
+    Get Signed / Connect
+  </text>
 </svg>
 `);
 
@@ -86,8 +102,8 @@ function createArtistAvatarDataUri(name, index) {
       </linearGradient>
     </defs>
     <rect width="200" height="200" rx="100" fill="url(#bg)"/>
-    <circle cx="100" cy="72" r="32" fill="rgba(255,255,255,0.20)"/>
-    <path d="M42 166c10-32 34-48 58-48 23 0 47 16 58 48" fill="rgba(255,255,255,0.20)"/>
+    <circle cx="100" cy="72" r="32" fill="rgba(255,255,255,0.24)"/>
+    <path d="M40 165c10-30 33-46 60-46s50 16 60 46" fill="rgba(255,255,255,0.24)"/>
     <text x="100" y="118" text-anchor="middle" font-size="42" font-family="Arial, sans-serif" font-weight="700" fill="white">${initials}</text>
   </svg>
   `;
@@ -117,6 +133,7 @@ function pickHasNewPost(item, fallback = false) {
   if (typeof item?.hasUnseenContent === "boolean") return item.hasUnseenContent;
   if (typeof item?.newUpload === "boolean") return item.newUpload;
   if (typeof item?.freshDrop === "boolean") return item.freshDrop;
+  if (typeof item?.justPosted === "boolean") return item.justPosted;
   return fallback;
 }
 
@@ -330,8 +347,6 @@ function FeedSlide({
     ? item.profileImage
     : item.fallbackAvatar || createArtistAvatarDataUri(item.artist, index);
 
-  const showNewContentRing = Boolean(item.hasNewPost);
-
   return (
     <section
       ref={slideRef}
@@ -364,7 +379,7 @@ function FeedSlide({
               console.log("iBand avatar tapped:", item.id);
             }}
           >
-            <AvatarRing hasNewPost={showNewContentRing}>
+            <AvatarRing hasNewPost={Boolean(item.hasNewPost)}>
               <div style={styles.profileAvatarCircle}>
                 <img
                   src={avatarSrc || IBAND_LOGO_SRC}
@@ -685,8 +700,8 @@ export default function Feed() {
 
       <div style={styles.brandOverlay}>
         <img
-          src={IBAND_BRAND_BADGE_SRC}
-          alt="iBand brand"
+          src={IBAND_BRAND_LOCKUP_SRC}
+          alt="iBand Get Signed Connect"
           style={styles.brandOverlayImage}
         />
       </div>
@@ -749,7 +764,7 @@ const styles = {
     left: 0,
     right: 0,
     width: "100vw",
-    zIndex: 30,
+    zIndex: 40,
     display: "flex",
     alignItems: "center",
     justifyContent: "space-between",
@@ -794,18 +809,21 @@ const styles = {
   },
   brandOverlay: {
     position: "fixed",
-    top: "118px",
-    right: "12px",
-    zIndex: 25,
-    width: "148px",
-    pointerEvents: "none"
+    top: "148px",
+    right: "10px",
+    zIndex: 30,
+    background: "rgba(255,255,255,0.94)",
+    borderRadius: "12px",
+    padding: "6px 8px",
+    boxShadow: "0 10px 24px rgba(0,0,0,0.18)",
+    backdropFilter: "blur(8px)",
+    border: "1px solid rgba(255,255,255,0.55)"
   },
   brandOverlayImage: {
-    width: "100%",
-    height: "auto",
     display: "block",
-    borderRadius: "10px",
-    boxShadow: "0 8px 22px rgba(0,0,0,0.18)"
+    width: "160px",
+    height: "48px",
+    objectFit: "contain"
   },
   centerState: {
     minHeight: "100dvh",
@@ -899,8 +917,8 @@ const styles = {
   },
   profileStackWrap: {
     position: "relative",
-    width: "70px",
-    height: "70px",
+    width: "68px",
+    height: "68px",
     display: "flex",
     alignItems: "center",
     justifyContent: "center"
@@ -919,7 +937,7 @@ const styles = {
     height: "64px",
     borderRadius: "999px",
     padding: "3px",
-    background: "linear-gradient(135deg, #00d2ff 0%, #34d399 48%, #3b82f6 100%)",
+    background: "linear-gradient(135deg, #14b8ff 0%, #2dd4bf 48%, #3b82f6 100%)",
     boxShadow: "0 8px 20px rgba(0,0,0,0.18)",
     display: "flex",
     alignItems: "center",
@@ -930,7 +948,7 @@ const styles = {
     height: "100%",
     borderRadius: "999px",
     padding: "2px",
-    background: "rgba(255,255,255,0.94)",
+    background: "rgba(255,255,255,0.96)",
     boxSizing: "border-box",
     display: "flex",
     alignItems: "center",
@@ -941,7 +959,7 @@ const styles = {
     height: "64px",
     borderRadius: "999px",
     padding: "2px",
-    background: "rgba(255,255,255,0.28)",
+    background: "rgba(255,255,255,0.26)",
     boxShadow: "0 8px 20px rgba(0,0,0,0.12)",
     display: "flex",
     alignItems: "center",
@@ -971,8 +989,8 @@ const styles = {
   },
   profilePlus: {
     position: "absolute",
-    right: "0px",
-    bottom: "0px",
+    right: "-2px",
+    bottom: "-2px",
     width: "28px",
     height: "28px",
     borderRadius: "999px",
