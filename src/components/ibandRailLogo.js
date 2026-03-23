@@ -1,33 +1,70 @@
 export const IBAND_LOGO_SRC =
   "data:image/svg+xml;utf8," +
   encodeURIComponent(`
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
-    <defs>
-      <linearGradient id="ibandBg" x1="0" y1="0" x2="1" y2="1">
-        <stop offset="0%" stop-color="#a855f7"/>
-        <stop offset="52%" stop-color="#f97316"/>
-        <stop offset="100%" stop-color="#5b1675"/>
-      </linearGradient>
-      <filter id="ibandShadow" x="-20%" y="-20%" width="140%" height="140%">
-        <feDropShadow dx="0" dy="5" stdDeviation="5" flood-color="rgba(0,0,0,0.35)"/>
-      </filter>
-    </defs>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 300">
 
-    <circle cx="100" cy="100" r="96" fill="url(#ibandBg)"/>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#a855f7"/>
+      <stop offset="50%" stop-color="#f97316"/>
+      <stop offset="100%" stop-color="#7c3aed"/>
+    </linearGradient>
 
-    <g opacity="0.16" fill="#14081f">
-      <circle cx="44" cy="78" r="20"/>
-      <circle cx="72" cy="116" r="16"/>
-      <circle cx="128" cy="96" r="14"/>
-      <circle cx="156" cy="124" r="18"/>
-    </g>
+    <radialGradient id="glow" cx="50%" cy="50%" r="60%">
+      <stop offset="0%" stop-color="rgba(255,255,255,0.25)"/>
+      <stop offset="100%" stop-color="rgba(255,255,255,0)"/>
+    </radialGradient>
 
-    <g filter="url(#ibandShadow)" fill="#fffaf5">
-      <rect x="94" y="30" width="14" height="98" rx="7"/>
-      <path d="M89 18c0-8 7-14 15-14h8c11 0 20 9 20 20 0 10-6 17-14 21l-10 4V18H89z"/>
-      <circle cx="87" cy="30" r="4.5"/>
-      <circle cx="87" cy="48" r="4.5"/>
-      <circle cx="87" cy="66" r="4.5"/>
-    </g>
-  </svg>
+    <filter id="shadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="8" stdDeviation="8" flood-color="rgba(0,0,0,0.4)"/>
+    </filter>
+
+  </defs>
+
+  <!-- MAIN CIRCLE -->
+  <circle cx="150" cy="150" r="140" fill="url(#bg)"/>
+
+  <!-- SOFT GLOW -->
+  <circle cx="150" cy="150" r="140" fill="url(#glow)"/>
+
+  <!-- BACKGROUND SILHOUETTES -->
+  <g opacity="0.15" fill="#000">
+    <circle cx="80" cy="130" r="35"/>
+    <circle cx="120" cy="180" r="25"/>
+    <circle cx="200" cy="150" r="30"/>
+    <circle cx="240" cy="200" r="35"/>
+  </g>
+
+  <!-- GUITAR -->
+  <g filter="url(#shadow)" fill="#fff6ef">
+    <!-- neck -->
+    <rect x="145" y="60" width="14" height="140" rx="7"/>
+
+    <!-- head -->
+    <path d="M138 40
+             c0-10 8-18 18-18
+             h10
+             c12 0 22 10 22 22
+             c0 12-8 20-18 24
+             l-10 4
+             v-32
+             z"/>
+
+    <!-- tuning pegs -->
+    <circle cx="135" cy="60" r="5"/>
+    <circle cx="135" cy="80" r="5"/>
+    <circle cx="135" cy="100" r="5"/>
+  </g>
+
+  <!-- IBAND TEXT (SUBTLE, LOWER PART) -->
+  <text x="150" y="235"
+        text-anchor="middle"
+        font-size="48"
+        font-family="Arial, sans-serif"
+        font-weight="700"
+        fill="rgba(255,255,255,0.9)">
+    iBand
+  </text>
+
+</svg>
 `);
