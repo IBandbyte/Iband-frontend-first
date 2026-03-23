@@ -12,28 +12,73 @@ const HEARTBEAT_INTERVAL_MS = 700;
 const IBAND_LOGO_SVG = `
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
   <defs>
-    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#a855f7"/>
-      <stop offset="55%" stop-color="#f97316"/>
-      <stop offset="100%" stop-color="#5b1675"/>
+    <linearGradient id="outerRing" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#2b0f3a"/>
+      <stop offset="50%" stop-color="#4c1d95"/>
+      <stop offset="100%" stop-color="#1f0a2c"/>
     </linearGradient>
-    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
-      <feDropShadow dx="0" dy="6" stdDeviation="6" flood-color="rgba(0,0,0,0.35)"/>
+
+    <linearGradient id="mainBg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#c084fc"/>
+      <stop offset="52%" stop-color="#fb7185"/>
+      <stop offset="100%" stop-color="#f97316"/>
+    </linearGradient>
+
+    <radialGradient id="shine" cx="32%" cy="28%" r="62%">
+      <stop offset="0%" stop-color="rgba(255,255,255,0.40)"/>
+      <stop offset="40%" stop-color="rgba(255,255,255,0.12)"/>
+      <stop offset="100%" stop-color="rgba(255,255,255,0)"/>
+    </radialGradient>
+
+    <filter id="shadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="6" stdDeviation="7" flood-color="rgba(0,0,0,0.42)"/>
+    </filter>
+
+    <filter id="glow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="0" stdDeviation="2.5" flood-color="rgba(255,255,255,0.95)"/>
     </filter>
   </defs>
-  <circle cx="100" cy="100" r="96" fill="url(#g)"/>
-  <g opacity="0.18" fill="#14081f">
-    <circle cx="42" cy="76" r="20"/>
-    <circle cx="72" cy="112" r="16"/>
-    <circle cx="128" cy="94" r="14"/>
-    <circle cx="156" cy="122" r="18"/>
+
+  <circle cx="100" cy="100" r="98" fill="url(#outerRing)"/>
+  <circle cx="100" cy="100" r="88" fill="url(#mainBg)"/>
+  <circle cx="100" cy="100" r="88" fill="url(#shine)"/>
+
+  <g opacity="0.22" fill="#4a1732">
+    <circle cx="56" cy="78" r="18"/>
+    <circle cx="80" cy="118" r="14"/>
+    <circle cx="130" cy="98" r="12"/>
+    <circle cx="154" cy="126" r="16"/>
   </g>
-  <g filter="url(#shadow)" fill="#fff8f2">
-    <rect x="95" y="32" width="12" height="90" rx="6"/>
-    <path d="M90 22c0-8 7-14 15-14h7c10 0 18 8 18 18 0 9-6 15-13 18l-8 3V22h-19z"/>
-    <circle cx="88" cy="30" r="4"/>
-    <circle cx="88" cy="46" r="4"/>
-    <circle cx="88" cy="62" r="4"/>
+
+  <g filter="url(#shadow)">
+    <path
+      d="M112 34h8c15 0 27 12 27 27 0 12-7 22-18 26l-10 4V56h-7V34z"
+      fill="#fffaf5"
+    />
+    <rect x="97" y="40" width="15" height="102" rx="7.5" fill="#fffaf5"/>
+    <circle cx="91" cy="46" r="5.2" fill="#fffaf5"/>
+    <circle cx="91" cy="64" r="5.2" fill="#fffaf5"/>
+    <circle cx="91" cy="82" r="5.2" fill="#fffaf5"/>
+  </g>
+
+  <g filter="url(#glow)" opacity="0.95">
+    <path
+      d="M112 34h8c15 0 27 12 27 27 0 12-7 22-18 26l-10 4V56h-7V34z"
+      fill="none"
+      stroke="#ffffff"
+      stroke-width="2"
+      stroke-linejoin="round"
+    />
+    <rect
+      x="97"
+      y="40"
+      width="15"
+      height="102"
+      rx="7.5"
+      fill="none"
+      stroke="#ffffff"
+      stroke-width="2"
+    />
   </g>
 </svg>
 `;
@@ -299,12 +344,13 @@ function FeedSlide({
   const profileGlow = followed
     ? "0 0 0 rgba(0,0,0,0)"
     : pulseOn
-      ? "0 0 20px rgba(255,47,111,0.42)"
+      ? "0 0 24px rgba(255,47,111,0.42)"
       : "0 0 0 rgba(0,0,0,0)";
 
   const profileScale = followed ? 1 : pulseOn ? 1.08 : 1;
 
-  const profileImageSrc = item.profileImage || createArtistAvatarDataUri(item.artist, index);
+  const profileImageSrc =
+    item.profileImage || createArtistAvatarDataUri(item.artist, index);
 
   return (
     <section
@@ -354,19 +400,23 @@ function FeedSlide({
                 }}
               >
                 <div style={styles.profileFaceFront}>
-                  <img
-                    src={IBAND_LOGO_SRC}
-                    alt="iBand logo"
-                    style={styles.profileImage}
-                  />
+                  <div style={styles.profileFaceFrontInner}>
+                    <img
+                      src={IBAND_LOGO_SRC}
+                      alt="iBand logo"
+                      style={styles.profileImage}
+                    />
+                  </div>
                 </div>
 
                 <div style={styles.profileFaceBack}>
-                  <img
-                    src={profileImageSrc}
-                    alt={item.artist}
-                    style={styles.profileImage}
-                  />
+                  <div style={styles.profileFaceBackInner}>
+                    <img
+                      src={profileImageSrc}
+                      alt={item.artist}
+                      style={styles.profileImage}
+                    />
+                  </div>
                 </div>
               </div>
             </div>
@@ -888,22 +938,23 @@ const styles = {
     transition: "transform 0.18s ease, box-shadow 0.18s ease"
   },
   profileAvatarCircle: {
-    width: "46px",
-    height: "46px",
+    width: "56px",
+    height: "56px",
     borderRadius: "999px",
-    background: "rgba(255,255,255,0.16)",
+    background: "rgba(12,10,20,0.34)",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
     fontSize: "20px",
-    backdropFilter: "blur(8px)",
-    overflow: "hidden"
+    backdropFilter: "blur(10px)",
+    overflow: "hidden",
+    boxShadow: "0 10px 24px rgba(0,0,0,0.28)"
   },
   profileAvatarFreshRing: {
-    border: "2px solid rgba(255,255,255,0.92)"
+    border: "2px solid rgba(255,255,255,0.95)"
   },
   profileAvatarViewedRing: {
-    border: "2px dashed rgba(0,0,0,0.48)"
+    border: "2px dashed rgba(35,12,44,0.78)"
   },
   profileFlipCard: {
     position: "relative",
@@ -916,28 +967,50 @@ const styles = {
     position: "absolute",
     inset: 0,
     backfaceVisibility: "hidden",
-    WebkitBackfaceVisibility: "hidden"
+    WebkitBackfaceVisibility: "hidden",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center"
   },
   profileFaceBack: {
     position: "absolute",
     inset: 0,
     transform: "rotateY(180deg)",
     backfaceVisibility: "hidden",
-    WebkitBackfaceVisibility: "hidden"
+    WebkitBackfaceVisibility: "hidden",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center"
+  },
+  profileFaceFrontInner: {
+    width: "100%",
+    height: "100%",
+    padding: "2px",
+    boxSizing: "border-box",
+    borderRadius: "999px",
+    background:
+      "radial-gradient(circle at 30% 24%, rgba(255,255,255,0.16) 0%, rgba(255,255,255,0.04) 22%, rgba(0,0,0,0) 54%)"
+  },
+  profileFaceBackInner: {
+    width: "100%",
+    height: "100%",
+    borderRadius: "999px",
+    overflow: "hidden"
   },
   profileImage: {
     width: "100%",
     height: "100%",
     objectFit: "cover",
-    display: "block"
+    display: "block",
+    borderRadius: "999px"
   },
   profilePlus: {
     position: "absolute",
     bottom: "-8px",
     left: "50%",
     transform: "translateX(-50%)",
-    width: "24px",
-    height: "24px",
+    width: "26px",
+    height: "26px",
     borderRadius: "999px",
     background: "#ff2f6f",
     border: "2px solid #ffffff",
@@ -948,7 +1021,8 @@ const styles = {
     fontSize: "15px",
     lineHeight: 1,
     color: "#ffffff",
-    cursor: "pointer"
+    cursor: "pointer",
+    boxShadow: "0 6px 16px rgba(0,0,0,0.28)"
   },
   profilePlusFollowed: {
     background: "#22c55e"
