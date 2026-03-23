@@ -4,10 +4,78 @@ import {
   fetchPersonalisedFeed,
   fetchPredictiveFeed
 } from "./services/api";
-import ibandRailLogo from "./assets/iband-rail-logo.png";
 
 const VIEW_DURATION_MS = 12 * 60 * 60 * 1000;
 const HEARTBEAT_INTERVAL_MS = 700;
+
+const IBAND_LOGO_SVG = `
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <defs>
+    <linearGradient id="ibandBg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#c026d3"/>
+      <stop offset="48%" stop-color="#f97316"/>
+      <stop offset="100%" stop-color="#6b21a8"/>
+    </linearGradient>
+
+    <radialGradient id="ibandShine" cx="34%" cy="26%" r="60%">
+      <stop offset="0%" stop-color="rgba(255,255,255,0.34)"/>
+      <stop offset="45%" stop-color="rgba(255,255,255,0.10)"/>
+      <stop offset="100%" stop-color="rgba(255,255,255,0)"/>
+    </radialGradient>
+
+    <filter id="ibandShadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="4" stdDeviation="5" flood-color="rgba(0,0,0,0.34)"/>
+    </filter>
+
+    <filter id="ibandGlow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="0" stdDeviation="2.4" flood-color="rgba(255,255,255,0.95)"/>
+    </filter>
+  </defs>
+
+  <circle cx="100" cy="100" r="96" fill="url(#ibandBg)"/>
+  <circle cx="100" cy="100" r="96" fill="url(#ibandShine)"/>
+
+  <g opacity="0.18" fill="#3b0a45">
+    <circle cx="54" cy="82" r="17"/>
+    <circle cx="83" cy="119" r="13"/>
+    <circle cx="132" cy="98" r="12"/>
+    <circle cx="158" cy="126" r="16"/>
+  </g>
+
+  <g filter="url(#ibandShadow)">
+    <path
+      d="M110 18h8c14 0 25 11 25 25 0 11-7 20-16 24l-10 4V40h-7V18z"
+      fill="#fffdf8"
+    />
+    <rect x="95" y="28" width="16" height="104" rx="8" fill="#fffdf8"/>
+    <circle cx="89" cy="35" r="4.8" fill="#fffdf8"/>
+    <circle cx="89" cy="53" r="4.8" fill="#fffdf8"/>
+    <circle cx="89" cy="71" r="4.8" fill="#fffdf8"/>
+  </g>
+
+  <g filter="url(#ibandGlow)" opacity="0.98">
+    <path
+      d="M110 18h8c14 0 25 11 25 25 0 11-7 20-16 24l-10 4V40h-7V18z"
+      fill="none"
+      stroke="#ffffff"
+      stroke-width="1.8"
+      stroke-linejoin="round"
+    />
+    <rect
+      x="95"
+      y="28"
+      width="16"
+      height="104"
+      rx="8"
+      fill="none"
+      stroke="#ffffff"
+      stroke-width="1.8"
+    />
+  </g>
+</svg>
+`;
+
+const IBAND_LOGO_SRC = `data:image/svg+xml;utf8,${encodeURIComponent(IBAND_LOGO_SVG)}`;
 
 function svgDataUri(svg) {
   return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
@@ -259,7 +327,7 @@ function FeedSlide({
   const profileGlow = followed
     ? "0 0 0 rgba(0,0,0,0)"
     : pulseOn
-      ? "0 0 24px rgba(255,47,111,0.42)"
+      ? "0 0 26px rgba(255,47,111,0.44)"
       : "0 0 0 rgba(0,0,0,0)";
 
   const profileScale = followed ? 1 : pulseOn ? 1.08 : 1;
@@ -306,7 +374,7 @@ function FeedSlide({
               <div style={styles.profileFaceFront}>
                 <div style={styles.profileFaceFrontInner}>
                   <img
-                    src={ibandRailLogo}
+                    src={IBAND_LOGO_SRC}
                     alt="iBand logo"
                     style={styles.profileLogoImage}
                   />
@@ -820,8 +888,8 @@ const styles = {
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    width: "72px",
-    height: "72px"
+    width: "76px",
+    height: "76px"
   },
   profileStackButton: {
     position: "relative",
@@ -833,23 +901,23 @@ const styles = {
     transition: "transform 0.18s ease, box-shadow 0.18s ease"
   },
   profileAvatarCircle: {
-    width: "62px",
-    height: "62px",
+    width: "66px",
+    height: "66px",
     borderRadius: "999px",
-    background: "rgba(12,10,20,0.26)",
+    background: "rgba(12,10,20,0.24)",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
     fontSize: "20px",
     backdropFilter: "blur(10px)",
     overflow: "hidden",
-    boxShadow: "0 12px 28px rgba(0,0,0,0.30)"
+    boxShadow: "0 14px 30px rgba(0,0,0,0.32)"
   },
   profileAvatarFreshRing: {
-    border: "2px solid rgba(255,255,255,0.95)"
+    border: "2px solid rgba(255,255,255,0.96)"
   },
   profileAvatarViewedRing: {
-    border: "2px dashed rgba(35,12,44,0.78)"
+    border: "2px dashed rgba(36,12,46,0.78)"
   },
   profileFaceFront: {
     position: "absolute",
@@ -863,17 +931,10 @@ const styles = {
   profileFaceFrontInner: {
     width: "100%",
     height: "100%",
-    padding: "0",
+    padding: 0,
     boxSizing: "border-box",
     borderRadius: "999px",
     overflow: "hidden"
-  },
-  profileImage: {
-    width: "100%",
-    height: "100%",
-    objectFit: "cover",
-    display: "block",
-    borderRadius: "999px"
   },
   profileLogoImage: {
     width: "100%",
@@ -881,12 +942,12 @@ const styles = {
     objectFit: "cover",
     display: "block",
     borderRadius: "999px",
-    transform: "scale(1.02)"
+    transform: "scale(1.04)"
   },
   profilePlus: {
     position: "absolute",
-    bottom: "2px",
-    left: "2px",
+    left: "0px",
+    bottom: "4px",
     width: "28px",
     height: "28px",
     borderRadius: "999px",
@@ -901,7 +962,7 @@ const styles = {
     color: "#ffffff",
     cursor: "pointer",
     boxShadow: "0 8px 18px rgba(0,0,0,0.30)",
-    zIndex: 2
+    zIndex: 3
   },
   profilePlusFollowed: {
     background: "#22c55e"
