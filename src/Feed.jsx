@@ -243,7 +243,7 @@ function FeedSlide({
 
   const profileGlow = followed
     ? "0 0 0 rgba(0,0,0,0)"
-    : "0 0 16px rgba(255,47,111,0.18)";
+    : "0 0 14px rgba(255,47,111,0.14)";
 
   return (
     <section
@@ -816,19 +816,19 @@ const styles = {
     width: "76px",
     height: "76px",
     borderRadius: "999px",
-    background: "rgba(10,8,20,0.14)",
+    background: "rgba(10,8,20,0.10)",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    backdropFilter: "blur(6px)",
+    backdropFilter: "blur(4px)",
     overflow: "hidden",
-    boxShadow: "0 8px 18px rgba(0,0,0,0.18)"
+    boxShadow: "0 6px 14px rgba(0,0,0,0.14)"
   },
   profileAvatarFreshRing: {
-    border: "2px solid rgba(255,255,255,0.84)"
+    border: "2px solid rgba(255,255,255,0.80)"
   },
   profileAvatarViewedRing: {
-    border: "2px dashed rgba(35,12,44,0.26)"
+    border: "2px dashed rgba(35,12,44,0.18)"
   },
   profileFaceFront: {
     position: "absolute",
@@ -856,8 +856,8 @@ const styles = {
   },
   profilePlus: {
     position: "absolute",
-    left: "7px",
-    bottom: "11px",
+    left: "8px",
+    top: "36px",
     width: "30px",
     height: "30px",
     borderRadius: "999px",
@@ -871,7 +871,7 @@ const styles = {
     lineHeight: 1,
     color: "#ffffff",
     cursor: "pointer",
-    boxShadow: "0 6px 14px rgba(0,0,0,0.24)",
+    boxShadow: "0 5px 12px rgba(0,0,0,0.22)",
     zIndex: 2
   },
   profilePlusFollowed: {
