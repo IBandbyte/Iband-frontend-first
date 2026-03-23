@@ -7,69 +7,7 @@ import {
 import { IBAND_LOGO_SRC } from "./components/ibandRailLogo";
 
 const VIEW_DURATION_MS = 12 * 60 * 60 * 1000;
-
-const IBAND_BRAND_LOCKUP_SRC =
-  "data:image/svg+xml;utf8," +
-  encodeURIComponent(`
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 980 280">
-  <defs>
-    <linearGradient id="brandBg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#8b3dff"/>
-      <stop offset="50%" stop-color="#ff6b3d"/>
-      <stop offset="100%" stop-color="#5d2a91"/>
-    </linearGradient>
-    <radialGradient id="brandGlow" cx="50%" cy="42%" r="60%">
-      <stop offset="0%" stop-color="rgba(255,255,255,0.16)"/>
-      <stop offset="100%" stop-color="rgba(255,255,255,0)"/>
-    </radialGradient>
-    <linearGradient id="guitarFade" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#fffdf8"/>
-      <stop offset="100%" stop-color="#f4e7d4"/>
-    </linearGradient>
-  </defs>
-
-  <circle cx="140" cy="140" r="118" fill="url(#brandBg)"/>
-  <circle cx="140" cy="140" r="118" fill="url(#brandGlow)"/>
-
-  <g opacity="0.12" fill="#6b1d62">
-    <path d="M46 178c10-30 24-48 40-58 14-9 29-12 41-10-5-7-8-16-8-25 0-23 18-41 41-41 22 0 40 18 40 41 0 9-3 18-8 25 12-2 27 1 41 10 16 10 30 28 40 58H46z"/>
-    <circle cx="78" cy="106" r="18"/>
-    <circle cx="144" cy="126" r="16"/>
-    <circle cx="212" cy="110" r="19"/>
-  </g>
-
-  <g fill="url(#guitarFade)">
-    <rect x="133" y="42" width="14" height="116" rx="7"/>
-    <path d="M128 32c0-11 9-20 20-20h8c15 0 27 12 27 27 0 13-8 23-19 28l-9 3V32h-27z"/>
-    <circle cx="124" cy="54" r="5"/>
-    <circle cx="124" cy="74" r="5"/>
-    <circle cx="124" cy="94" r="5"/>
-  </g>
-
-  <text
-    x="286"
-    y="154"
-    font-family="Arial, Helvetica, sans-serif"
-    font-size="116"
-    font-weight="700"
-    fill="#091426"
-    letter-spacing="-3"
-  >
-    iBand
-  </text>
-
-  <text
-    x="290"
-    y="212"
-    font-family="Arial, Helvetica, sans-serif"
-    font-size="44"
-    font-weight="500"
-    fill="#111827"
-  >
-    Get Signed / Connect
-  </text>
-</svg>
-`);
+const IBAND_APPROVED_LOGO_SRC = "/iband-approved-logo.png";
 
 function svgDataUri(svg) {
   return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
@@ -345,7 +283,7 @@ function FeedSlide({
   const hasPhotoAvatar = Boolean(item.profileImage);
   const avatarSrc = hasPhotoAvatar
     ? item.profileImage
-    : item.fallbackAvatar || createArtistAvatarDataUri(item.artist, index);
+    : item.fallbackAvatar || IBAND_LOGO_SRC;
 
   return (
     <section
@@ -382,7 +320,7 @@ function FeedSlide({
             <AvatarRing hasNewPost={Boolean(item.hasNewPost)}>
               <div style={styles.profileAvatarCircle}>
                 <img
-                  src={avatarSrc || IBAND_LOGO_SRC}
+                  src={avatarSrc}
                   alt={item.artist}
                   style={hasPhotoAvatar ? styles.profilePhotoImage : styles.profileFallbackImage}
                 />
@@ -700,8 +638,8 @@ export default function Feed() {
 
       <div style={styles.brandOverlay}>
         <img
-          src={IBAND_BRAND_LOCKUP_SRC}
-          alt="iBand Get Signed Connect"
+          src={IBAND_APPROVED_LOGO_SRC}
+          alt="iBand approved logo"
           style={styles.brandOverlayImage}
         />
       </div>
@@ -809,21 +747,18 @@ const styles = {
   },
   brandOverlay: {
     position: "fixed",
-    top: "148px",
+    top: "118px",
     right: "10px",
     zIndex: 30,
-    background: "rgba(255,255,255,0.94)",
-    borderRadius: "12px",
-    padding: "6px 8px",
-    boxShadow: "0 10px 24px rgba(0,0,0,0.18)",
-    backdropFilter: "blur(8px)",
-    border: "1px solid rgba(255,255,255,0.55)"
+    pointerEvents: "none"
   },
   brandOverlayImage: {
     display: "block",
-    width: "160px",
-    height: "48px",
-    objectFit: "contain"
+    width: "154px",
+    height: "56px",
+    objectFit: "contain",
+    borderRadius: "10px",
+    boxShadow: "0 8px 20px rgba(0,0,0,0.16)"
   },
   centerState: {
     minHeight: "100dvh",
