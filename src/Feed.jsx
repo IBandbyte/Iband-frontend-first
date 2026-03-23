@@ -4,42 +4,9 @@ import {
   fetchPersonalisedFeed,
   fetchPredictiveFeed
 } from "./services/api";
+import { IBAND_LOGO_SRC } from "./components/ibandRailLogo";
 
 const VIEW_DURATION_MS = 12 * 60 * 60 * 1000;
-
-const IBAND_LOGO_SRC =
-  "data:image/svg+xml;utf8," +
-  encodeURIComponent(`
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
-    <defs>
-      <linearGradient id="ibandBg" x1="0" y1="0" x2="1" y2="1">
-        <stop offset="0%" stop-color="#a855f7"/>
-        <stop offset="52%" stop-color="#f97316"/>
-        <stop offset="100%" stop-color="#5b1675"/>
-      </linearGradient>
-      <filter id="ibandShadow" x="-20%" y="-20%" width="140%" height="140%">
-        <feDropShadow dx="0" dy="5" stdDeviation="5" flood-color="rgba(0,0,0,0.35)"/>
-      </filter>
-    </defs>
-
-    <circle cx="100" cy="100" r="96" fill="url(#ibandBg)"/>
-
-    <g opacity="0.16" fill="#14081f">
-      <circle cx="44" cy="78" r="20"/>
-      <circle cx="72" cy="116" r="16"/>
-      <circle cx="128" cy="96" r="14"/>
-      <circle cx="156" cy="124" r="18"/>
-    </g>
-
-    <g filter="url(#ibandShadow)" fill="#fffaf5">
-      <rect x="94" y="30" width="14" height="98" rx="7"/>
-      <path d="M89 18c0-8 7-14 15-14h8c11 0 20 9 20 20 0 10-6 17-14 21l-10 4V18H89z"/>
-      <circle cx="87" cy="30" r="4.5"/>
-      <circle cx="87" cy="48" r="4.5"/>
-      <circle cx="87" cy="66" r="4.5"/>
-    </g>
-  </svg>
-`);
 
 function svgDataUri(svg) {
   return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
@@ -278,11 +245,6 @@ function FeedSlide({
     ? "0 0 0 rgba(0,0,0,0)"
     : "0 0 18px rgba(255,47,111,0.25)";
 
-  const profileScale = 1;
-
-  const profileImageSrc =
-    item.profileImage || createArtistAvatarDataUri(item.artist, index);
-
   return (
     <section
       ref={slideRef}
@@ -306,7 +268,6 @@ function FeedSlide({
             type="button"
             style={{
               ...styles.profileStackButton,
-              transform: `scale(${profileScale})`,
               boxShadow: profileGlow
             }}
             aria-label="Open iBand artist control"
@@ -849,25 +810,25 @@ const styles = {
     border: "none",
     padding: 0,
     cursor: "pointer",
-    transition: "transform 0.18s ease, box-shadow 0.18s ease"
+    transition: "box-shadow 0.25s ease"
   },
   profileAvatarCircle: {
     width: "74px",
     height: "74px",
     borderRadius: "999px",
-    background: "rgba(10,8,20,0.40)",
+    background: "rgba(10,8,20,0.22)",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    backdropFilter: "blur(12px)",
+    backdropFilter: "blur(10px)",
     overflow: "hidden",
-    boxShadow: "0 12px 30px rgba(0,0,0,0.35)"
+    boxShadow: "0 10px 24px rgba(0,0,0,0.22)"
   },
   profileAvatarFreshRing: {
-    border: "2px solid rgba(255,255,255,0.95)"
+    border: "2px solid rgba(255,255,255,0.88)"
   },
   profileAvatarViewedRing: {
-    border: "2px dashed rgba(35,12,44,0.78)"
+    border: "2px dashed rgba(35,12,44,0.45)"
   },
   profileFaceFront: {
     position: "absolute",
@@ -886,13 +847,6 @@ const styles = {
     borderRadius: "999px",
     overflow: "hidden"
   },
-  profileImage: {
-    width: "100%",
-    height: "100%",
-    objectFit: "cover",
-    display: "block",
-    borderRadius: "999px"
-  },
   profileLogoImage: {
     width: "100%",
     height: "100%",
@@ -904,10 +858,10 @@ const styles = {
   },
   profilePlus: {
     position: "absolute",
-    left: "-4px",
-    bottom: "6px",
-    width: "26px",
-    height: "26px",
+    left: "6px",
+    bottom: "10px",
+    width: "28px",
+    height: "28px",
     borderRadius: "999px",
     background: "#ff2f6f",
     border: "2px solid #ffffff",
@@ -915,11 +869,11 @@ const styles = {
     alignItems: "center",
     justifyContent: "center",
     fontWeight: 800,
-    fontSize: "15px",
+    fontSize: "16px",
     lineHeight: 1,
     color: "#ffffff",
     cursor: "pointer",
-    boxShadow: "0 6px 14px rgba(0,0,0,0.35)",
+    boxShadow: "0 6px 14px rgba(0,0,0,0.30)",
     zIndex: 2
   },
   profilePlusFollowed: {
