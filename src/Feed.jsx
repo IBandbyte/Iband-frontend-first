@@ -6,7 +6,6 @@ import {
 } from "./services/api";
 
 const VIEW_DURATION_MS = 12 * 60 * 60 * 1000;
-const AUTO_FLIP_INTERVAL_MS = 2600;
 const HEARTBEAT_INTERVAL_MS = 700;
 
 const IBAND_LOGO_SVG = `
@@ -252,7 +251,7 @@ function getBadgeStyle(badge) {
 
   return {
     background: "rgba(59, 130, 246, 0.24)",
-    border: "1px solid rgba(59, 130, 246, 0.45)"
+      border: "1px solid rgba(59, 130, 246, 0.45)"
   };
 }
 
@@ -282,19 +281,10 @@ function FeedSlide({
   handleReactionSelect
 }) {
   const [followed, setFollowed] = useState(false);
-  const [showArtistFace, setShowArtistFace] = useState(false);
   const [pulseOn, setPulseOn] = useState(false);
   const [viewedAt, setViewedAt] = useState(null);
 
   const slideRef = useRef(null);
-
-  useEffect(() => {
-    const flipTimer = setInterval(() => {
-      setShowArtistFace((prev) => !prev);
-    }, AUTO_FLIP_INTERVAL_MS);
-
-    return () => clearInterval(flipTimer);
-  }, []);
 
   useEffect(() => {
     if (followed) {
@@ -349,9 +339,6 @@ function FeedSlide({
 
   const profileScale = followed ? 1 : pulseOn ? 1.08 : 1;
 
-  const profileImageSrc =
-    item.profileImage || createArtistAvatarDataUri(item.artist, index);
-
   return (
     <section
       ref={slideRef}
@@ -378,11 +365,11 @@ function FeedSlide({
               transform: `scale(${profileScale})`,
               boxShadow: profileGlow
             }}
-            aria-label="Open artist identity control"
+            aria-label="Open iBand artist control"
             onClick={(e) => {
               e.stopPropagation();
-              setShowArtistFace((prev) => !prev);
               setViewedAt(Date.now());
+              console.log("iBand artist control tapped:", item.id);
             }}
           >
             <div
@@ -391,32 +378,13 @@ function FeedSlide({
                 ...(ringStyle || {})
               }}
             >
-              <div
-                style={{
-                  ...styles.profileFlipCard,
-                  transform: showArtistFace
-                    ? "rotateY(180deg)"
-                    : "rotateY(0deg)"
-                }}
-              >
-                <div style={styles.profileFaceFront}>
-                  <div style={styles.profileFaceFrontInner}>
-                    <img
-                      src={IBAND_LOGO_SRC}
-                      alt="iBand logo"
-                      style={styles.profileImage}
-                    />
-                  </div>
-                </div>
-
-                <div style={styles.profileFaceBack}>
-                  <div style={styles.profileFaceBackInner}>
-                    <img
-                      src={profileImageSrc}
-                      alt={item.artist}
-                      style={styles.profileImage}
-                    />
-                  </div>
+              <div style={styles.profileFaceFront}>
+                <div style={styles.profileFaceFrontInner}>
+                  <img
+                    src={IBAND_LOGO_SRC}
+                    alt="iBand logo"
+                    style={styles.profileImage}
+                  />
                 </div>
               </div>
             </div>
@@ -956,26 +924,9 @@ const styles = {
   profileAvatarViewedRing: {
     border: "2px dashed rgba(35,12,44,0.78)"
   },
-  profileFlipCard: {
-    position: "relative",
-    width: "100%",
-    height: "100%",
-    transformStyle: "preserve-3d",
-    transition: "transform 0.32s ease"
-  },
   profileFaceFront: {
     position: "absolute",
     inset: 0,
-    backfaceVisibility: "hidden",
-    WebkitBackfaceVisibility: "hidden",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center"
-  },
-  profileFaceBack: {
-    position: "absolute",
-    inset: 0,
-    transform: "rotateY(180deg)",
     backfaceVisibility: "hidden",
     WebkitBackfaceVisibility: "hidden",
     display: "flex",
@@ -990,12 +941,6 @@ const styles = {
     borderRadius: "999px",
     background:
       "radial-gradient(circle at 30% 24%, rgba(255,255,255,0.16) 0%, rgba(255,255,255,0.04) 22%, rgba(0,0,0,0) 54%)"
-  },
-  profileFaceBackInner: {
-    width: "100%",
-    height: "100%",
-    borderRadius: "999px",
-    overflow: "hidden"
   },
   profileImage: {
     width: "100%",
