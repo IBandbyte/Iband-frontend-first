@@ -243,7 +243,7 @@ function FeedSlide({
 
   const profileGlow = followed
     ? "0 0 0 rgba(0,0,0,0)"
-    : "0 0 18px rgba(255,47,111,0.25)";
+    : "0 0 16px rgba(255,47,111,0.18)";
 
   return (
     <section
@@ -800,8 +800,8 @@ const styles = {
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    width: "82px",
-    height: "82px"
+    width: "84px",
+    height: "84px"
   },
   profileStackButton: {
     position: "relative",
@@ -813,22 +813,22 @@ const styles = {
     transition: "box-shadow 0.25s ease"
   },
   profileAvatarCircle: {
-    width: "74px",
-    height: "74px",
+    width: "76px",
+    height: "76px",
     borderRadius: "999px",
-    background: "rgba(10,8,20,0.22)",
+    background: "rgba(10,8,20,0.14)",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    backdropFilter: "blur(10px)",
+    backdropFilter: "blur(6px)",
     overflow: "hidden",
-    boxShadow: "0 10px 24px rgba(0,0,0,0.22)"
+    boxShadow: "0 8px 18px rgba(0,0,0,0.18)"
   },
   profileAvatarFreshRing: {
-    border: "2px solid rgba(255,255,255,0.88)"
+    border: "2px solid rgba(255,255,255,0.84)"
   },
   profileAvatarViewedRing: {
-    border: "2px dashed rgba(35,12,44,0.45)"
+    border: "2px dashed rgba(35,12,44,0.26)"
   },
   profileFaceFront: {
     position: "absolute",
@@ -850,18 +850,16 @@ const styles = {
   profileLogoImage: {
     width: "100%",
     height: "100%",
-    objectFit: "contain",
+    objectFit: "cover",
     display: "block",
-    borderRadius: "999px",
-    padding: "6px",
-    boxSizing: "border-box"
+    borderRadius: "999px"
   },
   profilePlus: {
     position: "absolute",
-    left: "6px",
-    bottom: "10px",
-    width: "28px",
-    height: "28px",
+    left: "7px",
+    bottom: "11px",
+    width: "30px",
+    height: "30px",
     borderRadius: "999px",
     background: "#ff2f6f",
     border: "2px solid #ffffff",
@@ -869,11 +867,11 @@ const styles = {
     alignItems: "center",
     justifyContent: "center",
     fontWeight: 800,
-    fontSize: "16px",
+    fontSize: "18px",
     lineHeight: 1,
     color: "#ffffff",
     cursor: "pointer",
-    boxShadow: "0 6px 14px rgba(0,0,0,0.30)",
+    boxShadow: "0 6px 14px rgba(0,0,0,0.24)",
     zIndex: 2
   },
   profilePlusFollowed: {
