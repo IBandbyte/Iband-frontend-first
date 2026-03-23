@@ -8,6 +8,53 @@ import { IBAND_LOGO_SRC } from "./components/ibandRailLogo";
 
 const VIEW_DURATION_MS = 12 * 60 * 60 * 1000;
 
+const IBAND_BRAND_BADGE_SRC =
+  "data:image/svg+xml;utf8," +
+  encodeURIComponent(`
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 220">
+  <defs>
+    <linearGradient id="brandBg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#a855f7"/>
+      <stop offset="52%" stop-color="#f97316"/>
+      <stop offset="100%" stop-color="#6d28d9"/>
+    </linearGradient>
+    <radialGradient id="brandGlow" cx="50%" cy="44%" r="62%">
+      <stop offset="0%" stop-color="rgba(255,255,255,0.20)"/>
+      <stop offset="100%" stop-color="rgba(255,255,255,0)"/>
+    </radialGradient>
+  </defs>
+
+  <rect width="760" height="220" rx="20" fill="#ffffff"/>
+
+  <g transform="translate(24 20)">
+    <circle cx="90" cy="90" r="82" fill="url(#brandBg)"/>
+    <circle cx="90" cy="90" r="82" fill="url(#brandGlow)"/>
+
+    <g opacity="0.12" fill="#5a1d6b">
+      <path d="M26 120c10-28 26-42 44-42 18 0 34 14 44 42H26z"/>
+      <path d="M86 138c8-24 22-36 38-36 15 0 29 12 38 36H86z"/>
+      <path d="M116 122c7-20 19-30 32-30 13 0 24 10 32 30H116z"/>
+      <circle cx="48" cy="74" r="13"/>
+      <circle cx="92" cy="92" r="11"/>
+      <circle cx="142" cy="86" r="12"/>
+    </g>
+
+    <g fill="#fffaf2">
+      <rect x="82" y="28" width="10" height="92" rx="5"/>
+      <path d="M76 20c0-8 6-14 14-14h6c11 0 20 9 20 20 0 9-5 16-13 20l-6 2V20H76z"/>
+      <circle cx="72" cy="36" r="4"/>
+      <circle cx="72" cy="50" r="4"/>
+      <circle cx="72" cy="64" r="4"/>
+    </g>
+  </g>
+
+  <g transform="translate(205 28)" fill="#0f172a">
+    <text x="0" y="90" font-size="110" font-family="Arial, Helvetica, sans-serif" font-weight="700">iBand</text>
+    <text x="0" y="144" font-size="44" font-family="Arial, Helvetica, sans-serif" font-weight="500">Get Signed / Connect</text>
+  </g>
+</svg>
+`);
+
 function svgDataUri(svg) {
   return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
 }
@@ -39,9 +86,9 @@ function createArtistAvatarDataUri(name, index) {
       </linearGradient>
     </defs>
     <rect width="200" height="200" rx="100" fill="url(#bg)"/>
-    <circle cx="100" cy="74" r="34" fill="rgba(255,255,255,0.20)"/>
-    <path d="M42 168c10-34 35-50 58-50 22 0 47 16 58 50" fill="rgba(255,255,255,0.20)"/>
-    <text x="100" y="118" text-anchor="middle" font-size="44" font-family="Arial, sans-serif" font-weight="700" fill="white">${initials}</text>
+    <circle cx="100" cy="72" r="32" fill="rgba(255,255,255,0.20)"/>
+    <path d="M42 166c10-32 34-48 58-48 23 0 47 16 58 48" fill="rgba(255,255,255,0.20)"/>
+    <text x="100" y="118" text-anchor="middle" font-size="42" font-family="Arial, sans-serif" font-weight="700" fill="white">${initials}</text>
   </svg>
   `;
 
@@ -56,6 +103,7 @@ function pickImageUrl(item) {
     item?.profileImage ||
     item?.coverImage ||
     item?.thumbnailUrl ||
+    item?.photoUrl ||
     ""
   );
 }
@@ -568,7 +616,7 @@ export default function Feed() {
         comments: seededNumber(`${item.id}-comments`, 18, 1800),
         saves: seededNumber(`${item.id}-saves`, 12, 3500),
         shares: seededNumber(`${item.id}-shares`, 10, 2400),
-        fallbackAvatar: IBAND_LOGO_SRC
+        fallbackAvatar: createArtistAvatarDataUri(item.artist, index)
       }));
   }, [personalisedFeed, smartFeed, predictiveFeed]);
 
@@ -635,6 +683,14 @@ export default function Feed() {
         </button>
       </div>
 
+      <div style={styles.brandOverlay}>
+        <img
+          src={IBAND_BRAND_BADGE_SRC}
+          alt="iBand brand"
+          style={styles.brandOverlayImage}
+        />
+      </div>
+
       {loading ? (
         <div style={styles.centerState}>
           <div style={styles.loaderTitle}>Loading your iBand feed…</div>
@@ -693,7 +749,7 @@ const styles = {
     left: 0,
     right: 0,
     width: "100vw",
-    zIndex: 20,
+    zIndex: 30,
     display: "flex",
     alignItems: "center",
     justifyContent: "space-between",
@@ -735,6 +791,21 @@ const styles = {
     padding: "0 4px",
     pointerEvents: "auto",
     cursor: "pointer"
+  },
+  brandOverlay: {
+    position: "fixed",
+    top: "118px",
+    right: "12px",
+    zIndex: 25,
+    width: "148px",
+    pointerEvents: "none"
+  },
+  brandOverlayImage: {
+    width: "100%",
+    height: "auto",
+    display: "block",
+    borderRadius: "10px",
+    boxShadow: "0 8px 22px rgba(0,0,0,0.18)"
   },
   centerState: {
     minHeight: "100dvh",
@@ -848,7 +919,7 @@ const styles = {
     height: "64px",
     borderRadius: "999px",
     padding: "3px",
-    background: "linear-gradient(135deg, #00d2ff 0%, #34d399 50%, #3b82f6 100%)",
+    background: "linear-gradient(135deg, #00d2ff 0%, #34d399 48%, #3b82f6 100%)",
     boxShadow: "0 8px 20px rgba(0,0,0,0.18)",
     display: "flex",
     alignItems: "center",
@@ -859,7 +930,7 @@ const styles = {
     height: "100%",
     borderRadius: "999px",
     padding: "2px",
-    background: "rgba(255,255,255,0.92)",
+    background: "rgba(255,255,255,0.94)",
     boxSizing: "border-box",
     display: "flex",
     alignItems: "center",
@@ -870,7 +941,7 @@ const styles = {
     height: "64px",
     borderRadius: "999px",
     padding: "2px",
-    background: "rgba(255,255,255,0.26)",
+    background: "rgba(255,255,255,0.28)",
     boxShadow: "0 8px 20px rgba(0,0,0,0.12)",
     display: "flex",
     alignItems: "center",
@@ -900,7 +971,7 @@ const styles = {
   },
   profilePlus: {
     position: "absolute",
-    right: "2px",
+    right: "0px",
     bottom: "0px",
     width: "28px",
     height: "28px",
