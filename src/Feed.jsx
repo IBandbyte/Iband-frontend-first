@@ -58,6 +58,7 @@ function pickImageUrl(item) {
     item?.coverImage ||
     item?.thumbnailUrl ||
     item?.photoUrl ||
+    item?.image ||
     ""
   );
 }
@@ -86,7 +87,6 @@ function normaliseSmartFeed(data) {
     title: item.cardTitle || "Smart Feed Pick",
     subtitle: item.cardSubtitle || "Recommended for discovery",
     reason: item.feedReason || item.message || "Recommended by iBand",
-    icon: item.icon || "🎵",
     priority: item.priority || "medium",
     action: item.action || "discover_artist",
     badge: "SMART",
@@ -116,7 +116,6 @@ function normalisePersonalisedFeed(data) {
     title: `${firstProfile?.persona || "Your"} feed pick`,
     subtitle: `Tailored for ${firstProfile?.country || "you"}`,
     reason: item.reason || "Matched to your taste",
-    icon: item.icon || "✨",
     priority: firstProfile?.engagementLevel || "medium",
     action: item.action || "discover_artist",
     badge: "FOR YOU",
@@ -143,7 +142,6 @@ function normalisePredictiveFeed(data) {
     title: "Predicted next best move",
     subtitle: item.recommendedCategory || "Next content decision",
     reason: item.reason || "Predicted by iBand intelligence",
-    icon: item.icon || "🔮",
     priority: item.injectionTiming || "soon",
     action: item.predictedNextAction || "show_next",
     badge: "PREDICTED",
@@ -194,21 +192,21 @@ function seededNumber(seed, min, max) {
 function getBadgeStyle(badge) {
   if (badge === "SMART") {
     return {
-      background: "rgba(168, 85, 247, 0.28)",
-      border: "1px solid rgba(168, 85, 247, 0.48)"
+      background: "rgba(168, 85, 247, 0.26)",
+      border: "1px solid rgba(168, 85, 247, 0.46)"
     };
   }
 
   if (badge === "FOR YOU") {
     return {
-      background: "rgba(249, 115, 22, 0.26)",
-      border: "1px solid rgba(249, 115, 22, 0.48)"
+      background: "rgba(249, 115, 22, 0.24)",
+      border: "1px solid rgba(249, 115, 22, 0.42)"
     };
   }
 
   return {
-    background: "rgba(59, 130, 246, 0.24)",
-    border: "1px solid rgba(59, 130, 246, 0.45)"
+    background: "rgba(59, 130, 246, 0.22)",
+    border: "1px solid rgba(59, 130, 246, 0.40)"
   };
 }
 
@@ -224,8 +222,243 @@ function getMockBackground(index) {
   return backgrounds[index % backgrounds.length];
 }
 
-function getTabItems() {
-  return ["LIVE", "Oxfordshire", "Following", "Friends", "For You"];
+function getTopTabs() {
+  return [
+    { key: "live", label: "LIVE" },
+    { key: "explore", label: "Explore" },
+    { key: "country", label: "Oxfordshire" },
+    { key: "following", label: "Following" },
+    { key: "fans", label: "Fans" },
+    { key: "for-you", label: "For You" }
+  ];
+}
+
+function IconLive() {
+  return (
+    <svg viewBox="0 0 24 24" style={styles.topTabIconSvg} aria-hidden="true">
+      <rect x="3.5" y="6" width="17" height="12" rx="2.8" fill="none" stroke="currentColor" strokeWidth="1.8" />
+      <path d="M7 4.5h10M8.5 19.5h7" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+      <text x="12" y="14.3" textAnchor="middle" fontSize="5.3" fontWeight="700" fill="currentColor">LIVE</text>
+    </svg>
+  );
+}
+
+function IconSearch() {
+  return (
+    <svg viewBox="0 0 24 24" style={styles.utilityIconSvg} aria-hidden="true">
+      <circle cx="11" cy="11" r="6.5" fill="none" stroke="currentColor" strokeWidth="2" />
+      <path d="M16 16l4.2 4.2" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function IconInfo() {
+  return (
+    <svg viewBox="0 0 24 24" style={styles.utilityIconSvg} aria-hidden="true">
+      <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" strokeWidth="2" />
+      <circle cx="12" cy="8" r="1.2" fill="currentColor" />
+      <path d="M12 11v5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function IconHeadphones() {
+  return (
+    <svg viewBox="0 0 24 24" style={styles.railIconSvg} aria-hidden="true">
+      <path d="M5 13a7 7 0 0114 0" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+      <rect x="4" y="12" width="4" height="7" rx="2" fill="none" stroke="currentColor" strokeWidth="1.8" />
+      <rect x="16" y="12" width="4" height="7" rx="2" fill="none" stroke="currentColor" strokeWidth="1.8" />
+    </svg>
+  );
+}
+
+function IconComment() {
+  return (
+    <svg viewBox="0 0 24 24" style={styles.railIconSvg} aria-hidden="true">
+      <path d="M6 6h12a3 3 0 013 3v4a3 3 0 01-3 3h-5l-4.5 3v-3H6a3 3 0 01-3-3V9a3 3 0 013-3z" fill="currentColor" />
+    </svg>
+  );
+}
+
+function IconStar() {
+  return (
+    <svg viewBox="0 0 24 24" style={styles.railIconSvg} aria-hidden="true">
+      <path d="M12 3.5l2.6 5.3 5.8.8-4.2 4.1 1 5.8-5.2-2.8-5.2 2.8 1-5.8-4.2-4.1 5.8-.8L12 3.5z" fill="currentColor" />
+    </svg>
+  );
+}
+
+function IconRocket() {
+  return (
+    <svg viewBox="0 0 24 24" style={styles.railIconSvg} aria-hidden="true">
+      <path d="M14.5 4c2.8.4 4.6 2.2 5 5l-4.4 4.4-5-5L14.5 4zM9 9l6 6-4 1-3-3 1-4z" fill="currentColor" />
+      <path d="M6 18l3-1-2-2-1 3z" fill="currentColor" />
+    </svg>
+  );
+}
+
+function IconMusicDisc() {
+  return (
+    <svg viewBox="0 0 24 24" style={styles.soundDiscSvg} aria-hidden="true">
+      <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" strokeWidth="1.7" />
+      <circle cx="12" cy="12" r="2" fill="currentColor" />
+      <path d="M11 7v6.5a1.9 1.9 0 11-1.3-1.8" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function IconHome() {
+  return (
+    <svg viewBox="0 0 24 24" style={styles.bottomNavIconSvg} aria-hidden="true">
+      <path d="M4 10.5L12 4l8 6.5V20a1 1 0 01-1 1h-4.8v-6h-4.4v6H5a1 1 0 01-1-1v-9.5z" fill="currentColor" />
+    </svg>
+  );
+}
+
+function IconBag() {
+  return (
+    <svg viewBox="0 0 24 24" style={styles.bottomNavIconSvg} aria-hidden="true">
+      <path d="M7 8V7a5 5 0 0110 0v1h2l-1.1 11H6.1L5 8h2zm2 0h6V7a3 3 0 00-6 0v1z" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function IconInbox() {
+  return (
+    <svg viewBox="0 0 24 24" style={styles.bottomNavIconSvg} aria-hidden="true">
+      <path d="M4 6h16l1 10h-5l-2 3h-4l-2-3H3L4 6z" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function IconProfile() {
+  return (
+    <svg viewBox="0 0 24 24" style={styles.bottomNavIconSvg} aria-hidden="true">
+      <circle cx="12" cy="8" r="3.5" fill="none" stroke="currentColor" strokeWidth="1.9" />
+      <path d="M5 20a7 7 0 0114 0" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function IconPanelArtist() {
+  return (
+    <svg viewBox="0 0 24 24" style={styles.infoActionIconSvg} aria-hidden="true">
+      <circle cx="12" cy="8" r="3.2" fill="none" stroke="currentColor" strokeWidth="1.8" />
+      <path d="M5.5 19a6.5 6.5 0 0113 0" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function IconPanelHistory() {
+  return (
+    <svg viewBox="0 0 24 24" style={styles.infoActionIconSvg} aria-hidden="true">
+      <path d="M6 4.5h9l3 3V19a1 1 0 01-1 1H6.8A1.8 1.8 0 015 18.2V6.3A1.8 1.8 0 016.8 4.5H6z" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+      <path d="M9 10h6M9 14h6" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function IconPanelTickets() {
+  return (
+    <svg viewBox="0 0 24 24" style={styles.infoActionIconSvg} aria-hidden="true">
+      <path d="M4 8.5h16v3a2 2 0 010 4v3H4v-3a2 2 0 010-4v-3z" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+      <path d="M12 8.5v10" fill="none" stroke="currentColor" strokeWidth="1.8" strokeDasharray="2 2" />
+    </svg>
+  );
+}
+
+function IconPanelMerch() {
+  return (
+    <svg viewBox="0 0 24 24" style={styles.infoActionIconSvg} aria-hidden="true">
+      <path d="M8 7l1.2-2h5.6L16 7h2v12H6V7h2z" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+      <path d="M9 10a3 3 0 006 0" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function IconPanelLyrics() {
+  return (
+    <svg viewBox="0 0 24 24" style={styles.infoActionIconSvg} aria-hidden="true">
+      <path d="M14 5v9.5a2.3 2.3 0 11-1.5-2.1V7l6-1.5v7a2.3 2.3 0 11-1.5-2.1V4.6L14 5z" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function IconPanelTranslate() {
+  return (
+    <svg viewBox="0 0 24 24" style={styles.infoActionIconSvg} aria-hidden="true">
+      <path d="M4 7h10M9 4v3M7 7c0 4-2 7-4 8M11 15c-2-1-3.5-3-4-5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M14 11h6M17 8v3M15 19l2-5 2 5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function IconPanelSubscribe() {
+  return (
+    <svg viewBox="0 0 24 24" style={styles.infoActionIconSvg} aria-hidden="true">
+      <path d="M4 8.5A2.5 2.5 0 016.5 6h11A2.5 2.5 0 0120 8.5v7A2.5 2.5 0 0117.5 18h-11A2.5 2.5 0 014 15.5v-7z" fill="none" stroke="currentColor" strokeWidth="1.8" />
+      <path d="M10 9.5l5 3-5 3v-6z" fill="currentColor" />
+    </svg>
+  );
+}
+
+function IconPanelBuy() {
+  return (
+    <svg viewBox="0 0 24 24" style={styles.infoActionIconSvg} aria-hidden="true">
+      <path d="M7 7V6a5 5 0 0110 0v1h2l-1.1 12H6.1L5 7h2zm2 0h6V6a3 3 0 00-6 0v1z" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function InfoOverlay({ isOpen, onClose }) {
+  if (!isOpen) return null;
+
+  const groups = {
+    topLeft: [
+      { label: "Artist", Icon: IconPanelArtist },
+      { label: "History", Icon: IconPanelHistory }
+    ],
+    topRight: [
+      { label: "Tickets", Icon: IconPanelTickets },
+      { label: "Merch", Icon: IconPanelMerch }
+    ],
+    bottomLeft: [
+      { label: "Lyrics", Icon: IconPanelLyrics },
+      { label: "Translate", Icon: IconPanelTranslate }
+    ],
+    bottomRight: [
+      { label: "Subscribe", Icon: IconPanelSubscribe },
+      { label: "Buy", Icon: IconPanelBuy }
+    ]
+  };
+
+  const renderGroup = (items) =>
+    items.map(({ label, Icon }) => (
+      <button key={label} type="button" style={styles.infoActionBox}>
+        <Icon />
+        <span style={styles.infoActionLabel}>{label}</span>
+      </button>
+    ));
+
+  return (
+    <div style={styles.infoOverlayBackdrop} onClick={onClose}>
+      <div style={styles.infoFrameTopLeft} onClick={(e) => e.stopPropagation()}>
+        {renderGroup(groups.topLeft)}
+      </div>
+
+      <div style={styles.infoFrameTopRight} onClick={(e) => e.stopPropagation()}>
+        {renderGroup(groups.topRight)}
+      </div>
+
+      <div style={styles.infoFrameBottomLeft} onClick={(e) => e.stopPropagation()}>
+        {renderGroup(groups.bottomLeft)}
+      </div>
+
+      <div style={styles.infoFrameBottomRight} onClick={(e) => e.stopPropagation()}>
+        {renderGroup(groups.bottomRight)}
+      </div>
+    </div>
+  );
 }
 
 function AvatarRing({ hasNewPost, children }) {
@@ -276,14 +509,15 @@ function FeedSlide({
     return () => observer.disconnect();
   }, []);
 
-  const profileGlow = followed
-    ? "0 0 0 rgba(0,0,0,0)"
-    : "0 0 12px rgba(255,255,255,0.12)";
+  const profileGlow =
+    followed ? "0 0 0 rgba(0,0,0,0)" : "0 0 12px rgba(255,255,255,0.12)";
 
   const hasPhotoAvatar = Boolean(item.profileImage);
   const avatarSrc = hasPhotoAvatar
     ? item.profileImage
     : item.fallbackAvatar || IBAND_LOGO_SRC;
+
+  const heatActiveCells = ((index % 6) + 8);
 
   return (
     <section
@@ -301,6 +535,18 @@ function FeedSlide({
       <div style={styles.backgroundGlow} />
       <div style={styles.topTint} />
       <div style={styles.bottomTint} />
+
+      <div style={styles.leftHeatRail}>
+        {Array.from({ length: 18 }).map((_, i) => (
+          <span
+            key={i}
+            style={{
+              ...styles.heatCell,
+              opacity: i < heatActiveCells ? 0.95 : 0.24
+            }}
+          />
+        ))}
+      </div>
 
       <div style={styles.rightRail}>
         <div style={styles.profileStackWrap}>
@@ -409,52 +655,28 @@ function FeedSlide({
               }
             }}
           >
-            <span style={styles.railIcon}>🎧</span>
-            <span style={styles.railCount}>
-              {formatCompactNumber(item.supportCount)}
-            </span>
+            <IconHeadphones />
+            <span style={styles.railCount}>{formatCompactNumber(item.supportCount)}</span>
           </button>
         </div>
 
-        <button
-          type="button"
-          style={styles.railButton}
-          aria-label="Comments"
-        >
-          <span style={styles.railIcon}>💬</span>
-          <span style={styles.railCount}>
-            {formatCompactNumber(item.comments)}
-          </span>
+        <button type="button" style={styles.railButton} aria-label="Comments">
+          <IconComment />
+          <span style={styles.railCount}>{formatCompactNumber(item.comments)}</span>
         </button>
 
-        <button
-          type="button"
-          style={styles.railButton}
-          aria-label="Save"
-        >
-          <span style={styles.railIcon}>⭐</span>
-          <span style={styles.railCount}>
-            {formatCompactNumber(item.saves)}
-          </span>
+        <button type="button" style={styles.railButton} aria-label="Save">
+          <IconStar />
+          <span style={styles.railCount}>{formatCompactNumber(item.saves)}</span>
         </button>
 
-        <button
-          type="button"
-          style={styles.railButton}
-          aria-label="Spread"
-        >
-          <span style={styles.railIcon}>🚀</span>
-          <span style={styles.railCount}>
-            {formatCompactNumber(item.shares)}
-          </span>
+        <button type="button" style={styles.railButton} aria-label="Spread">
+          <IconRocket />
+          <span style={styles.railCount}>{formatCompactNumber(item.shares)}</span>
         </button>
 
-        <button
-          type="button"
-          style={styles.soundButton}
-          aria-label="Open sound page"
-        >
-          <div style={styles.soundDiscInner}>🎵</div>
+        <button type="button" style={styles.soundButton} aria-label="Open sound page">
+          <IconMusicDisc />
         </button>
       </div>
 
@@ -477,7 +699,6 @@ function FeedSlide({
         </div>
 
         <div style={styles.captionText}>{item.caption}</div>
-
         <div style={styles.subtitleText}>{item.subtitle}</div>
 
         <div style={styles.whyBox}>
@@ -510,11 +731,12 @@ export default function Feed() {
   const [predictiveFeed, setPredictiveFeed] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [activeTab, setActiveTab] = useState("For You");
+  const [activeTopTab, setActiveTopTab] = useState("for-you");
   const [reactionMenu, setReactionMenu] = useState({
     open: false,
     itemId: null
   });
+  const [infoOpen, setInfoOpen] = useState(false);
 
   const holdTimerRef = useRef(null);
 
@@ -594,7 +816,6 @@ export default function Feed() {
 
   function handleReactionSelect(reaction) {
     console.log("iBand reaction selected:", reaction, "for item:", reactionMenu.itemId);
-
     setReactionMenu({
       open: false,
       itemId: null
@@ -611,29 +832,53 @@ export default function Feed() {
   return (
     <div style={styles.page}>
       <div style={styles.topTabsBar}>
-        <div style={styles.tabsInner}>
-          {getTabItems().map((tab) => {
-            const activeItem = tab === activeTab;
+        <div style={styles.topTabsScroller}>
+          <button
+            type="button"
+            style={styles.liveTabButton}
+            onClick={() => setActiveTopTab("live")}
+          >
+            <IconLive />
+          </button>
+
+          {getTopTabs().slice(1).map((tab) => {
+            const isActive = activeTopTab === tab.key;
 
             return (
               <button
-                key={tab}
+                key={tab.key}
                 type="button"
-                onClick={() => setActiveTab(tab)}
-                style={{
-                  ...styles.tabButton,
-                  ...(activeItem ? styles.tabButtonActive : {})
-                }}
+                onClick={() => setActiveTopTab(tab.key)}
+                style={styles.topTabButton}
               >
-                {tab}
+                <span
+                  style={{
+                    ...styles.topTabLabel,
+                    ...(isActive ? styles.topTabLabelActive : {})
+                  }}
+                >
+                  {tab.label}
+                </span>
+                {isActive ? <span style={styles.topTabUnderline} /> : null}
               </button>
             );
           })}
         </div>
 
-        <button type="button" style={styles.searchButton} aria-label="Search">
-          ⌕
-        </button>
+        <div style={styles.topUtilityButtons}>
+          <button
+            type="button"
+            style={styles.utilityButton}
+            aria-label="Open info overlay"
+            onClick={() => setInfoOpen((prev) => !prev)}
+          >
+            <IconInfo />
+          </button>
+
+          <button type="button" style={styles.utilityButton} aria-label="Search">
+            <IconSearch />
+          </button>
+        </div>
       </div>
 
       <div style={styles.brandOverlay}>
@@ -677,6 +922,46 @@ export default function Feed() {
           })}
         </div>
       )}
+
+      <InfoOverlay isOpen={infoOpen} onClose={() => setInfoOpen(false)} />
+
+      <div style={styles.searchBarDock}>
+        <button type="button" style={styles.searchBarButton}>
+          <IconSearch />
+          <span style={styles.searchBarText}>Search artists, songs, genres</span>
+        </button>
+      </div>
+
+      <div style={styles.bottomNavBar}>
+        <button type="button" style={styles.bottomNavItem}>
+          <IconHome />
+          <span style={styles.bottomNavLabelActive}>Home</span>
+        </button>
+
+        <button type="button" style={styles.bottomNavItem}>
+          <IconBag />
+          <span style={styles.bottomNavLabel}>Shop</span>
+        </button>
+
+        <button type="button" style={styles.createButton} aria-label="Create">
+          <span style={styles.createButtonOuter}>
+            <span style={styles.createButtonInner}>+</span>
+          </span>
+        </button>
+
+        <button type="button" style={styles.bottomNavItem}>
+          <div style={styles.bottomNavBadgeWrap}>
+            <IconInbox />
+            <span style={styles.bottomNavBadge}>2</span>
+          </div>
+          <span style={styles.bottomNavLabel}>Inbox</span>
+        </button>
+
+        <button type="button" style={styles.bottomNavItem}>
+          <IconProfile />
+          <span style={styles.bottomNavLabel}>Profile</span>
+        </button>
+      </div>
     </div>
   );
 }
@@ -701,61 +986,102 @@ const styles = {
     top: 0,
     left: 0,
     right: 0,
-    width: "100vw",
-    zIndex: 40,
+    zIndex: 50,
     display: "flex",
     alignItems: "center",
     justifyContent: "space-between",
-    padding: "16px 12px 10px",
+    gap: "10px",
+    padding: "16px 10px 10px",
     boxSizing: "border-box",
-    pointerEvents: "none"
+    background: "linear-gradient(180deg, rgba(0,0,0,0.34) 0%, rgba(0,0,0,0.10) 70%, rgba(0,0,0,0) 100%)",
+    backdropFilter: "blur(6px)"
   },
-  tabsInner: {
+  topTabsScroller: {
     display: "flex",
     alignItems: "center",
-    gap: "18px",
+    gap: "14px",
+    minWidth: 0,
     overflowX: "auto",
     scrollbarWidth: "none",
     msOverflowStyle: "none",
-    pointerEvents: "auto"
+    flex: 1
   },
-  tabButton: {
-    appearance: "none",
-    background: "transparent",
-    border: "none",
-    color: "rgba(255,255,255,0.68)",
-    fontSize: "15px",
-    fontWeight: 700,
-    padding: 0,
-    position: "relative",
-    whiteSpace: "nowrap",
-    cursor: "pointer"
-  },
-  tabButtonActive: {
-    color: "#ffffff"
-  },
-  searchButton: {
+  liveTabButton: {
     appearance: "none",
     background: "transparent",
     border: "none",
     color: "#ffffff",
-    fontSize: "28px",
-    lineHeight: 1,
-    padding: "0 4px",
-    pointerEvents: "auto",
+    padding: 0,
+    display: "flex",
+    alignItems: "center",
+    cursor: "pointer",
+    flexShrink: 0
+  },
+  topTabIconSvg: {
+    width: "34px",
+    height: "34px",
+    display: "block",
+    color: "#ffffff"
+  },
+  topTabButton: {
+    appearance: "none",
+    background: "transparent",
+    border: "none",
+    color: "#ffffff",
+    padding: 0,
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    cursor: "pointer",
+    whiteSpace: "nowrap",
+    flexShrink: 0
+  },
+  topTabLabel: {
+    fontSize: "15px",
+    fontWeight: 700,
+    color: "rgba(255,255,255,0.70)"
+  },
+  topTabLabelActive: {
+    color: "#ffffff"
+  },
+  topTabUnderline: {
+    marginTop: "6px",
+    width: "42px",
+    height: "3px",
+    borderRadius: "999px",
+    background: "#ffffff"
+  },
+  topUtilityButtons: {
+    display: "flex",
+    alignItems: "center",
+    gap: "4px",
+    flexShrink: 0
+  },
+  utilityButton: {
+    appearance: "none",
+    background: "transparent",
+    border: "none",
+    color: "#ffffff",
+    padding: "4px",
     cursor: "pointer"
+  },
+  utilityIconSvg: {
+    width: "30px",
+    height: "30px",
+    display: "block",
+    color: "#ffffff"
   },
   brandOverlay: {
     position: "fixed",
-    top: "118px",
+    top: "84px",
     right: "10px",
-    zIndex: 30,
+    zIndex: 35,
     pointerEvents: "none"
   },
   brandOverlayImage: {
     display: "block",
-    width: "154px",
-    height: "56px",
+    width: "148px",
+    height: "54px",
     objectFit: "contain",
     borderRadius: "10px",
     boxShadow: "0 8px 20px rgba(0,0,0,0.16)"
@@ -828,7 +1154,7 @@ const styles = {
     height: "28%",
     zIndex: 2,
     background:
-      "linear-gradient(180deg, rgba(0,0,0,0.22) 0%, rgba(0,0,0,0.04) 55%, rgba(0,0,0,0) 100%)"
+      "linear-gradient(180deg, rgba(0,0,0,0.24) 0%, rgba(0,0,0,0.06) 55%, rgba(0,0,0,0) 100%)"
   },
   bottomTint: {
     position: "absolute",
@@ -840,11 +1166,30 @@ const styles = {
     background:
       "linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.08) 30%, rgba(0,0,0,0.44) 100%)"
   },
+  leftHeatRail: {
+    position: "absolute",
+    left: "10px",
+    top: "134px",
+    bottom: "168px",
+    width: "10px",
+    zIndex: 6,
+    display: "flex",
+    flexDirection: "column",
+    justifyContent: "flex-end",
+    gap: "4px"
+  },
+  heatCell: {
+    width: "100%",
+    height: "10px",
+    borderRadius: "3px",
+    background: "linear-gradient(180deg, #34d399 0%, #22c55e 12%, #eab308 42%, #f97316 70%, #ef4444 100%)",
+    boxShadow: "0 0 8px rgba(255,255,255,0.10)"
+  },
   rightRail: {
     position: "absolute",
     right: "max(10px, env(safe-area-inset-right))",
-    bottom: "118px",
-    zIndex: 5,
+    bottom: "196px",
+    zIndex: 7,
     display: "flex",
     flexDirection: "column",
     alignItems: "center",
@@ -967,10 +1312,12 @@ const styles = {
   railButtonActive: {
     transform: "scale(1.15)"
   },
-  railIcon: {
-    fontSize: "32px",
-    lineHeight: 1,
-    textShadow: "0 4px 14px rgba(0,0,0,0.35)"
+  railIconSvg: {
+    width: "30px",
+    height: "30px",
+    display: "block",
+    color: "#ffffff",
+    filter: "drop-shadow(0 4px 12px rgba(0,0,0,0.35))"
   },
   railCount: {
     fontSize: "13px",
@@ -1015,24 +1362,20 @@ const styles = {
     justifyContent: "center",
     padding: 0,
     cursor: "pointer",
-    boxShadow: "0 10px 24px rgba(0,0,0,0.30)"
+    boxShadow: "0 10px 24px rgba(0,0,0,0.30)",
+    color: "#111111"
   },
-  soundDiscInner: {
-    width: "36px",
-    height: "36px",
-    borderRadius: "999px",
-    background: "rgba(0,0,0,0.86)",
-    color: "#ffffff",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    fontSize: "16px"
+  soundDiscSvg: {
+    width: "28px",
+    height: "28px",
+    display: "block",
+    color: "#111111"
   },
   bottomOverlay: {
     position: "absolute",
-    left: "max(14px, env(safe-area-inset-left))",
+    left: "max(24px, calc(env(safe-area-inset-left) + 10px))",
     right: "84px",
-    bottom: "18px",
+    bottom: "126px",
     zIndex: 5
   },
   identityRow: {
@@ -1147,9 +1490,9 @@ const styles = {
   },
   orderBadge: {
     position: "absolute",
-    top: "74px",
+    top: "90px",
     left: "max(14px, env(safe-area-inset-left))",
-    zIndex: 5,
+    zIndex: 6,
     fontSize: "11px",
     fontWeight: 800,
     padding: "6px 9px",
@@ -1157,5 +1500,185 @@ const styles = {
     background: "rgba(0,0,0,0.26)",
     border: "1px solid rgba(255,255,255,0.14)",
     backdropFilter: "blur(8px)"
+  },
+  infoOverlayBackdrop: {
+    position: "fixed",
+    inset: 0,
+    zIndex: 80,
+    background: "rgba(0,0,0,0.10)"
+  },
+  infoFrameTopLeft: {
+    position: "absolute",
+    top: "126px",
+    left: "14px",
+    display: "flex",
+    flexDirection: "column",
+    gap: "10px"
+  },
+  infoFrameTopRight: {
+    position: "absolute",
+    top: "126px",
+    right: "96px",
+    display: "flex",
+    flexDirection: "column",
+    gap: "10px"
+  },
+  infoFrameBottomLeft: {
+    position: "absolute",
+    left: "14px",
+    bottom: "220px",
+    display: "flex",
+    flexDirection: "column",
+    gap: "10px"
+  },
+  infoFrameBottomRight: {
+    position: "absolute",
+    right: "96px",
+    bottom: "220px",
+    display: "flex",
+    flexDirection: "column",
+    gap: "10px"
+  },
+  infoActionBox: {
+    appearance: "none",
+    border: "1px solid rgba(255,255,255,0.24)",
+    background: "rgba(14,14,18,0.42)",
+    color: "#ffffff",
+    borderRadius: "14px",
+    padding: "10px 12px",
+    display: "flex",
+    alignItems: "center",
+    gap: "10px",
+    backdropFilter: "blur(14px)",
+    boxShadow: "0 12px 30px rgba(0,0,0,0.20)",
+    cursor: "pointer"
+  },
+  infoActionIconSvg: {
+    width: "18px",
+    height: "18px",
+    display: "block",
+    color: "#ffffff",
+    flexShrink: 0
+  },
+  infoActionLabel: {
+    fontSize: "13px",
+    fontWeight: 700
+  },
+  searchBarDock: {
+    position: "fixed",
+    left: "12px",
+    right: "12px",
+    bottom: "82px",
+    zIndex: 60
+  },
+  searchBarButton: {
+    width: "100%",
+    appearance: "none",
+    border: "1px solid rgba(255,255,255,0.14)",
+    background: "rgba(20,20,24,0.86)",
+    color: "#ffffff",
+    borderRadius: "14px",
+    padding: "12px 14px",
+    display: "flex",
+    alignItems: "center",
+    gap: "12px",
+    backdropFilter: "blur(12px)",
+    boxShadow: "0 10px 22px rgba(0,0,0,0.18)",
+    cursor: "pointer"
+  },
+  searchBarText: {
+    fontSize: "15px",
+    fontWeight: 600,
+    color: "rgba(255,255,255,0.82)"
+  },
+  bottomNavBar: {
+    position: "fixed",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 70,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-around",
+    padding: "10px 12px calc(10px + env(safe-area-inset-bottom))",
+    background: "rgba(0,0,0,0.94)"
+  },
+  bottomNavItem: {
+    appearance: "none",
+    background: "transparent",
+    border: "none",
+    color: "#ffffff",
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    gap: "4px",
+    cursor: "pointer",
+    minWidth: "52px"
+  },
+  bottomNavIconSvg: {
+    width: "28px",
+    height: "28px",
+    display: "block",
+    color: "#ffffff"
+  },
+  bottomNavLabel: {
+    fontSize: "12px",
+    fontWeight: 600,
+    color: "rgba(255,255,255,0.78)"
+  },
+  bottomNavLabelActive: {
+    fontSize: "12px",
+    fontWeight: 700,
+    color: "#ffffff"
+  },
+  createButton: {
+    appearance: "none",
+    background: "transparent",
+    border: "none",
+    cursor: "pointer",
+    padding: 0,
+    marginTop: "-4px"
+  },
+  createButtonOuter: {
+    width: "58px",
+    height: "34px",
+    borderRadius: "12px",
+    background: "linear-gradient(90deg, #60dbf8 0%, #ffffff 50%, #ff4f7f 100%)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center"
+  },
+  createButtonInner: {
+    width: "44px",
+    height: "34px",
+    borderRadius: "10px",
+    background: "#ffffff",
+    color: "#111111",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontSize: "28px",
+    fontWeight: 500,
+    lineHeight: 1
+  },
+  bottomNavBadgeWrap: {
+    position: "relative",
+    display: "inline-flex"
+  },
+  bottomNavBadge: {
+    position: "absolute",
+    top: "-6px",
+    right: "-10px",
+    minWidth: "18px",
+    height: "18px",
+    borderRadius: "999px",
+    background: "#ff476f",
+    color: "#ffffff",
+    fontSize: "11px",
+    fontWeight: 800,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: "0 5px"
   }
 };
