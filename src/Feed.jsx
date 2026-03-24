@@ -6,7 +6,6 @@ import {
 } from "./services/api";
 import { IBAND_LOGO_SRC } from "./components/ibandRailLogo";
 
-const VIEW_DURATION_MS = 12 * 60 * 60 * 1000;
 const IBAND_APPROVED_LOGO_SRC = "/iband-approved-logo.png";
 
 function svgDataUri(svg) {
@@ -32,18 +31,18 @@ function createArtistAvatarDataUri(name, index) {
   const [c1, c2] = gradients[index % gradients.length];
 
   const svg = `
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
-    <defs>
-      <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-        <stop offset="0%" stop-color="${c1}"/>
-        <stop offset="100%" stop-color="${c2}"/>
-      </linearGradient>
-    </defs>
-    <rect width="200" height="200" rx="100" fill="url(#bg)"/>
-    <circle cx="100" cy="72" r="32" fill="rgba(255,255,255,0.24)"/>
-    <path d="M40 165c10-30 33-46 60-46s50 16 60 46" fill="rgba(255,255,255,0.24)"/>
-    <text x="100" y="118" text-anchor="middle" font-size="42" font-family="Arial, sans-serif" font-weight="700" fill="white">${initials}</text>
-  </svg>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+      <defs>
+        <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="${c1}"/>
+          <stop offset="100%" stop-color="${c2}"/>
+        </linearGradient>
+      </defs>
+      <rect width="200" height="200" rx="100" fill="url(#bg)"/>
+      <circle cx="100" cy="72" r="32" fill="rgba(255,255,255,0.24)"/>
+      <path d="M40 165c10-30 33-46 60-46s50 16 60 46" fill="rgba(255,255,255,0.24)"/>
+      <text x="100" y="118" text-anchor="middle" font-size="42" font-family="Arial, sans-serif" font-weight="700" fill="white">${initials}</text>
+    </svg>
   `;
 
   return svgDataUri(svg);
@@ -236,9 +235,33 @@ function getTopTabs() {
 function IconLive() {
   return (
     <svg viewBox="0 0 24 24" style={styles.topTabIconSvg} aria-hidden="true">
-      <rect x="3.5" y="6" width="17" height="12" rx="2.8" fill="none" stroke="currentColor" strokeWidth="1.8" />
-      <path d="M7 4.5h10M8.5 19.5h7" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-      <text x="12" y="14.3" textAnchor="middle" fontSize="5.3" fontWeight="700" fill="currentColor">LIVE</text>
+      <rect
+        x="3.5"
+        y="6"
+        width="17"
+        height="12"
+        rx="2.8"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+      />
+      <path
+        d="M7 4.5h10M8.5 19.5h7"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+      />
+      <text
+        x="12"
+        y="14.3"
+        textAnchor="middle"
+        fontSize="5.3"
+        fontWeight="700"
+        fill="currentColor"
+      >
+        LIVE
+      </text>
     </svg>
   );
 }
@@ -246,8 +269,21 @@ function IconLive() {
 function IconSearch() {
   return (
     <svg viewBox="0 0 24 24" style={styles.utilityIconSvg} aria-hidden="true">
-      <circle cx="11" cy="11" r="6.5" fill="none" stroke="currentColor" strokeWidth="2" />
-      <path d="M16 16l4.2 4.2" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      <circle
+        cx="11"
+        cy="11"
+        r="6.5"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+      />
+      <path
+        d="M16 16l4.2 4.2"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
     </svg>
   );
 }
@@ -255,9 +291,22 @@ function IconSearch() {
 function IconInfo() {
   return (
     <svg viewBox="0 0 24 24" style={styles.utilityIconSvg} aria-hidden="true">
-      <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" strokeWidth="2" />
+      <circle
+        cx="12"
+        cy="12"
+        r="9"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+      />
       <circle cx="12" cy="8" r="1.2" fill="currentColor" />
-      <path d="M12 11v5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      <path
+        d="M12 11v5"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
     </svg>
   );
 }
@@ -265,9 +314,33 @@ function IconInfo() {
 function IconHeadphones() {
   return (
     <svg viewBox="0 0 24 24" style={styles.railIconSvg} aria-hidden="true">
-      <path d="M5 13a7 7 0 0114 0" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-      <rect x="4" y="12" width="4" height="7" rx="2" fill="none" stroke="currentColor" strokeWidth="1.8" />
-      <rect x="16" y="12" width="4" height="7" rx="2" fill="none" stroke="currentColor" strokeWidth="1.8" />
+      <path
+        d="M5 13a7 7 0 0114 0"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+      />
+      <rect
+        x="4"
+        y="12"
+        width="4"
+        height="7"
+        rx="2"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+      />
+      <rect
+        x="16"
+        y="12"
+        width="4"
+        height="7"
+        rx="2"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+      />
     </svg>
   );
 }
@@ -275,7 +348,10 @@ function IconHeadphones() {
 function IconComment() {
   return (
     <svg viewBox="0 0 24 24" style={styles.railIconSvg} aria-hidden="true">
-      <path d="M6 6h12a3 3 0 013 3v4a3 3 0 01-3 3h-5l-4.5 3v-3H6a3 3 0 01-3-3V9a3 3 0 013-3z" fill="currentColor" />
+      <path
+        d="M6 6h12a3 3 0 013 3v4a3 3 0 01-3 3h-5l-4.5 3v-3H6a3 3 0 01-3-3V9a3 3 0 013-3z"
+        fill="currentColor"
+      />
     </svg>
   );
 }
@@ -283,7 +359,10 @@ function IconComment() {
 function IconStar() {
   return (
     <svg viewBox="0 0 24 24" style={styles.railIconSvg} aria-hidden="true">
-      <path d="M12 3.5l2.6 5.3 5.8.8-4.2 4.1 1 5.8-5.2-2.8-5.2 2.8 1-5.8-4.2-4.1 5.8-.8L12 3.5z" fill="currentColor" />
+      <path
+        d="M12 3.5l2.6 5.3 5.8.8-4.2 4.1 1 5.8-5.2-2.8-5.2 2.8 1-5.8-4.2-4.1 5.8-.8L12 3.5z"
+        fill="currentColor"
+      />
     </svg>
   );
 }
@@ -291,7 +370,10 @@ function IconStar() {
 function IconRocket() {
   return (
     <svg viewBox="0 0 24 24" style={styles.railIconSvg} aria-hidden="true">
-      <path d="M14.5 4c2.8.4 4.6 2.2 5 5l-4.4 4.4-5-5L14.5 4zM9 9l6 6-4 1-3-3 1-4z" fill="currentColor" />
+      <path
+        d="M14.5 4c2.8.4 4.6 2.2 5 5l-4.4 4.4-5-5L14.5 4zM9 9l6 6-4 1-3-3 1-4z"
+        fill="currentColor"
+      />
       <path d="M6 18l3-1-2-2-1 3z" fill="currentColor" />
     </svg>
   );
@@ -300,9 +382,23 @@ function IconRocket() {
 function IconMusicDisc() {
   return (
     <svg viewBox="0 0 24 24" style={styles.soundDiscSvg} aria-hidden="true">
-      <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" strokeWidth="1.7" />
+      <circle
+        cx="12"
+        cy="12"
+        r="9"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.7"
+      />
       <circle cx="12" cy="12" r="2" fill="currentColor" />
-      <path d="M11 7v6.5a1.9 1.9 0 11-1.3-1.8" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+      <path
+        d="M11 7v6.5a1.9 1.9 0 11-1.3-1.8"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </svg>
   );
 }
@@ -310,7 +406,10 @@ function IconMusicDisc() {
 function IconHome() {
   return (
     <svg viewBox="0 0 24 24" style={styles.bottomNavIconSvg} aria-hidden="true">
-      <path d="M4 10.5L12 4l8 6.5V20a1 1 0 01-1 1h-4.8v-6h-4.4v6H5a1 1 0 01-1-1v-9.5z" fill="currentColor" />
+      <path
+        d="M4 10.5L12 4l8 6.5V20a1 1 0 01-1 1h-4.8v-6h-4.4v6H5a1 1 0 01-1-1v-9.5z"
+        fill="currentColor"
+      />
     </svg>
   );
 }
@@ -318,7 +417,13 @@ function IconHome() {
 function IconBag() {
   return (
     <svg viewBox="0 0 24 24" style={styles.bottomNavIconSvg} aria-hidden="true">
-      <path d="M7 8V7a5 5 0 0110 0v1h2l-1.1 11H6.1L5 8h2zm2 0h6V7a3 3 0 00-6 0v1z" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinejoin="round" />
+      <path
+        d="M7 8V7a5 5 0 0110 0v1h2l-1.1 11H6.1L5 8h2zm2 0h6V7a3 3 0 00-6 0v1z"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.9"
+        strokeLinejoin="round"
+      />
     </svg>
   );
 }
@@ -326,7 +431,13 @@ function IconBag() {
 function IconInbox() {
   return (
     <svg viewBox="0 0 24 24" style={styles.bottomNavIconSvg} aria-hidden="true">
-      <path d="M4 6h16l1 10h-5l-2 3h-4l-2-3H3L4 6z" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinejoin="round" />
+      <path
+        d="M4 6h16l1 10h-5l-2 3h-4l-2-3H3L4 6z"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.9"
+        strokeLinejoin="round"
+      />
     </svg>
   );
 }
@@ -334,8 +445,21 @@ function IconInbox() {
 function IconProfile() {
   return (
     <svg viewBox="0 0 24 24" style={styles.bottomNavIconSvg} aria-hidden="true">
-      <circle cx="12" cy="8" r="3.5" fill="none" stroke="currentColor" strokeWidth="1.9" />
-      <path d="M5 20a7 7 0 0114 0" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" />
+      <circle
+        cx="12"
+        cy="8"
+        r="3.5"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.9"
+      />
+      <path
+        d="M5 20a7 7 0 0114 0"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.9"
+        strokeLinecap="round"
+      />
     </svg>
   );
 }
@@ -343,8 +467,21 @@ function IconProfile() {
 function IconPanelArtist() {
   return (
     <svg viewBox="0 0 24 24" style={styles.infoActionIconSvg} aria-hidden="true">
-      <circle cx="12" cy="8" r="3.2" fill="none" stroke="currentColor" strokeWidth="1.8" />
-      <path d="M5.5 19a6.5 6.5 0 0113 0" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+      <circle
+        cx="12"
+        cy="8"
+        r="3.2"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+      />
+      <path
+        d="M5.5 19a6.5 6.5 0 0113 0"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+      />
     </svg>
   );
 }
@@ -352,8 +489,20 @@ function IconPanelArtist() {
 function IconPanelHistory() {
   return (
     <svg viewBox="0 0 24 24" style={styles.infoActionIconSvg} aria-hidden="true">
-      <path d="M6 4.5h9l3 3V19a1 1 0 01-1 1H6.8A1.8 1.8 0 015 18.2V6.3A1.8 1.8 0 016.8 4.5H6z" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
-      <path d="M9 10h6M9 14h6" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+      <path
+        d="M6 4.5h9l3 3V19a1 1 0 01-1 1H6.8A1.8 1.8 0 015 18.2V6.3A1.8 1.8 0 016.8 4.5H6z"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M9 10h6M9 14h6"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+      />
     </svg>
   );
 }
@@ -361,8 +510,20 @@ function IconPanelHistory() {
 function IconPanelTickets() {
   return (
     <svg viewBox="0 0 24 24" style={styles.infoActionIconSvg} aria-hidden="true">
-      <path d="M4 8.5h16v3a2 2 0 010 4v3H4v-3a2 2 0 010-4v-3z" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
-      <path d="M12 8.5v10" fill="none" stroke="currentColor" strokeWidth="1.8" strokeDasharray="2 2" />
+      <path
+        d="M4 8.5h16v3a2 2 0 010 4v3H4v-3a2 2 0 010-4v-3z"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M12 8.5v10"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeDasharray="2 2"
+      />
     </svg>
   );
 }
@@ -370,8 +531,20 @@ function IconPanelTickets() {
 function IconPanelMerch() {
   return (
     <svg viewBox="0 0 24 24" style={styles.infoActionIconSvg} aria-hidden="true">
-      <path d="M8 7l1.2-2h5.6L16 7h2v12H6V7h2z" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
-      <path d="M9 10a3 3 0 006 0" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+      <path
+        d="M8 7l1.2-2h5.6L16 7h2v12H6V7h2z"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M9 10a3 3 0 006 0"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+      />
     </svg>
   );
 }
@@ -379,7 +552,14 @@ function IconPanelMerch() {
 function IconPanelLyrics() {
   return (
     <svg viewBox="0 0 24 24" style={styles.infoActionIconSvg} aria-hidden="true">
-      <path d="M14 5v9.5a2.3 2.3 0 11-1.5-2.1V7l6-1.5v7a2.3 2.3 0 11-1.5-2.1V4.6L14 5z" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+      <path
+        d="M14 5v9.5a2.3 2.3 0 11-1.5-2.1V7l6-1.5v7a2.3 2.3 0 11-1.5-2.1V4.6L14 5z"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </svg>
   );
 }
@@ -387,8 +567,22 @@ function IconPanelLyrics() {
 function IconPanelTranslate() {
   return (
     <svg viewBox="0 0 24 24" style={styles.infoActionIconSvg} aria-hidden="true">
-      <path d="M4 7h10M9 4v3M7 7c0 4-2 7-4 8M11 15c-2-1-3.5-3-4-5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M14 11h6M17 8v3M15 19l2-5 2 5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+      <path
+        d="M4 7h10M9 4v3M7 7c0 4-2 7-4 8M11 15c-2-1-3.5-3-4-5"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M14 11h6M17 8v3M15 19l2-5 2 5"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </svg>
   );
 }
@@ -396,7 +590,12 @@ function IconPanelTranslate() {
 function IconPanelSubscribe() {
   return (
     <svg viewBox="0 0 24 24" style={styles.infoActionIconSvg} aria-hidden="true">
-      <path d="M4 8.5A2.5 2.5 0 016.5 6h11A2.5 2.5 0 0120 8.5v7A2.5 2.5 0 0117.5 18h-11A2.5 2.5 0 014 15.5v-7z" fill="none" stroke="currentColor" strokeWidth="1.8" />
+      <path
+        d="M4 8.5A2.5 2.5 0 016.5 6h11A2.5 2.5 0 0120 8.5v7A2.5 2.5 0 0117.5 18h-11A2.5 2.5 0 014 15.5v-7z"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+      />
       <path d="M10 9.5l5 3-5 3v-6z" fill="currentColor" />
     </svg>
   );
@@ -405,7 +604,13 @@ function IconPanelSubscribe() {
 function IconPanelBuy() {
   return (
     <svg viewBox="0 0 24 24" style={styles.infoActionIconSvg} aria-hidden="true">
-      <path d="M7 7V6a5 5 0 0110 0v1h2l-1.1 12H6.1L5 7h2zm2 0h6V6a3 3 0 00-6 0v1z" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+      <path
+        d="M7 7V6a5 5 0 0110 0v1h2l-1.1 12H6.1L5 7h2zm2 0h6V6a3 3 0 00-6 0v1z"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinejoin="round"
+      />
     </svg>
   );
 }
@@ -445,15 +650,12 @@ function InfoOverlay({ isOpen, onClose }) {
       <div style={styles.infoFrameTopLeft} onClick={(e) => e.stopPropagation()}>
         {renderGroup(groups.topLeft)}
       </div>
-
       <div style={styles.infoFrameTopRight} onClick={(e) => e.stopPropagation()}>
         {renderGroup(groups.topRight)}
       </div>
-
       <div style={styles.infoFrameBottomLeft} onClick={(e) => e.stopPropagation()}>
         {renderGroup(groups.bottomLeft)}
       </div>
-
       <div style={styles.infoFrameBottomRight} onClick={(e) => e.stopPropagation()}>
         {renderGroup(groups.bottomRight)}
       </div>
@@ -484,7 +686,6 @@ function FeedSlide({
 }) {
   const [followed, setFollowed] = useState(false);
   const [viewedAt, setViewedAt] = useState(null);
-
   const slideRef = useRef(null);
 
   useEffect(() => {
@@ -499,13 +700,10 @@ function FeedSlide({
           }
         });
       },
-      {
-        threshold: [0.7]
-      }
+      { threshold: [0.7] }
     );
 
     observer.observe(node);
-
     return () => observer.disconnect();
   }, []);
 
@@ -535,6 +733,16 @@ function FeedSlide({
       <div style={styles.backgroundGlow} />
       <div style={styles.topTint} />
       <div style={styles.bottomTint} />
+
+      <div style={styles.orderBadge}>#{item.orderLabel}</div>
+
+      <div style={styles.slideBrandOverlay}>
+        <img
+          src={IBAND_APPROVED_LOGO_SRC}
+          alt="iBand approved logo"
+          style={styles.slideBrandImage}
+        />
+      </div>
 
       <div style={styles.leftHeatRail}>
         {Array.from({ length: 18 }).map((_, i) => (
@@ -735,8 +943,6 @@ function FeedSlide({
           <span style={styles.soundText}>{item.soundLabel}</span>
         </div>
       </div>
-
-      <div style={styles.orderBadge}>#{item.orderLabel}</div>
     </section>
   );
 }
@@ -753,7 +959,6 @@ export default function Feed() {
     itemId: null
   });
   const [infoOpen, setInfoOpen] = useState(false);
-
   const holdTimerRef = useRef(null);
 
   useEffect(() => {
@@ -904,14 +1109,6 @@ export default function Feed() {
             <IconSearch />
           </button>
         </div>
-      </div>
-
-      <div style={styles.brandOverlay}>
-        <img
-          src={IBAND_APPROVED_LOGO_SRC}
-          alt="iBand approved logo"
-          style={styles.brandOverlayImage}
-        />
       </div>
 
       {loading ? (
@@ -1099,21 +1296,6 @@ const styles = {
     display: "block",
     color: "#ffffff"
   },
-  brandOverlay: {
-    position: "fixed",
-    top: "96px",
-    right: "12px",
-    zIndex: 35,
-    pointerEvents: "none"
-  },
-  brandOverlayImage: {
-    display: "block",
-    width: "160px",
-    height: "56px",
-    objectFit: "contain",
-    borderRadius: "12px",
-    boxShadow: "0 10px 26px rgba(0,0,0,0.22)"
-  },
   centerState: {
     minHeight: "100dvh",
     display: "flex",
@@ -1193,6 +1375,34 @@ const styles = {
     zIndex: 2,
     background:
       "linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.08) 30%, rgba(0,0,0,0.44) 100%)"
+  },
+  orderBadge: {
+    position: "absolute",
+    top: "90px",
+    left: "max(14px, env(safe-area-inset-left))",
+    zIndex: 6,
+    fontSize: "11px",
+    fontWeight: 800,
+    padding: "6px 9px",
+    borderRadius: "999px",
+    background: "rgba(0,0,0,0.26)",
+    border: "1px solid rgba(255,255,255,0.14)",
+    backdropFilter: "blur(8px)"
+  },
+  slideBrandOverlay: {
+    position: "absolute",
+    top: "96px",
+    right: "84px",
+    zIndex: 6,
+    pointerEvents: "none"
+  },
+  slideBrandImage: {
+    display: "block",
+    width: "136px",
+    height: "48px",
+    objectFit: "contain",
+    borderRadius: "10px",
+    boxShadow: "0 8px 20px rgba(0,0,0,0.18)"
   },
   leftHeatRail: {
     position: "absolute",
@@ -1517,19 +1727,6 @@ const styles = {
     whiteSpace: "nowrap",
     overflow: "hidden",
     textOverflow: "ellipsis"
-  },
-  orderBadge: {
-    position: "absolute",
-    top: "90px",
-    left: "max(14px, env(safe-area-inset-left))",
-    zIndex: 6,
-    fontSize: "11px",
-    fontWeight: 800,
-    padding: "6px 9px",
-    borderRadius: "999px",
-    background: "rgba(0,0,0,0.26)",
-    border: "1px solid rgba(255,255,255,0.14)",
-    backdropFilter: "blur(8px)"
   },
   infoOverlayBackdrop: {
     position: "fixed",
