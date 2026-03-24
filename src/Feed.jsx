@@ -517,7 +517,7 @@ function FeedSlide({
     ? item.profileImage
     : item.fallbackAvatar || IBAND_LOGO_SRC;
 
-  const heatActiveCells = ((index % 6) + 8);
+  const heatActiveCells = (index % 6) + 8;
 
   return (
     <section
@@ -568,7 +568,11 @@ function FeedSlide({
                 <img
                   src={avatarSrc}
                   alt={item.artist}
-                  style={hasPhotoAvatar ? styles.profilePhotoImage : styles.profileFallbackImage}
+                  style={
+                    hasPhotoAvatar
+                      ? styles.profilePhotoImage
+                      : styles.profileFallbackImage
+                  }
                 />
               </div>
             </AvatarRing>
@@ -656,26 +660,38 @@ function FeedSlide({
             }}
           >
             <IconHeadphones />
-            <span style={styles.railCount}>{formatCompactNumber(item.supportCount)}</span>
+            <span style={styles.railCount}>
+              {formatCompactNumber(item.supportCount)}
+            </span>
           </button>
         </div>
 
         <button type="button" style={styles.railButton} aria-label="Comments">
           <IconComment />
-          <span style={styles.railCount}>{formatCompactNumber(item.comments)}</span>
+          <span style={styles.railCount}>
+            {formatCompactNumber(item.comments)}
+          </span>
         </button>
 
         <button type="button" style={styles.railButton} aria-label="Save">
           <IconStar />
-          <span style={styles.railCount}>{formatCompactNumber(item.saves)}</span>
+          <span style={styles.railCount}>
+            {formatCompactNumber(item.saves)}
+          </span>
         </button>
 
         <button type="button" style={styles.railButton} aria-label="Spread">
           <IconRocket />
-          <span style={styles.railCount}>{formatCompactNumber(item.shares)}</span>
+          <span style={styles.railCount}>
+            {formatCompactNumber(item.shares)}
+          </span>
         </button>
 
-        <button type="button" style={styles.soundButton} aria-label="Open sound page">
+        <button
+          type="button"
+          style={styles.soundButton}
+          aria-label="Open sound page"
+        >
           <IconMusicDisc />
         </button>
       </div>
@@ -815,7 +831,12 @@ export default function Feed() {
   }
 
   function handleReactionSelect(reaction) {
-    console.log("iBand reaction selected:", reaction, "for item:", reactionMenu.itemId);
+    console.log(
+      "iBand reaction selected:",
+      reaction,
+      "for item:",
+      reactionMenu.itemId
+    );
     setReactionMenu({
       open: false,
       itemId: null
@@ -875,7 +896,11 @@ export default function Feed() {
             <IconInfo />
           </button>
 
-          <button type="button" style={styles.utilityButton} aria-label="Search">
+          <button
+            type="button"
+            style={styles.utilityButton}
+            aria-label="Search"
+          >
             <IconSearch />
           </button>
         </div>
@@ -928,7 +953,9 @@ export default function Feed() {
       <div style={styles.searchBarDock}>
         <button type="button" style={styles.searchBarButton}>
           <IconSearch />
-          <span style={styles.searchBarText}>Search artists, songs, genres</span>
+          <span style={styles.searchBarText}>
+            Search artists, songs, genres
+          </span>
         </button>
       </div>
 
@@ -993,7 +1020,8 @@ const styles = {
     gap: "10px",
     padding: "16px 10px 10px",
     boxSizing: "border-box",
-    background: "linear-gradient(180deg, rgba(0,0,0,0.34) 0%, rgba(0,0,0,0.10) 70%, rgba(0,0,0,0) 100%)",
+    background:
+      "linear-gradient(180deg, rgba(0,0,0,0.34) 0%, rgba(0,0,0,0.10) 70%, rgba(0,0,0,0) 100%)",
     backdropFilter: "blur(6px)"
   },
   topTabsScroller: {
@@ -1073,18 +1101,18 @@ const styles = {
   },
   brandOverlay: {
     position: "fixed",
-    top: "84px",
-    right: "10px",
+    top: "96px",
+    right: "12px",
     zIndex: 35,
     pointerEvents: "none"
   },
   brandOverlayImage: {
     display: "block",
-    width: "148px",
-    height: "54px",
+    width: "160px",
+    height: "56px",
     objectFit: "contain",
-    borderRadius: "10px",
-    boxShadow: "0 8px 20px rgba(0,0,0,0.16)"
+    borderRadius: "12px",
+    boxShadow: "0 10px 26px rgba(0,0,0,0.22)"
   },
   centerState: {
     minHeight: "100dvh",
@@ -1182,7 +1210,8 @@ const styles = {
     width: "100%",
     height: "10px",
     borderRadius: "3px",
-    background: "linear-gradient(180deg, #34d399 0%, #22c55e 12%, #eab308 42%, #f97316 70%, #ef4444 100%)",
+    background:
+      "linear-gradient(180deg, #34d399 0%, #22c55e 12%, #eab308 42%, #f97316 70%, #ef4444 100%)",
     boxShadow: "0 0 8px rgba(255,255,255,0.10)"
   },
   rightRail: {
@@ -1217,7 +1246,8 @@ const styles = {
     height: "64px",
     borderRadius: "999px",
     padding: "3px",
-    background: "linear-gradient(135deg, #14b8ff 0%, #2dd4bf 48%, #3b82f6 100%)",
+    background:
+      "linear-gradient(135deg, #14b8ff 0%, #2dd4bf 48%, #3b82f6 100%)",
     boxShadow: "0 8px 20px rgba(0,0,0,0.18)",
     display: "flex",
     alignItems: "center",
@@ -1643,7 +1673,8 @@ const styles = {
     width: "58px",
     height: "34px",
     borderRadius: "12px",
-    background: "linear-gradient(90deg, #60dbf8 0%, #ffffff 50%, #ff4f7f 100%)",
+    background:
+      "linear-gradient(90deg, #60dbf8 0%, #ffffff 50%, #ff4f7f 100%)",
     display: "flex",
     alignItems: "center",
     justifyContent: "center"
