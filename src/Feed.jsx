@@ -6,8 +6,7 @@ import {
 } from "./services/api";
 import { IBAND_LOGO_SRC } from "./components/ibandRailLogo";
 
-const IBAND_APPROVED_LOGO_SRC = "/iband-approved-logo.png";
-
+const IBAND_APPROVED_LOGO_SRC = "/iband-logo.png";
 function svgDataUri(svg) {
   return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
 }
@@ -1390,20 +1389,21 @@ const styles = {
     backdropFilter: "blur(8px)"
   },
   slideBrandOverlay: {
-    position: "absolute",
-    top: "96px",
-    right: "84px",
-    zIndex: 6,
-    pointerEvents: "none"
+  position: "absolute",
+  top: "112px",
+  left: "58px",
+  zIndex: 6,
+  pointerEvents: "none"
+},
   },
   slideBrandImage: {
-    display: "block",
-    width: "136px",
-    height: "48px",
-    objectFit: "contain",
-    borderRadius: "10px",
-    boxShadow: "0 8px 20px rgba(0,0,0,0.18)"
-  },
+  display: "block",
+  width: "112px",
+  height: "40px",
+  objectFit: "contain",
+  borderRadius: "10px",
+  boxShadow: "0 8px 20px rgba(0,0,0,0.18)"
+},
   leftHeatRail: {
     position: "absolute",
     left: "10px",
