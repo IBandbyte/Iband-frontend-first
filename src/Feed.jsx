@@ -51,18 +51,51 @@ function safeArray(value) {
   return Array.isArray(value) ? value : [];
 }
 
+function isUsableImageSrc(value) {
+  if (typeof value !== "string") return false;
+
+  const src = value.trim();
+  if (!src) return false;
+
+  const invalidValues = new Set([
+    "null",
+    "undefined",
+    "false",
+    "none",
+    "n/a",
+    "na",
+    "[object Object]"
+  ]);
+
+  if (invalidValues.has(src.toLowerCase())) return false;
+
+  if (
+    src.startsWith("/") ||
+    src.startsWith("./") ||
+    src.startsWith("../") ||
+    src.startsWith("data:image/") ||
+    src.startsWith("blob:") ||
+    /^https?:\/\//i.test(src)
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
 function pickImageUrl(item) {
-  return (
-    item?.imageUrl ||
-    item?.artistImage ||
-    item?.avatarUrl ||
-    item?.profileImage ||
-    item?.coverImage ||
-    item?.thumbnailUrl ||
-    item?.photoUrl ||
-    item?.image ||
-    ""
-  );
+  const candidates = [
+    item?.imageUrl,
+    item?.artistImage,
+    item?.avatarUrl,
+    item?.profileImage,
+    item?.coverImage,
+    item?.thumbnailUrl,
+    item?.photoUrl,
+    item?.image
+  ];
+
+  return candidates.find((value) => isUsableImageSrc(value)) || "";
 }
 
 function pickHasNewPost(item, fallback = false) {
@@ -694,6 +727,8 @@ function FeedSlide({
   handleReactionSelect
 }) {
   const [followed, setFollowed] = useState(false);
+  const [logoHidden, setLogoHidden] = useState(!isUsableImageSrc(IBAND_LOGO_SRC));
+  const [avatarFailed, setAvatarFailed] = useState(false);
   const slideRef = useRef(null);
 
   useEffect(() => {
@@ -712,10 +747,10 @@ function FeedSlide({
   const profileGlow =
     followed ? "0 0 0 rgba(0,0,0,0)" : "0 0 12px rgba(255,255,255,0.12)";
 
-  const hasPhotoAvatar = Boolean(item.profileImage);
+  const hasPhotoAvatar = isUsableImageSrc(item.profileImage) && !avatarFailed;
   const avatarSrc = hasPhotoAvatar
     ? item.profileImage
-    : item.fallbackAvatar || IBAND_LOGO_SRC;
+    : item.fallbackAvatar || createArtistAvatarDataUri(item.artist, index);
 
   const heatActiveCells = (index % 6) + 8;
 
@@ -738,13 +773,16 @@ function FeedSlide({
 
       <div style={styles.orderBadge}>#{item.orderLabel}</div>
 
-      <div style={styles.slideBrandOverlay}>
-        <img
-          src={IBAND_LOGO_SRC}
-          alt="iBand logo"
-          style={styles.slideBrandImage}
-        />
-      </div>
+      {!logoHidden ? (
+        <div style={styles.slideBrandOverlay}>
+          <img
+            src={IBAND_LOGO_SRC}
+            alt="iBand logo"
+            style={styles.slideBrandImage}
+            onError={() => setLogoHidden(true)}
+          />
+        </div>
+      ) : null}
 
       <div style={styles.leftHeatRail}>
         {Array.from({ length: 18 }).map((_, i) => (
@@ -782,6 +820,11 @@ function FeedSlide({
                       ? styles.profilePhotoImage
                       : styles.profileFallbackImage
                   }
+                  onError={() => {
+                    if (hasPhotoAvatar) {
+                      setAvatarFailed(true);
+                    }
+                  }}
                 />
               </div>
             </AvatarRing>
