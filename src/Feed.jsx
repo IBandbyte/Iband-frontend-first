@@ -745,7 +745,7 @@ function FeedSlide({
   }, []);
 
   const profileGlow =
-    followed ? "0 0 0 rgba(0,0,0,0)" : "0 0 12px rgba(255,255,255,0.12)";
+    followed ? "0 0 0 rgba(0,0,0,0)" : "0 0 14px rgba(255,255,255,0.14)";
 
   const hasPhotoAvatar = isUsableImageSrc(item.profileImage) && !avatarFailed;
   const avatarSrc = hasPhotoAvatar
@@ -811,21 +811,23 @@ function FeedSlide({
             }}
           >
             <AvatarRing hasNewPost={Boolean(item.hasNewPost)}>
-              <div style={styles.profileAvatarCircle}>
-                <img
-                  src={avatarSrc}
-                  alt={item.artist}
-                  style={
-                    hasPhotoAvatar
-                      ? styles.profilePhotoImage
-                      : styles.profileFallbackImage
-                  }
-                  onError={() => {
-                    if (hasPhotoAvatar) {
-                      setAvatarFailed(true);
+              <div style={styles.profileAvatarShell}>
+                <div style={styles.profileAvatarCircle}>
+                  <img
+                    src={avatarSrc}
+                    alt={item.artist}
+                    style={
+                      hasPhotoAvatar
+                        ? styles.profilePhotoImage
+                        : styles.profileFallbackImage
                     }
-                  }}
-                />
+                    onError={() => {
+                      if (hasPhotoAvatar) {
+                        setAvatarFailed(true);
+                      }
+                    }}
+                  />
+                </div>
               </div>
             </AvatarRing>
           </button>
@@ -1552,11 +1554,22 @@ const styles = {
     alignItems: "center",
     justifyContent: "center"
   },
-  profileAvatarCircle: {
-    width: "100%",
-    height: "100%",
+  profileAvatarShell: {
+    width: "58px",
+    height: "58px",
     borderRadius: "999px",
-    background: "#ffffff",
+    background: "rgba(255,255,255,0.12)",
+    boxShadow:
+      "inset 0 1px 0 rgba(255,255,255,0.25), 0 8px 18px rgba(0,0,0,0.24)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center"
+  },
+  profileAvatarCircle: {
+    width: "54px",
+    height: "54px",
+    borderRadius: "999px",
+    background: "transparent",
     overflow: "hidden",
     display: "flex",
     alignItems: "center",
@@ -1566,13 +1579,15 @@ const styles = {
     width: "100%",
     height: "100%",
     objectFit: "cover",
-    display: "block"
+    display: "block",
+    background: "transparent"
   },
   profileFallbackImage: {
     width: "100%",
     height: "100%",
     objectFit: "cover",
-    display: "block"
+    display: "block",
+    background: "transparent"
   },
   profilePlus: {
     position: "absolute",
