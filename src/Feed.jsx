@@ -433,7 +433,6 @@ function IconMusicDisc() {
         stroke="currentColor"
         strokeWidth="1.7"
         strokeLinecap="round"
-        strokeLinejoin="round"
       />
     </svg>
   );
@@ -1509,14 +1508,25 @@ const styles = {
     height: "68px",
     display: "flex",
     alignItems: "center",
-    justifyContent: "center"
+    justifyContent: "center",
+    background: "transparent"
   },
   profileStackButton: {
     position: "relative",
     appearance: "none",
+    WebkitAppearance: "none",
+    WebkitTapHighlightColor: "transparent",
+    outline: "none",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    width: "64px",
+    height: "64px",
     background: "transparent",
     border: "none",
+    borderRadius: "999px",
     padding: 0,
+    margin: 0,
     cursor: "pointer",
     transition: "box-shadow 0.25s ease"
   },
@@ -1558,9 +1568,9 @@ const styles = {
     width: "58px",
     height: "58px",
     borderRadius: "999px",
-    background: "rgba(255,255,255,0.12)",
-    boxShadow:
-      "inset 0 1px 0 rgba(255,255,255,0.25), 0 8px 18px rgba(0,0,0,0.24)",
+    background: "transparent",
+    boxShadow: "none",
+    overflow: "hidden",
     display: "flex",
     alignItems: "center",
     justifyContent: "center"
@@ -1580,14 +1590,16 @@ const styles = {
     height: "100%",
     objectFit: "cover",
     display: "block",
-    background: "transparent"
+    background: "transparent",
+    borderRadius: "999px"
   },
   profileFallbackImage: {
     width: "100%",
     height: "100%",
     objectFit: "cover",
     display: "block",
-    background: "transparent"
+    background: "transparent",
+    borderRadius: "999px"
   },
   profilePlus: {
     position: "absolute",
