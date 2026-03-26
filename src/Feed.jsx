@@ -1887,30 +1887,34 @@ const styles = {
   },
   searchBarDock: {
     position: "fixed",
-    left: "12px",
-    right: "12px",
-    bottom: "82px",
-    zIndex: 60
+    left: "14px",
+    right: "14px",
+    bottom: "calc(68px + env(safe-area-inset-bottom))",
+    zIndex: 60,
+    pointerEvents: "none"
   },
   searchBarButton: {
     width: "100%",
     appearance: "none",
-    border: "1px solid rgba(255,255,255,0.14)",
-    background: "rgba(20,20,24,0.86)",
+    border: "1px solid rgba(255,255,255,0.16)",
+    background: "rgba(20,20,24,0.42)",
     color: "#ffffff",
-    borderRadius: "14px",
-    padding: "12px 14px",
+    borderRadius: "18px",
+    padding: "10px 14px",
     display: "flex",
     alignItems: "center",
     gap: "12px",
-    backdropFilter: "blur(12px)",
-    boxShadow: "0 10px 22px rgba(0,0,0,0.18)",
-    cursor: "pointer"
+    backdropFilter: "blur(18px) saturate(140%)",
+    WebkitBackdropFilter: "blur(18px) saturate(140%)",
+    boxShadow:
+      "0 10px 24px rgba(0,0,0,0.16), inset 0 1px 0 rgba(255,255,255,0.08)",
+    cursor: "pointer",
+    pointerEvents: "auto"
   },
   searchBarText: {
     fontSize: "15px",
     fontWeight: 600,
-    color: "rgba(255,255,255,0.82)"
+    color: "rgba(255,255,255,0.78)"
   },
   bottomNavBar: {
     position: "fixed",
