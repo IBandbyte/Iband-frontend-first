@@ -1721,7 +1721,7 @@ const styles = {
     right: "88px",
     bottom: "calc(172px + env(safe-area-inset-bottom))",
     zIndex: 5,
-    maxWidth: "min(62vw, 420px)"
+    maxWidth: "min(64vw, 440px)"
   },
   identityRow: {
     display: "flex",
@@ -1782,7 +1782,7 @@ const styles = {
   },
   whyInlineRow: {
     display: "flex",
-    alignItems: "center",
+    alignItems: "flex-start",
     gap: "6px",
     flexWrap: "nowrap",
     minWidth: 0,
@@ -1799,27 +1799,32 @@ const styles = {
     textTransform: "uppercase",
     opacity: 0.72,
     whiteSpace: "nowrap",
-    flexShrink: 0
+    flexShrink: 0,
+    paddingTop: "1px"
   },
   whyInlineDivider: {
     fontSize: "10px",
     opacity: 0.5,
-    flexShrink: 0
+    flexShrink: 0,
+    paddingTop: "1px"
   },
   whyInlineText: {
     fontSize: "11px",
     lineHeight: 1.2,
     opacity: 0.94,
+    minWidth: 0,
+    whiteSpace: "normal",
     overflow: "hidden",
-    textOverflow: "ellipsis",
-    whiteSpace: "nowrap",
-    minWidth: 0
+    display: "-webkit-box",
+    WebkitLineClamp: 2,
+    WebkitBoxOrient: "vertical",
+    wordBreak: "break-word"
   },
   infoRowDock: {
     position: "absolute",
     left: "max(18px, calc(env(safe-area-inset-left) + 8px))",
     right: "18px",
-    bottom: "calc(126px + env(safe-area-inset-bottom))",
+    bottom: "calc(112px + env(safe-area-inset-bottom))",
     zIndex: 6,
     pointerEvents: "none"
   },
@@ -1925,7 +1930,7 @@ const styles = {
   searchBarText: {
     fontSize: "15px",
     fontWeight: 500,
-    color: "rgba(255,255,255,0.70)"
+    color: "rgba(255,255,255,0.74)"
   },
   bottomNavBar: {
     position: "fixed",
