@@ -268,6 +268,25 @@ function getTopTabs() {
   ];
 }
 
+function humanizeValue(value) {
+  return String(value || "")
+    .replace(/[-_]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function buildInfoRowText(item) {
+  return [
+    item.artist,
+    humanizeValue(item.source),
+    humanizeValue(item.country),
+    String(item.action || "").replace(/[-\s]+/g, "_")
+  ]
+    .filter(Boolean)
+    .join(" • ");
+}
+
 function IconLive() {
   return (
     <svg viewBox="0 0 24 24" style={styles.topTabIconSvg} aria-hidden="true">
@@ -734,10 +753,7 @@ function FeedSlide({
     const node = slideRef.current;
     if (!node) return undefined;
 
-    const observer = new IntersectionObserver(
-      () => {},
-      { threshold: [0.7] }
-    );
+    const observer = new IntersectionObserver(() => {}, { threshold: [0.7] });
 
     observer.observe(node);
     return () => observer.disconnect();
@@ -752,6 +768,7 @@ function FeedSlide({
     : item.fallbackAvatar || createArtistAvatarDataUri(item.artist, index);
 
   const heatActiveCells = (index % 6) + 8;
+  const infoRowText = buildInfoRowText(item);
 
   return (
     <section
@@ -968,25 +985,18 @@ function FeedSlide({
         </div>
 
         <div style={styles.captionText}>{item.caption}</div>
+
         <div style={styles.subtitleText}>{item.subtitle}</div>
 
-        <div style={styles.whyBox}>
-          <div style={styles.whyLabel}>Why you are seeing this</div>
-          <div style={styles.whyText}>{item.reason}</div>
+        <div style={styles.whyInlineRow}>
+          <span style={styles.whyInlineLabel}>WHY YOU ARE SEEING THIS</span>
+          <span style={styles.whyInlineDivider}>•</span>
+          <span style={styles.whyInlineText}>{item.reason}</span>
         </div>
+      </div>
 
-        <div style={styles.metaRow}>
-          <span style={styles.metaSource}>{item.source}</span>
-          <span style={styles.metaDivider}>•</span>
-          <span style={styles.metaCountry}>{item.country}</span>
-          <span style={styles.metaDivider}>•</span>
-          <span style={styles.metaAction}>{item.action}</span>
-        </div>
-
-        <div style={styles.soundRow}>
-          <span style={styles.soundNote}>♫</span>
-          <span style={styles.soundText}>{item.soundLabel}</span>
-        </div>
+      <div style={styles.infoRowDock}>
+        <div style={styles.infoRowText}>{infoRowText}</div>
       </div>
     </section>
   );
@@ -1280,8 +1290,8 @@ const styles = {
     display: "flex",
     alignItems: "center",
     justifyContent: "space-between",
-    gap: "10px",
-    padding: "16px 10px 10px",
+    gap: "8px",
+    padding: "calc(env(safe-area-inset-top) + 8px) 10px 8px",
     boxSizing: "border-box",
     background:
       "linear-gradient(180deg, rgba(0,0,0,0.34) 0%, rgba(0,0,0,0.10) 70%, rgba(0,0,0,0) 100%)",
@@ -1290,7 +1300,7 @@ const styles = {
   topTabsScroller: {
     display: "flex",
     alignItems: "center",
-    gap: "14px",
+    gap: "13px",
     minWidth: 0,
     overflowX: "auto",
     scrollbarWidth: "none",
@@ -1309,8 +1319,8 @@ const styles = {
     flexShrink: 0
   },
   topTabIconSvg: {
-    width: "34px",
-    height: "34px",
+    width: "32px",
+    height: "32px",
     display: "block",
     color: "#ffffff"
   },
@@ -1328,7 +1338,7 @@ const styles = {
     flexShrink: 0
   },
   topTabLabel: {
-    fontSize: "15px",
+    fontSize: "14px",
     fontWeight: 700,
     color: "rgba(255,255,255,0.70)"
   },
@@ -1336,8 +1346,8 @@ const styles = {
     color: "#ffffff"
   },
   topTabUnderline: {
-    marginTop: "6px",
-    width: "42px",
+    marginTop: "5px",
+    width: "40px",
     height: "3px",
     borderRadius: "999px",
     background: "#ffffff"
@@ -1345,7 +1355,7 @@ const styles = {
   topUtilityButtons: {
     display: "flex",
     alignItems: "center",
-    gap: "4px",
+    gap: "2px",
     flexShrink: 0
   },
   utilityButton: {
@@ -1357,8 +1367,8 @@ const styles = {
     cursor: "pointer"
   },
   utilityIconSvg: {
-    width: "30px",
-    height: "30px",
+    width: "28px",
+    height: "28px",
     display: "block",
     color: "#ffffff"
   },
@@ -1429,7 +1439,7 @@ const styles = {
     top: 0,
     left: 0,
     right: 0,
-    height: "28%",
+    height: "25%",
     zIndex: 2,
     background:
       "linear-gradient(180deg, rgba(0,0,0,0.24) 0%, rgba(0,0,0,0.06) 55%, rgba(0,0,0,0) 100%)"
@@ -1439,14 +1449,14 @@ const styles = {
     left: 0,
     right: 0,
     bottom: 0,
-    height: "34%",
+    height: "38%",
     zIndex: 2,
     background:
-      "linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.05) 28%, rgba(0,0,0,0.34) 68%, rgba(0,0,0,0.60) 100%)"
+      "linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.06) 24%, rgba(0,0,0,0.34) 68%, rgba(0,0,0,0.64) 100%)"
   },
   orderBadge: {
     position: "absolute",
-    top: "90px",
+    top: "78px",
     left: "max(14px, env(safe-area-inset-left))",
     zIndex: 6,
     fontSize: "11px",
@@ -1459,7 +1469,7 @@ const styles = {
   },
   slideBrandOverlay: {
     position: "absolute",
-    top: "96px",
+    top: "82px",
     right: "84px",
     zIndex: 6,
     pointerEvents: "none"
@@ -1475,8 +1485,8 @@ const styles = {
   leftHeatRail: {
     position: "absolute",
     left: "10px",
-    top: "134px",
-    bottom: "160px",
+    top: "120px",
+    bottom: "210px",
     width: "10px",
     zIndex: 6,
     display: "flex",
@@ -1495,7 +1505,7 @@ const styles = {
   rightRail: {
     position: "absolute",
     right: "max(10px, env(safe-area-inset-right))",
-    bottom: "170px",
+    bottom: "calc(168px + env(safe-area-inset-bottom))",
     zIndex: 7,
     display: "flex",
     flexDirection: "column",
@@ -1709,7 +1719,7 @@ const styles = {
     position: "absolute",
     left: "max(18px, calc(env(safe-area-inset-left) + 8px))",
     right: "88px",
-    bottom: "92px",
+    bottom: "calc(172px + env(safe-area-inset-bottom))",
     zIndex: 5,
     maxWidth: "min(62vw, 420px)"
   },
@@ -1759,72 +1769,69 @@ const styles = {
   captionText: {
     fontSize: "14px",
     fontWeight: 600,
-    lineHeight: 1.3,
+    lineHeight: 1.28,
     marginBottom: "6px",
     textShadow: "0 4px 12px rgba(0,0,0,0.42)"
   },
   subtitleText: {
     fontSize: "12px",
-    opacity: 0.84,
-    lineHeight: 1.35,
+    opacity: 0.86,
+    lineHeight: 1.32,
     marginBottom: "8px",
     textShadow: "0 4px 12px rgba(0,0,0,0.42)"
   },
-  whyBox: {
+  whyInlineRow: {
+    display: "flex",
+    alignItems: "center",
+    gap: "6px",
+    flexWrap: "nowrap",
+    minWidth: 0,
+    padding: "7px 10px",
+    borderRadius: "12px",
     background: "rgba(0,0,0,0.16)",
     border: "1px solid rgba(255,255,255,0.08)",
-    borderRadius: "12px",
-    padding: "8px 10px",
-    backdropFilter: "blur(8px)",
-    marginBottom: "8px"
+    backdropFilter: "blur(8px)"
   },
-  whyLabel: {
+  whyInlineLabel: {
     fontSize: "9px",
     fontWeight: 800,
     letterSpacing: "0.08em",
     textTransform: "uppercase",
-    opacity: 0.66,
-    marginBottom: "4px"
-  },
-  whyText: {
-    fontSize: "11px",
-    lineHeight: 1.35,
-    opacity: 0.92
-  },
-  metaRow: {
-    display: "flex",
-    alignItems: "center",
-    gap: "6px",
-    fontSize: "11px",
     opacity: 0.72,
-    marginBottom: "6px",
-    flexWrap: "wrap"
-  },
-  metaSource: {
-    textTransform: "capitalize"
-  },
-  metaCountry: {},
-  metaAction: {
-    whiteSpace: "nowrap"
-  },
-  metaDivider: {
-    opacity: 0.42
-  },
-  soundRow: {
-    display: "flex",
-    alignItems: "center",
-    gap: "6px",
-    fontSize: "11px",
-    opacity: 0.84
-  },
-  soundNote: {
-    fontSize: "12px"
-  },
-  soundText: {
     whiteSpace: "nowrap",
+    flexShrink: 0
+  },
+  whyInlineDivider: {
+    fontSize: "10px",
+    opacity: 0.5,
+    flexShrink: 0
+  },
+  whyInlineText: {
+    fontSize: "11px",
+    lineHeight: 1.2,
+    opacity: 0.94,
     overflow: "hidden",
     textOverflow: "ellipsis",
-    maxWidth: "100%"
+    whiteSpace: "nowrap",
+    minWidth: 0
+  },
+  infoRowDock: {
+    position: "absolute",
+    left: "max(18px, calc(env(safe-area-inset-left) + 8px))",
+    right: "18px",
+    bottom: "calc(126px + env(safe-area-inset-bottom))",
+    zIndex: 6,
+    pointerEvents: "none"
+  },
+  infoRowText: {
+    fontSize: "11px",
+    fontWeight: 600,
+    lineHeight: 1.25,
+    color: "rgba(255,255,255,0.88)",
+    textShadow: "0 4px 12px rgba(0,0,0,0.38)",
+    whiteSpace: "nowrap",
+    overflow: "hidden",
+    textOverflow: "ellipsis"
   },
   infoOverlayBackdrop: {
     position: "fixed",
@@ -1834,7 +1841,7 @@ const styles = {
   },
   infoFrameTopLeft: {
     position: "absolute",
-    top: "126px",
+    top: "118px",
     left: "14px",
     display: "flex",
     flexDirection: "column",
@@ -1842,7 +1849,7 @@ const styles = {
   },
   infoFrameTopRight: {
     position: "absolute",
-    top: "126px",
+    top: "118px",
     right: "96px",
     display: "flex",
     flexDirection: "column",
@@ -1851,7 +1858,7 @@ const styles = {
   infoFrameBottomLeft: {
     position: "absolute",
     left: "14px",
-    bottom: "220px",
+    bottom: "238px",
     display: "flex",
     flexDirection: "column",
     gap: "10px"
@@ -1859,7 +1866,7 @@ const styles = {
   infoFrameBottomRight: {
     position: "absolute",
     right: "96px",
-    bottom: "220px",
+    bottom: "238px",
     display: "flex",
     flexDirection: "column",
     gap: "10px"
@@ -1917,8 +1924,8 @@ const styles = {
   },
   searchBarText: {
     fontSize: "15px",
-    fontWeight: 600,
-    color: "rgba(255,255,255,0.78)"
+    fontWeight: 500,
+    color: "rgba(255,255,255,0.70)"
   },
   bottomNavBar: {
     position: "fixed",
