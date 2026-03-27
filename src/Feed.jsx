@@ -287,6 +287,21 @@ function buildInfoRowText(item) {
     .join(" • ");
 }
 
+function TopBarLogo({ hidden, onError }) {
+  if (hidden) {
+    return <IconLive />;
+  }
+
+  return (
+    <img
+      src={IBAND_LOGO_SRC}
+      alt="iBand logo"
+      style={styles.topBarLogoImage}
+      onError={onError}
+    />
+  );
+}
+
 function IconLive() {
   return (
     <svg viewBox="0 0 24 24" style={styles.topTabIconSvg} aria-hidden="true">
@@ -745,7 +760,6 @@ function FeedSlide({
   handleReactionSelect
 }) {
   const [followed, setFollowed] = useState(false);
-  const [logoHidden, setLogoHidden] = useState(!isUsableImageSrc(IBAND_LOGO_SRC));
   const [avatarFailed, setAvatarFailed] = useState(false);
   const slideRef = useRef(null);
 
@@ -788,17 +802,6 @@ function FeedSlide({
       <div style={styles.bottomTint} />
 
       <div style={styles.orderBadge}>#{item.orderLabel}</div>
-
-      {!logoHidden ? (
-        <div style={styles.slideBrandOverlay}>
-          <img
-            src={IBAND_LOGO_SRC}
-            alt="iBand logo"
-            style={styles.slideBrandImage}
-            onError={() => setLogoHidden(true)}
-          />
-        </div>
-      ) : null}
 
       <div style={styles.leftHeatRail}>
         {Array.from({ length: 18 }).map((_, i) => (
@@ -990,7 +993,6 @@ function FeedSlide({
 
         <div style={styles.whyInlineRow}>
           <span style={styles.whyInlineLabel}>WHY YOU ARE SEEING THIS</span>
-          <span style={styles.whyInlineDivider}>•</span>
           <span style={styles.whyInlineText}>{item.reason}</span>
         </div>
       </div>
@@ -1014,6 +1016,9 @@ export default function Feed() {
     itemId: null
   });
   const [infoOpen, setInfoOpen] = useState(false);
+  const [topLogoHidden, setTopLogoHidden] = useState(
+    !isUsableImageSrc(IBAND_LOGO_SRC)
+  );
   const holdTimerRef = useRef(null);
 
   useEffect(() => {
@@ -1139,8 +1144,12 @@ export default function Feed() {
             type="button"
             style={styles.liveTabButton}
             onClick={() => setActiveTopTab("live")}
+            aria-label="iBand home"
           >
-            <IconLive />
+            <TopBarLogo
+              hidden={topLogoHidden}
+              onError={() => setTopLogoHidden(true)}
+            />
           </button>
 
           {getTopTabs().slice(1).map((tab) => {
@@ -1324,6 +1333,13 @@ const styles = {
     display: "block",
     color: "#ffffff"
   },
+  topBarLogoImage: {
+    width: "34px",
+    height: "34px",
+    objectFit: "contain",
+    display: "block",
+    borderRadius: "8px"
+  },
   topTabButton: {
     appearance: "none",
     background: "transparent",
@@ -1467,21 +1483,6 @@ const styles = {
     border: "1px solid rgba(255,255,255,0.14)",
     backdropFilter: "blur(8px)"
   },
-  slideBrandOverlay: {
-    position: "absolute",
-    top: "78px",
-    right: "84px",
-    zIndex: 6,
-    pointerEvents: "none"
-  },
-  slideBrandImage: {
-    display: "block",
-    width: "136px",
-    height: "48px",
-    objectFit: "contain",
-    borderRadius: "10px",
-    boxShadow: "0 8px 20px rgba(0,0,0,0.18)"
-  },
   leftHeatRail: {
     position: "absolute",
     left: "10px",
@@ -1505,7 +1506,7 @@ const styles = {
   rightRail: {
     position: "absolute",
     right: "max(10px, env(safe-area-inset-right))",
-    bottom: "calc(148px + env(safe-area-inset-bottom))",
+    bottom: "calc(144px + env(safe-area-inset-bottom))",
     zIndex: 7,
     display: "flex",
     flexDirection: "column",
@@ -1719,7 +1720,7 @@ const styles = {
     position: "absolute",
     left: "max(18px, calc(env(safe-area-inset-left) + 8px))",
     right: "88px",
-    bottom: "calc(146px + env(safe-area-inset-bottom))",
+    bottom: "calc(132px + env(safe-area-inset-bottom))",
     zIndex: 5,
     maxWidth: "min(66vw, 460px)"
   },
@@ -1790,13 +1791,13 @@ const styles = {
   },
   whyInlineRow: {
     display: "flex",
+    flexDirection: "column",
     alignItems: "flex-start",
-    gap: "6px",
-    flexWrap: "nowrap",
+    gap: "4px",
     minWidth: 0,
-    padding: "7px 10px",
+    padding: "8px 10px",
     borderRadius: "12px",
-    background: "rgba(0,0,0,0.14)",
+    background: "rgba(0,0,0,0.16)",
     border: "1px solid rgba(255,255,255,0.08)",
     backdropFilter: "blur(8px)"
   },
@@ -1807,18 +1808,11 @@ const styles = {
     textTransform: "uppercase",
     opacity: 0.72,
     whiteSpace: "nowrap",
-    flexShrink: 0,
-    paddingTop: "1px"
-  },
-  whyInlineDivider: {
-    fontSize: "10px",
-    opacity: 0.5,
-    flexShrink: 0,
-    paddingTop: "1px"
+    flexShrink: 0
   },
   whyInlineText: {
     fontSize: "11px",
-    lineHeight: 1.22,
+    lineHeight: 1.28,
     opacity: 0.94,
     minWidth: 0,
     whiteSpace: "normal",
@@ -1832,14 +1826,14 @@ const styles = {
     position: "absolute",
     left: "max(18px, calc(env(safe-area-inset-left) + 8px))",
     right: "18px",
-    bottom: "calc(102px + env(safe-area-inset-bottom))",
+    bottom: "calc(112px + env(safe-area-inset-bottom))",
     zIndex: 6,
     pointerEvents: "none"
   },
   infoRowText: {
     fontSize: "11px",
     fontWeight: 600,
-    lineHeight: 1.24,
+    lineHeight: 1.28,
     color: "rgba(255,255,255,0.88)",
     textShadow: "0 4px 12px rgba(0,0,0,0.38)",
     whiteSpace: "normal",
@@ -1848,7 +1842,7 @@ const styles = {
     WebkitLineClamp: 2,
     WebkitBoxOrient: "vertical",
     wordBreak: "break-word",
-    maxWidth: "min(72vw, 520px)"
+    maxWidth: "min(74vw, 540px)"
   },
   infoOverlayBackdrop: {
     position: "fixed",
@@ -1917,32 +1911,32 @@ const styles = {
     position: "fixed",
     left: "14px",
     right: "14px",
-    bottom: "calc(64px + env(safe-area-inset-bottom))",
+    bottom: "calc(66px + env(safe-area-inset-bottom))",
     zIndex: 60,
     pointerEvents: "none"
   },
   searchBarButton: {
     width: "100%",
     appearance: "none",
-    border: "1px solid rgba(255,255,255,0.14)",
-    background: "rgba(20,20,24,0.30)",
+    border: "1px solid rgba(255,255,255,0.12)",
+    background: "rgba(20,20,24,0.22)",
     color: "#ffffff",
     borderRadius: "18px",
-    padding: "9px 14px",
+    padding: "8px 14px",
     display: "flex",
     alignItems: "center",
     gap: "12px",
-    backdropFilter: "blur(16px) saturate(140%)",
-    WebkitBackdropFilter: "blur(16px) saturate(140%)",
+    backdropFilter: "blur(14px) saturate(135%)",
+    WebkitBackdropFilter: "blur(14px) saturate(135%)",
     boxShadow:
-      "0 8px 20px rgba(0,0,0,0.14), inset 0 1px 0 rgba(255,255,255,0.06)",
+      "0 8px 20px rgba(0,0,0,0.10), inset 0 1px 0 rgba(255,255,255,0.05)",
     cursor: "pointer",
     pointerEvents: "auto"
   },
   searchBarText: {
     fontSize: "15px",
     fontWeight: 500,
-    color: "rgba(255,255,255,0.82)"
+    color: "rgba(255,255,255,0.72)"
   },
   bottomNavBar: {
     position: "fixed",
