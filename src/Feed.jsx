@@ -227,21 +227,21 @@ function seededNumber(seed, min, max) {
 function getBadgeStyle(badge) {
   if (badge === "SMART") {
     return {
-      background: "rgba(168, 85, 247, 0.26)",
-      border: "1px solid rgba(168, 85, 247, 0.46)"
+      background: "rgba(168, 85, 247, 0.22)",
+      border: "1px solid rgba(168, 85, 247, 0.38)"
     };
   }
 
   if (badge === "FOR YOU") {
     return {
-      background: "rgba(249, 115, 22, 0.24)",
-      border: "1px solid rgba(249, 115, 22, 0.42)"
+      background: "rgba(249, 115, 22, 0.20)",
+      border: "1px solid rgba(249, 115, 22, 0.36)"
     };
   }
 
   return {
-    background: "rgba(59, 130, 246, 0.22)",
-    border: "1px solid rgba(59, 130, 246, 0.40)"
+    background: "rgba(59, 130, 246, 0.18)",
+    border: "1px solid rgba(59, 130, 246, 0.34)"
   };
 }
 
@@ -1439,10 +1439,10 @@ const styles = {
     left: 0,
     right: 0,
     bottom: 0,
-    height: "42%",
+    height: "34%",
     zIndex: 2,
     background:
-      "linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.08) 30%, rgba(0,0,0,0.44) 100%)"
+      "linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.05) 28%, rgba(0,0,0,0.34) 68%, rgba(0,0,0,0.60) 100%)"
   },
   orderBadge: {
     position: "absolute",
@@ -1476,7 +1476,7 @@ const styles = {
     position: "absolute",
     left: "10px",
     top: "134px",
-    bottom: "168px",
+    bottom: "160px",
     width: "10px",
     zIndex: 6,
     display: "flex",
@@ -1495,7 +1495,7 @@ const styles = {
   rightRail: {
     position: "absolute",
     right: "max(10px, env(safe-area-inset-right))",
-    bottom: "196px",
+    bottom: "170px",
     zIndex: 7,
     display: "flex",
     flexDirection: "column",
@@ -1707,94 +1707,97 @@ const styles = {
   },
   bottomOverlay: {
     position: "absolute",
-    left: "max(24px, calc(env(safe-area-inset-left) + 10px))",
-    right: "84px",
-    bottom: "126px",
-    zIndex: 5
+    left: "max(18px, calc(env(safe-area-inset-left) + 8px))",
+    right: "88px",
+    bottom: "92px",
+    zIndex: 5,
+    maxWidth: "min(62vw, 420px)"
   },
   identityRow: {
     display: "flex",
     alignItems: "center",
-    gap: "8px",
-    marginBottom: "6px"
+    gap: "7px",
+    marginBottom: "4px"
   },
   artistName: {
-    fontSize: "18px",
+    fontSize: "16px",
     fontWeight: 800,
-    lineHeight: 1.15
+    lineHeight: 1.12,
+    textShadow: "0 4px 12px rgba(0,0,0,0.40)"
   },
   verifiedDot: {
-    width: "18px",
-    height: "18px",
+    width: "16px",
+    height: "16px",
     borderRadius: "999px",
     background: "rgba(59,130,246,0.95)",
     display: "inline-flex",
     alignItems: "center",
     justifyContent: "center",
-    fontSize: "11px",
-    fontWeight: 800
+    fontSize: "10px",
+    fontWeight: 800,
+    flexShrink: 0
   },
   handleRow: {
     display: "flex",
     alignItems: "center",
-    gap: "10px",
-    marginBottom: "10px",
+    gap: "8px",
+    marginBottom: "8px",
     flexWrap: "wrap"
   },
   handle: {
-    fontSize: "14px",
-    opacity: 0.9
+    fontSize: "12px",
+    opacity: 0.84
   },
   feedBadge: {
-    fontSize: "10px",
+    fontSize: "9px",
     fontWeight: 800,
     letterSpacing: "0.08em",
-    padding: "6px 9px",
+    padding: "5px 8px",
     borderRadius: "999px",
     backdropFilter: "blur(8px)"
   },
   captionText: {
-    fontSize: "16px",
+    fontSize: "14px",
     fontWeight: 600,
-    lineHeight: 1.35,
-    marginBottom: "8px",
-    textShadow: "0 4px 12px rgba(0,0,0,0.45)"
+    lineHeight: 1.3,
+    marginBottom: "6px",
+    textShadow: "0 4px 12px rgba(0,0,0,0.42)"
   },
   subtitleText: {
-    fontSize: "14px",
-    opacity: 0.92,
-    lineHeight: 1.45,
-    marginBottom: "12px",
-    textShadow: "0 4px 12px rgba(0,0,0,0.45)"
+    fontSize: "12px",
+    opacity: 0.84,
+    lineHeight: 1.35,
+    marginBottom: "8px",
+    textShadow: "0 4px 12px rgba(0,0,0,0.42)"
   },
   whyBox: {
-    background: "rgba(0,0,0,0.28)",
-    border: "1px solid rgba(255,255,255,0.12)",
-    borderRadius: "14px",
-    padding: "10px 12px",
-    backdropFilter: "blur(10px)",
-    marginBottom: "10px"
+    background: "rgba(0,0,0,0.16)",
+    border: "1px solid rgba(255,255,255,0.08)",
+    borderRadius: "12px",
+    padding: "8px 10px",
+    backdropFilter: "blur(8px)",
+    marginBottom: "8px"
   },
   whyLabel: {
-    fontSize: "10px",
+    fontSize: "9px",
     fontWeight: 800,
     letterSpacing: "0.08em",
     textTransform: "uppercase",
-    opacity: 0.76,
-    marginBottom: "5px"
+    opacity: 0.66,
+    marginBottom: "4px"
   },
   whyText: {
-    fontSize: "13px",
-    lineHeight: 1.4,
-    opacity: 0.97
+    fontSize: "11px",
+    lineHeight: 1.35,
+    opacity: 0.92
   },
   metaRow: {
     display: "flex",
     alignItems: "center",
-    gap: "7px",
-    fontSize: "12px",
-    opacity: 0.82,
-    marginBottom: "8px",
+    gap: "6px",
+    fontSize: "11px",
+    opacity: 0.72,
+    marginBottom: "6px",
     flexWrap: "wrap"
   },
   metaSource: {
@@ -1805,22 +1808,23 @@ const styles = {
     whiteSpace: "nowrap"
   },
   metaDivider: {
-    opacity: 0.5
+    opacity: 0.42
   },
   soundRow: {
     display: "flex",
     alignItems: "center",
-    gap: "7px",
-    fontSize: "13px",
-    opacity: 0.92
+    gap: "6px",
+    fontSize: "11px",
+    opacity: 0.84
   },
   soundNote: {
-    fontSize: "14px"
+    fontSize: "12px"
   },
   soundText: {
     whiteSpace: "nowrap",
     overflow: "hidden",
-    textOverflow: "ellipsis"
+    textOverflow: "ellipsis",
+    maxWidth: "100%"
   },
   infoOverlayBackdrop: {
     position: "fixed",
