@@ -1291,16 +1291,16 @@ const styles = {
     alignItems: "center",
     justifyContent: "space-between",
     gap: "8px",
-    padding: "calc(env(safe-area-inset-top) + 8px) 10px 8px",
+    padding: "calc(env(safe-area-inset-top) + 6px) 10px 6px",
     boxSizing: "border-box",
     background:
-      "linear-gradient(180deg, rgba(0,0,0,0.34) 0%, rgba(0,0,0,0.10) 70%, rgba(0,0,0,0) 100%)",
+      "linear-gradient(180deg, rgba(0,0,0,0.28) 0%, rgba(0,0,0,0.08) 68%, rgba(0,0,0,0) 100%)",
     backdropFilter: "blur(6px)"
   },
   topTabsScroller: {
     display: "flex",
     alignItems: "center",
-    gap: "13px",
+    gap: "12px",
     minWidth: 0,
     overflowX: "auto",
     scrollbarWidth: "none",
@@ -1319,8 +1319,8 @@ const styles = {
     flexShrink: 0
   },
   topTabIconSvg: {
-    width: "32px",
-    height: "32px",
+    width: "30px",
+    height: "30px",
     display: "block",
     color: "#ffffff"
   },
@@ -1338,9 +1338,9 @@ const styles = {
     flexShrink: 0
   },
   topTabLabel: {
-    fontSize: "14px",
+    fontSize: "13px",
     fontWeight: 700,
-    color: "rgba(255,255,255,0.70)"
+    color: "rgba(255,255,255,0.72)"
   },
   topTabLabelActive: {
     color: "#ffffff"
@@ -1355,7 +1355,7 @@ const styles = {
   topUtilityButtons: {
     display: "flex",
     alignItems: "center",
-    gap: "2px",
+    gap: "0px",
     flexShrink: 0
   },
   utilityButton: {
@@ -1367,8 +1367,8 @@ const styles = {
     cursor: "pointer"
   },
   utilityIconSvg: {
-    width: "28px",
-    height: "28px",
+    width: "26px",
+    height: "26px",
     display: "block",
     color: "#ffffff"
   },
@@ -1456,20 +1456,20 @@ const styles = {
   },
   orderBadge: {
     position: "absolute",
-    top: "78px",
+    top: "74px",
     left: "max(14px, env(safe-area-inset-left))",
     zIndex: 6,
     fontSize: "11px",
     fontWeight: 800,
     padding: "6px 9px",
     borderRadius: "999px",
-    background: "rgba(0,0,0,0.26)",
+    background: "rgba(0,0,0,0.24)",
     border: "1px solid rgba(255,255,255,0.14)",
     backdropFilter: "blur(8px)"
   },
   slideBrandOverlay: {
     position: "absolute",
-    top: "82px",
+    top: "78px",
     right: "84px",
     zIndex: 6,
     pointerEvents: "none"
@@ -1485,8 +1485,8 @@ const styles = {
   leftHeatRail: {
     position: "absolute",
     left: "10px",
-    top: "120px",
-    bottom: "210px",
+    top: "114px",
+    bottom: "196px",
     width: "10px",
     zIndex: 6,
     display: "flex",
@@ -1505,7 +1505,7 @@ const styles = {
   rightRail: {
     position: "absolute",
     right: "max(10px, env(safe-area-inset-right))",
-    bottom: "calc(168px + env(safe-area-inset-bottom))",
+    bottom: "calc(148px + env(safe-area-inset-bottom))",
     zIndex: 7,
     display: "flex",
     flexDirection: "column",
@@ -1719,9 +1719,9 @@ const styles = {
     position: "absolute",
     left: "max(18px, calc(env(safe-area-inset-left) + 8px))",
     right: "88px",
-    bottom: "calc(172px + env(safe-area-inset-bottom))",
+    bottom: "calc(146px + env(safe-area-inset-bottom))",
     zIndex: 5,
-    maxWidth: "min(64vw, 440px)"
+    maxWidth: "min(66vw, 460px)"
   },
   identityRow: {
     display: "flex",
@@ -1769,16 +1769,24 @@ const styles = {
   captionText: {
     fontSize: "14px",
     fontWeight: 600,
-    lineHeight: 1.28,
+    lineHeight: 1.3,
     marginBottom: "6px",
-    textShadow: "0 4px 12px rgba(0,0,0,0.42)"
+    textShadow: "0 4px 12px rgba(0,0,0,0.42)",
+    display: "-webkit-box",
+    WebkitLineClamp: 3,
+    WebkitBoxOrient: "vertical",
+    overflow: "hidden"
   },
   subtitleText: {
     fontSize: "12px",
     opacity: 0.86,
     lineHeight: 1.32,
     marginBottom: "8px",
-    textShadow: "0 4px 12px rgba(0,0,0,0.42)"
+    textShadow: "0 4px 12px rgba(0,0,0,0.42)",
+    display: "-webkit-box",
+    WebkitLineClamp: 2,
+    WebkitBoxOrient: "vertical",
+    overflow: "hidden"
   },
   whyInlineRow: {
     display: "flex",
@@ -1788,7 +1796,7 @@ const styles = {
     minWidth: 0,
     padding: "7px 10px",
     borderRadius: "12px",
-    background: "rgba(0,0,0,0.16)",
+    background: "rgba(0,0,0,0.14)",
     border: "1px solid rgba(255,255,255,0.08)",
     backdropFilter: "blur(8px)"
   },
@@ -1810,7 +1818,7 @@ const styles = {
   },
   whyInlineText: {
     fontSize: "11px",
-    lineHeight: 1.2,
+    lineHeight: 1.22,
     opacity: 0.94,
     minWidth: 0,
     whiteSpace: "normal",
@@ -1824,19 +1832,23 @@ const styles = {
     position: "absolute",
     left: "max(18px, calc(env(safe-area-inset-left) + 8px))",
     right: "18px",
-    bottom: "calc(112px + env(safe-area-inset-bottom))",
+    bottom: "calc(102px + env(safe-area-inset-bottom))",
     zIndex: 6,
     pointerEvents: "none"
   },
   infoRowText: {
     fontSize: "11px",
     fontWeight: 600,
-    lineHeight: 1.25,
+    lineHeight: 1.24,
     color: "rgba(255,255,255,0.88)",
     textShadow: "0 4px 12px rgba(0,0,0,0.38)",
-    whiteSpace: "nowrap",
+    whiteSpace: "normal",
     overflow: "hidden",
-    textOverflow: "ellipsis"
+    display: "-webkit-box",
+    WebkitLineClamp: 2,
+    WebkitBoxOrient: "vertical",
+    wordBreak: "break-word",
+    maxWidth: "min(72vw, 520px)"
   },
   infoOverlayBackdrop: {
     position: "fixed",
@@ -1905,32 +1917,32 @@ const styles = {
     position: "fixed",
     left: "14px",
     right: "14px",
-    bottom: "calc(68px + env(safe-area-inset-bottom))",
+    bottom: "calc(64px + env(safe-area-inset-bottom))",
     zIndex: 60,
     pointerEvents: "none"
   },
   searchBarButton: {
     width: "100%",
     appearance: "none",
-    border: "1px solid rgba(255,255,255,0.16)",
-    background: "rgba(20,20,24,0.42)",
+    border: "1px solid rgba(255,255,255,0.14)",
+    background: "rgba(20,20,24,0.30)",
     color: "#ffffff",
     borderRadius: "18px",
-    padding: "10px 14px",
+    padding: "9px 14px",
     display: "flex",
     alignItems: "center",
     gap: "12px",
-    backdropFilter: "blur(18px) saturate(140%)",
-    WebkitBackdropFilter: "blur(18px) saturate(140%)",
+    backdropFilter: "blur(16px) saturate(140%)",
+    WebkitBackdropFilter: "blur(16px) saturate(140%)",
     boxShadow:
-      "0 10px 24px rgba(0,0,0,0.16), inset 0 1px 0 rgba(255,255,255,0.08)",
+      "0 8px 20px rgba(0,0,0,0.14), inset 0 1px 0 rgba(255,255,255,0.06)",
     cursor: "pointer",
     pointerEvents: "auto"
   },
   searchBarText: {
     fontSize: "15px",
     fontWeight: 500,
-    color: "rgba(255,255,255,0.74)"
+    color: "rgba(255,255,255,0.82)"
   },
   bottomNavBar: {
     position: "fixed",
@@ -1941,8 +1953,8 @@ const styles = {
     display: "flex",
     alignItems: "center",
     justifyContent: "space-around",
-    padding: "10px 12px calc(10px + env(safe-area-inset-bottom))",
-    background: "rgba(0,0,0,0.94)"
+    padding: "8px 12px calc(8px + env(safe-area-inset-bottom))",
+    background: "rgba(0,0,0,0.92)"
   },
   bottomNavItem: {
     appearance: "none",
