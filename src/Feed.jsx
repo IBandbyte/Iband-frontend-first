@@ -4,8 +4,7 @@ import {
   fetchPersonalisedFeed,
   fetchPredictiveFeed
 } from "./services/api";
-
-const IBAND_LOGO_SRC = "/iband-logo.png";
+import IbandGuitarLogo from "./components/IbandGuitarLogo";
 
 function svgDataUri(svg) {
   return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
@@ -1016,9 +1015,7 @@ export default function Feed() {
     itemId: null
   });
   const [infoOpen, setInfoOpen] = useState(false);
-  const [topLogoHidden, setTopLogoHidden] = useState(
-    !isUsableImageSrc(IBAND_LOGO_SRC)
-  );
+  <TopBarLogo />
   const holdTimerRef = useRef(null);
 
   useEffect(() => {
@@ -1333,12 +1330,13 @@ const styles = {
     display: "block",
     color: "#ffffff"
   },
-  topBarLogoImage: {
-    width: "34px",
-    height: "34px",
-    objectFit: "contain",
-    display: "block",
-    borderRadius: "8px"
+    topBarLogoWrap: {
+    width: "42px",
+    height: "42px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0
   },
   topTabButton: {
     appearance: "none",
