@@ -203,7 +203,7 @@ function buildFallbackFeed() {
       artist: "Demo Artist Nigeria",
       country: "Nigeria",
       title: "Personalised Pick",
-      subtitle: "Tailored to your taste",
+      subtitle: "Watch this artist before the breakout",
       reason: "Strong match with your recent Afrobeats and crossover discovery pattern",
       icon: "✨",
       priority: "high",
@@ -219,22 +219,21 @@ function buildFallbackFeed() {
     {
       id: "fallback-predictive-1",
       source: "predictive-feed",
-      artist: "Demo Artist UK",
-      country: "United Kingdom",
+      artist: "Demo Artist Japan",
+      country: "Japan",
       title: "Predicted Breakout",
-      subtitle: "Likely to trend next",
-      reason:
-        "User is highly engaged and likely to respond well to another breakout signal in this lane",
+      subtitle: "Watch this artist before the breakout",
+      reason: "Radar and momentum signals increasing",
       icon: "🚀",
       priority: "high",
       action: "watch_breakout",
-      badge: "PREDICTED",
-      profileHandle: "@demoartistuk",
-      genre: "Pop / Urban",
+      badge: "SMART",
+      profileHandle: "@demoartistjapan",
+      genre: "Global Pop",
       imageUrl: "",
       posterUrl: "",
       videoUrl: "",
-      stats: { votes: 301, momentum: 95, fans: 6700 }
+      stats: { votes: 301, momentum: 72, fans: 1200 }
     }
   ];
 }
@@ -301,13 +300,12 @@ function FeedCard({ item, index, active }) {
     <section
       style={{
         position: "relative",
-        minHeight: "100vh",
-        height: "100vh",
+        height: "100%",
         width: "100%",
-        scrollSnapAlign: "start",
-        scrollSnapStop: "always",
         overflow: "hidden",
-        background: "#050505"
+        background: "#050505",
+        scrollSnapAlign: "start",
+        scrollSnapStop: "always"
       }}
     >
       <div
@@ -326,7 +324,7 @@ function FeedCard({ item, index, active }) {
           position: "absolute",
           inset: 0,
           background:
-            "linear-gradient(180deg, rgba(0,0,0,0.26) 0%, rgba(0,0,0,0.08) 22%, rgba(0,0,0,0.12) 48%, rgba(0,0,0,0.58) 72%, rgba(0,0,0,0.92) 100%)"
+            "linear-gradient(180deg, rgba(0,0,0,0.18) 0%, rgba(0,0,0,0.06) 18%, rgba(0,0,0,0.10) 40%, rgba(0,0,0,0.52) 72%, rgba(0,0,0,0.88) 100%)"
         }}
       />
       <div
@@ -334,153 +332,153 @@ function FeedCard({ item, index, active }) {
           position: "absolute",
           inset: 0,
           background:
-            "linear-gradient(90deg, rgba(0,0,0,0.10) 0%, rgba(0,0,0,0.00) 35%, rgba(0,0,0,0.18) 100%)"
+            "linear-gradient(90deg, rgba(0,0,0,0.10) 0%, rgba(0,0,0,0.00) 35%, rgba(0,0,0,0.16) 100%)"
         }}
       />
 
       <div
         style={{
           position: "absolute",
-          left: 0,
-          right: 0,
-          top: 0,
-          paddingTop: "max(10px, env(safe-area-inset-top))",
-          paddingLeft: 14,
-          paddingRight: 14,
-          zIndex: 30
+          top: 10,
+          left: 14,
+          right: 14,
+          zIndex: 30,
+          display: "flex",
+          alignItems: "flex-start",
+          justifyContent: "space-between",
+          gap: 10
         }}
       >
         <div
           style={{
             display: "flex",
             alignItems: "flex-start",
-            justifyContent: "space-between",
-            gap: 12
+            gap: 10,
+            minWidth: 0,
+            flex: 1
           }}
         >
           <div
             style={{
+              width: 42,
+              height: 42,
+              borderRadius: 14,
+              background: "rgba(7,7,10,0.30)",
+              border: "1px solid rgba(255,255,255,0.12)",
+              backdropFilter: "blur(12px)",
+              WebkitBackdropFilter: "blur(12px)",
               display: "flex",
-              alignItems: "flex-start",
-              gap: 10,
-              minWidth: 0
+              alignItems: "center",
+              justifyContent: "center",
+              overflow: "hidden",
+              flexShrink: 0,
+              boxShadow: "0 10px 24px rgba(0,0,0,0.22)"
             }}
           >
-            <div
-              style={{
-                width: 42,
-                height: 42,
-                borderRadius: 14,
-                background: "rgba(7,7,10,0.30)",
-                border: "1px solid rgba(255,255,255,0.12)",
-                backdropFilter: "blur(12px)",
-                WebkitBackdropFilter: "blur(12px)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                overflow: "hidden",
-                flexShrink: 0,
-                boxShadow: "0 10px 24px rgba(0,0,0,0.22)"
-              }}
-            >
-              <IbandGuitarLogo />
-            </div>
-
-            <div
-              style={{
-                minWidth: 0,
-                display: "flex",
-                flexDirection: "column",
-                gap: 6,
-                paddingTop: 1
-              }}
-            >
-              <div
-                style={{
-                  fontSize: 13,
-                  fontWeight: 700,
-                  color: "#ffffff",
-                  whiteSpace: "nowrap",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  lineHeight: 1.15
-                }}
-              >
-                {item.artist} • {item.badge === "SMART" ? "Smart Feed" : item.country} • {item.country} •{" "}
-                {item.action}
-              </div>
-
-              <div
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  alignSelf: "flex-start",
-                  gap: 6,
-                  padding: "4px 9px",
-                  borderRadius: 999,
-                  background: "rgba(10,10,14,0.40)",
-                  border: "1px solid rgba(255,255,255,0.12)",
-                  color: "rgba(255,255,255,0.92)",
-                  fontSize: 11,
-                  fontWeight: 600,
-                  backdropFilter: "blur(10px)",
-                  WebkitBackdropFilter: "blur(10px)"
-                }}
-              >
-                Search artists, songs, genres
-              </div>
-            </div>
+            <IbandGuitarLogo />
           </div>
 
           <div
             style={{
+              minWidth: 0,
               display: "flex",
-              alignItems: "center",
+              flexDirection: "column",
               gap: 8,
-              paddingTop: 2
+              flex: 1
             }}
           >
-            <button
-              type="button"
-              aria-label="Notifications"
+            <div
               style={{
-                width: 34,
-                height: 34,
-                borderRadius: 999,
-                border: "1px solid rgba(255,255,255,0.14)",
-                background: "rgba(8,8,10,0.28)",
+                fontSize: 13,
+                fontWeight: 800,
                 color: "#ffffff",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                backdropFilter: "blur(12px)",
-                WebkitBackdropFilter: "blur(12px)",
-                cursor: "pointer"
+                lineHeight: 1.15,
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                textShadow: "0 4px 12px rgba(0,0,0,0.35)"
               }}
             >
-              🔔
-            </button>
-            <button
-              type="button"
-              aria-label="Direct messages"
+              {item.artist} • {item.badge === "SMART" ? "Smart Feed" : item.country} • {item.country} •{" "}
+              {item.action}
+            </div>
+
+            <div
               style={{
-                width: 34,
-                height: 34,
-                borderRadius: 999,
-                border: "1px solid rgba(255,255,255,0.14)",
-                background: "rgba(8,8,10,0.28)",
-                color: "#ffffff",
-                display: "flex",
+                display: "inline-flex",
                 alignItems: "center",
-                justifyContent: "center",
-                backdropFilter: "blur(12px)",
-                WebkitBackdropFilter: "blur(12px)",
-                cursor: "pointer"
+                alignSelf: "flex-start",
+                maxWidth: "100%",
+                padding: "7px 14px",
+                borderRadius: 999,
+                background: "rgba(10,10,14,0.40)",
+                border: "1px solid rgba(255,255,255,0.12)",
+                color: "rgba(255,255,255,0.92)",
+                fontSize: 11,
+                fontWeight: 700,
+                lineHeight: 1,
+                backdropFilter: "blur(10px)",
+                WebkitBackdropFilter: "blur(10px)",
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis"
               }}
             >
-              ✉️
-            </button>
+              Search artists, songs, genres
+            </div>
           </div>
+        </div>
+
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            flexShrink: 0
+          }}
+        >
+          <button
+            type="button"
+            aria-label="Notifications"
+            style={{
+              width: 34,
+              height: 34,
+              borderRadius: 999,
+              border: "1px solid rgba(255,255,255,0.14)",
+              background: "rgba(8,8,10,0.28)",
+              color: "#ffffff",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              backdropFilter: "blur(12px)",
+              WebkitBackdropFilter: "blur(12px)",
+              cursor: "pointer",
+              flexShrink: 0
+            }}
+          >
+            🔔
+          </button>
+          <button
+            type="button"
+            aria-label="Direct messages"
+            style={{
+              width: 34,
+              height: 34,
+              borderRadius: 999,
+              border: "1px solid rgba(255,255,255,0.14)",
+              background: "rgba(8,8,10,0.28)",
+              color: "#ffffff",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              backdropFilter: "blur(12px)",
+              WebkitBackdropFilter: "blur(12px)",
+              cursor: "pointer",
+              flexShrink: 0
+            }}
+          >
+            ✉️
+          </button>
         </div>
       </div>
 
@@ -488,11 +486,13 @@ function FeedCard({ item, index, active }) {
         style={{
           position: "absolute",
           right: 12,
-          bottom: "22%",
+          top: 76,
+          bottom: 120,
           zIndex: 22,
           display: "flex",
           flexDirection: "column",
           alignItems: "center",
+          justifyContent: "center",
           gap: 14
         }}
       >
@@ -632,19 +632,20 @@ function FeedCard({ item, index, active }) {
       <div
         style={{
           position: "absolute",
-          left: 0,
-          right: 0,
-          bottom: 0,
+          left: 16,
+          right: 76,
+          bottom: 18,
           zIndex: 20,
-          paddingLeft: 16,
-          paddingRight: 72,
-          paddingBottom: "max(18px, calc(env(safe-area-inset-bottom) + 10px))"
+          display: "flex",
+          flexDirection: "column",
+          gap: 10
         }}
       >
         <div
           style={{
             display: "inline-flex",
             alignItems: "center",
+            alignSelf: "flex-start",
             gap: 8,
             padding: "7px 11px",
             borderRadius: 999,
@@ -656,8 +657,7 @@ function FeedCard({ item, index, active }) {
             letterSpacing: "0.08em",
             textTransform: "uppercase",
             backdropFilter: "blur(12px)",
-            WebkitBackdropFilter: "blur(12px)",
-            marginBottom: 10
+            WebkitBackdropFilter: "blur(12px)"
           }}
         >
           {item.badge}
@@ -666,10 +666,8 @@ function FeedCard({ item, index, active }) {
         <div
           style={{
             display: "flex",
-            alignItems: "baseline",
-            gap: 8,
-            flexWrap: "wrap",
-            marginBottom: 8
+            flexDirection: "column",
+            gap: 4
           }}
         >
           <div
@@ -677,7 +675,7 @@ function FeedCard({ item, index, active }) {
               fontSize: 22,
               fontWeight: 800,
               color: "#ffffff",
-              lineHeight: 1.1,
+              lineHeight: 1.08,
               textShadow: "0 6px 24px rgba(0,0,0,0.35)"
             }}
           >
@@ -686,9 +684,9 @@ function FeedCard({ item, index, active }) {
           <div
             style={{
               fontSize: 14,
-              fontWeight: 600,
-              color: "rgba(255,255,255,0.82)",
-              lineHeight: 1.15
+              fontWeight: 700,
+              color: "rgba(255,255,255,0.86)",
+              lineHeight: 1.1
             }}
           >
             {item.profileHandle}
@@ -697,16 +695,15 @@ function FeedCard({ item, index, active }) {
 
         <div
           style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 8,
-            padding: "7px 10px",
-            borderRadius: 12,
+            display: "flex",
+            flexDirection: "column",
+            gap: 4,
+            padding: "10px 12px",
+            borderRadius: 16,
             background: "rgba(8,8,10,0.32)",
             border: "1px solid rgba(255,255,255,0.10)",
             backdropFilter: "blur(12px)",
-            WebkitBackdropFilter: "blur(12px)",
-            marginBottom: 10
+            WebkitBackdropFilter: "blur(12px)"
           }}
         >
           <span
@@ -715,16 +712,23 @@ function FeedCard({ item, index, active }) {
               fontWeight: 800,
               color: "rgba(255,255,255,0.94)",
               letterSpacing: "0.08em",
-              textTransform: "uppercase"
+              textTransform: "uppercase",
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+              textOverflow: "ellipsis"
             }}
           >
             WHY YOU ARE SEEING THIS
           </span>
           <span
             style={{
-              fontSize: 11,
+              fontSize: 13,
               fontWeight: 700,
-              color: "rgba(255,255,255,0.86)"
+              color: "rgba(255,255,255,0.92)",
+              lineHeight: 1.2,
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+              textOverflow: "ellipsis"
             }}
           >
             {item.subtitle}
@@ -734,11 +738,13 @@ function FeedCard({ item, index, active }) {
         <div
           style={{
             fontSize: 13,
-            lineHeight: 1.45,
+            lineHeight: 1.3,
             color: "rgba(255,255,255,0.94)",
             maxWidth: 420,
             textShadow: "0 4px 18px rgba(0,0,0,0.38)",
-            marginBottom: 12
+            whiteSpace: "nowrap",
+            overflow: "hidden",
+            textOverflow: "ellipsis"
           }}
         >
           {item.reason}
@@ -748,8 +754,7 @@ function FeedCard({ item, index, active }) {
           style={{
             display: "flex",
             gap: 8,
-            flexWrap: "wrap",
-            marginBottom: 10
+            flexWrap: "wrap"
           }}
         >
           {[
@@ -929,12 +934,6 @@ export default function Feed() {
           to { transform: rotate(360deg); }
         }
 
-        html, body, #root {
-          height: 100%;
-          margin: 0;
-          background: #050505;
-        }
-
         * {
           box-sizing: border-box;
         }
@@ -943,7 +942,9 @@ export default function Feed() {
       <main
         ref={containerRef}
         style={{
-          height: "100vh",
+          position: "relative",
+          height: "100%",
+          minHeight: 0,
           width: "100%",
           overflowY: "auto",
           overflowX: "hidden",
@@ -958,9 +959,11 @@ export default function Feed() {
             data-feed-card="true"
             data-index={index}
             style={{
-              minHeight: "100vh",
-              height: "100vh",
-              width: "100%"
+              position: "relative",
+              height: "100%",
+              minHeight: "100%",
+              width: "100%",
+              overflow: "hidden"
             }}
           >
             <FeedCard item={item} index={index} active={activeIndex === index} />
