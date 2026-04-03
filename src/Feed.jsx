@@ -5,572 +5,732 @@ import {
   fetchPredictiveFeed
 } from "./services/api";
 
-const VIEW_DURATION_MS = 12 * 60 * 60 * 1000;
-const AUTO_FLIP_INTERVAL_MS = 2600;
+const IBAND_LOGO_SRC = "/iband-logo.png";
 
-function createIbandLogoDataUri() {
-  const svg = `
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
-      <defs>
-        <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stop-color="#8b5cf6"/>
-          <stop offset="55%" stop-color="#f97316"/>
-          <stop offset="100%" stop-color="#4c1d95"/>
-        </linearGradient>
-      </defs>
-      <circle cx="50" cy="50" r="48" fill="url(#g)"/>
-      <circle cx="50" cy="50" r="48" fill="rgba(255,255,255,0.06)"/>
-      <rect x="47.5" y="14" width="5" height="42" rx="2.5" fill="#fff7ed"/>
-      <path d="M49 12 C57 12, 63 18, 63 25 C63 31, 59 36, 53 39 L53 32 C56 30, 58 27, 58 24 C58 20, 54 17, 49 17 Z" fill="#fff7ed"/>
-      <circle cx="42" cy="18" r="2.6" fill="#fff7ed"/>
-      <circle cx="42" cy="25" r="2.6" fill="#fff7ed"/>
-      <circle cx="42" cy="32" r="2.6" fill="#fff7ed"/>
-      <text x="50" y="78" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="30" font-weight="800" fill="#fff7ed">iB</text>
-    </svg>
-  `;
-
+function svgDataUri(svg) {
   return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
 }
 
-function createArtistAvatarDataUri(name, seed = 0) {
-  const palettes = [
-    ["#7c3aed", "#f97316"],
-    ["#ec4899", "#2563eb"],
-    ["#22c55e", "#eab308"],
-    ["#ef4444", "#8b5cf6"],
-    ["#0ea5e9", "#6366f1"]
-  ];
-  const [c1, c2] = palettes[seed % palettes.length];
-  const initials = String(name || "Artist")
+function createArtistAvatarDataUri(name, index = 0) {
+  const initials = String(name || "A")
+    .trim()
     .split(/\s+/)
-    .filter(Boolean)
     .slice(0, 2)
     .map((part) => part[0]?.toUpperCase() || "")
     .join("");
 
-  const svg = `
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  const gradients = [
+    ["#7c3aed", "#ea580c"],
+    ["#ec4899", "#2563eb"],
+    ["#059669", "#eab308"],
+    ["#dc2626", "#7c3aed"],
+    ["#0ea5e9", "#4f46e5"]
+  ];
+
+  const [start, end] = gradients[index % gradients.length];
+
+  return svgDataUri(`
+    <svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 200 200" fill="none">
       <defs>
-        <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stop-color="${c1}"/>
-          <stop offset="100%" stop-color="${c2}"/>
+        <linearGradient id="g" x1="0" y1="0" x2="200" y2="200" gradientUnits="userSpaceOnUse">
+          <stop stop-color="${start}" />
+          <stop offset="1" stop-color="${end}" />
         </linearGradient>
       </defs>
-      <circle cx="50" cy="50" r="50" fill="url(#bg)"/>
-      <circle cx="50" cy="38" r="16" fill="rgba(255,255,255,0.20)"/>
-      <path d="M22 83 C28 67, 40 59, 50 59 C60 59, 72 67, 78 83 Z" fill="rgba(255,255,255,0.18)"/>
-      <text x="50" y="55" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="24" font-weight="800" fill="#ffffff">${initials}</text>
+      <rect width="200" height="200" rx="100" fill="url(#g)" />
+      <circle cx="100" cy="78" r="30" fill="rgba(255,255,255,0.22)" />
+      <path d="M50 162c10-30 34-46 50-46s40 16 50 46" fill="rgba(255,255,255,0.22)" />
+      <text x="50%" y="56%" dominant-baseline="middle" text-anchor="middle" fill="white" font-size="44" font-family="Arial, Helvetica, sans-serif" font-weight="700">
+        ${initials || "A"}
+      </text>
     </svg>
-  `;
-
-  return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+  `);
 }
 
-const IBAND_LOGO_DATA_URI = createIbandLogoDataUri();
+function createArtworkDataUri(index = 0) {
+  const palettes = [
+    ["#0f172a", "#1d4ed8", "#06b6d4", "#eab308"],
+    ["#111827", "#7c3aed", "#ec4899", "#f97316"],
+    ["#052e16", "#059669", "#22c55e", "#fde047"],
+    ["#1f2937", "#2563eb", "#60a5fa", "#f8fafc"],
+    ["#172554", "#4338ca", "#a855f7", "#fb7185"]
+  ];
+
+  const [bg1, bg2, glow1, glow2] = palettes[index % palettes.length];
+
+  return svgDataUri(`
+    <svg xmlns="http://www.w3.org/2000/svg" width="300" height="300" viewBox="0 0 300 300" fill="none">
+      <defs>
+        <radialGradient id="bg" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(150 150) rotate(90) scale(180)">
+          <stop stop-color="${bg2}" />
+          <stop offset="1" stop-color="${bg1}" />
+        </radialGradient>
+        <radialGradient id="glowA" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(90 100) rotate(90) scale(80)">
+          <stop stop-color="${glow1}" stop-opacity="0.95" />
+          <stop offset="1" stop-color="${glow1}" stop-opacity="0" />
+        </radialGradient>
+        <radialGradient id="glowB" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(220 210) rotate(90) scale(90)">
+          <stop stop-color="${glow2}" stop-opacity="0.9" />
+          <stop offset="1" stop-color="${glow2}" stop-opacity="0" />
+        </radialGradient>
+      </defs>
+      <rect width="300" height="300" rx="150" fill="url(#bg)" />
+      <circle cx="90" cy="100" r="84" fill="url(#glowA)" />
+      <circle cx="220" cy="210" r="94" fill="url(#glowB)" />
+      <circle cx="150" cy="150" r="76" stroke="rgba(255,255,255,0.3)" stroke-width="8" />
+      <circle cx="150" cy="150" r="34" fill="rgba(255,255,255,0.22)" />
+      <path d="M150 44v34" stroke="rgba(255,255,255,0.22)" stroke-width="4" stroke-linecap="round"/>
+      <path d="M150 222v34" stroke="rgba(255,255,255,0.22)" stroke-width="4" stroke-linecap="round"/>
+      <path d="M44 150h34" stroke="rgba(255,255,255,0.22)" stroke-width="4" stroke-linecap="round"/>
+      <path d="M222 150h34" stroke="rgba(255,255,255,0.22)" stroke-width="4" stroke-linecap="round"/>
+    </svg>
+  `);
+}
+
+function formatCompactCount(value) {
+  const num = Number(value || 0);
+
+  if (num >= 1_000_000) {
+    return `${(num / 1_000_000).toFixed(num >= 10_000_000 ? 0 : 1)}M`;
+  }
+
+  if (num >= 1_000) {
+    return `${(num / 1_000).toFixed(num >= 10_000 ? 0 : 1)}K`;
+  }
+
+  return String(num);
+}
+
+function getString(value, fallback) {
+  return typeof value === "string" && value.trim() ? value.trim() : fallback;
+}
+
+function getNumber(value, fallback) {
+  const num = Number(value);
+  return Number.isFinite(num) ? num : fallback;
+}
 
 function normaliseSmartFeed(data) {
   const items = Array.isArray(data?.feed) ? data.feed : [];
 
   return items.map((item, index) => ({
     id: item.id || `smart-${index}`,
-    source: "smart-feed",
-    artist: item.artist || "Unknown Artist",
-    country: item.country || "Unknown",
-    title: item.cardTitle || "Smart Feed Pick",
-    subtitle: item.cardSubtitle || "Recommended for discovery",
-    reason: item.feedReason || item.message || "Recommended by iBand",
-    icon: item.icon || "🎵",
-    priority: item.priority || "medium",
-    action: item.action || "discover_artist",
+    feedType: "smart",
     badge: "SMART",
-    profileHandle: `@${String(item.artist || "artist")
-      .toLowerCase()
-      .replace(/\s+/g, "")}`,
-    soundLabel: item.artist || "Original Sound",
-    caption:
-      item.feedReason ||
-      item.message ||
-      "Momentum is building. Fans are pushing this higher right now.",
-    profileImage:
-      item.profileImage || createArtistAvatarDataUri(item.artist || "Artist", index),
-    hasFreshVideo: true
+    artist: getString(item.artist, "Sam Ryder"),
+    title: getString(item.cardTitle, "Smart Feed Pick"),
+    reasonTitle: getString(item.feedReasonTitle, "High Momentum +"),
+    reasonSubtitle: getString(item.feedReasonSubtitle, "Trending Worldwide"),
+    reasonText: getString(item.feedReason, "Recommended by iBand intelligence."),
+    handle: getString(
+      item.profileHandle,
+      `@${String(item.artist || "artist").replace(/\s+/g, "").toLowerCase()}`
+    ),
+    country: getString(item.country, "United Kingdom"),
+    region: getString(item.region, "Global"),
+    trackTitle: getString(item.trackTitle, "Supernova Dreams"),
+    releaseLabel: getString(item.releaseLabel, "iBand Exclusive — New Release"),
+    artistImage: getString(item.artistImage, ""),
+    artwork: getString(item.artwork, ""),
+    videoUrl: getString(item.videoUrl, ""),
+    comments: getNumber(item.comments, 322),
+    likes: getNumber(item.likes, 3100),
+    shares: getNumber(item.shares, 322),
+    infoMeta: {
+      artist: getString(item.artist, "Sam Ryder"),
+      feed: "Smart Feed",
+      territory: getString(item.country, "United Kingdom"),
+      action: getString(item.action, "play_now")
+    }
   }));
 }
 
 function normalisePersonalisedFeed(data) {
-  const profiles = Array.isArray(data?.profiles) ? data.profiles : [];
-  const firstProfile = profiles[0];
-  const items = Array.isArray(firstProfile?.feed) ? firstProfile.feed : [];
+  const items = Array.isArray(data?.feed) ? data.feed : [];
 
   return items.map((item, index) => ({
     id: item.id || `personalised-${index}`,
-    source: "personalised-feed",
-    artist: item.artist || "Unknown Artist",
-    country: firstProfile?.country || "Personalised",
-    title: `${firstProfile?.persona || "Your"} feed pick`,
-    subtitle: `Tailored for ${firstProfile?.country || "you"}`,
-    reason: item.reason || "Matched to your taste",
-    icon: item.icon || "✨",
-    priority: firstProfile?.engagementLevel || "medium",
-    action: item.action || "discover_artist",
+    feedType: "personalised",
     badge: "FOR YOU",
-    profileHandle: `@${String(item.artist || "artist")
-      .toLowerCase()
-      .replace(/\s+/g, "")}`,
-    soundLabel: item.artist || "Personalised Track",
-    caption:
-      item.reason ||
-      "This matches your taste profile and current breakout momentum.",
-    profileImage:
-      item.profileImage ||
-      createArtistAvatarDataUri(item.artist || "Artist", index + 20),
-    hasFreshVideo: true
+    artist: getString(item.artist, "Sam Ryder"),
+    title: getString(item.cardTitle, "Personalised Pick"),
+    reasonTitle: getString(item.feedReasonTitle, "High Momentum +"),
+    reasonSubtitle: getString(item.feedReasonSubtitle, "Trending Worldwide"),
+    reasonText: getString(
+      item.feedReason || item.message,
+      "Matches your genre taste and strong breakout momentum."
+    ),
+    handle: getString(
+      item.profileHandle,
+      `@${String(item.artist || "artist").replace(/\s+/g, "").toLowerCase()}`
+    ),
+    country: getString(item.country, "United Kingdom"),
+    region: getString(item.region, "Europe"),
+    trackTitle: getString(item.trackTitle, "Supernova Dreams"),
+    releaseLabel: getString(item.releaseLabel, "iBand Exclusive — New Release"),
+    artistImage: getString(item.artistImage, ""),
+    artwork: getString(item.artwork, ""),
+    videoUrl: getString(item.videoUrl, ""),
+    comments: getNumber(item.comments, 322),
+    likes: getNumber(item.likes, 3100),
+    shares: getNumber(item.shares, 322),
+    infoMeta: {
+      artist: getString(item.artist, "Sam Ryder"),
+      feed: "Personalised Feed",
+      territory: getString(item.country, "United Kingdom"),
+      action: getString(item.action, "play_now")
+    }
   }));
 }
 
 function normalisePredictiveFeed(data) {
-  const items = Array.isArray(data?.predictions) ? data.predictions : [];
+  const items = Array.isArray(data?.feed) ? data.feed : [];
 
   return items.map((item, index) => ({
     id: item.id || `predictive-${index}`,
-    source: "predictive-feed",
-    artist: item.recommendedArtist || "Unknown Artist",
-    country: item.userMode || "Predictive",
-    title: "Predicted next best move",
-    subtitle: item.recommendedCategory || "Next content decision",
-    reason: item.reason || "Predicted by iBand intelligence",
-    icon: item.icon || "🔮",
-    priority: item.injectionTiming || "soon",
-    action: item.predictedNextAction || "show_next",
+    feedType: "predictive",
     badge: "PREDICTED",
-    profileHandle: `@${String(item.recommendedArtist || "artist")
-      .toLowerCase()
-      .replace(/\s+/g, "")}`,
-    soundLabel: item.recommendedArtist || "Predicted Sound",
-    caption:
-      item.reason ||
-      "The predictive engine thinks this is your strongest next discovery.",
-    profileImage:
-      item.profileImage ||
-      createArtistAvatarDataUri(item.recommendedArtist || "Artist", index + 40),
-    hasFreshVideo: true
+    artist: getString(item.artist, "Sam Ryder"),
+    title: getString(item.cardTitle, "Predictive Pick"),
+    reasonTitle: getString(item.feedReasonTitle, "High Momentum +"),
+    reasonSubtitle: getString(item.feedReasonSubtitle, "Trending Worldwide"),
+    reasonText: getString(
+      item.feedReason || item.message,
+      "Watch this artist before the breakout."
+    ),
+    handle: getString(
+      item.profileHandle,
+      `@${String(item.artist || "artist").replace(/\s+/g, "").toLowerCase()}`
+    ),
+    country: getString(item.country, "United Kingdom"),
+    region: getString(item.region, "Global"),
+    trackTitle: getString(item.trackTitle, "Supernova Dreams"),
+    releaseLabel: getString(item.releaseLabel, "iBand Exclusive — New Release"),
+    artistImage: getString(item.artistImage, ""),
+    artwork: getString(item.artwork, ""),
+    videoUrl: getString(item.videoUrl, ""),
+    comments: getNumber(item.comments, 322),
+    likes: getNumber(item.likes, 3100),
+    shares: getNumber(item.shares, 322),
+    infoMeta: {
+      artist: getString(item.artist, "Sam Ryder"),
+      feed: "Predictive Feed",
+      territory: getString(item.country, "United Kingdom"),
+      action: getString(item.action, "play_now")
+    }
   }));
 }
 
-function priorityScore(priority) {
-  const value = String(priority || "").toLowerCase();
-
-  if (value.includes("critical")) return 5;
-  if (value.includes("high")) return 4;
-  if (value.includes("locked")) return 4;
-  if (value.includes("immediate")) return 4;
-  if (value.includes("soon")) return 3;
-  if (value.includes("medium")) return 2;
-  return 1;
-}
-
-function formatCompactNumber(value) {
-  const n = Number(value || 0);
-
-  if (n >= 1000000) return `${(n / 1000000).toFixed(1)}M`;
-  if (n >= 1000) return `${(n / 1000).toFixed(1)}K`;
-  return String(n);
-}
-
-function seededNumber(seed, min, max) {
-  let hash = 0;
-
-  for (let i = 0; i < String(seed).length; i += 1) {
-    hash = (hash << 5) - hash + String(seed).charCodeAt(i);
-    hash |= 0;
-  }
-
-  const normalized = Math.abs(hash % 1000) / 1000;
-  return Math.floor(min + normalized * (max - min));
-}
-
-function getBadgeStyle(badge) {
-  if (badge === "SMART") {
-    return {
-      background: "rgba(168, 85, 247, 0.28)",
-      border: "1px solid rgba(168, 85, 247, 0.48)"
-    };
-  }
-
-  if (badge === "FOR YOU") {
-    return {
-      background: "rgba(249, 115, 22, 0.26)",
-      border: "1px solid rgba(249, 115, 22, 0.48)"
-    };
-  }
-
-  return {
-    background: "rgba(59, 130, 246, 0.24)",
-    border: "1px solid rgba(59, 130, 246, 0.45)"
-  };
-}
-
-function getMockBackground(index) {
-  const backgrounds = [
-    "linear-gradient(160deg, rgba(168,85,247,0.88) 0%, rgba(249,115,22,0.72) 48%, rgba(15,23,42,0.96) 100%)",
-    "linear-gradient(160deg, rgba(236,72,153,0.78) 0%, rgba(59,130,246,0.58) 50%, rgba(2,6,23,0.96) 100%)",
-    "linear-gradient(160deg, rgba(34,197,94,0.68) 0%, rgba(234,179,8,0.54) 50%, rgba(17,24,39,0.96) 100%)",
-    "linear-gradient(160deg, rgba(239,68,68,0.72) 0%, rgba(168,85,247,0.52) 50%, rgba(15,23,42,0.96) 100%)",
-    "linear-gradient(160deg, rgba(14,165,233,0.72) 0%, rgba(99,102,241,0.54) 50%, rgba(2,6,23,0.96) 100%)"
-  ];
-
-  return backgrounds[index % backgrounds.length];
-}
-
-function getTabItems() {
-  return ["LIVE", "Oxfordshire", "Following", "Friends", "For You"];
-}
-
-function FeedSlide({
-  item,
-  index,
-  reactionMenu,
-  handleSupportPressStart,
-  handleSupportPressEnd,
-  handleReactionSelect,
-  closeReactionMenu
-}) {
-  const [followed, setFollowed] = useState(false);
-  const [showArtistFace, setShowArtistFace] = useState(false);
-  const [pulseOn, setPulseOn] = useState(false);
-  const [viewedAt, setViewedAt] = useState(null);
-  const [hasFreshVideo, setHasFreshVideo] = useState(Boolean(item.hasFreshVideo));
-  const slideRef = useRef(null);
-  const seenTimerRef = useRef(null);
-
-  const isReactionMenuOpen =
-    reactionMenu.open && reactionMenu.itemId === item.id;
-
-  useEffect(() => {
-    const flipTimer = setInterval(() => {
-      setShowArtistFace((prev) => !prev);
-    }, AUTO_FLIP_INTERVAL_MS);
-
-    return () => clearInterval(flipTimer);
-  }, []);
-
-  useEffect(() => {
-    if (followed) {
-      setPulseOn(false);
-      return undefined;
-    }
-
-    const pulseTimer = setInterval(() => {
-      setPulseOn((prev) => !prev);
-    }, 760);
-
-    return () => clearInterval(pulseTimer);
-  }, [followed]);
-
-  useEffect(() => {
-    if (!viewedAt) {
-      return undefined;
-    }
-
-    const timeout = setTimeout(() => {
-      setViewedAt(null);
-      setHasFreshVideo(false);
-    }, VIEW_DURATION_MS);
-
-    return () => clearTimeout(timeout);
-  }, [viewedAt]);
-
-  useEffect(() => {
-    const target = slideRef.current;
-
-    if (!target) {
-      return undefined;
-    }
-
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting && entry.intersectionRatio >= 0.65) {
-          if (!viewedAt && hasFreshVideo) {
-            if (seenTimerRef.current) {
-              clearTimeout(seenTimerRef.current);
-            }
-
-            seenTimerRef.current = setTimeout(() => {
-              setViewedAt(Date.now());
-            }, 1200);
-          }
-        } else if (seenTimerRef.current) {
-          clearTimeout(seenTimerRef.current);
-        }
+function createFallbackFeed() {
+  return [
+    {
+      id: "fallback-1",
+      feedType: "personalised",
+      badge: "FOR YOU",
+      artist: "Sam Ryder",
+      title: "Sam Ryder — “Supernova Dreams”",
+      reasonTitle: "High Momentum +",
+      reasonSubtitle: "Trending Worldwide",
+      reasonText: "Matches your genre taste and strong breakout momentum.",
+      handle: "@samryder",
+      country: "United Kingdom",
+      region: "Europe",
+      trackTitle: "Supernova Dreams",
+      releaseLabel: "iBand Exclusive — New Release",
+      comments: 322,
+      likes: 3100,
+      shares: 322,
+      infoMeta: {
+        artist: "Sam Ryder",
+        feed: "Personalised Feed",
+        territory: "United Kingdom",
+        action: "play_now"
       },
-      {
-        threshold: [0.2, 0.65, 0.9]
-      }
-    );
-
-    observer.observe(target);
-
-    return () => {
-      observer.disconnect();
-      if (seenTimerRef.current) {
-        clearTimeout(seenTimerRef.current);
-      }
-    };
-  }, [viewedAt, hasFreshVideo]);
-
-  function handleProfileTap(e) {
-    e.stopPropagation();
-    setShowArtistFace((prev) => !prev);
-
-    if (hasFreshVideo && !viewedAt) {
-      setViewedAt(Date.now());
+      artistImage: "",
+      artwork: "",
+      videoUrl: "",
+      fallbackPoster:
+        "https://images.unsplash.com/photo-1571266028243-d220c9c3b7dc?auto=format&fit=crop&w=1200&q=80",
+      artistAvatarFallback: createArtistAvatarDataUri("Sam Ryder", 0),
+      artworkFallback: createArtworkDataUri(0)
     }
+  ];
+}
+
+function buildUnifiedFeed({ smart, personalised, predictive }) {
+  const merged = [...personalised, ...smart, ...predictive];
+
+  if (!merged.length) {
+    return createFallbackFeed();
   }
 
-  const viewedActive =
-    Boolean(viewedAt) && Date.now() - viewedAt < VIEW_DURATION_MS;
+  return merged.map((item, index) => ({
+    ...item,
+    title: item.title || `${item.artist} — “${item.trackTitle || "New Release"}”`,
+    fallbackPoster:
+      item.fallbackPoster ||
+      "https://images.unsplash.com/photo-1571266028243-d220c9c3b7dc?auto=format&fit=crop&w=1200&q=80",
+    artistAvatarFallback: createArtistAvatarDataUri(item.artist, index),
+    artworkFallback: createArtworkDataUri(index)
+  }));
+}
 
-  const avatarStateStyle = viewedActive
-    ? styles.profileAvatarViewedRing
-    : hasFreshVideo
-      ? styles.profileAvatarFreshRing
-      : styles.profileAvatarDefaultRing;
+function InfoOverlay({ item, onClose }) {
+  if (!item) return null;
 
-  const heartbeatStyle =
-    !followed && !showArtistFace
-      ? pulseOn
-        ? styles.profileHeartbeatOn
-        : styles.profileHeartbeatOff
-      : styles.profileHeartbeatIdle;
+  const meta = item.infoMeta || {};
 
   return (
-    <section
-      ref={slideRef}
+    <div
+      role="dialog"
+      aria-modal="true"
+      onClick={onClose}
       style={{
-        ...styles.feedSlide,
-        background: getMockBackground(index)
-      }}
-      onClick={() => {
-        if (isReactionMenuOpen) {
-          closeReactionMenu();
-        }
+        position: "fixed",
+        inset: 0,
+        zIndex: 40,
+        background: "rgba(3, 6, 16, 0.58)",
+        backdropFilter: "blur(10px)",
+        display: "flex",
+        alignItems: "flex-end",
+        justifyContent: "center",
+        padding: "18px 14px calc(16px + env(safe-area-inset-bottom))"
       }}
     >
-      <div style={styles.backgroundGlow} />
-      <div style={styles.topTint} />
-      <div style={styles.bottomTint} />
-
-      <div style={styles.rightRail}>
-        <button
-          type="button"
-          style={styles.profileStackButton}
-          aria-label="Artist identity control"
-          onClick={handleProfileTap}
+      <div
+        onClick={(event) => event.stopPropagation()}
+        style={{
+          width: "min(760px, 100%)",
+          borderRadius: 26,
+          border: "1px solid rgba(255,255,255,0.12)",
+          background:
+            "linear-gradient(180deg, rgba(12,18,35,0.94) 0%, rgba(9,14,28,0.96) 100%)",
+          boxShadow: "0 24px 50px rgba(0,0,0,0.35)",
+          color: "white",
+          padding: 20
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            alignItems: "flex-start",
+            justifyContent: "space-between",
+            gap: 14
+          }}
         >
-          <div
-            style={{
-              ...styles.profileAvatarCircle,
-              ...avatarStateStyle,
-              ...heartbeatStyle
-            }}
-          >
+          <div>
             <div
               style={{
-                ...styles.profileFlipCard,
-                transform: showArtistFace
-                  ? "rotateY(180deg)"
-                  : "rotateY(0deg)"
+                fontSize: 13,
+                fontWeight: 800,
+                letterSpacing: "0.14em",
+                color: "rgba(156,223,255,0.95)"
               }}
             >
-              <div style={styles.profileFaceFront}>
-                <img
-                  src={IBAND_LOGO_DATA_URI}
-                  alt="iBand identity"
-                  style={styles.profileImage}
-                />
-              </div>
-
-              <div style={styles.profileFaceBack}>
-                <img
-                  src={item.profileImage}
-                  alt={item.artist}
-                  style={styles.profileImage}
-                />
-              </div>
+              IBAND INFO
             </div>
+            <h3
+              style={{
+                margin: "8px 0 0 0",
+                fontSize: 28,
+                lineHeight: 1.05,
+                fontWeight: 900
+              }}
+            >
+              {item.artist}
+            </h3>
+            <p
+              style={{
+                margin: "8px 0 0 0",
+                color: "rgba(255,255,255,0.78)",
+                fontSize: 16,
+                fontWeight: 600
+              }}
+            >
+              {item.trackTitle}
+            </p>
           </div>
-
-          <div
-            style={{
-              ...styles.profilePlus,
-              ...(followed ? styles.profilePlusFollowed : {})
-            }}
-            onClick={(e) => {
-              e.stopPropagation();
-              setFollowed((prev) => !prev);
-            }}
-          >
-            {followed ? "✓" : "+"}
-          </div>
-        </button>
-
-        <div style={styles.supportWrap}>
-          {isReactionMenuOpen && (
-            <div style={styles.reactionMenu}>
-              <button
-                type="button"
-                style={styles.reactionButton}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleReactionSelect("fire");
-                }}
-              >
-                🔥
-              </button>
-              <button
-                type="button"
-                style={styles.reactionButton}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleReactionSelect("bomb");
-                }}
-              >
-                💣
-              </button>
-              <button
-                type="button"
-                style={styles.reactionButton}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleReactionSelect("boom");
-                }}
-              >
-                💥
-              </button>
-              <button
-                type="button"
-                style={styles.reactionButton}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleReactionSelect("rocket");
-                }}
-              >
-                🚀
-              </button>
-            </div>
-          )}
 
           <button
             type="button"
+            onClick={onClose}
+            aria-label="Close info"
             style={{
-              ...styles.railButton,
-              ...(isReactionMenuOpen ? styles.railButtonActive : {})
-            }}
-            aria-label="Support"
-            onMouseDown={() => handleSupportPressStart(item.id)}
-            onMouseUp={handleSupportPressEnd}
-            onMouseLeave={handleSupportPressEnd}
-            onTouchStart={() => handleSupportPressStart(item.id)}
-            onTouchEnd={handleSupportPressEnd}
-            onClick={(e) => {
-              e.stopPropagation();
-              if (!isReactionMenuOpen) {
-                console.log("iBand support tapped for:", item.id);
-              }
+              width: 40,
+              height: 40,
+              borderRadius: "50%",
+              border: "1px solid rgba(255,255,255,0.12)",
+              background: "rgba(255,255,255,0.06)",
+              color: "white",
+              fontSize: 22,
+              lineHeight: 1,
+              cursor: "pointer"
             }}
           >
-            <span style={styles.railIcon}>🎧</span>
-            <span style={styles.railCount}>
-              {formatCompactNumber(item.supportCount)}
-            </span>
+            ×
           </button>
         </div>
 
-        <button
-          type="button"
-          style={styles.railButton}
-          aria-label="Comments"
+        <div
+          style={{
+            marginTop: 16,
+            borderRadius: 20,
+            border: "1px solid rgba(255,255,255,0.08)",
+            background: "rgba(255,255,255,0.04)",
+            padding: 16
+          }}
         >
-          <span style={styles.railIcon}>💬</span>
-          <span style={styles.railCount}>
-            {formatCompactNumber(item.comments)}
-          </span>
-        </button>
-
-        <button
-          type="button"
-          style={styles.railButton}
-          aria-label="Save"
-        >
-          <span style={styles.railIcon}>⭐</span>
-          <span style={styles.railCount}>
-            {formatCompactNumber(item.saves)}
-          </span>
-        </button>
-
-        <button
-          type="button"
-          style={styles.railButton}
-          aria-label="Spread"
-        >
-          <span style={styles.railIcon}>🚀</span>
-          <span style={styles.railCount}>
-            {formatCompactNumber(item.shares)}
-          </span>
-        </button>
-
-        <button
-          type="button"
-          style={styles.soundButton}
-          aria-label="Open sound page"
-        >
-          <div style={styles.soundDiscInner}>🎵</div>
-        </button>
-      </div>
-
-      <div style={styles.bottomOverlay}>
-        <div style={styles.identityRow}>
-          <span style={styles.artistName}>{item.artist}</span>
-          <span style={styles.verifiedDot}>✓</span>
-        </div>
-
-        <div style={styles.handleRow}>
-          <span style={styles.handle}>{item.profileHandle}</span>
-          <span
+          <div
             style={{
-              ...styles.feedBadge,
-              ...getBadgeStyle(item.badge)
+              fontSize: 13,
+              fontWeight: 800,
+              letterSpacing: "0.12em",
+              color: "rgba(255,255,255,0.66)"
             }}
           >
-            {item.badge}
-          </span>
+            PERSONALISATION DETAILS
+          </div>
+
+          <div
+            style={{
+              marginTop: 12,
+              display: "grid",
+              gap: 12
+            }}
+          >
+            {[
+              ["Artist", meta.artist || item.artist],
+              ["Feed", meta.feed || "Personalised Feed"],
+              ["Territory", meta.territory || item.country || "Global"],
+              ["Action", meta.action || "play_now"]
+            ].map(([label, value]) => (
+              <div
+                key={label}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: 12,
+                  borderBottom: "1px solid rgba(255,255,255,0.07)",
+                  paddingBottom: 10
+                }}
+              >
+                <span
+                  style={{
+                    color: "rgba(255,255,255,0.6)",
+                    fontSize: 15,
+                    fontWeight: 700
+                  }}
+                >
+                  {label}
+                </span>
+                <span
+                  style={{
+                    color: "white",
+                    fontSize: 16,
+                    fontWeight: 800,
+                    textAlign: "right"
+                  }}
+                >
+                  {value}
+                </span>
+              </div>
+            ))}
+          </div>
         </div>
 
-        <div style={styles.captionText}>{item.caption}</div>
-
-        <div style={styles.subtitleText}>{item.subtitle}</div>
-
-        <div style={styles.whyBox}>
-          <div style={styles.whyLabel}>Why you are seeing this</div>
-          <div style={styles.whyText}>{item.reason}</div>
+        <div
+          style={{
+            marginTop: 16,
+            display: "grid",
+            gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+            gap: 12
+          }}
+        >
+          {["Artist bio", "Lyrics", "Concerts", "Merch"].map((label) => (
+            <button
+              key={label}
+              type="button"
+              style={{
+                height: 48,
+                borderRadius: 16,
+                border: "1px solid rgba(255,255,255,0.1)",
+                background: "rgba(255,255,255,0.06)",
+                color: "white",
+                fontSize: 15,
+                fontWeight: 800,
+                cursor: "pointer"
+              }}
+            >
+              {label}
+            </button>
+          ))}
         </div>
+      </div>
+    </div>
+  );
+}
 
-        <div style={styles.metaRow}>
-          <span style={styles.metaSource}>{item.source}</span>
-          <span style={styles.metaDivider}>•</span>
-          <span style={styles.metaCountry}>{item.country}</span>
-          <span style={styles.metaDivider}>•</span>
-          <span style={styles.metaAction}>{item.action}</span>
-        </div>
+function FeedCard({ item, isActive, onOpenInfo }) {
+  const posterUrl = item.videoUrl || item.fallbackPoster;
+  const avatarUrl = item.artistImage || item.artistAvatarFallback;
+  const artworkUrl = item.artwork || item.artworkFallback;
 
-        <div style={styles.soundRow}>
-          <span style={styles.soundNote}>♫</span>
-          <span style={styles.soundText}>{item.soundLabel}</span>
+  return (
+    <article
+      style={{
+        position: "relative",
+        minHeight: "100dvh",
+        height: "100dvh",
+        width: "100%",
+        scrollSnapAlign: "start",
+        scrollSnapStop: "always",
+        overflow: "hidden",
+        background:
+          "linear-gradient(180deg, rgba(7,10,26,1) 0%, rgba(5,9,20,1) 100%)"
+      }}
+    >
+      <div
+        style={{
+          position: "absolute",
+          inset: 0,
+          backgroundImage: `url("${posterUrl}")`,
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+          filter: "saturate(1.02) contrast(1.02)",
+          transform: isActive ? "scale(1.01)" : "scale(1)",
+          transition: "transform 320ms ease"
+        }}
+      />
+
+      <div
+        style={{
+          position: "absolute",
+          inset: 0,
+          background:
+            "linear-gradient(180deg, rgba(6,8,20,0.42) 0%, rgba(6,8,20,0.12) 20%, rgba(6,8,20,0.10) 42%, rgba(6,8,20,0.34) 68%, rgba(6,8,20,0.74) 100%)"
+        }}
+      />
+
+      <div
+        style={{
+          position: "absolute",
+          top: "calc(env(safe-area-inset-top) + 18px)",
+          left: 20,
+          zIndex: 6,
+          display: "flex",
+          alignItems: "flex-start",
+          gap: 14
+        }}
+      >
+        <img
+          src={IBAND_LOGO_SRC}
+          alt="iBand"
+          style={{
+            width: 86,
+            height: 86,
+            borderRadius: "50%",
+            objectFit: "cover",
+            boxShadow: "0 12px 28px rgba(0,0,0,0.25)"
+          }}
+        />
+
+        <div style={{ paddingTop: 6 }}>
+          <div
+            style={{
+              fontSize: "clamp(28px, 4.8vw, 44px)",
+              fontWeight: 500,
+              lineHeight: 1,
+              letterSpacing: "-0.03em",
+              color: "#ffffff",
+              textShadow: "0 6px 18px rgba(0,0,0,0.3)"
+            }}
+          >
+            iBand
+          </div>
+          <div
+            style={{
+              marginTop: 8,
+              fontSize: "clamp(15px, 2.8vw, 23px)",
+              fontWeight: 500,
+              lineHeight: 1.08,
+              color: "rgba(255,255,255,0.92)",
+              textShadow: "0 4px 12px rgba(0,0,0,0.28)"
+            }}
+          >
+            Powered By Fans
+          </div>
         </div>
       </div>
 
-      <div style={styles.orderBadge}>#{item.orderLabel}</div>
-    </section>
+      <div
+        style={{
+          position: "absolute",
+          top: "20.8dvh",
+          right: 18,
+          zIndex: 7,
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          gap: 18
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: 8
+          }}
+        >
+          <img
+            src={avatarUrl}
+            alt={item.artist}
+            style={{
+              width: 86,
+              height: 86,
+              borderRadius: "50%",
+              objectFit: "cover",
+              border: "3px solid rgba(255,255,255,0.92)",
+              boxShadow: "0 12px 26px rgba(0,0,0,0.35)"
+            }}
+          />
+          <div
+            style={{
+              fontSize: 18,
+              fontWeight: 700,
+              color: "#ffffff",
+              textShadow: "0 4px 10px rgba(0,0,0,0.32)"
+            }}
+          >
+            Artist
+          </div>
+        </div>
+
+        <div style={styles.rightRailGroup}>
+          <button type="button" aria-label="Like" style={styles.rightRailButton}>
+            <span style={styles.heartGlyph}>❤</span>
+          </button>
+          <div style={styles.rightRailCount}>{formatCompactCount(item.likes)}</div>
+        </div>
+
+        <div style={styles.rightRailGroup}>
+          <button type="button" aria-label="Comments" style={styles.rightRailButton}>
+            <span style={styles.commentGlyph}>💬</span>
+          </button>
+          <div style={styles.rightRailCount}>{item.comments}</div>
+        </div>
+
+        <div style={styles.rightRailGroup}>
+          <button
+            type="button"
+            aria-label="Info"
+            onClick={() => onOpenInfo(item)}
+            style={styles.infoButton}
+          >
+            i
+          </button>
+        </div>
+
+        <div style={styles.rightRailGroup}>
+          <button type="button" aria-label="More" style={styles.dotsButton}>
+            <span style={styles.dotsGlyph}>•••</span>
+          </button>
+        </div>
+
+        <div style={styles.rightRailGroup}>
+          <button
+            type="button"
+            aria-label="Open sound"
+            style={{
+              width: 64,
+              height: 64,
+              borderRadius: "50%",
+              padding: 0,
+              overflow: "hidden",
+              border: "3px solid rgba(255,255,255,0.92)",
+              boxShadow: "0 10px 24px rgba(0,0,0,0.28)",
+              background: "transparent",
+              cursor: "pointer"
+            }}
+          >
+            <img
+              src={artworkUrl}
+              alt={`${item.trackTitle} artwork`}
+              style={{
+                width: "100%",
+                height: "100%",
+                objectFit: "cover"
+              }}
+            />
+          </button>
+        </div>
+      </div>
+
+      <div
+        style={{
+          position: "absolute",
+          left: 22,
+          right: 108,
+          bottom: "calc(158px + env(safe-area-inset-bottom))",
+          zIndex: 6,
+          pointerEvents: "none"
+        }}
+      >
+        <h2
+          style={{
+            margin: 0,
+            color: "white",
+            fontSize: "clamp(32px, 5.4vw, 50px)",
+            lineHeight: 1.06,
+            fontWeight: 900,
+            letterSpacing: "-0.03em",
+            textShadow: "0 4px 18px rgba(0,0,0,0.38)"
+          }}
+        >
+          {item.artist} — <span style={{ fontWeight: 400 }}>“{item.trackTitle}”</span>
+        </h2>
+
+        <p
+          style={{
+            margin: "18px 0 0 0",
+            color: "rgba(255,255,255,0.82)",
+            fontSize: "clamp(16px, 3vw, 24px)",
+            lineHeight: 1.14,
+            fontWeight: 500,
+            textShadow: "0 3px 10px rgba(0,0,0,0.32)"
+          }}
+        >
+          {item.reasonTitle} {item.reasonSubtitle}
+        </p>
+
+        <p
+          style={{
+            margin: "18px 0 0 0",
+            color: "rgba(255,255,255,0.92)",
+            fontSize: "clamp(16px, 2.9vw, 22px)",
+            lineHeight: 1.15,
+            fontWeight: 500,
+            textShadow: "0 3px 10px rgba(0,0,0,0.32)"
+          }}
+        >
+          <span style={{ color: "#1e90ff", marginRight: 8 }}>♫</span>
+          {item.releaseLabel}
+        </p>
+
+        <p
+          style={{
+            margin: "18px 0 0 0",
+            color: "rgba(255,255,255,0.70)",
+            fontSize: "clamp(15px, 2.6vw, 20px)",
+            lineHeight: 1.1,
+            fontWeight: 500
+          }}
+        >
+          {item.comments} Comments
+        </p>
+      </div>
+    </article>
   );
 }
 
@@ -579,619 +739,427 @@ export default function Feed() {
   const [personalisedFeed, setPersonalisedFeed] = useState([]);
   const [predictiveFeed, setPredictiveFeed] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [activeTab, setActiveTab] = useState("For You");
-  const [reactionMenu, setReactionMenu] = useState({
-    open: false,
-    itemId: null
-  });
+  const [activeIndex, setActiveIndex] = useState(0);
+  const [infoItem, setInfoItem] = useState(null);
+  const [searchText, setSearchText] = useState("");
 
-  const holdTimerRef = useRef(null);
+  const scrollRef = useRef(null);
+  const cardRefs = useRef([]);
 
   useEffect(() => {
-    let active = true;
+    let isMounted = true;
 
-    async function loadFeed() {
-      try {
-        setLoading(true);
-        setError("");
+    async function loadFeeds() {
+      setLoading(true);
 
-        const [smart, personalised, predictive] = await Promise.all([
-          fetchSmartFeed(),
-          fetchPersonalisedFeed(),
-          fetchPredictiveFeed()
-        ]);
+      const results = await Promise.allSettled([
+        fetchSmartFeed(),
+        fetchPersonalisedFeed(),
+        fetchPredictiveFeed()
+      ]);
 
-        if (!active) return;
+      if (!isMounted) return;
 
-        setSmartFeed(normaliseSmartFeed(smart));
-        setPersonalisedFeed(normalisePersonalisedFeed(personalised));
-        setPredictiveFeed(normalisePredictiveFeed(predictive));
-      } catch (err) {
-        if (!active) return;
-        setError(err?.message || "Failed to load iBand feed.");
-      } finally {
-        if (active) {
-          setLoading(false);
-        }
-      }
+      const [smartResult, personalisedResult, predictiveResult] = results;
+
+      setSmartFeed(
+        smartResult.status === "fulfilled"
+          ? normaliseSmartFeed(smartResult.value)
+          : []
+      );
+
+      setPersonalisedFeed(
+        personalisedResult.status === "fulfilled"
+          ? normalisePersonalisedFeed(personalisedResult.value)
+          : []
+      );
+
+      setPredictiveFeed(
+        predictiveResult.status === "fulfilled"
+          ? normalisePredictiveFeed(predictiveResult.value)
+          : []
+      );
+
+      setLoading(false);
     }
 
-    loadFeed();
+    loadFeeds();
 
     return () => {
-      active = false;
-      if (holdTimerRef.current) {
-        clearTimeout(holdTimerRef.current);
-      }
+      isMounted = false;
     };
   }, []);
 
-  const feedItems = useMemo(() => {
-    const merged = [...personalisedFeed, ...smartFeed, ...predictiveFeed];
+  const unifiedFeed = useMemo(
+    () =>
+      buildUnifiedFeed({
+        smart: smartFeed,
+        personalised: personalisedFeed,
+        predictive: predictiveFeed
+      }),
+    [smartFeed, personalisedFeed, predictiveFeed]
+  );
 
-    return merged
-      .sort((a, b) => priorityScore(b.priority) - priorityScore(a.priority))
-      .map((item, index) => ({
-        ...item,
-        orderLabel: index + 1,
-        supportCount: seededNumber(item.id, 1200, 42000),
-        comments: seededNumber(`${item.id}-comments`, 18, 1800),
-        saves: seededNumber(`${item.id}-saves`, 12, 3500),
-        shares: seededNumber(`${item.id}-shares`, 10, 2400)
-      }));
-  }, [personalisedFeed, smartFeed, predictiveFeed]);
+  useEffect(() => {
+    if (!scrollRef.current || !unifiedFeed.length) return;
 
-  function handleSupportPressStart(itemId) {
-    if (holdTimerRef.current) {
-      clearTimeout(holdTimerRef.current);
-    }
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const visibleEntry = entries
+          .filter((entry) => entry.isIntersecting)
+          .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
 
-    holdTimerRef.current = setTimeout(() => {
-      setReactionMenu({
-        open: true,
-        itemId
-      });
-    }, 400);
-  }
+        if (!visibleEntry) return;
 
-  function handleSupportPressEnd() {
-    if (holdTimerRef.current) {
-      clearTimeout(holdTimerRef.current);
-    }
-  }
+        const index = Number(visibleEntry.target.getAttribute("data-index"));
+        if (Number.isFinite(index)) {
+          setActiveIndex(index);
+        }
+      },
+      {
+        root: scrollRef.current,
+        threshold: [0.55, 0.7, 0.85]
+      }
+    );
 
-  function handleReactionSelect(reaction) {
-    console.log("iBand reaction selected:", reaction, "for item:", reactionMenu.itemId);
-
-    setReactionMenu({
-      open: false,
-      itemId: null
+    cardRefs.current.forEach((node) => {
+      if (node) observer.observe(node);
     });
-  }
 
-  function closeReactionMenu() {
-    setReactionMenu({
-      open: false,
-      itemId: null
-    });
-  }
+    return () => observer.disconnect();
+  }, [unifiedFeed]);
 
   return (
-    <div style={styles.page}>
-      <div style={styles.topTabsBar}>
-        <div style={styles.tabsInner}>
-          {getTabItems().map((tab) => {
-            const activeItem = tab === activeTab;
+    <div
+      style={{
+        position: "relative",
+        width: "100%",
+        minHeight: "100dvh",
+        background: "#030712",
+        color: "white",
+        overflow: "hidden"
+      }}
+    >
+      <div
+        ref={scrollRef}
+        style={{
+          position: "relative",
+          height: "100dvh",
+          overflowY: "auto",
+          overflowX: "hidden",
+          scrollSnapType: "y mandatory",
+          scrollBehavior: "smooth",
+          overscrollBehaviorY: "contain",
+          WebkitOverflowScrolling: "touch",
+          zIndex: 1
+        }}
+      >
+        {loading && !unifiedFeed.length ? (
+          <div
+            style={{
+              minHeight: "100dvh",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              color: "rgba(255,255,255,0.85)",
+              fontSize: 18,
+              fontWeight: 700
+            }}
+          >
+            Loading iBand feed…
+          </div>
+        ) : (
+          unifiedFeed.map((item, index) => (
+            <div
+              key={item.id}
+              ref={(node) => {
+                cardRefs.current[index] = node;
+              }}
+              data-index={index}
+            >
+              <FeedCard
+                item={item}
+                isActive={index === activeIndex}
+                onOpenInfo={setInfoItem}
+              />
+            </div>
+          ))
+        )}
+      </div>
+
+      <div
+        style={{
+          position: "fixed",
+          left: 14,
+          right: 14,
+          bottom: "calc(84px + env(safe-area-inset-bottom))",
+          zIndex: 15,
+          pointerEvents: "auto"
+        }}
+      >
+        <div
+          style={{
+            height: 62,
+            borderRadius: 32,
+            border: "1px solid rgba(255,255,255,0.14)",
+            background: "rgba(10, 16, 32, 0.34)",
+            boxShadow: "0 14px 30px rgba(0,0,0,0.28)",
+            backdropFilter: "blur(18px)",
+            display: "flex",
+            alignItems: "center",
+            padding: "0 18px",
+            gap: 14
+          }}
+        >
+          <span
+            style={{
+              fontSize: 30,
+              lineHeight: 1,
+              opacity: 0.98,
+              color: "white"
+            }}
+          >
+            ⌕
+          </span>
+          <input
+            value={searchText}
+            onChange={(event) => setSearchText(event.target.value)}
+            placeholder="Search artists, songs, genres"
+            style={{
+              flex: 1,
+              height: "100%",
+              border: "none",
+              outline: "none",
+              background: "transparent",
+              color: "white",
+              fontSize: 17,
+              fontWeight: 500
+            }}
+          />
+        </div>
+      </div>
+
+      <nav
+        aria-label="Primary"
+        style={{
+          position: "fixed",
+          left: 0,
+          right: 0,
+          bottom: 0,
+          zIndex: 14,
+          height: "calc(82px + env(safe-area-inset-bottom))",
+          paddingBottom: "env(safe-area-inset-bottom)",
+          background:
+            "linear-gradient(180deg, rgba(0,0,0,0.02) 0%, rgba(2,6,18,0.90) 18%, rgba(2,6,18,0.98) 100%)",
+          borderTop: "1px solid rgba(255,255,255,0.08)",
+          backdropFilter: "blur(18px)"
+        }}
+      >
+        <div
+          style={{
+            height: 82,
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr 1fr 1fr 1fr",
+            alignItems: "center",
+            padding: "0 10px"
+          }}
+        >
+          {[
+            ["⌂", "Home"],
+            ["⌑", "Shop"],
+            ["+", ""],
+            ["⌲", "Inbox"],
+            ["◠", "Profile"]
+          ].map(([icon, label], index) => {
+            const isCenter = index === 2;
+
+            if (isCenter) {
+              return (
+                <button
+                  key="create"
+                  type="button"
+                  aria-label="Create"
+                  style={{
+                    justifySelf: "center",
+                    width: 88,
+                    height: 52,
+                    borderRadius: 20,
+                    border: "none",
+                    background:
+                      "linear-gradient(90deg, #7dd3fc 0%, #f8fafc 50%, #fb7185 100%)",
+                    color: "#0f172a",
+                    fontSize: 36,
+                    fontWeight: 900,
+                    lineHeight: 1,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    boxShadow: "0 14px 28px rgba(0,0,0,0.25)",
+                    cursor: "pointer"
+                  }}
+                >
+                  +
+                </button>
+              );
+            }
+
+            const isInbox = label === "Inbox";
 
             return (
               <button
-                key={tab}
+                key={label}
                 type="button"
-                onClick={() => setActiveTab(tab)}
+                aria-label={label}
                 style={{
-                  ...styles.tabButton,
-                  ...(activeItem ? styles.tabButtonActive : {})
+                  position: "relative",
+                  border: "none",
+                  background: "transparent",
+                  color: "white",
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 4,
+                  cursor: "pointer"
                 }}
               >
-                {tab}
+                <span
+                  style={{
+                    fontSize: 28,
+                    lineHeight: 1
+                  }}
+                >
+                  {icon}
+                </span>
+                <span
+                  style={{
+                    fontSize: 13,
+                    fontWeight: 700,
+                    color: "rgba(255,255,255,0.92)"
+                  }}
+                >
+                  {label}
+                </span>
+
+                {isInbox ? (
+                  <span
+                    style={{
+                      position: "absolute",
+                      top: 4,
+                      right: "calc(50% - 28px)",
+                      minWidth: 24,
+                      height: 24,
+                      borderRadius: 12,
+                      background: "#fb7185",
+                      color: "white",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontSize: 13,
+                      fontWeight: 900,
+                      padding: "0 6px",
+                      boxShadow: "0 8px 18px rgba(0,0,0,0.22)"
+                    }}
+                  >
+                    2
+                  </span>
+                ) : null}
               </button>
             );
           })}
         </div>
+      </nav>
 
-        <button type="button" style={styles.searchButton} aria-label="Search">
-          ⌕
-        </button>
-      </div>
+      <div
+        style={{
+          position: "fixed",
+          left: "50%",
+          bottom: "calc(6px + env(safe-area-inset-bottom))",
+          transform: "translateX(-50%)",
+          width: 132,
+          height: 6,
+          borderRadius: 999,
+          background: "rgba(255,255,255,0.92)",
+          zIndex: 20,
+          pointerEvents: "none"
+        }}
+      />
 
-      {loading ? (
-        <div style={styles.centerState}>
-          <div style={styles.loaderTitle}>Loading your iBand feed…</div>
-          <div style={styles.loaderText}>
-            Pulling from Smart Feed, Personalised Feed, and Predictive Feed.
-          </div>
-        </div>
-      ) : error ? (
-        <div style={styles.centerState}>
-          <div style={styles.errorTitle}>Feed failed to load</div>
-          <div style={styles.errorText}>{error}</div>
-        </div>
-      ) : (
-        <div style={styles.snapScroller}>
-          {feedItems.map((item, index) => (
-            <FeedSlide
-              key={item.id}
-              item={item}
-              index={index}
-              reactionMenu={reactionMenu}
-              handleSupportPressStart={handleSupportPressStart}
-              handleSupportPressEnd={handleSupportPressEnd}
-              handleReactionSelect={handleReactionSelect}
-              closeReactionMenu={closeReactionMenu}
-            />
-          ))}
-        </div>
-      )}
+      <InfoOverlay item={infoItem} onClose={() => setInfoItem(null)} />
     </div>
   );
 }
 
 const styles = {
-  page: {
-    position: "fixed",
-    inset: 0,
-    width: "100vw",
-    height: "100dvh",
-    background: "#000000",
-    color: "#ffffff",
-    overflow: "hidden",
-    margin: 0,
-    padding: 0,
-    boxSizing: "border-box",
-    fontFamily:
-      'Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
+  rightRailGroup: {
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    gap: 6
   },
-  topTabsBar: {
-    position: "fixed",
-    top: 0,
-    left: 0,
-    right: 0,
-    width: "100vw",
-    zIndex: 20,
+  rightRailButton: {
+    width: 58,
+    height: 58,
+    borderRadius: "50%",
+    border: "1px solid rgba(255,255,255,0.16)",
+    background: "rgba(13, 19, 37, 0.18)",
+    color: "white",
     display: "flex",
     alignItems: "center",
-    justifyContent: "space-between",
-    padding: "16px 12px 10px",
-    boxSizing: "border-box",
-    pointerEvents: "none"
+    justifyContent: "center",
+    backdropFilter: "blur(12px)",
+    boxShadow: "0 10px 24px rgba(0,0,0,0.24)",
+    cursor: "pointer"
   },
-  tabsInner: {
-    display: "flex",
-    alignItems: "center",
-    gap: "18px",
-    overflowX: "auto",
-    scrollbarWidth: "none",
-    msOverflowStyle: "none",
-    pointerEvents: "auto"
-  },
-  tabButton: {
-    appearance: "none",
-    background: "transparent",
-    border: "none",
-    color: "rgba(255,255,255,0.68)",
-    fontSize: "15px",
+  infoButton: {
+    width: 64,
+    height: 64,
+    borderRadius: "50%",
+    border: "1px solid rgba(255,255,255,0.22)",
+    background: "rgba(40, 56, 92, 0.30)",
+    color: "white",
+    fontSize: 42,
     fontWeight: 700,
-    padding: 0,
-    position: "relative",
-    whiteSpace: "nowrap",
-    cursor: "pointer"
-  },
-  tabButtonActive: {
-    color: "#ffffff"
-  },
-  searchButton: {
-    appearance: "none",
-    background: "transparent",
-    border: "none",
-    color: "#ffffff",
-    fontSize: "28px",
+    fontFamily: "Georgia, serif",
     lineHeight: 1,
-    padding: "0 4px",
-    pointerEvents: "auto",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    boxShadow: "0 10px 24px rgba(0,0,0,0.28)",
+    backdropFilter: "blur(12px)",
     cursor: "pointer"
   },
-  centerState: {
-    minHeight: "100dvh",
-    display: "flex",
-    flexDirection: "column",
-    justifyContent: "center",
-    alignItems: "center",
-    textAlign: "center",
-    padding: "24px",
-    background: "#050816",
-    boxSizing: "border-box"
-  },
-  loaderTitle: {
-    fontSize: "22px",
-    fontWeight: 800,
-    marginBottom: "10px"
-  },
-  loaderText: {
-    fontSize: "14px",
-    opacity: 0.78,
-    maxWidth: "480px",
-    lineHeight: 1.5
-  },
-  errorTitle: {
-    fontSize: "22px",
-    fontWeight: 800,
-    marginBottom: "10px",
-    color: "#fca5a5"
-  },
-  errorText: {
-    fontSize: "14px",
-    opacity: 0.88,
-    maxWidth: "480px",
-    lineHeight: 1.5
-  },
-  snapScroller: {
-    width: "100vw",
-    height: "100dvh",
-    overflowY: "auto",
-    overflowX: "hidden",
-    scrollSnapType: "y mandatory",
-    WebkitOverflowScrolling: "touch",
-    background: "#000000"
-  },
-  feedSlide: {
-    position: "relative",
-    width: "100vw",
-    minWidth: "100vw",
-    height: "100dvh",
-    minHeight: "100dvh",
-    scrollSnapAlign: "start",
-    overflow: "hidden",
-    boxSizing: "border-box"
-  },
-  backgroundGlow: {
-    position: "absolute",
-    inset: 0,
-    zIndex: 1,
-    background:
-      "radial-gradient(circle at 30% 35%, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0.04) 22%, rgba(255,255,255,0) 52%)"
-  },
-  topTint: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    height: "28%",
-    zIndex: 2,
-    background:
-      "linear-gradient(180deg, rgba(0,0,0,0.22) 0%, rgba(0,0,0,0.04) 55%, rgba(0,0,0,0) 100%)"
-  },
-  bottomTint: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: 0,
-    height: "42%",
-    zIndex: 2,
-    background:
-      "linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.08) 30%, rgba(0,0,0,0.44) 100%)"
-  },
-  rightRail: {
-    position: "absolute",
-    right: "max(10px, env(safe-area-inset-right))",
-    bottom: "118px",
-    zIndex: 5,
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    gap: "14px"
-  },
-  profileStackButton: {
-    position: "relative",
-    appearance: "none",
-    background: "transparent",
+  dotsButton: {
+    width: 58,
+    height: 28,
     border: "none",
-    padding: 0,
+    background: "transparent",
+    color: "white",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
     cursor: "pointer"
   },
-  profileAvatarCircle: {
-    width: "46px",
-    height: "46px",
-    borderRadius: "999px",
-    background: "rgba(255,255,255,0.16)",
-    border: "2px solid rgba(255,255,255,0.75)",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    fontSize: "20px",
-    backdropFilter: "blur(8px)"
-  },
-  profileAvatarDefaultRing: {
-    border: "2px solid rgba(255,255,255,0.75)",
-    boxShadow: "0 0 0 rgba(0,0,0,0)"
-  },
-  profileAvatarFreshRing: {
-    border: "2px solid rgba(255,255,255,0.96)",
-    boxShadow: "0 0 0 2px rgba(255,255,255,0.10)"
-  },
-  profileAvatarViewedRing: {
-    border: "2px dashed rgba(0,0,0,0.38)",
-    boxShadow: "0 0 0 1px rgba(255,255,255,0.16)"
-  },
-  profileHeartbeatIdle: {
-    boxShadow: "0 0 0 rgba(255,47,111,0)"
-  },
-  profileHeartbeatOff: {
-    transform: "scale(1)",
-    boxShadow: "0 0 0 rgba(255,47,111,0)"
-  },
-  profileHeartbeatOn: {
-    transform: "scale(1.08)",
-    boxShadow: "0 0 18px rgba(255,47,111,0.34)"
-  },
-  profileFlipCard: {
-    position: "relative",
-    width: "100%",
-    height: "100%",
-    transformStyle: "preserve-3d",
-    transition: "transform 0.32s ease"
-  },
-  profileFaceFront: {
-    position: "absolute",
-    inset: 0,
-    backfaceVisibility: "hidden",
-    WebkitBackfaceVisibility: "hidden"
-  },
-  profileFaceBack: {
-    position: "absolute",
-    inset: 0,
-    transform: "rotateY(180deg)",
-    backfaceVisibility: "hidden",
-    WebkitBackfaceVisibility: "hidden"
-  },
-  profileImage: {
-    width: "100%",
-    height: "100%",
-    objectFit: "cover",
-    borderRadius: "999px",
-    display: "block"
-  },
-  profilePlus: {
-    position: "absolute",
-    bottom: "-8px",
-    left: "50%",
-    transform: "translateX(-50%)",
-    width: "24px",
-    height: "24px",
-    borderRadius: "999px",
-    background: "#ff2f6f",
-    border: "2px solid #ffffff",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    fontWeight: 800,
-    fontSize: "15px",
+  dotsGlyph: {
+    fontSize: 20,
+    fontWeight: 700,
+    letterSpacing: "0.06em",
     lineHeight: 1
   },
-  profilePlusFollowed: {
-    background: "#22c55e"
-  },
-  supportWrap: {
-    position: "relative",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center"
-  },
-  railButton: {
-    appearance: "none",
-    background: "transparent",
-    border: "none",
-    color: "#ffffff",
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    gap: "5px",
-    padding: 0,
-    cursor: "pointer",
-    transition: "transform 0.15s ease"
-  },
-  railButtonActive: {
-    transform: "scale(1.15)"
-  },
-  railIcon: {
-    fontSize: "32px",
+  heartGlyph: {
+    fontSize: 38,
     lineHeight: 1,
-    textShadow: "0 4px 14px rgba(0,0,0,0.35)"
+    color: "white"
   },
-  railCount: {
-    fontSize: "13px",
+  commentGlyph: {
+    fontSize: 34,
+    lineHeight: 1,
+    color: "white"
+  },
+  rightRailCount: {
+    color: "rgba(255,255,255,0.96)",
+    fontSize: 16,
     fontWeight: 700,
-    textShadow: "0 4px 12px rgba(0,0,0,0.35)"
-  },
-  reactionMenu: {
-    position: "absolute",
-    right: "52px",
-    top: "0",
-    transform: "translateY(-10%)",
-    display: "flex",
-    alignItems: "center",
-    gap: "10px",
-    padding: "10px 14px",
-    borderRadius: "999px",
-    background: "rgba(0,0,0,0.92)",
-    border: "1px solid rgba(255,255,255,0.18)",
-    boxShadow: "0 14px 34px rgba(0,0,0,0.45)",
-    backdropFilter: "blur(12px)",
-    zIndex: 10
-  },
-  reactionButton: {
-    appearance: "none",
-    background: "transparent",
-    border: "none",
-    fontSize: "22px",
-    lineHeight: 1,
-    cursor: "pointer",
-    padding: 0
-  },
-  soundButton: {
-    appearance: "none",
-    border: "none",
-    background:
-      "linear-gradient(135deg, rgba(255,255,255,0.92), rgba(240,240,240,0.72))",
-    width: "48px",
-    height: "48px",
-    borderRadius: "999px",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    padding: 0,
-    cursor: "pointer",
-    boxShadow: "0 10px 24px rgba(0,0,0,0.30)"
-  },
-  soundDiscInner: {
-    width: "36px",
-    height: "36px",
-    borderRadius: "999px",
-    background: "rgba(0,0,0,0.86)",
-    color: "#ffffff",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    fontSize: "16px"
-  },
-  bottomOverlay: {
-    position: "absolute",
-    left: "max(14px, env(safe-area-inset-left))",
-    right: "84px",
-    bottom: "18px",
-    zIndex: 5
-  },
-  identityRow: {
-    display: "flex",
-    alignItems: "center",
-    gap: "8px",
-    marginBottom: "6px"
-  },
-  artistName: {
-    fontSize: "18px",
-    fontWeight: 800,
-    lineHeight: 1.15
-  },
-  verifiedDot: {
-    width: "18px",
-    height: "18px",
-    borderRadius: "999px",
-    background: "rgba(59,130,246,0.95)",
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
-    fontSize: "11px",
-    fontWeight: 800
-  },
-  handleRow: {
-    display: "flex",
-    alignItems: "center",
-    gap: "10px",
-    marginBottom: "10px",
-    flexWrap: "wrap"
-  },
-  handle: {
-    fontSize: "14px",
-    opacity: 0.9
-  },
-  feedBadge: {
-    fontSize: "10px",
-    fontWeight: 800,
-    letterSpacing: "0.08em",
-    padding: "6px 9px",
-    borderRadius: "999px",
-    backdropFilter: "blur(8px)"
-  },
-  captionText: {
-    fontSize: "16px",
-    fontWeight: 600,
-    lineHeight: 1.35,
-    marginBottom: "8px",
-    textShadow: "0 4px 12px rgba(0,0,0,0.45)"
-  },
-  subtitleText: {
-    fontSize: "14px",
-    opacity: 0.92,
-    lineHeight: 1.45,
-    marginBottom: "12px",
-    textShadow: "0 4px 12px rgba(0,0,0,0.45)"
-  },
-  whyBox: {
-    background: "rgba(0,0,0,0.28)",
-    border: "1px solid rgba(255,255,255,0.12)",
-    borderRadius: "14px",
-    padding: "10px 12px",
-    backdropFilter: "blur(10px)",
-    marginBottom: "10px"
-  },
-  whyLabel: {
-    fontSize: "10px",
-    fontWeight: 800,
-    letterSpacing: "0.08em",
-    textTransform: "uppercase",
-    opacity: 0.76,
-    marginBottom: "5px"
-  },
-  whyText: {
-    fontSize: "13px",
-    lineHeight: 1.4,
-    opacity: 0.97
-  },
-  metaRow: {
-    display: "flex",
-    alignItems: "center",
-    gap: "7px",
-    fontSize: "12px",
-    opacity: 0.82,
-    marginBottom: "8px",
-    flexWrap: "wrap"
-  },
-  metaSource: {
-    textTransform: "capitalize"
-  },
-  metaCountry: {},
-  metaAction: {
-    whiteSpace: "nowrap"
-  },
-  metaDivider: {
-    opacity: 0.5
-  },
-  soundRow: {
-    display: "flex",
-    alignItems: "center",
-    gap: "7px",
-    fontSize: "13px",
-    opacity: 0.92
-  },
-  soundNote: {
-    fontSize: "14px"
-  },
-  soundText: {
-    whiteSpace: "nowrap",
-    overflow: "hidden",
-    textOverflow: "ellipsis"
-  },
-  orderBadge: {
-    position: "absolute",
-    top: "74px",
-    left: "max(14px, env(safe-area-inset-left))",
-    zIndex: 5,
-    fontSize: "11px",
-    fontWeight: 800,
-    padding: "6px 9px",
-    borderRadius: "999px",
-    background: "rgba(0,0,0,0.26)",
-    border: "1px solid rgba(255,255,255,0.14)",
-    backdropFilter: "blur(8px)"
+    textShadow: "0 2px 6px rgba(0,0,0,0.35)"
   }
 };
