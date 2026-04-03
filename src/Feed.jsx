@@ -6,9 +6,33 @@ import {
 } from "./services/api";
 
 const IBAND_LOGO_SRC = "/iband-logo.png";
+const FONT_STACK =
+  '"TikTok Sans", Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
 
 function svgDataUri(svg) {
   return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+}
+
+function createIbandLogoFallbackDataUri() {
+  return svgDataUri(`
+    <svg xmlns="http://www.w3.org/2000/svg" width="240" height="240" viewBox="0 0 240 240" fill="none">
+      <defs>
+        <linearGradient id="g" x1="24" y1="20" x2="206" y2="216" gradientUnits="userSpaceOnUse">
+          <stop stop-color="#a855f7"/>
+          <stop offset="0.5" stop-color="#f97316"/>
+          <stop offset="1" stop-color="#4338ca"/>
+        </linearGradient>
+      </defs>
+      <circle cx="120" cy="120" r="108" fill="url(#g)"/>
+      <circle cx="120" cy="120" r="108" fill="rgba(255,255,255,0.06)"/>
+      <rect x="112" y="42" width="12" height="94" rx="6" fill="#fff7ed"/>
+      <path d="M118 34c18 0 34 14 34 31 0 13-9 24-22 29v-16c7-4 11-10 11-17 0-9-9-16-23-16V34z" fill="#fff7ed"/>
+      <circle cx="96" cy="50" r="6" fill="#fff7ed"/>
+      <circle cx="96" cy="66" r="6" fill="#fff7ed"/>
+      <circle cx="96" cy="82" r="6" fill="#fff7ed"/>
+      <text x="120" y="178" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="62" font-weight="800" fill="#fff7ed">iB</text>
+    </svg>
+  `);
 }
 
 function createArtistAvatarDataUri(name, index = 0) {
@@ -90,12 +114,12 @@ function createArtworkDataUri(index = 0) {
 function formatCompactCount(value) {
   const num = Number(value || 0);
 
-  if (num >= 1_000_000) {
-    return `${(num / 1_000_000).toFixed(num >= 10_000_000 ? 0 : 1)}M`;
+  if (num >= 1000000) {
+    return `${(num / 1000000).toFixed(num >= 10000000 ? 0 : 1)}M`;
   }
 
-  if (num >= 1_000) {
-    return `${(num / 1_000).toFixed(num >= 10_000 ? 0 : 1)}K`;
+  if (num >= 1000) {
+    return `${(num / 1000).toFixed(num >= 10000 ? 0 : 1)}K`;
   }
 
   return String(num);
@@ -117,14 +141,14 @@ function normaliseSmartFeed(data) {
     id: item.id || `smart-${index}`,
     feedType: "smart",
     badge: "SMART",
-    artist: getString(item.artist, "Sam Ryder"),
+    artist: getString(item.artist, "Demo Artist Nigeria"),
     title: getString(item.cardTitle, "Sam Ryder — “Supernova Dreams”"),
     reasonTitle: getString(item.feedReasonTitle, "High Momentum +"),
     reasonSubtitle: getString(item.feedReasonSubtitle, "Trending Worldwide"),
     reasonText: getString(item.feedReason, "Recommended by iBand intelligence."),
     handle: getString(
       item.profileHandle,
-      `@${String(item.artist || "samryder").replace(/\s+/g, "").toLowerCase()}`
+      `@${String(item.artist || "demoartist").replace(/\s+/g, "").toLowerCase()}`
     ),
     country: getString(item.country, "Nigeria"),
     region: getString(item.region, "Global"),
@@ -150,7 +174,7 @@ function normalisePersonalisedFeed(data) {
     id: item.id || `personalised-${index}`,
     feedType: "personalised",
     badge: "FOR YOU",
-    artist: getString(item.artist, "Sam Ryder"),
+    artist: getString(item.artist, "Demo Artist Nigeria"),
     title: getString(item.cardTitle, "Sam Ryder — “Supernova Dreams”"),
     reasonTitle: getString(item.feedReasonTitle, "High Momentum +"),
     reasonSubtitle: getString(item.feedReasonSubtitle, "Trending Worldwide"),
@@ -160,7 +184,7 @@ function normalisePersonalisedFeed(data) {
     ),
     handle: getString(
       item.profileHandle,
-      `@${String(item.artist || "samryder").replace(/\s+/g, "").toLowerCase()}`
+      `@${String(item.artist || "demoartist").replace(/\s+/g, "").toLowerCase()}`
     ),
     country: getString(item.country, "United Kingdom"),
     region: getString(item.region, "Europe"),
@@ -186,7 +210,10 @@ function normalisePredictiveFeed(data) {
     id: item.id || `predictive-${index}`,
     feedType: "predictive",
     badge: "PREDICTED",
-    artist: getString(item.artist || item.recommendedArtist, "Sam Ryder"),
+    artist: getString(
+      item.artist || item.recommendedArtist,
+      "Demo Artist Brazil"
+    ),
     title: getString(item.cardTitle, "Sam Ryder — “Supernova Dreams”"),
     reasonTitle: getString(item.feedReasonTitle, "High Momentum +"),
     reasonSubtitle: getString(item.feedReasonSubtitle, "Trending Worldwide"),
@@ -196,7 +223,7 @@ function normalisePredictiveFeed(data) {
     ),
     handle: getString(
       item.profileHandle,
-      `@${String(item.artist || item.recommendedArtist || "samryder")
+      `@${String(item.artist || item.recommendedArtist || "demoartist")
         .replace(/\s+/g, "")
         .toLowerCase()}`
     ),
@@ -301,37 +328,31 @@ function buildUnifiedFeed({ smart, personalised, predictive }) {
   }));
 }
 
-function TikTokSearchIcon({ size = 18 }) {
+function IconSearch() {
   return (
-    <svg
-      viewBox="0 0 24 24"
-      width={size}
-      height={size}
-      aria-hidden="true"
-      style={{ display: "block", flexShrink: 0 }}
-    >
+    <svg viewBox="0 0 24 24" style={{ width: 18, height: 18, display: "block" }} aria-hidden="true">
       <circle
         cx="11"
         cy="11"
         r="6.5"
         fill="none"
         stroke="currentColor"
-        strokeWidth="2.4"
+        strokeWidth="2"
       />
       <path
-        d="M16.2 16.2l4 4"
+        d="M16 16l4.2 4.2"
         fill="none"
         stroke="currentColor"
-        strokeWidth="2.4"
+        strokeWidth="2"
         strokeLinecap="round"
       />
     </svg>
   );
 }
 
-function BottomNavHomeIcon() {
+function IconHome() {
   return (
-    <svg viewBox="0 0 24 24" width="27" height="27" aria-hidden="true">
+    <svg viewBox="0 0 24 24" style={{ width: 28, height: 28, display: "block" }} aria-hidden="true">
       <path
         d="M4 10.5L12 4l8 6.5V20a1 1 0 01-1 1h-4.8v-6h-4.4v6H5a1 1 0 01-1-1v-9.5z"
         fill="currentColor"
@@ -340,9 +361,9 @@ function BottomNavHomeIcon() {
   );
 }
 
-function BottomNavShopIcon() {
+function IconBag() {
   return (
-    <svg viewBox="0 0 24 24" width="27" height="27" aria-hidden="true">
+    <svg viewBox="0 0 24 24" style={{ width: 28, height: 28, display: "block" }} aria-hidden="true">
       <path
         d="M7 8V7a5 5 0 0110 0v1h2l-1.1 11H6.1L5 8h2zm2 0h6V7a3 3 0 00-6 0v1z"
         fill="none"
@@ -354,9 +375,9 @@ function BottomNavShopIcon() {
   );
 }
 
-function BottomNavInboxIcon() {
+function IconInbox() {
   return (
-    <svg viewBox="0 0 24 24" width="27" height="27" aria-hidden="true">
+    <svg viewBox="0 0 24 24" style={{ width: 28, height: 28, display: "block" }} aria-hidden="true">
       <path
         d="M4 6h16l1 10h-5l-2 3h-4l-2-3H3L4 6z"
         fill="none"
@@ -368,9 +389,9 @@ function BottomNavInboxIcon() {
   );
 }
 
-function BottomNavProfileIcon() {
+function IconProfile() {
   return (
-    <svg viewBox="0 0 24 24" width="27" height="27" aria-hidden="true">
+    <svg viewBox="0 0 24 24" style={{ width: 28, height: 28, display: "block" }} aria-hidden="true">
       <circle
         cx="12"
         cy="8"
@@ -416,7 +437,7 @@ function FeedCard({ item, isActive, onOpenInfo, currentIndex, totalItems }) {
           backgroundImage: `url("${posterUrl}")`,
           backgroundSize: "cover",
           backgroundPosition: "center",
-          filter: "saturate(1.04) contrast(1.02)",
+          filter: "saturate(1.06) contrast(1.04)",
           transform: isActive ? "scale(1.012)" : "scale(1)",
           transition: "transform 320ms ease"
         }}
@@ -427,87 +448,70 @@ function FeedCard({ item, isActive, onOpenInfo, currentIndex, totalItems }) {
           position: "absolute",
           inset: 0,
           background:
-            "linear-gradient(180deg, rgba(4,7,20,0.38) 0%, rgba(4,7,20,0.12) 22%, rgba(4,7,20,0.08) 42%, rgba(4,7,20,0.30) 68%, rgba(4,7,20,0.84) 100%)"
+            "linear-gradient(180deg, rgba(4,7,20,0.42) 0%, rgba(4,7,20,0.12) 18%, rgba(4,7,20,0.10) 42%, rgba(4,7,20,0.22) 62%, rgba(4,7,20,0.82) 100%)"
         }}
       />
 
       <div
         style={{
           position: "absolute",
-          top: "calc(env(safe-area-inset-top) + 14px)",
-          left: 16,
-          zIndex: 6,
-          display: "flex",
-          alignItems: "center",
-          gap: 10
+          top: "max(84px, calc(env(safe-area-inset-top) + 38px))",
+          left: 18,
+          zIndex: 4
         }}
       >
-        <img
-          src={IBAND_LOGO_SRC}
-          alt="iBand"
+        <div
           style={{
-            width: 52,
-            height: 52,
-            borderRadius: "50%",
-            objectFit: "cover",
-            boxShadow: "0 8px 20px rgba(0,0,0,0.24)"
+            minWidth: 48,
+            height: 36,
+            borderRadius: 18,
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "0 14px",
+            background: "rgba(9,14,28,0.40)",
+            border: "1px solid rgba(255,255,255,0.10)",
+            color: "rgba(255,255,255,0.98)",
+            fontSize: 15,
+            fontWeight: 800,
+            letterSpacing: "-0.01em",
+            boxShadow: "0 10px 24px rgba(0,0,0,0.22)",
+            backdropFilter: "blur(14px)"
           }}
-        />
-        <div>
-          <div
-            style={{
-              fontFamily:
-                '"TikTok Sans", Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-              fontSize: 18,
-              fontWeight: 800,
-              lineHeight: 1,
-              letterSpacing: "-0.02em",
-              color: "#ffffff",
-              textShadow: "0 2px 8px rgba(0,0,0,0.28)"
-            }}
-          >
-            iBand
-          </div>
-          <div
-            style={{
-              marginTop: 4,
-              fontFamily:
-                '"TikTok Sans", Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-              fontSize: 12,
-              fontWeight: 500,
-              lineHeight: 1.05,
-              color: "rgba(255,255,255,0.88)",
-              textShadow: "0 2px 8px rgba(0,0,0,0.24)"
-            }}
-          >
-            Powered By Fans
-          </div>
+        >
+          #{Math.min(currentIndex + 1, totalItems)}
         </div>
       </div>
 
       <div
         style={{
           position: "absolute",
-          top: "25.2dvh",
+          top: "max(132px, calc(env(safe-area-inset-top) + 92px))",
           right: 14,
-          zIndex: 6,
+          zIndex: 5,
           display: "flex",
           flexDirection: "column",
           alignItems: "center",
           gap: 12
         }}
       >
-        <div style={{ position: "relative", width: 68, height: 90 }}>
+        <div
+          style={{
+            position: "relative",
+            width: 70,
+            height: 92
+          }}
+        >
           <img
             src={avatarUrl}
             alt={item.artist}
             style={{
-              width: 68,
-              height: 68,
+              width: 70,
+              height: 70,
               borderRadius: "50%",
               objectFit: "cover",
-              border: "2px solid rgba(255,255,255,0.94)",
-              boxShadow: "0 10px 22px rgba(0,0,0,0.30)"
+              border: "2.5px solid rgba(255,255,255,0.96)",
+              boxShadow: "0 10px 22px rgba(0,0,0,0.28)"
             }}
           />
           <div
@@ -516,13 +520,11 @@ function FeedCard({ item, isActive, onOpenInfo, currentIndex, totalItems }) {
               left: "50%",
               bottom: 0,
               transform: "translateX(-50%)",
-              color: "#ffffff",
-              fontFamily:
-                '"TikTok Sans", Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+              color: "rgba(255,255,255,0.98)",
               fontSize: 11,
-              fontWeight: 600,
-              lineHeight: 1,
-              textShadow: "0 2px 8px rgba(0,0,0,0.30)"
+              fontWeight: 700,
+              lineHeight: 1.1,
+              textShadow: "0 2px 8px rgba(0,0,0,0.35)"
             }}
           >
             Artist
@@ -530,8 +532,8 @@ function FeedCard({ item, isActive, onOpenInfo, currentIndex, totalItems }) {
         </div>
 
         {[
-          { icon: "❤", count: formatCompactCount(item.likes), size: 33 },
-          { icon: "💬", count: formatCompactCount(item.comments), size: 31 }
+          { icon: "❤", count: formatCompactCount(item.likes), size: 36 },
+          { icon: "💬", count: formatCompactCount(item.comments), size: 33 }
         ].map((action) => (
           <div
             key={action.icon}
@@ -539,7 +541,7 @@ function FeedCard({ item, isActive, onOpenInfo, currentIndex, totalItems }) {
               display: "flex",
               flexDirection: "column",
               alignItems: "center",
-              gap: 5
+              gap: 4
             }}
           >
             <button
@@ -549,16 +551,16 @@ function FeedCard({ item, isActive, onOpenInfo, currentIndex, totalItems }) {
                 width: 54,
                 height: 54,
                 borderRadius: "50%",
-                border: "1px solid rgba(255,255,255,0.14)",
-                background: "rgba(13,19,37,0.28)",
-                color: "#ffffff",
+                border: "1px solid rgba(255,255,255,0.12)",
+                background: "rgba(13, 19, 37, 0.28)",
+                color: "white",
                 fontSize: action.size,
                 lineHeight: 1,
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
                 backdropFilter: "blur(12px)",
-                boxShadow: "0 8px 20px rgba(0,0,0,0.22)",
+                boxShadow: "0 10px 24px rgba(0,0,0,0.22)",
                 cursor: "pointer"
               }}
             >
@@ -567,12 +569,9 @@ function FeedCard({ item, isActive, onOpenInfo, currentIndex, totalItems }) {
             <span
               style={{
                 color: "rgba(255,255,255,0.96)",
-                fontFamily:
-                  '"TikTok Sans", Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-                fontSize: 12,
+                fontSize: 11,
                 fontWeight: 700,
-                lineHeight: 1,
-                textShadow: "0 2px 6px rgba(0,0,0,0.30)"
+                textShadow: "0 2px 6px rgba(0,0,0,0.35)"
               }}
             >
               {action.count}
@@ -588,17 +587,17 @@ function FeedCard({ item, isActive, onOpenInfo, currentIndex, totalItems }) {
             width: 54,
             height: 54,
             borderRadius: "50%",
-            border: "1px solid rgba(255,255,255,0.14)",
-            background: "rgba(13,19,37,0.28)",
-            color: "#ffffff",
-            fontSize: 30,
+            border: "1px solid rgba(255,255,255,0.12)",
+            background: "rgba(13, 19, 37, 0.28)",
+            color: "white",
+            fontSize: 31,
             fontWeight: 700,
             lineHeight: 1,
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
             backdropFilter: "blur(12px)",
-            boxShadow: "0 8px 20px rgba(0,0,0,0.22)",
+            boxShadow: "0 10px 24px rgba(0,0,0,0.22)",
             cursor: "pointer"
           }}
         >
@@ -610,18 +609,18 @@ function FeedCard({ item, isActive, onOpenInfo, currentIndex, totalItems }) {
           aria-label="More"
           style={{
             width: 54,
-            height: 20,
+            height: 24,
             border: "none",
             background: "transparent",
-            color: "#ffffff",
+            color: "white",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
             fontSize: 18,
             fontWeight: 700,
-            letterSpacing: "0.16em",
+            letterSpacing: "0.18em",
             cursor: "pointer",
-            textShadow: "0 2px 8px rgba(0,0,0,0.30)"
+            textShadow: "0 3px 8px rgba(0,0,0,0.34)"
           }}
         >
           •••
@@ -637,7 +636,7 @@ function FeedCard({ item, isActive, onOpenInfo, currentIndex, totalItems }) {
             padding: 0,
             overflow: "hidden",
             border: "3px solid rgba(255,255,255,0.94)",
-            boxShadow: "0 8px 20px rgba(0,0,0,0.22)",
+            boxShadow: "0 10px 24px rgba(0,0,0,0.22)",
             background: "transparent",
             cursor: "pointer"
           }}
@@ -658,23 +657,21 @@ function FeedCard({ item, isActive, onOpenInfo, currentIndex, totalItems }) {
         style={{
           position: "absolute",
           left: 18,
-          right: 92,
-          bottom: "20.2dvh",
-          zIndex: 6,
+          right: 86,
+          bottom: "calc(152px + env(safe-area-inset-bottom))",
+          zIndex: 5,
           pointerEvents: "none"
         }}
       >
         <h2
           style={{
             margin: 0,
-            color: "#ffffff",
-            fontFamily:
-              '"TikTok Sans", Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-            fontSize: 16,
-            lineHeight: 1.16,
+            color: "white",
+            fontSize: "clamp(18px, 4.4vw, 22px)",
+            lineHeight: 1.12,
             fontWeight: 700,
-            letterSpacing: "-0.01em",
-            textShadow: "0 3px 12px rgba(0,0,0,0.34)"
+            letterSpacing: "-0.02em",
+            textShadow: "0 4px 16px rgba(0,0,0,0.34)"
           }}
         >
           {item.title}
@@ -682,14 +679,12 @@ function FeedCard({ item, isActive, onOpenInfo, currentIndex, totalItems }) {
 
         <p
           style={{
-            margin: "12px 0 0 0",
+            margin: "10px 0 0 0",
             color: "rgba(255,255,255,0.90)",
-            fontFamily:
-              '"TikTok Sans", Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-            fontSize: 11,
+            fontSize: "clamp(13px, 3vw, 15px)",
             lineHeight: 1.22,
             fontWeight: 500,
-            textShadow: "0 2px 8px rgba(0,0,0,0.30)"
+            textShadow: "0 3px 10px rgba(0,0,0,0.30)"
           }}
         >
           {item.reasonTitle} {item.reasonSubtitle}
@@ -697,65 +692,28 @@ function FeedCard({ item, isActive, onOpenInfo, currentIndex, totalItems }) {
 
         <p
           style={{
-            margin: "11px 0 0 0",
-            color: "rgba(156,223,255,0.96)",
-            fontFamily:
-              '"TikTok Sans", Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-            fontSize: 10.5,
+            margin: "10px 0 0 0",
+            color: "rgba(156, 223, 255, 0.96)",
+            fontSize: "clamp(12px, 2.8vw, 14px)",
             lineHeight: 1.2,
-            fontWeight: 600,
-            textShadow: "0 2px 8px rgba(0,0,0,0.28)"
+            fontWeight: 700,
+            textShadow: "0 3px 10px rgba(0,0,0,0.28)"
           }}
         >
-          🎵 {item.releaseLabel}
+          ♫ {item.releaseLabel}
         </p>
 
         <p
           style={{
-            margin: "10px 0 0 0",
-            color: "rgba(255,255,255,0.76)",
-            fontFamily:
-              '"TikTok Sans", Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-            fontSize: 10.5,
-            lineHeight: 1.15,
+            margin: "8px 0 0 0",
+            color: "rgba(255,255,255,0.74)",
+            fontSize: "clamp(11px, 2.5vw, 13px)",
+            lineHeight: 1.2,
             fontWeight: 500
           }}
         >
           {item.comments} Comments
         </p>
-      </div>
-
-      <div
-        style={{
-          position: "absolute",
-          top: "11.8dvh",
-          left: 18,
-          zIndex: 6
-        }}
-      >
-        <div
-          style={{
-            minWidth: 42,
-            height: 34,
-            borderRadius: 17,
-            display: "inline-flex",
-            alignItems: "center",
-            justifyContent: "center",
-            padding: "0 12px",
-            background: "rgba(20,24,42,0.44)",
-            border: "1px solid rgba(255,255,255,0.12)",
-            color: "rgba(255,255,255,0.96)",
-            fontFamily:
-              '"TikTok Sans", Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-            fontSize: 13,
-            fontWeight: 800,
-            letterSpacing: "0.01em",
-            boxShadow: "0 10px 24px rgba(0,0,0,0.24)",
-            backdropFilter: "blur(12px)"
-          }}
-        >
-          #{Math.min(currentIndex + 1, totalItems)}
-        </div>
       </div>
     </article>
   );
@@ -790,10 +748,8 @@ function InfoOverlay({ item, onClose }) {
           background:
             "linear-gradient(180deg, rgba(12,18,35,0.94) 0%, rgba(9,14,28,0.96) 100%)",
           boxShadow: "0 24px 50px rgba(0,0,0,0.35)",
-          color: "#ffffff",
-          padding: 20,
-          fontFamily:
-            '"TikTok Sans", Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
+          color: "white",
+          padding: 20
         }}
       >
         <div
@@ -847,7 +803,7 @@ function InfoOverlay({ item, onClose }) {
               borderRadius: "50%",
               border: "1px solid rgba(255,255,255,0.12)",
               background: "rgba(255,255,255,0.06)",
-              color: "#ffffff",
+              color: "white",
               fontSize: 22,
               lineHeight: 1,
               cursor: "pointer"
@@ -912,7 +868,7 @@ function InfoOverlay({ item, onClose }) {
                 </span>
                 <span
                   style={{
-                    color: "#ffffff",
+                    color: "white",
                     fontSize: 16,
                     fontWeight: 800,
                     textAlign: "right"
@@ -937,6 +893,7 @@ export default function Feed() {
   const [activeIndex, setActiveIndex] = useState(0);
   const [infoItem, setInfoItem] = useState(null);
   const [searchText, setSearchText] = useState("");
+  const [logoErrored, setLogoErrored] = useState(false);
 
   const scrollRef = useRef(null);
   const cardRefs = useRef([]);
@@ -1024,6 +981,8 @@ export default function Feed() {
     return () => observer.disconnect();
   }, [unifiedFeed]);
 
+  const topLogoSrc = logoErrored ? createIbandLogoFallbackDataUri() : IBAND_LOGO_SRC;
+
   return (
     <div
       style={{
@@ -1031,12 +990,140 @@ export default function Feed() {
         width: "100%",
         minHeight: "100dvh",
         background: "#030712",
-        color: "#ffffff",
+        color: "white",
         overflow: "hidden",
-        fontFamily:
-          '"TikTok Sans", Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
+        fontFamily: FONT_STACK
       }}
     >
+      <div
+        style={{
+          position: "fixed",
+          inset: 0,
+          pointerEvents: "none",
+          zIndex: 2
+        }}
+      >
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            background:
+              "radial-gradient(circle at 18% 0%, rgba(236,72,153,0.10), transparent 24%), radial-gradient(circle at 84% 0%, rgba(14,165,233,0.10), transparent 26%)"
+          }}
+        />
+      </div>
+
+      <div
+        style={{
+          position: "fixed",
+          top: "calc(env(safe-area-inset-top) + 10px)",
+          left: 14,
+          zIndex: 20,
+          display: "flex",
+          alignItems: "center",
+          gap: 10,
+          pointerEvents: "none"
+        }}
+      >
+        <img
+          src={topLogoSrc}
+          alt="iBand"
+          onError={() => setLogoErrored(true)}
+          style={{
+            width: 44,
+            height: 44,
+            borderRadius: "50%",
+            objectFit: "cover",
+            boxShadow: "0 8px 20px rgba(0,0,0,0.22)"
+          }}
+        />
+        <div>
+          <div
+            style={{
+              fontSize: 15,
+              fontWeight: 800,
+              lineHeight: 1.02,
+              letterSpacing: "-0.02em",
+              color: "white",
+              textShadow: "0 2px 8px rgba(0,0,0,0.28)"
+            }}
+          >
+            iBand
+          </div>
+          <div
+            style={{
+              marginTop: 2,
+              fontSize: 10,
+              fontWeight: 500,
+              color: "rgba(255,255,255,0.84)",
+              textShadow: "0 2px 8px rgba(0,0,0,0.24)"
+            }}
+          >
+            Powered By Fans
+          </div>
+        </div>
+      </div>
+
+      <div
+        style={{
+          position: "fixed",
+          top: "calc(env(safe-area-inset-top) + 12px)",
+          right: 14,
+          zIndex: 20,
+          display: "flex",
+          alignItems: "center",
+          gap: 8
+        }}
+      >
+        <button
+          type="button"
+          aria-label="Search"
+          style={{
+            width: 34,
+            height: 34,
+            borderRadius: "50%",
+            border: "1px solid rgba(255,255,255,0.10)",
+            background: "rgba(10,16,30,0.26)",
+            color: "white",
+            backdropFilter: "blur(12px)",
+            WebkitBackdropFilter: "blur(12px)",
+            boxShadow: "0 8px 20px rgba(0,0,0,0.20)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            cursor: "pointer"
+          }}
+        >
+          <IconSearch />
+        </button>
+
+        <button
+          type="button"
+          aria-label="More"
+          style={{
+            minWidth: 40,
+            height: 34,
+            padding: "0 12px",
+            borderRadius: 17,
+            border: "1px solid rgba(255,255,255,0.10)",
+            background: "rgba(10,16,30,0.26)",
+            color: "white",
+            backdropFilter: "blur(12px)",
+            WebkitBackdropFilter: "blur(12px)",
+            boxShadow: "0 8px 20px rgba(0,0,0,0.20)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            cursor: "pointer",
+            fontSize: 16,
+            fontWeight: 700,
+            letterSpacing: "0.18em"
+          }}
+        >
+          •••
+        </button>
+      </div>
+
       <div
         ref={scrollRef}
         style={{
@@ -1091,18 +1178,18 @@ export default function Feed() {
           position: "fixed",
           left: 14,
           right: 14,
-          bottom: "calc(86px + env(safe-area-inset-bottom))",
+          bottom: "calc(78px + env(safe-area-inset-bottom))",
           zIndex: 15,
           pointerEvents: "auto"
         }}
       >
         <div
           style={{
-            height: 50,
-            borderRadius: 26,
-            border: "1px solid rgba(255,255,255,0.14)",
-            background: "rgba(6, 10, 22, 0.28)",
-            boxShadow: "0 12px 24px rgba(0,0,0,0.18)",
+            height: 54,
+            borderRadius: 28,
+            border: "1px solid rgba(255,255,255,0.12)",
+            background: "rgba(6, 10, 22, 0.26)",
+            boxShadow: "0 12px 28px rgba(0,0,0,0.18)",
             backdropFilter: "blur(18px)",
             WebkitBackdropFilter: "blur(18px)",
             display: "flex",
@@ -1113,13 +1200,13 @@ export default function Feed() {
         >
           <span
             style={{
-              color: "#ffffff",
-              display: "inline-flex",
+              display: "flex",
               alignItems: "center",
-              justifyContent: "center"
+              justifyContent: "center",
+              color: "rgba(255,255,255,0.96)"
             }}
           >
-            <TikTokSearchIcon size={18} />
+            <IconSearch />
           </span>
 
           <input
@@ -1132,11 +1219,10 @@ export default function Feed() {
               border: "none",
               outline: "none",
               background: "transparent",
-              color: "#ffffff",
-              fontFamily:
-                '"TikTok Sans", Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-              fontSize: 13,
-              fontWeight: 500
+              color: "white",
+              fontSize: 15,
+              fontWeight: 500,
+              fontFamily: FONT_STACK
             }}
           />
         </div>
@@ -1150,133 +1236,106 @@ export default function Feed() {
           right: 0,
           bottom: 0,
           zIndex: 14,
-          height: "calc(82px + env(safe-area-inset-bottom))",
+          height: "calc(78px + env(safe-area-inset-bottom))",
           paddingBottom: "env(safe-area-inset-bottom)",
           background:
-            "linear-gradient(180deg, rgba(0,0,0,0.03) 0%, rgba(2,6,18,0.90) 18%, rgba(2,6,18,0.97) 100%)",
-          borderTop: "1px solid rgba(255,255,255,0.06)",
+            "linear-gradient(180deg, rgba(0,0,0,0.02) 0%, rgba(2,6,18,0.88) 16%, rgba(2,6,18,0.96) 100%)",
+          borderTop: "1px solid rgba(255,255,255,0.05)",
           backdropFilter: "blur(18px)"
         }}
       >
         <div
           style={{
-            height: 82,
+            height: 78,
             display: "grid",
             gridTemplateColumns: "1fr 1fr 1fr 1fr 1fr",
             alignItems: "center",
             padding: "0 10px"
           }}
         >
-          {[
-            [<BottomNavHomeIcon key="home" />, "Home"],
-            [<BottomNavShopIcon key="shop" />, "Shop"],
-            ["+", ""],
-            [<BottomNavInboxIcon key="inbox" />, "Inbox"],
-            [<BottomNavProfileIcon key="profile" />, "Profile"]
-          ].map(([icon, label], index) => {
-            const isCenter = index === 2;
+          <button
+            type="button"
+            aria-label="Home"
+            style={styles.navItemButton}
+          >
+            <IconHome />
+            <span style={styles.navLabelActive}>Home</span>
+          </button>
 
-            if (isCenter) {
-              return (
-                <button
-                  key="create"
-                  type="button"
-                  aria-label="Create"
-                  style={{
-                    justifySelf: "center",
-                    width: 86,
-                    height: 46,
-                    borderRadius: 16,
-                    border: "none",
-                    background:
-                      "linear-gradient(90deg, #7dd3fc 0%, #f8fafc 50%, #fb7185 100%)",
-                    color: "#0f172a",
-                    fontSize: 34,
-                    fontWeight: 900,
-                    lineHeight: 1,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    boxShadow: "0 12px 24px rgba(0,0,0,0.18)",
-                    cursor: "pointer"
-                  }}
-                >
-                  +
-                </button>
-              );
-            }
+          <button
+            type="button"
+            aria-label="Shop"
+            style={styles.navItemButton}
+          >
+            <IconBag />
+            <span style={styles.navLabel}>Shop</span>
+          </button>
 
-            const isInbox = label === "Inbox";
+          <button
+            type="button"
+            aria-label="Create"
+            style={{
+              justifySelf: "center",
+              width: 78,
+              height: 46,
+              borderRadius: 16,
+              border: "none",
+              background:
+                "linear-gradient(90deg, #7dd3fc 0%, #f8fafc 50%, #fb7185 100%)",
+              color: "#0f172a",
+              fontSize: 32,
+              fontWeight: 900,
+              lineHeight: 1,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              boxShadow: "0 12px 24px rgba(0,0,0,0.18)",
+              cursor: "pointer"
+            }}
+          >
+            +
+          </button>
 
-            return (
-              <button
-                key={label}
-                type="button"
-                aria-label={label}
+          <button
+            type="button"
+            aria-label="Inbox"
+            style={styles.navItemButton}
+          >
+            <div style={{ position: "relative", display: "inline-flex" }}>
+              <IconInbox />
+              <span
                 style={{
-                  position: "relative",
-                  border: "none",
-                  background: "transparent",
-                  color: "#ffffff",
-                  display: "flex",
-                  flexDirection: "column",
+                  position: "absolute",
+                  top: -5,
+                  right: -10,
+                  minWidth: 22,
+                  height: 18,
+                  borderRadius: 999,
+                  background: "#fb7185",
+                  color: "white",
+                  display: "inline-flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  gap: 4,
-                  cursor: "pointer"
+                  fontSize: 11,
+                  fontWeight: 800,
+                  padding: "0 6px",
+                  boxShadow: "0 8px 18px rgba(0,0,0,0.20)"
                 }}
               >
-                <span
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    lineHeight: 1
-                  }}
-                >
-                  {icon}
-                </span>
+                2
+              </span>
+            </div>
+            <span style={styles.navLabel}>Inbox</span>
+          </button>
 
-                <span
-                  style={{
-                    fontFamily:
-                      '"TikTok Sans", Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-                    fontSize: 11,
-                    fontWeight: label === "Home" ? 700 : 600,
-                    color: "rgba(255,255,255,0.94)"
-                  }}
-                >
-                  {label}
-                </span>
-
-                {isInbox ? (
-                  <span
-                    style={{
-                      position: "absolute",
-                      top: 4,
-                      right: "calc(50% - 26px)",
-                      minWidth: 22,
-                      height: 22,
-                      borderRadius: 11,
-                      background: "#fb7185",
-                      color: "#ffffff",
-                      display: "inline-flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      fontFamily:
-                        '"TikTok Sans", Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-                      fontSize: 12,
-                      fontWeight: 800,
-                      padding: "0 6px",
-                      boxShadow: "0 8px 18px rgba(0,0,0,0.18)"
-                    }}
-                  >
-                    2
-                  </span>
-                ) : null}
-              </button>
-            );
-          })}
+          <button
+            type="button"
+            aria-label="Profile"
+            style={styles.navItemButton}
+          >
+            <IconProfile />
+            <span style={styles.navLabel}>Profile</span>
+          </button>
         </div>
       </nav>
 
@@ -1284,3 +1343,30 @@ export default function Feed() {
     </div>
   );
 }
+
+const styles = {
+  navItemButton: {
+    appearance: "none",
+    background: "transparent",
+    border: "none",
+    color: "#ffffff",
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: "4px",
+    cursor: "pointer",
+    minWidth: "52px",
+    fontFamily: FONT_STACK
+  },
+  navLabel: {
+    fontSize: "11px",
+    fontWeight: 600,
+    color: "rgba(255,255,255,0.82)"
+  },
+  navLabelActive: {
+    fontSize: "11px",
+    fontWeight: 700,
+    color: "#ffffff"
+  }
+};
