@@ -1,504 +1,1197 @@
-import React from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  fetchSmartFeed,
+  fetchPersonalisedFeed,
+  fetchPredictiveFeed
+} from "./services/api";
 
-const IBAND_LOGO_SRC = "/iband-logo.png";
+const VIEW_DURATION_MS = 12 * 60 * 60 * 1000;
+const AUTO_FLIP_INTERVAL_MS = 2600;
 
-function svgDataUri(svg) {
+function createIbandLogoDataUri() {
+  const svg = `
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+      <defs>
+        <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="#8b5cf6"/>
+          <stop offset="55%" stop-color="#f97316"/>
+          <stop offset="100%" stop-color="#4c1d95"/>
+        </linearGradient>
+      </defs>
+      <circle cx="50" cy="50" r="48" fill="url(#g)"/>
+      <circle cx="50" cy="50" r="48" fill="rgba(255,255,255,0.06)"/>
+      <rect x="47.5" y="14" width="5" height="42" rx="2.5" fill="#fff7ed"/>
+      <path d="M49 12 C57 12, 63 18, 63 25 C63 31, 59 36, 53 39 L53 32 C56 30, 58 27, 58 24 C58 20, 54 17, 49 17 Z" fill="#fff7ed"/>
+      <circle cx="42" cy="18" r="2.6" fill="#fff7ed"/>
+      <circle cx="42" cy="25" r="2.6" fill="#fff7ed"/>
+      <circle cx="42" cy="32" r="2.6" fill="#fff7ed"/>
+      <text x="50" y="78" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="30" font-weight="800" fill="#fff7ed">iB</text>
+    </svg>
+  `;
+
   return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
 }
 
-function createBackdrop() {
-  return svgDataUri(`
-    <svg xmlns="http://www.w3.org/2000/svg" width="900" height="1600" viewBox="0 0 900 1600">
-      <defs>
-        <linearGradient id="bg" x1="50%" y1="0%" x2="50%" y2="100%">
-          <stop offset="0%" stop-color="#0a1024"/>
-          <stop offset="45%" stop-color="#151a31"/>
-          <stop offset="100%" stop-color="#05070f"/>
-        </linearGradient>
-        <radialGradient id="mist" cx="50%" cy="25%" r="60%">
-          <stop offset="0%" stop-color="rgba(255,255,255,0.18)"/>
-          <stop offset="100%" stop-color="rgba(255,255,255,0)"/>
-        </radialGradient>
-      </defs>
-      <rect width="900" height="1600" fill="url(#bg)"/>
-      <circle cx="450" cy="300" r="420" fill="url(#mist)"/>
-      <g opacity="0.22">
-        <circle cx="120" cy="200" r="2" fill="white"/>
-        <circle cx="220" cy="260" r="2" fill="white"/>
-        <circle cx="320" cy="190" r="2" fill="white"/>
-        <circle cx="420" cy="240" r="2" fill="white"/>
-        <circle cx="520" cy="180" r="2" fill="white"/>
-        <circle cx="620" cy="250" r="2" fill="white"/>
-        <circle cx="720" cy="210" r="2" fill="white"/>
-        <circle cx="780" cy="330" r="2" fill="white"/>
-        <circle cx="660" cy="380" r="2" fill="white"/>
-        <circle cx="540" cy="420" r="2" fill="white"/>
-        <circle cx="380" cy="390" r="2" fill="white"/>
-        <circle cx="280" cy="470" r="2" fill="white"/>
-        <circle cx="170" cy="410" r="2" fill="white"/>
-      </g>
-      <g opacity="0.8">
-        <path d="M85 255 C250 165, 620 145, 820 170" stroke="rgba(110,235,255,0.72)" stroke-width="7" fill="none"/>
-        <path d="M115 195 C290 120, 640 105, 830 135" stroke="rgba(180,255,255,0.30)" stroke-width="3" fill="none"/>
-      </g>
-      <g opacity="0.38">
-        <ellipse cx="455" cy="605" rx="280" ry="165" fill="rgba(255,255,255,0.14)"/>
-        <ellipse cx="470" cy="665" rx="340" ry="225" fill="rgba(255,255,255,0.06)"/>
-      </g>
-      <g opacity="0.18">
-        <rect x="70" y="1040" width="760" height="300" rx="28" fill="rgba(0,0,0,0.18)"/>
-      </g>
-    </svg>
-  `);
+function createArtistAvatarDataUri(name, seed = 0) {
+  const palettes = [
+    ["#7c3aed", "#f97316"],
+    ["#ec4899", "#2563eb"],
+    ["#22c55e", "#eab308"],
+    ["#ef4444", "#8b5cf6"],
+    ["#0ea5e9", "#6366f1"]
+  ];
+  const [c1, c2] = palettes[seed % palettes.length];
+  const initials = String(name || "Artist")
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() || "")
+    .join("");
 
-}
-
-function createAvatar() {
-  return svgDataUri(`
-    <svg xmlns="http://www.w3.org/2000/svg" width="180" height="180" viewBox="0 0 180 180">
+  const svg = `
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
       <defs>
-        <linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stop-color="#dfe8ef"/>
-          <stop offset="100%" stop-color="#ffffff"/>
+        <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="${c1}"/>
+          <stop offset="100%" stop-color="${c2}"/>
         </linearGradient>
       </defs>
-      <circle cx="90" cy="90" r="88" fill="url(#g)"/>
-      <circle cx="90" cy="88" r="74" fill="#d7dce2"/>
-      <circle cx="90" cy="70" r="28" fill="#f0c7b1"/>
-      <path d="M48 130c12-22 30-34 42-34s30 12 42 34" fill="#2b2f39"/>
-      <path d="M58 62c8-22 22-34 42-34 20 0 35 14 40 32-9-6-19-8-29-8-20 0-37 6-53 10z" fill="#8b6d57"/>
+      <circle cx="50" cy="50" r="50" fill="url(#bg)"/>
+      <circle cx="50" cy="38" r="16" fill="rgba(255,255,255,0.20)"/>
+      <path d="M22 83 C28 67, 40 59, 50 59 C60 59, 72 67, 78 83 Z" fill="rgba(255,255,255,0.18)"/>
+      <text x="50" y="55" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="24" font-weight="800" fill="#ffffff">${initials}</text>
     </svg>
-  `);
+  `;
+
+  return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
 }
 
-function createDisc() {
-  return svgDataUri(`
-    <svg xmlns="http://www.w3.org/2000/svg" width="180" height="180" viewBox="0 0 180 180">
-      <defs>
-        <radialGradient id="g" cx="50%" cy="45%" r="60%">
-          <stop offset="0%" stop-color="#fff6d8"/>
-          <stop offset="0.18" stop-color="#ffb55d"/>
-          <stop offset="0.40" stop-color="#ff784a"/>
-          <stop offset="0.62" stop-color="#6748ff"/>
-          <stop offset="0.82" stop-color="#1b2448"/>
-          <stop offset="1" stop-color="#0a0f20"/>
-        </radialGradient>
-      </defs>
-      <circle cx="90" cy="90" r="86" fill="url(#g)"/>
-      <circle cx="90" cy="90" r="15" fill="#0b1020"/>
-    </svg>
-  `);
+const IBAND_LOGO_DATA_URI = createIbandLogoDataUri();
+
+function normaliseSmartFeed(data) {
+  const items = Array.isArray(data?.feed) ? data.feed : [];
+
+  return items.map((item, index) => ({
+    id: item.id || `smart-${index}`,
+    source: "smart-feed",
+    artist: item.artist || "Unknown Artist",
+    country: item.country || "Unknown",
+    title: item.cardTitle || "Smart Feed Pick",
+    subtitle: item.cardSubtitle || "Recommended for discovery",
+    reason: item.feedReason || item.message || "Recommended by iBand",
+    icon: item.icon || "🎵",
+    priority: item.priority || "medium",
+    action: item.action || "discover_artist",
+    badge: "SMART",
+    profileHandle: `@${String(item.artist || "artist")
+      .toLowerCase()
+      .replace(/\s+/g, "")}`,
+    soundLabel: item.artist || "Original Sound",
+    caption:
+      item.feedReason ||
+      item.message ||
+      "Momentum is building. Fans are pushing this higher right now.",
+    profileImage:
+      item.profileImage || createArtistAvatarDataUri(item.artist || "Artist", index),
+    hasFreshVideo: true
+  }));
 }
 
-export default function Feed() {
-  const backdrop = createBackdrop();
-  const avatar = createAvatar();
-  const disc = createDisc();
+function normalisePersonalisedFeed(data) {
+  const profiles = Array.isArray(data?.profiles) ? data.profiles : [];
+  const firstProfile = profiles[0];
+  const items = Array.isArray(firstProfile?.feed) ? firstProfile.feed : [];
+
+  return items.map((item, index) => ({
+    id: item.id || `personalised-${index}`,
+    source: "personalised-feed",
+    artist: item.artist || "Unknown Artist",
+    country: firstProfile?.country || "Personalised",
+    title: `${firstProfile?.persona || "Your"} feed pick`,
+    subtitle: `Tailored for ${firstProfile?.country || "you"}`,
+    reason: item.reason || "Matched to your taste",
+    icon: item.icon || "✨",
+    priority: firstProfile?.engagementLevel || "medium",
+    action: item.action || "discover_artist",
+    badge: "FOR YOU",
+    profileHandle: `@${String(item.artist || "artist")
+      .toLowerCase()
+      .replace(/\s+/g, "")}`,
+    soundLabel: item.artist || "Personalised Track",
+    caption:
+      item.reason ||
+      "This matches your taste profile and current breakout momentum.",
+    profileImage:
+      item.profileImage ||
+      createArtistAvatarDataUri(item.artist || "Artist", index + 20),
+    hasFreshVideo: true
+  }));
+}
+
+function normalisePredictiveFeed(data) {
+  const items = Array.isArray(data?.predictions) ? data.predictions : [];
+
+  return items.map((item, index) => ({
+    id: item.id || `predictive-${index}`,
+    source: "predictive-feed",
+    artist: item.recommendedArtist || "Unknown Artist",
+    country: item.userMode || "Predictive",
+    title: "Predicted next best move",
+    subtitle: item.recommendedCategory || "Next content decision",
+    reason: item.reason || "Predicted by iBand intelligence",
+    icon: item.icon || "🔮",
+    priority: item.injectionTiming || "soon",
+    action: item.predictedNextAction || "show_next",
+    badge: "PREDICTED",
+    profileHandle: `@${String(item.recommendedArtist || "artist")
+      .toLowerCase()
+      .replace(/\s+/g, "")}`,
+    soundLabel: item.recommendedArtist || "Predicted Sound",
+    caption:
+      item.reason ||
+      "The predictive engine thinks this is your strongest next discovery.",
+    profileImage:
+      item.profileImage ||
+      createArtistAvatarDataUri(item.recommendedArtist || "Artist", index + 40),
+    hasFreshVideo: true
+  }));
+}
+
+function priorityScore(priority) {
+  const value = String(priority || "").toLowerCase();
+
+  if (value.includes("critical")) return 5;
+  if (value.includes("high")) return 4;
+  if (value.includes("locked")) return 4;
+  if (value.includes("immediate")) return 4;
+  if (value.includes("soon")) return 3;
+  if (value.includes("medium")) return 2;
+  return 1;
+}
+
+function formatCompactNumber(value) {
+  const n = Number(value || 0);
+
+  if (n >= 1000000) return `${(n / 1000000).toFixed(1)}M`;
+  if (n >= 1000) return `${(n / 1000).toFixed(1)}K`;
+  return String(n);
+}
+
+function seededNumber(seed, min, max) {
+  let hash = 0;
+
+  for (let i = 0; i < String(seed).length; i += 1) {
+    hash = (hash << 5) - hash + String(seed).charCodeAt(i);
+    hash |= 0;
+  }
+
+  const normalized = Math.abs(hash % 1000) / 1000;
+  return Math.floor(min + normalized * (max - min));
+}
+
+function getBadgeStyle(badge) {
+  if (badge === "SMART") {
+    return {
+      background: "rgba(168, 85, 247, 0.28)",
+      border: "1px solid rgba(168, 85, 247, 0.48)"
+    };
+  }
+
+  if (badge === "FOR YOU") {
+    return {
+      background: "rgba(249, 115, 22, 0.26)",
+      border: "1px solid rgba(249, 115, 22, 0.48)"
+    };
+  }
+
+  return {
+    background: "rgba(59, 130, 246, 0.24)",
+    border: "1px solid rgba(59, 130, 246, 0.45)"
+  };
+}
+
+function getMockBackground(index) {
+  const backgrounds = [
+    "linear-gradient(160deg, rgba(168,85,247,0.88) 0%, rgba(249,115,22,0.72) 48%, rgba(15,23,42,0.96) 100%)",
+    "linear-gradient(160deg, rgba(236,72,153,0.78) 0%, rgba(59,130,246,0.58) 50%, rgba(2,6,23,0.96) 100%)",
+    "linear-gradient(160deg, rgba(34,197,94,0.68) 0%, rgba(234,179,8,0.54) 50%, rgba(17,24,39,0.96) 100%)",
+    "linear-gradient(160deg, rgba(239,68,68,0.72) 0%, rgba(168,85,247,0.52) 50%, rgba(15,23,42,0.96) 100%)",
+    "linear-gradient(160deg, rgba(14,165,233,0.72) 0%, rgba(99,102,241,0.54) 50%, rgba(2,6,23,0.96) 100%)"
+  ];
+
+  return backgrounds[index % backgrounds.length];
+}
+
+function getTabItems() {
+  return ["LIVE", "Oxfordshire", "Following", "Friends", "For You"];
+}
+
+function FeedSlide({
+  item,
+  index,
+  reactionMenu,
+  handleSupportPressStart,
+  handleSupportPressEnd,
+  handleReactionSelect,
+  closeReactionMenu
+}) {
+  const [followed, setFollowed] = useState(false);
+  const [showArtistFace, setShowArtistFace] = useState(false);
+  const [pulseOn, setPulseOn] = useState(false);
+  const [viewedAt, setViewedAt] = useState(null);
+  const [hasFreshVideo, setHasFreshVideo] = useState(Boolean(item.hasFreshVideo));
+  const slideRef = useRef(null);
+  const seenTimerRef = useRef(null);
+
+  const isReactionMenuOpen =
+    reactionMenu.open && reactionMenu.itemId === item.id;
+
+  useEffect(() => {
+    const flipTimer = setInterval(() => {
+      setShowArtistFace((prev) => !prev);
+    }, AUTO_FLIP_INTERVAL_MS);
+
+    return () => clearInterval(flipTimer);
+  }, []);
+
+  useEffect(() => {
+    if (followed) {
+      setPulseOn(false);
+      return undefined;
+    }
+
+    const pulseTimer = setInterval(() => {
+      setPulseOn((prev) => !prev);
+    }, 760);
+
+    return () => clearInterval(pulseTimer);
+  }, [followed]);
+
+  useEffect(() => {
+    if (!viewedAt) {
+      return undefined;
+    }
+
+    const timeout = setTimeout(() => {
+      setViewedAt(null);
+      setHasFreshVideo(false);
+    }, VIEW_DURATION_MS);
+
+    return () => clearTimeout(timeout);
+  }, [viewedAt]);
+
+  useEffect(() => {
+    const target = slideRef.current;
+
+    if (!target) {
+      return undefined;
+    }
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting && entry.intersectionRatio >= 0.65) {
+          if (!viewedAt && hasFreshVideo) {
+            if (seenTimerRef.current) {
+              clearTimeout(seenTimerRef.current);
+            }
+
+            seenTimerRef.current = setTimeout(() => {
+              setViewedAt(Date.now());
+            }, 1200);
+          }
+        } else if (seenTimerRef.current) {
+          clearTimeout(seenTimerRef.current);
+        }
+      },
+      {
+        threshold: [0.2, 0.65, 0.9]
+      }
+    );
+
+    observer.observe(target);
+
+    return () => {
+      observer.disconnect();
+      if (seenTimerRef.current) {
+        clearTimeout(seenTimerRef.current);
+      }
+    };
+  }, [viewedAt, hasFreshVideo]);
+
+  function handleProfileTap(e) {
+    e.stopPropagation();
+    setShowArtistFace((prev) => !prev);
+
+    if (hasFreshVideo && !viewedAt) {
+      setViewedAt(Date.now());
+    }
+  }
+
+  const viewedActive =
+    Boolean(viewedAt) && Date.now() - viewedAt < VIEW_DURATION_MS;
+
+  const avatarStateStyle = viewedActive
+    ? styles.profileAvatarViewedRing
+    : hasFreshVideo
+      ? styles.profileAvatarFreshRing
+      : styles.profileAvatarDefaultRing;
+
+  const heartbeatStyle =
+    !followed && !showArtistFace
+      ? pulseOn
+        ? styles.profileHeartbeatOn
+        : styles.profileHeartbeatOff
+      : styles.profileHeartbeatIdle;
 
   return (
-    <>
-      <style>{`
-        html, body, #root {
-          margin: 0;
-          height: 100%;
-          background: #020308;
+    <section
+      ref={slideRef}
+      style={{
+        ...styles.feedSlide,
+        background: getMockBackground(index)
+      }}
+      onClick={() => {
+        if (isReactionMenuOpen) {
+          closeReactionMenu();
         }
-        * { box-sizing: border-box; }
-        @keyframes iband-spin {
-          from { transform: rotate(0deg); }
-          to { transform: rotate(360deg); }
-        }
-      `}</style>
+      }}
+    >
+      <div style={styles.backgroundGlow} />
+      <div style={styles.topTint} />
+      <div style={styles.bottomTint} />
 
-      <main
-        style={{
-          minHeight: "100vh",
-          width: "100%",
-          background: "#020308",
-          color: "#fff",
-          fontFamily: "Arial, sans-serif",
-          position: "relative",
-          overflow: "hidden"
-        }}
-      >
-        <div
-          style={{
-            position: "absolute",
-            inset: 0,
-            backgroundImage: `url("${backdrop}")`,
-            backgroundSize: "cover",
-            backgroundPosition: "center"
-          }}
-        />
-        <div
-          style={{
-            position: "absolute",
-            inset: 0,
-            background:
-              "linear-gradient(180deg, rgba(0,0,0,0.06) 0%, rgba(0,0,0,0.02) 32%, rgba(0,0,0,0.26) 70%, rgba(0,0,0,0.72) 100%)"
-          }}
-        />
-
-        {/* Top-left branding */}
-        <div
-          style={{
-            position: "absolute",
-            top: 18,
-            left: 18,
-            zIndex: 20,
-            display: "flex",
-            alignItems: "flex-start",
-            gap: 12
-          }}
+      <div style={styles.rightRail}>
+        <button
+          type="button"
+          style={styles.profileStackButton}
+          aria-label="Artist identity control"
+          onClick={handleProfileTap}
         >
           <div
             style={{
-              width: 76,
-              height: 76,
-              borderRadius: "50%",
-              overflow: "hidden",
-              boxShadow: "0 10px 24px rgba(0,0,0,0.30)"
+              ...styles.profileAvatarCircle,
+              ...avatarStateStyle,
+              ...heartbeatStyle
             }}
           >
-            <img
-              src={IBAND_LOGO_SRC}
-              alt="iBand"
-              style={{ width: "100%", height: "100%", objectFit: "cover" }}
-            />
-          </div>
+            <div
+              style={{
+                ...styles.profileFlipCard,
+                transform: showArtistFace
+                  ? "rotateY(180deg)"
+                  : "rotateY(0deg)"
+              }}
+            >
+              <div style={styles.profileFaceFront}>
+                <img
+                  src={IBAND_LOGO_DATA_URI}
+                  alt="iBand identity"
+                  style={styles.profileImage}
+                />
+              </div>
 
-          <div style={{ paddingTop: 2 }}>
-            <div
-              style={{
-                fontSize: 32,
-                fontWeight: 500,
-                lineHeight: 1,
-                letterSpacing: "-0.02em",
-                textShadow: "0 4px 18px rgba(0,0,0,0.30)"
-              }}
-            >
-              iBand
-            </div>
-            <div
-              style={{
-                marginTop: 8,
-                fontSize: 16,
-                fontWeight: 400,
-                lineHeight: 1.1,
-                color: "rgba(255,255,255,0.94)",
-                textShadow: "0 4px 16px rgba(0,0,0,0.28)"
-              }}
-            >
-              Powered By Fans
-            </div>
-          </div>
-        </div>
-
-        {/* Right rail */}
-        <div
-          style={{
-            position: "absolute",
-            right: 18,
-            top: "52%",
-            transform: "translateY(-36%)",
-            zIndex: 20,
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            gap: 16,
-            width: 78
-          }}
-        >
-          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
-            <img
-              src={avatar}
-              alt="Artist"
-              style={{
-                width: 82,
-                height: 82,
-                borderRadius: "50%",
-                border: "3px solid rgba(255,255,255,0.94)",
-                boxShadow: "0 12px 28px rgba(0,0,0,0.34)"
-              }}
-            />
-            <div
-              style={{
-                fontSize: 18,
-                fontWeight: 700,
-                lineHeight: 1,
-                textShadow: "0 4px 18px rgba(0,0,0,0.40)"
-              }}
-            >
-              Artist
+              <div style={styles.profileFaceBack}>
+                <img
+                  src={item.profileImage}
+                  alt={item.artist}
+                  style={styles.profileImage}
+                />
+              </div>
             </div>
           </div>
 
-          <div style={{ textAlign: "center" }}>
-            <div style={{ fontSize: 52, lineHeight: 1 }}>♡</div>
-            <div style={{ fontSize: 18, fontWeight: 700 }}>3.1K</div>
+          <div
+            style={{
+              ...styles.profilePlus,
+              ...(followed ? styles.profilePlusFollowed : {})
+            }}
+            onClick={(e) => {
+              e.stopPropagation();
+              setFollowed((prev) => !prev);
+            }}
+          >
+            {followed ? "✓" : "+"}
           </div>
+        </button>
 
-          <div style={{ textAlign: "center" }}>
-            <div style={{ fontSize: 48, lineHeight: 1 }}>💬</div>
-            <div style={{ fontSize: 18, fontWeight: 700 }}>322</div>
-          </div>
+        <div style={styles.supportWrap}>
+          {isReactionMenuOpen && (
+            <div style={styles.reactionMenu}>
+              <button
+                type="button"
+                style={styles.reactionButton}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleReactionSelect("fire");
+                }}
+              >
+                🔥
+              </button>
+              <button
+                type="button"
+                style={styles.reactionButton}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleReactionSelect("bomb");
+                }}
+              >
+                💣
+              </button>
+              <button
+                type="button"
+                style={styles.reactionButton}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleReactionSelect("boom");
+                }}
+              >
+                💥
+              </button>
+              <button
+                type="button"
+                style={styles.reactionButton}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleReactionSelect("rocket");
+                }}
+              >
+                🚀
+              </button>
+            </div>
+          )}
 
           <button
             type="button"
-            aria-label="Info"
             style={{
-              width: 68,
-              height: 68,
-              borderRadius: "50%",
-              border: "1px solid rgba(255,255,255,0.22)",
-              background: "rgba(160,190,220,0.18)",
-              color: "#ffffff",
-              fontSize: 44,
-              fontWeight: 700,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              backdropFilter: "blur(12px)",
-              WebkitBackdropFilter: "blur(12px)",
-              boxShadow: "0 12px 28px rgba(0,0,0,0.34)"
+              ...styles.railButton,
+              ...(isReactionMenuOpen ? styles.railButtonActive : {})
+            }}
+            aria-label="Support"
+            onMouseDown={() => handleSupportPressStart(item.id)}
+            onMouseUp={handleSupportPressEnd}
+            onMouseLeave={handleSupportPressEnd}
+            onTouchStart={() => handleSupportPressStart(item.id)}
+            onTouchEnd={handleSupportPressEnd}
+            onClick={(e) => {
+              e.stopPropagation();
+              if (!isReactionMenuOpen) {
+                console.log("iBand support tapped for:", item.id);
+              }
             }}
           >
-            i
-          </button>
-
-          <div
-            style={{
-              fontSize: 34,
-              fontWeight: 700,
-              lineHeight: 0.8,
-              letterSpacing: "0.04em"
-            }}
-          >
-            ...
-          </div>
-
-          <div
-            style={{
-              width: 68,
-              height: 68,
-              borderRadius: "50%",
-              padding: 4,
-              background: "rgba(255,255,255,0.16)",
-              boxShadow: "0 12px 28px rgba(0,0,0,0.34)"
-            }}
-          >
-            <img
-              src={disc}
-              alt="Disc"
-              style={{
-                width: "100%",
-                height: "100%",
-                borderRadius: "50%",
-                border: "3px solid rgba(255,255,255,0.92)",
-                animation: "iband-spin 8s linear infinite"
-              }}
-            />
-          </div>
-        </div>
-
-        {/* Bottom-left info */}
-        <div
-          style={{
-            position: "absolute",
-            left: 22,
-            right: 110,
-            bottom: 176,
-            zIndex: 18
-          }}
-        >
-          <div
-            style={{
-              fontSize: 28,
-              fontWeight: 800,
-              lineHeight: 1.14,
-              letterSpacing: "-0.02em",
-              textShadow: "0 6px 24px rgba(0,0,0,0.42)"
-            }}
-          >
-            Sam Ryder — <span style={{ fontWeight: 400 }}>“Supernova Dreams”</span>
-          </div>
-
-          <div
-            style={{
-              marginTop: 14,
-              fontSize: 18,
-              color: "rgba(255,255,255,0.94)",
-              lineHeight: 1.25
-            }}
-          >
-            High Momentum + Trending Worldwide
-          </div>
-
-          <div
-            style={{
-              marginTop: 18,
-              display: "flex",
-              alignItems: "center",
-              gap: 10,
-              fontSize: 17,
-              color: "rgba(255,255,255,0.92)"
-            }}
-          >
-            <span style={{ color: "#36a8ff", fontSize: 24 }}>♫</span>
-            <span>iBand Exclusive — New Release</span>
-          </div>
-
-          <div
-            style={{
-              marginTop: 16,
-              fontSize: 17,
-              color: "rgba(255,255,255,0.82)"
-            }}
-          >
-            322 Comments
-          </div>
-        </div>
-
-        {/* Search dock */}
-        <div
-          style={{
-            position: "absolute",
-            left: 16,
-            right: 16,
-            bottom: 88,
-            zIndex: 18
-          }}
-        >
-          <div
-            style={{
-              minHeight: 62,
-              borderRadius: 999,
-              border: "1px solid rgba(255,255,255,0.14)",
-              background: "rgba(18,24,38,0.42)",
-              backdropFilter: "blur(18px)",
-              WebkitBackdropFilter: "blur(18px)",
-              boxShadow: "0 14px 30px rgba(0,0,0,0.28)",
-              display: "flex",
-              alignItems: "center",
-              gap: 16,
-              paddingLeft: 22,
-              paddingRight: 22,
-              color: "rgba(255,255,255,0.92)"
-            }}
-          >
-            <span style={{ fontSize: 28, lineHeight: 1 }}>⌕</span>
-            <span style={{ fontSize: 18, fontWeight: 400 }}>
-              Search artists, songs, genres
+            <span style={styles.railIcon}>🎧</span>
+            <span style={styles.railCount}>
+              {formatCompactNumber(item.supportCount)}
             </span>
-          </div>
+          </button>
         </div>
 
-        {/* Bottom nav */}
-        <div
-          style={{
-            position: "absolute",
-            left: 12,
-            right: 12,
-            bottom: 0,
-            zIndex: 18,
-            paddingBottom: 10
-          }}
+        <button
+          type="button"
+          style={styles.railButton}
+          aria-label="Comments"
         >
-          <div
+          <span style={styles.railIcon}>💬</span>
+          <span style={styles.railCount}>
+            {formatCompactNumber(item.comments)}
+          </span>
+        </button>
+
+        <button
+          type="button"
+          style={styles.railButton}
+          aria-label="Save"
+        >
+          <span style={styles.railIcon}>⭐</span>
+          <span style={styles.railCount}>
+            {formatCompactNumber(item.saves)}
+          </span>
+        </button>
+
+        <button
+          type="button"
+          style={styles.railButton}
+          aria-label="Spread"
+        >
+          <span style={styles.railIcon}>🚀</span>
+          <span style={styles.railCount}>
+            {formatCompactNumber(item.shares)}
+          </span>
+        </button>
+
+        <button
+          type="button"
+          style={styles.soundButton}
+          aria-label="Open sound page"
+        >
+          <div style={styles.soundDiscInner}>🎵</div>
+        </button>
+      </div>
+
+      <div style={styles.bottomOverlay}>
+        <div style={styles.identityRow}>
+          <span style={styles.artistName}>{item.artist}</span>
+          <span style={styles.verifiedDot}>✓</span>
+        </div>
+
+        <div style={styles.handleRow}>
+          <span style={styles.handle}>{item.profileHandle}</span>
+          <span
             style={{
-              borderTopLeftRadius: 26,
-              borderTopRightRadius: 26,
-              background: "rgba(6,8,14,0.82)",
-              backdropFilter: "blur(18px)",
-              WebkitBackdropFilter: "blur(18px)",
-              borderTop: "1px solid rgba(255,255,255,0.08)",
-              boxShadow: "0 -10px 30px rgba(0,0,0,0.26)",
-              paddingTop: 14,
-              paddingBottom: 10,
-              paddingLeft: 14,
-              paddingRight: 14
+              ...styles.feedBadge,
+              ...getBadgeStyle(item.badge)
             }}
           >
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(5, 1fr)",
-                alignItems: "end",
-                gap: 8,
-                color: "#fff"
-              }}
-            >
-              <div style={{ textAlign: "center" }}>
-                <div style={{ fontSize: 38, lineHeight: 1 }}>⌂</div>
-                <div style={{ fontSize: 16 }}>Home</div>
-              </div>
-              <div style={{ textAlign: "center" }}>
-                <div style={{ fontSize: 34, lineHeight: 1 }}>👜</div>
-                <div style={{ fontSize: 16 }}>Shop</div>
-              </div>
-              <div style={{ display: "flex", justifyContent: "center" }}>
-                <div
-                  style={{
-                    width: 84,
-                    height: 54,
-                    borderRadius: 18,
-                    background:
-                      "linear-gradient(90deg, #79d8ff 0 18%, #ffffff 18% 82%, #ff8daf 82% 100%)",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    color: "#000",
-                    fontSize: 34,
-                    fontWeight: 700
-                  }}
-                >
-                  +
-                </div>
-              </div>
-              <div style={{ textAlign: "center", position: "relative" }}>
-                <div
-                  style={{
-                    position: "absolute",
-                    top: -6,
-                    right: 18,
-                    minWidth: 30,
-                    height: 28,
-                    paddingLeft: 8,
-                    paddingRight: 8,
-                    borderRadius: 999,
-                    background: "#f55373",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    color: "#fff",
-                    fontSize: 18,
-                    fontWeight: 700
-                  }}
-                >
-                  2
-                </div>
-                <div style={{ fontSize: 34, lineHeight: 1 }}>💬</div>
-                <div style={{ fontSize: 16 }}>Inbox</div>
-              </div>
-              <div style={{ textAlign: "center" }}>
-                <div style={{ fontSize: 34, lineHeight: 1 }}>◡</div>
-                <div style={{ fontSize: 16 }}>Profile</div>
-              </div>
-            </div>
-
-            <div style={{ marginTop: 14, display: "flex", justifyContent: "center" }}>
-              <div
-                style={{
-                  width: 142,
-                  height: 7,
-                  borderRadius: 999,
-                  background: "rgba(255,255,255,0.92)"
-                }}
-              />
-            </div>
-          </div>
+            {item.badge}
+          </span>
         </div>
-      </main>
-    </>
+
+        <div style={styles.captionText}>{item.caption}</div>
+
+        <div style={styles.subtitleText}>{item.subtitle}</div>
+
+        <div style={styles.whyBox}>
+          <div style={styles.whyLabel}>Why you are seeing this</div>
+          <div style={styles.whyText}>{item.reason}</div>
+        </div>
+
+        <div style={styles.metaRow}>
+          <span style={styles.metaSource}>{item.source}</span>
+          <span style={styles.metaDivider}>•</span>
+          <span style={styles.metaCountry}>{item.country}</span>
+          <span style={styles.metaDivider}>•</span>
+          <span style={styles.metaAction}>{item.action}</span>
+        </div>
+
+        <div style={styles.soundRow}>
+          <span style={styles.soundNote}>♫</span>
+          <span style={styles.soundText}>{item.soundLabel}</span>
+        </div>
+      </div>
+
+      <div style={styles.orderBadge}>#{item.orderLabel}</div>
+    </section>
   );
 }
+
+export default function Feed() {
+  const [smartFeed, setSmartFeed] = useState([]);
+  const [personalisedFeed, setPersonalisedFeed] = useState([]);
+  const [predictiveFeed, setPredictiveFeed] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [activeTab, setActiveTab] = useState("For You");
+  const [reactionMenu, setReactionMenu] = useState({
+    open: false,
+    itemId: null
+  });
+
+  const holdTimerRef = useRef(null);
+
+  useEffect(() => {
+    let active = true;
+
+    async function loadFeed() {
+      try {
+        setLoading(true);
+        setError("");
+
+        const [smart, personalised, predictive] = await Promise.all([
+          fetchSmartFeed(),
+          fetchPersonalisedFeed(),
+          fetchPredictiveFeed()
+        ]);
+
+        if (!active) return;
+
+        setSmartFeed(normaliseSmartFeed(smart));
+        setPersonalisedFeed(normalisePersonalisedFeed(personalised));
+        setPredictiveFeed(normalisePredictiveFeed(predictive));
+      } catch (err) {
+        if (!active) return;
+        setError(err?.message || "Failed to load iBand feed.");
+      } finally {
+        if (active) {
+          setLoading(false);
+        }
+      }
+    }
+
+    loadFeed();
+
+    return () => {
+      active = false;
+      if (holdTimerRef.current) {
+        clearTimeout(holdTimerRef.current);
+      }
+    };
+  }, []);
+
+  const feedItems = useMemo(() => {
+    const merged = [...personalisedFeed, ...smartFeed, ...predictiveFeed];
+
+    return merged
+      .sort((a, b) => priorityScore(b.priority) - priorityScore(a.priority))
+      .map((item, index) => ({
+        ...item,
+        orderLabel: index + 1,
+        supportCount: seededNumber(item.id, 1200, 42000),
+        comments: seededNumber(`${item.id}-comments`, 18, 1800),
+        saves: seededNumber(`${item.id}-saves`, 12, 3500),
+        shares: seededNumber(`${item.id}-shares`, 10, 2400)
+      }));
+  }, [personalisedFeed, smartFeed, predictiveFeed]);
+
+  function handleSupportPressStart(itemId) {
+    if (holdTimerRef.current) {
+      clearTimeout(holdTimerRef.current);
+    }
+
+    holdTimerRef.current = setTimeout(() => {
+      setReactionMenu({
+        open: true,
+        itemId
+      });
+    }, 400);
+  }
+
+  function handleSupportPressEnd() {
+    if (holdTimerRef.current) {
+      clearTimeout(holdTimerRef.current);
+    }
+  }
+
+  function handleReactionSelect(reaction) {
+    console.log("iBand reaction selected:", reaction, "for item:", reactionMenu.itemId);
+
+    setReactionMenu({
+      open: false,
+      itemId: null
+    });
+  }
+
+  function closeReactionMenu() {
+    setReactionMenu({
+      open: false,
+      itemId: null
+    });
+  }
+
+  return (
+    <div style={styles.page}>
+      <div style={styles.topTabsBar}>
+        <div style={styles.tabsInner}>
+          {getTabItems().map((tab) => {
+            const activeItem = tab === activeTab;
+
+            return (
+              <button
+                key={tab}
+                type="button"
+                onClick={() => setActiveTab(tab)}
+                style={{
+                  ...styles.tabButton,
+                  ...(activeItem ? styles.tabButtonActive : {})
+                }}
+              >
+                {tab}
+              </button>
+            );
+          })}
+        </div>
+
+        <button type="button" style={styles.searchButton} aria-label="Search">
+          ⌕
+        </button>
+      </div>
+
+      {loading ? (
+        <div style={styles.centerState}>
+          <div style={styles.loaderTitle}>Loading your iBand feed…</div>
+          <div style={styles.loaderText}>
+            Pulling from Smart Feed, Personalised Feed, and Predictive Feed.
+          </div>
+        </div>
+      ) : error ? (
+        <div style={styles.centerState}>
+          <div style={styles.errorTitle}>Feed failed to load</div>
+          <div style={styles.errorText}>{error}</div>
+        </div>
+      ) : (
+        <div style={styles.snapScroller}>
+          {feedItems.map((item, index) => (
+            <FeedSlide
+              key={item.id}
+              item={item}
+              index={index}
+              reactionMenu={reactionMenu}
+              handleSupportPressStart={handleSupportPressStart}
+              handleSupportPressEnd={handleSupportPressEnd}
+              handleReactionSelect={handleReactionSelect}
+              closeReactionMenu={closeReactionMenu}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+const styles = {
+  page: {
+    position: "fixed",
+    inset: 0,
+    width: "100vw",
+    height: "100dvh",
+    background: "#000000",
+    color: "#ffffff",
+    overflow: "hidden",
+    margin: 0,
+    padding: 0,
+    boxSizing: "border-box",
+    fontFamily:
+      'Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
+  },
+  topTabsBar: {
+    position: "fixed",
+    top: 0,
+    left: 0,
+    right: 0,
+    width: "100vw",
+    zIndex: 20,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    padding: "16px 12px 10px",
+    boxSizing: "border-box",
+    pointerEvents: "none"
+  },
+  tabsInner: {
+    display: "flex",
+    alignItems: "center",
+    gap: "18px",
+    overflowX: "auto",
+    scrollbarWidth: "none",
+    msOverflowStyle: "none",
+    pointerEvents: "auto"
+  },
+  tabButton: {
+    appearance: "none",
+    background: "transparent",
+    border: "none",
+    color: "rgba(255,255,255,0.68)",
+    fontSize: "15px",
+    fontWeight: 700,
+    padding: 0,
+    position: "relative",
+    whiteSpace: "nowrap",
+    cursor: "pointer"
+  },
+  tabButtonActive: {
+    color: "#ffffff"
+  },
+  searchButton: {
+    appearance: "none",
+    background: "transparent",
+    border: "none",
+    color: "#ffffff",
+    fontSize: "28px",
+    lineHeight: 1,
+    padding: "0 4px",
+    pointerEvents: "auto",
+    cursor: "pointer"
+  },
+  centerState: {
+    minHeight: "100dvh",
+    display: "flex",
+    flexDirection: "column",
+    justifyContent: "center",
+    alignItems: "center",
+    textAlign: "center",
+    padding: "24px",
+    background: "#050816",
+    boxSizing: "border-box"
+  },
+  loaderTitle: {
+    fontSize: "22px",
+    fontWeight: 800,
+    marginBottom: "10px"
+  },
+  loaderText: {
+    fontSize: "14px",
+    opacity: 0.78,
+    maxWidth: "480px",
+    lineHeight: 1.5
+  },
+  errorTitle: {
+    fontSize: "22px",
+    fontWeight: 800,
+    marginBottom: "10px",
+    color: "#fca5a5"
+  },
+  errorText: {
+    fontSize: "14px",
+    opacity: 0.88,
+    maxWidth: "480px",
+    lineHeight: 1.5
+  },
+  snapScroller: {
+    width: "100vw",
+    height: "100dvh",
+    overflowY: "auto",
+    overflowX: "hidden",
+    scrollSnapType: "y mandatory",
+    WebkitOverflowScrolling: "touch",
+    background: "#000000"
+  },
+  feedSlide: {
+    position: "relative",
+    width: "100vw",
+    minWidth: "100vw",
+    height: "100dvh",
+    minHeight: "100dvh",
+    scrollSnapAlign: "start",
+    overflow: "hidden",
+    boxSizing: "border-box"
+  },
+  backgroundGlow: {
+    position: "absolute",
+    inset: 0,
+    zIndex: 1,
+    background:
+      "radial-gradient(circle at 30% 35%, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0.04) 22%, rgba(255,255,255,0) 52%)"
+  },
+  topTint: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    height: "28%",
+    zIndex: 2,
+    background:
+      "linear-gradient(180deg, rgba(0,0,0,0.22) 0%, rgba(0,0,0,0.04) 55%, rgba(0,0,0,0) 100%)"
+  },
+  bottomTint: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: "42%",
+    zIndex: 2,
+    background:
+      "linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.08) 30%, rgba(0,0,0,0.44) 100%)"
+  },
+  rightRail: {
+    position: "absolute",
+    right: "max(10px, env(safe-area-inset-right))",
+    bottom: "118px",
+    zIndex: 5,
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    gap: "14px"
+  },
+  profileStackButton: {
+    position: "relative",
+    appearance: "none",
+    background: "transparent",
+    border: "none",
+    padding: 0,
+    cursor: "pointer"
+  },
+  profileAvatarCircle: {
+    width: "46px",
+    height: "46px",
+    borderRadius: "999px",
+    background: "rgba(255,255,255,0.16)",
+    border: "2px solid rgba(255,255,255,0.75)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontSize: "20px",
+    backdropFilter: "blur(8px)"
+  },
+  profileAvatarDefaultRing: {
+    border: "2px solid rgba(255,255,255,0.75)",
+    boxShadow: "0 0 0 rgba(0,0,0,0)"
+  },
+  profileAvatarFreshRing: {
+    border: "2px solid rgba(255,255,255,0.96)",
+    boxShadow: "0 0 0 2px rgba(255,255,255,0.10)"
+  },
+  profileAvatarViewedRing: {
+    border: "2px dashed rgba(0,0,0,0.38)",
+    boxShadow: "0 0 0 1px rgba(255,255,255,0.16)"
+  },
+  profileHeartbeatIdle: {
+    boxShadow: "0 0 0 rgba(255,47,111,0)"
+  },
+  profileHeartbeatOff: {
+    transform: "scale(1)",
+    boxShadow: "0 0 0 rgba(255,47,111,0)"
+  },
+  profileHeartbeatOn: {
+    transform: "scale(1.08)",
+    boxShadow: "0 0 18px rgba(255,47,111,0.34)"
+  },
+  profileFlipCard: {
+    position: "relative",
+    width: "100%",
+    height: "100%",
+    transformStyle: "preserve-3d",
+    transition: "transform 0.32s ease"
+  },
+  profileFaceFront: {
+    position: "absolute",
+    inset: 0,
+    backfaceVisibility: "hidden",
+    WebkitBackfaceVisibility: "hidden"
+  },
+  profileFaceBack: {
+    position: "absolute",
+    inset: 0,
+    transform: "rotateY(180deg)",
+    backfaceVisibility: "hidden",
+    WebkitBackfaceVisibility: "hidden"
+  },
+  profileImage: {
+    width: "100%",
+    height: "100%",
+    objectFit: "cover",
+    borderRadius: "999px",
+    display: "block"
+  },
+  profilePlus: {
+    position: "absolute",
+    bottom: "-8px",
+    left: "50%",
+    transform: "translateX(-50%)",
+    width: "24px",
+    height: "24px",
+    borderRadius: "999px",
+    background: "#ff2f6f",
+    border: "2px solid #ffffff",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontWeight: 800,
+    fontSize: "15px",
+    lineHeight: 1
+  },
+  profilePlusFollowed: {
+    background: "#22c55e"
+  },
+  supportWrap: {
+    position: "relative",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center"
+  },
+  railButton: {
+    appearance: "none",
+    background: "transparent",
+    border: "none",
+    color: "#ffffff",
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    gap: "5px",
+    padding: 0,
+    cursor: "pointer",
+    transition: "transform 0.15s ease"
+  },
+  railButtonActive: {
+    transform: "scale(1.15)"
+  },
+  railIcon: {
+    fontSize: "32px",
+    lineHeight: 1,
+    textShadow: "0 4px 14px rgba(0,0,0,0.35)"
+  },
+  railCount: {
+    fontSize: "13px",
+    fontWeight: 700,
+    textShadow: "0 4px 12px rgba(0,0,0,0.35)"
+  },
+  reactionMenu: {
+    position: "absolute",
+    right: "52px",
+    top: "0",
+    transform: "translateY(-10%)",
+    display: "flex",
+    alignItems: "center",
+    gap: "10px",
+    padding: "10px 14px",
+    borderRadius: "999px",
+    background: "rgba(0,0,0,0.92)",
+    border: "1px solid rgba(255,255,255,0.18)",
+    boxShadow: "0 14px 34px rgba(0,0,0,0.45)",
+    backdropFilter: "blur(12px)",
+    zIndex: 10
+  },
+  reactionButton: {
+    appearance: "none",
+    background: "transparent",
+    border: "none",
+    fontSize: "22px",
+    lineHeight: 1,
+    cursor: "pointer",
+    padding: 0
+  },
+  soundButton: {
+    appearance: "none",
+    border: "none",
+    background:
+      "linear-gradient(135deg, rgba(255,255,255,0.92), rgba(240,240,240,0.72))",
+    width: "48px",
+    height: "48px",
+    borderRadius: "999px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 0,
+    cursor: "pointer",
+    boxShadow: "0 10px 24px rgba(0,0,0,0.30)"
+  },
+  soundDiscInner: {
+    width: "36px",
+    height: "36px",
+    borderRadius: "999px",
+    background: "rgba(0,0,0,0.86)",
+    color: "#ffffff",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontSize: "16px"
+  },
+  bottomOverlay: {
+    position: "absolute",
+    left: "max(14px, env(safe-area-inset-left))",
+    right: "84px",
+    bottom: "18px",
+    zIndex: 5
+  },
+  identityRow: {
+    display: "flex",
+    alignItems: "center",
+    gap: "8px",
+    marginBottom: "6px"
+  },
+  artistName: {
+    fontSize: "18px",
+    fontWeight: 800,
+    lineHeight: 1.15
+  },
+  verifiedDot: {
+    width: "18px",
+    height: "18px",
+    borderRadius: "999px",
+    background: "rgba(59,130,246,0.95)",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontSize: "11px",
+    fontWeight: 800
+  },
+  handleRow: {
+    display: "flex",
+    alignItems: "center",
+    gap: "10px",
+    marginBottom: "10px",
+    flexWrap: "wrap"
+  },
+  handle: {
+    fontSize: "14px",
+    opacity: 0.9
+  },
+  feedBadge: {
+    fontSize: "10px",
+    fontWeight: 800,
+    letterSpacing: "0.08em",
+    padding: "6px 9px",
+    borderRadius: "999px",
+    backdropFilter: "blur(8px)"
+  },
+  captionText: {
+    fontSize: "16px",
+    fontWeight: 600,
+    lineHeight: 1.35,
+    marginBottom: "8px",
+    textShadow: "0 4px 12px rgba(0,0,0,0.45)"
+  },
+  subtitleText: {
+    fontSize: "14px",
+    opacity: 0.92,
+    lineHeight: 1.45,
+    marginBottom: "12px",
+    textShadow: "0 4px 12px rgba(0,0,0,0.45)"
+  },
+  whyBox: {
+    background: "rgba(0,0,0,0.28)",
+    border: "1px solid rgba(255,255,255,0.12)",
+    borderRadius: "14px",
+    padding: "10px 12px",
+    backdropFilter: "blur(10px)",
+    marginBottom: "10px"
+  },
+  whyLabel: {
+    fontSize: "10px",
+    fontWeight: 800,
+    letterSpacing: "0.08em",
+    textTransform: "uppercase",
+    opacity: 0.76,
+    marginBottom: "5px"
+  },
+  whyText: {
+    fontSize: "13px",
+    lineHeight: 1.4,
+    opacity: 0.97
+  },
+  metaRow: {
+    display: "flex",
+    alignItems: "center",
+    gap: "7px",
+    fontSize: "12px",
+    opacity: 0.82,
+    marginBottom: "8px",
+    flexWrap: "wrap"
+  },
+  metaSource: {
+    textTransform: "capitalize"
+  },
+  metaCountry: {},
+  metaAction: {
+    whiteSpace: "nowrap"
+  },
+  metaDivider: {
+    opacity: 0.5
+  },
+  soundRow: {
+    display: "flex",
+    alignItems: "center",
+    gap: "7px",
+    fontSize: "13px",
+    opacity: 0.92
+  },
+  soundNote: {
+    fontSize: "14px"
+  },
+  soundText: {
+    whiteSpace: "nowrap",
+    overflow: "hidden",
+    textOverflow: "ellipsis"
+  },
+  orderBadge: {
+    position: "absolute",
+    top: "74px",
+    left: "max(14px, env(safe-area-inset-left))",
+    zIndex: 5,
+    fontSize: "11px",
+    fontWeight: 800,
+    padding: "6px 9px",
+    borderRadius: "999px",
+    background: "rgba(0,0,0,0.26)",
+    border: "1px solid rgba(255,255,255,0.14)",
+    backdropFilter: "blur(8px)"
+  }
+};
