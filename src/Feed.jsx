@@ -87,19 +87,6 @@ function createArtworkDataUri(index = 0) {
   `);
 }
 
-function isUsableImage(value) {
-  return typeof value === "string" && value.trim().length > 0;
-}
-
-function getString(value, fallback) {
-  return typeof value === "string" && value.trim() ? value.trim() : fallback;
-}
-
-function getNumber(value, fallback) {
-  const num = Number(value);
-  return Number.isFinite(num) ? num : fallback;
-}
-
 function formatCompactCount(value) {
   const num = Number(value || 0);
 
@@ -114,10 +101,44 @@ function formatCompactCount(value) {
   return String(num);
 }
 
-function buildHandle(artist, fallback = "artist") {
-  return `@${String(artist || fallback)
-    .replace(/\s+/g, "")
-    .toLowerCase()}`;
+function getString(value, fallback) {
+  return typeof value === "string" && value.trim() ? value.trim() : fallback;
+}
+
+function getNumber(value, fallback) {
+  const num = Number(value);
+  return Number.isFinite(num) ? num : fallback;
+}
+
+function isUsableImageSrc(value) {
+  if (typeof value !== "string") return false;
+
+  const src = value.trim();
+  if (!src) return false;
+
+  if (
+    src.startsWith("/") ||
+    src.startsWith("./") ||
+    src.startsWith("../") ||
+    src.startsWith("data:image/") ||
+    src.startsWith("blob:") ||
+    /^https?:\/\//i.test(src)
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
+function pickImageUrl(...values) {
+  return values.find((value) => isUsableImageSrc(value)) || "";
+}
+
+function buildHandle(name, fallback = "artist") {
+  return `@${String(name || fallback)
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "")}`;
 }
 
 function normaliseSmartFeed(data) {
@@ -127,22 +148,30 @@ function normaliseSmartFeed(data) {
     id: item.id || `smart-${index}`,
     feedType: "smart",
     badge: "SMART",
-    artist: getString(item.artist, "Demo Artist Nigeria"),
+    artist: getString(item.artist, "Sam Ryder"),
     title: getString(item.cardTitle, "Sam Ryder — “Supernova Dreams”"),
     reasonTitle: getString(item.feedReasonTitle, "High Momentum +"),
     reasonSubtitle: getString(item.feedReasonSubtitle, "Trending Worldwide"),
-    reasonText: getString(item.feedReason || item.message, "Recommended by iBand intelligence."),
-    handle: getString(item.profileHandle, buildHandle(item.artist, "demoartist")),
+    reasonText: getString(
+      item.feedReason || item.message,
+      "Recommended by iBand intelligence."
+    ),
+    handle: getString(item.profileHandle, buildHandle(item.artist, "samryder")),
     country: getString(item.country, "Nigeria"),
     region: getString(item.region, "Global"),
     trackTitle: getString(item.trackTitle, "Supernova Dreams"),
     releaseLabel: getString(item.releaseLabel, "iBand Exclusive — New Release"),
-    artistImage: getString(item.artistImage || item.profileImage || item.avatarUrl, ""),
-    artwork: getString(item.artwork || item.coverImage, ""),
-    videoUrl: getString(item.videoUrl || item.imageUrl || item.image, ""),
+    artistImage: pickImageUrl(
+      item.artistImage,
+      item.profileImage,
+      item.avatarUrl,
+      item.imageUrl
+    ),
+    artwork: pickImageUrl(item.artwork, item.coverImage, item.thumbnailUrl),
+    videoUrl: pickImageUrl(item.videoUrl, item.posterUrl, item.imageUrl),
     comments: getNumber(item.comments, 322),
     likes: getNumber(item.likes, 3100),
-    shares: getNumber(item.shares, 322)
+    shares: getNumber(item.shares, 27)
   }));
 }
 
@@ -162,7 +191,7 @@ function normalisePersonalisedFeed(data) {
     reasonTitle: getString(item.feedReasonTitle, "High Momentum +"),
     reasonSubtitle: getString(item.feedReasonSubtitle, "Trending Worldwide"),
     reasonText: getString(
-      item.feedReason || item.reason || item.message,
+      item.feedReason || item.message,
       "Matches your genre taste and strong breakout momentum."
     ),
     handle: getString(item.profileHandle, buildHandle(item.artist, "samryder")),
@@ -170,12 +199,17 @@ function normalisePersonalisedFeed(data) {
     region: getString(item.region, "Europe"),
     trackTitle: getString(item.trackTitle, "Supernova Dreams"),
     releaseLabel: getString(item.releaseLabel, "iBand Exclusive — New Release"),
-    artistImage: getString(item.artistImage || item.profileImage || item.avatarUrl, ""),
-    artwork: getString(item.artwork || item.coverImage, ""),
-    videoUrl: getString(item.videoUrl || item.imageUrl || item.image, ""),
+    artistImage: pickImageUrl(
+      item.artistImage,
+      item.profileImage,
+      item.avatarUrl,
+      item.imageUrl
+    ),
+    artwork: pickImageUrl(item.artwork, item.coverImage, item.thumbnailUrl),
+    videoUrl: pickImageUrl(item.videoUrl, item.posterUrl, item.imageUrl),
     comments: getNumber(item.comments, 322),
     likes: getNumber(item.likes, 3100),
-    shares: getNumber(item.shares, 322)
+    shares: getNumber(item.shares, 27)
   }));
 }
 
@@ -190,7 +224,7 @@ function normalisePredictiveFeed(data) {
     id: item.id || `predictive-${index}`,
     feedType: "predictive",
     badge: "PREDICTED",
-    artist: getString(item.artist || item.recommendedArtist, "Demo Artist Brazil"),
+    artist: getString(item.artist || item.recommendedArtist, "Sam Ryder"),
     title: getString(item.cardTitle, "Sam Ryder — “Supernova Dreams”"),
     reasonTitle: getString(item.feedReasonTitle, "High Momentum +"),
     reasonSubtitle: getString(item.feedReasonSubtitle, "Trending Worldwide"),
@@ -200,25 +234,30 @@ function normalisePredictiveFeed(data) {
     ),
     handle: getString(
       item.profileHandle,
-      buildHandle(item.artist || item.recommendedArtist, "demoartist")
+      buildHandle(item.artist || item.recommendedArtist, "samryder")
     ),
     country: getString(item.country || item.userMode, "Brazil"),
     region: getString(item.region, "South America"),
     trackTitle: getString(item.trackTitle, "Supernova Dreams"),
     releaseLabel: getString(item.releaseLabel, "iBand Exclusive — New Release"),
-    artistImage: getString(item.artistImage || item.profileImage || item.avatarUrl, ""),
-    artwork: getString(item.artwork || item.coverImage, ""),
-    videoUrl: getString(item.videoUrl || item.imageUrl || item.image, ""),
+    artistImage: pickImageUrl(
+      item.artistImage,
+      item.profileImage,
+      item.avatarUrl,
+      item.imageUrl
+    ),
+    artwork: pickImageUrl(item.artwork, item.coverImage, item.thumbnailUrl),
+    videoUrl: pickImageUrl(item.videoUrl, item.posterUrl, item.imageUrl),
     comments: getNumber(item.comments, 322),
     likes: getNumber(item.likes, 3100),
-    shares: getNumber(item.shares, 322)
+    shares: getNumber(item.shares, 27)
   }));
 }
 
 function createFallbackFeed() {
   const base = [
     {
-      id: "demo-sam",
+      id: "demo-ng",
       feedType: "personalised",
       badge: "FOR YOU",
       artist: "Sam Ryder",
@@ -233,32 +272,32 @@ function createFallbackFeed() {
       releaseLabel: "iBand Exclusive — New Release",
       comments: 322,
       likes: 3100,
-      shares: 322
+      shares: 27
     },
     {
-      id: "demo-ng",
+      id: "demo-jp",
       feedType: "smart",
       badge: "SMART",
-      artist: "Demo Artist Nigeria",
-      title: "Sam Ryder — “Supernova Dreams”",
+      artist: "Demo Artist Japan",
+      title: "Demo Artist Japan — “Supernova Dreams”",
       reasonTitle: "High Momentum +",
       reasonSubtitle: "Trending Worldwide",
       reasonText: "Radar and momentum signals increasing.",
-      handle: "@demoartistnigeria",
-      country: "Nigeria",
-      region: "Africa",
+      handle: "@demoartistjapan",
+      country: "Japan",
+      region: "Asia",
       trackTitle: "Supernova Dreams",
       releaseLabel: "iBand Exclusive — New Release",
       comments: 322,
       likes: 3100,
-      shares: 322
+      shares: 27
     },
     {
       id: "demo-br",
       feedType: "predictive",
       badge: "PREDICTED",
       artist: "Demo Artist Brazil",
-      title: "Sam Ryder — “Supernova Dreams”",
+      title: "Demo Artist Brazil — “Supernova Dreams”",
       reasonTitle: "High Momentum +",
       reasonSubtitle: "Trending Worldwide",
       reasonText: "Watch this artist before the breakout.",
@@ -269,7 +308,7 @@ function createFallbackFeed() {
       releaseLabel: "iBand Exclusive — New Release",
       comments: 322,
       likes: 3100,
-      shares: 322
+      shares: 27
     }
   ];
 
@@ -303,69 +342,56 @@ function buildUnifiedFeed({ smart, personalised, predictive }) {
   }));
 }
 
-function IconSearch() {
+function IconLive() {
   return (
-    <svg viewBox="0 0 24 24" aria-hidden="true" style={styles.utilitySvg}>
+    <svg viewBox="0 0 24 24" style={styles.topSvgIcon} aria-hidden="true">
+      <rect
+        x="3.5"
+        y="5.5"
+        width="17"
+        height="13"
+        rx="2.8"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+      />
+      <path
+        d="M7 4h10M8.5 20h7"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+      />
+      <text
+        x="12"
+        y="14.2"
+        textAnchor="middle"
+        fontSize="5.2"
+        fontWeight="700"
+        fill="currentColor"
+      >
+        LIVE
+      </text>
+    </svg>
+  );
+}
+
+function IconSearchTop() {
+  return (
+    <svg viewBox="0 0 24 24" style={styles.topSvgIcon} aria-hidden="true">
       <circle
         cx="11"
         cy="11"
         r="6.5"
         fill="none"
         stroke="currentColor"
-        strokeWidth="1.9"
+        strokeWidth="2"
       />
       <path
         d="M16 16l4.2 4.2"
         fill="none"
         stroke="currentColor"
-        strokeWidth="1.9"
-        strokeLinecap="round"
-      />
-    </svg>
-  );
-}
-
-function IconInfo() {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden="true" style={styles.utilitySvg}>
-      <circle
-        cx="12"
-        cy="12"
-        r="9"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.9"
-      />
-      <circle cx="12" cy="8" r="1.1" fill="currentColor" />
-      <path
-        d="M12 11.4v4.8"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.9"
-        strokeLinecap="round"
-      />
-    </svg>
-  );
-}
-
-function IconLive() {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden="true" style={styles.utilitySvg}>
-      <rect
-        x="4.2"
-        y="6.5"
-        width="15.6"
-        height="11"
-        rx="2.6"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.8"
-      />
-      <path
-        d="M9 4.7h6M10 19.4h4"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.8"
+        strokeWidth="2"
         strokeLinecap="round"
       />
     </svg>
@@ -374,9 +400,9 @@ function IconLive() {
 
 function IconHeart() {
   return (
-    <svg viewBox="0 0 24 24" aria-hidden="true" style={styles.railSvg}>
+    <svg viewBox="0 0 24 24" style={styles.railIconSvg} aria-hidden="true">
       <path
-        d="M12 20.3l-1.3-1.2C5.5 14.3 3 12 3 8.9 3 6.6 4.8 5 7 5c1.4 0 2.8.7 3.6 1.9C11.4 5.7 12.8 5 14.2 5 16.4 5 18.2 6.6 18.2 8.9c0 3.1-2.5 5.4-7.7 10.2L12 20.3z"
+        d="M12 21s-7.4-4.6-9.2-9.2C1.4 8.2 3.5 5 7.1 5c2.1 0 3.7 1 4.9 2.5C13.2 6 14.8 5 16.9 5c3.6 0 5.7 3.2 4.3 6.8C19.4 16.4 12 21 12 21z"
         fill="currentColor"
       />
     </svg>
@@ -385,12 +411,46 @@ function IconHeart() {
 
 function IconComment() {
   return (
-    <svg viewBox="0 0 24 24" aria-hidden="true" style={styles.railSvg}>
+    <svg viewBox="0 0 24 24" style={styles.railIconSvg} aria-hidden="true">
       <path
-        d="M6.2 6.1h11.6A2.7 2.7 0 0 1 20.5 8.8v4.2a2.7 2.7 0 0 1-2.7 2.7h-4.8l-3.8 2.6v-2.6H6.2A2.7 2.7 0 0 1 3.5 13V8.8a2.7 2.7 0 0 1 2.7-2.7z"
+        d="M6 6h12a3 3 0 013 3v4a3 3 0 01-3 3h-5.1l-4.4 3V16H6a3 3 0 01-3-3V9a3 3 0 013-3z"
+        fill="currentColor"
+      />
+    </svg>
+  );
+}
+
+function IconInfo() {
+  return (
+    <svg viewBox="0 0 24 24" style={styles.railIconSvg} aria-hidden="true">
+      <circle
+        cx="12"
+        cy="12"
+        r="9"
         fill="none"
         stroke="currentColor"
-        strokeWidth="1.9"
+        strokeWidth="2"
+      />
+      <circle cx="12" cy="8" r="1.35" fill="currentColor" />
+      <path
+        d="M12 11v5"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function IconBookmark() {
+  return (
+    <svg viewBox="0 0 24 24" style={styles.railIconSvg} aria-hidden="true">
+      <path
+        d="M7 4.5h10a1 1 0 011 1V20l-6-3.8L6 20V5.5a1 1 0 011-1z"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
         strokeLinejoin="round"
       />
     </svg>
@@ -399,20 +459,31 @@ function IconComment() {
 
 function IconShare() {
   return (
-    <svg viewBox="0 0 24 24" aria-hidden="true" style={styles.railSvg}>
+    <svg viewBox="0 0 24 24" style={styles.railIconSvg} aria-hidden="true">
       <path
-        d="M14.8 4.8l4.7 4.3-4.7 4.2V10c-4.1 0-6.4 1.3-8.3 4.7.5-5.5 3.7-8.7 8.3-9.1V4.8z"
+        d="M18.5 5.5l-10 6.1 4.3 1.2 1.2 4.3 4.5-11.6z"
         fill="currentColor"
       />
     </svg>
   );
 }
 
-function IconBookmark() {
+function IconHome() {
   return (
-    <svg viewBox="0 0 24 24" aria-hidden="true" style={styles.railSvg}>
+    <svg viewBox="0 0 24 24" style={styles.bottomNavIconSvg} aria-hidden="true">
       <path
-        d="M7 4.8h10a1.4 1.4 0 0 1 1.4 1.4v13.1L12 15.6l-6.4 3.7V6.2A1.4 1.4 0 0 1 7 4.8z"
+        d="M4 10.5L12 4l8 6.5V20a1 1 0 01-1 1h-4.8v-6h-4.4v6H5a1 1 0 01-1-1v-9.5z"
+        fill="currentColor"
+      />
+    </svg>
+  );
+}
+
+function IconBag() {
+  return (
+    <svg viewBox="0 0 24 24" style={styles.bottomNavIconSvg} aria-hidden="true">
+      <path
+        d="M7 8V7a5 5 0 0110 0v1h2l-1.1 11H6.1L5 8h2zm2 0h6V7a3 3 0 00-6 0v1z"
         fill="none"
         stroke="currentColor"
         strokeWidth="1.9"
@@ -422,39 +493,14 @@ function IconBookmark() {
   );
 }
 
-function IconHome() {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden="true" style={styles.bottomNavSvg}>
-      <path
-        d="M4.3 10.5L12 4.4l7.7 6.1V20a1 1 0 0 1-1 1h-4.6v-5.7H9.9V21H5.3a1 1 0 0 1-1-1v-9.5z"
-        fill="currentColor"
-      />
-    </svg>
-  );
-}
-
-function IconBag() {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden="true" style={styles.bottomNavSvg}>
-      <path
-        d="M7.3 8.3V7a4.7 4.7 0 0 1 9.4 0v1.3h2l-1.1 11.1H6.4L5.3 8.3h2zm2 0h5.4V7a2.7 2.7 0 0 0-5.4 0v1.3z"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
 function IconInbox() {
   return (
-    <svg viewBox="0 0 24 24" aria-hidden="true" style={styles.bottomNavSvg}>
+    <svg viewBox="0 0 24 24" style={styles.bottomNavIconSvg} aria-hidden="true">
       <path
-        d="M4.2 6.1h15.6l1.1 10.6h-5.1l-2 3h-3.6l-2-3H3.1L4.2 6.1z"
+        d="M4 6h16l1 10h-5l-2 3h-4l-2-3H3L4 6z"
         fill="none"
         stroke="currentColor"
-        strokeWidth="1.8"
+        strokeWidth="1.9"
         strokeLinejoin="round"
       />
     </svg>
@@ -463,93 +509,166 @@ function IconInbox() {
 
 function IconProfile() {
   return (
-    <svg viewBox="0 0 24 24" aria-hidden="true" style={styles.bottomNavSvg}>
+    <svg viewBox="0 0 24 24" style={styles.bottomNavIconSvg} aria-hidden="true">
       <circle
         cx="12"
-        cy="8.2"
-        r="3.4"
+        cy="8"
+        r="3.5"
         fill="none"
         stroke="currentColor"
-        strokeWidth="1.8"
+        strokeWidth="1.9"
       />
       <path
-        d="M5.2 19.6a6.8 6.8 0 0 1 13.6 0"
+        d="M5 20a7 7 0 0114 0"
         fill="none"
         stroke="currentColor"
-        strokeWidth="1.8"
+        strokeWidth="1.9"
         strokeLinecap="round"
       />
     </svg>
   );
 }
 
-function FeedCard({ item, isActive, onOpenInfo, currentIndex, totalItems }) {
-  const posterUrl = item.videoUrl || item.fallbackPoster;
-  const avatarUrl = isUsableImage(item.artistImage)
-    ? item.artistImage
-    : item.artistAvatarFallback;
-  const artworkUrl = isUsableImage(item.artwork)
-    ? item.artwork
-    : item.artworkFallback;
+function IconSearchDock() {
+  return (
+    <svg viewBox="0 0 24 24" style={styles.searchIconSvg} aria-hidden="true">
+      <circle
+        cx="11"
+        cy="11"
+        r="6.5"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+      />
+      <path
+        d="M16 16l4.2 4.2"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function InfoOverlay({ item, onClose }) {
+  if (!item) return null;
 
   return (
-    <article style={styles.card}>
+    <div
+      role="dialog"
+      aria-modal="true"
+      onClick={onClose}
+      style={styles.infoOverlayBackdrop}
+    >
+      <div
+        onClick={(event) => event.stopPropagation()}
+        style={styles.infoOverlayCard}
+      >
+        <div style={styles.infoOverlayHeader}>
+          <div>
+            <div style={styles.infoOverlayEyebrow}>IBAND INFO</div>
+            <h3 style={styles.infoOverlayTitle}>{item.artist}</h3>
+            <p style={styles.infoOverlayTrack}>{item.trackTitle}</p>
+          </div>
+
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close info"
+            style={styles.infoOverlayClose}
+          >
+            ×
+          </button>
+        </div>
+
+        <div style={styles.infoOverlaySection}>
+          <div style={styles.infoOverlaySectionLabel}>PERSONALISATION DETAILS</div>
+
+          <div style={styles.infoOverlayGrid}>
+            {[
+              ["Artist", item.artist],
+              ["Feed", item.badge],
+              ["Territory", item.country || "Global"],
+              ["Track", item.trackTitle]
+            ].map(([label, value]) => (
+              <div key={label} style={styles.infoOverlayRow}>
+                <span style={styles.infoOverlayRowLabel}>{label}</span>
+                <span style={styles.infoOverlayRowValue}>{value}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function FeedCard({ item, isActive, onOpenInfo, currentIndex }) {
+  const posterUrl = item.videoUrl || item.fallbackPoster;
+  const avatarUrl = item.artistImage || item.artistAvatarFallback;
+  const artworkUrl = item.artwork || item.artworkFallback;
+  const showBadge = item.badge === "FOR YOU";
+
+  return (
+    <article
+      style={{
+        ...styles.feedCard,
+        transform: isActive ? "scale(1)" : "scale(1)"
+      }}
+    >
       <div
         style={{
-          ...styles.poster,
-          backgroundImage: `url("${posterUrl}")`,
-          transform: isActive ? "scale(1.015)" : "scale(1)"
+          ...styles.posterLayer,
+          backgroundImage: `url("${posterUrl}")`
         }}
       />
 
-      <div style={styles.posterTint} />
-      <div style={styles.posterBottomTint} />
+      <div style={styles.posterOverlayTop} />
+      <div style={styles.posterOverlayBottom} />
 
-      <div style={styles.rankWrap}>
-        <div style={styles.rankBadge}>#{Math.min(currentIndex + 1, totalItems)}</div>
-      </div>
+      <div style={styles.rankBadge}>#{currentIndex + 1}</div>
 
       <div style={styles.rightRail}>
         <div style={styles.avatarBlock}>
-          <img src={avatarUrl} alt={item.artist} style={styles.avatar} />
-          <button type="button" aria-label={`Follow ${item.artist}`} style={styles.followButton}>
-            +
-          </button>
+          <div style={styles.avatarImageWrap}>
+            <img src={avatarUrl} alt={item.artist} style={styles.avatarImage} />
+            <button
+              type="button"
+              aria-label={`Follow ${item.artist}`}
+              style={styles.followPlusButton}
+            >
+              +
+            </button>
+          </div>
         </div>
 
-        <div style={styles.railItem}>
-          <button type="button" aria-label="Like" style={styles.railButton}>
-            <IconHeart />
-          </button>
+        <button type="button" style={styles.railButton} aria-label="Like">
+          <IconHeart />
           <span style={styles.railCount}>{formatCompactCount(item.likes)}</span>
-        </div>
+        </button>
 
-        <div style={styles.railItem}>
-          <button type="button" aria-label="Comments" style={styles.railButton}>
-            <IconComment />
-          </button>
-          <span style={styles.railCount}>{formatCompactCount(item.comments)}</span>
-        </div>
+        <button type="button" style={styles.railButton} aria-label="Comments">
+          <IconComment />
+          <span style={styles.railCount}>
+            {formatCompactCount(item.comments)}
+          </span>
+        </button>
 
-        <div style={styles.railItem}>
-          <button type="button" aria-label="Save" style={styles.railButton}>
-            <IconBookmark />
-          </button>
-          <span style={styles.railCount}>Save</span>
-        </div>
-
-        <div style={styles.railItem}>
-          <button type="button" aria-label="Share" style={styles.railButton}>
-            <IconShare />
-          </button>
-          <span style={styles.railCount}>{formatCompactCount(item.shares)}</span>
-        </div>
-
-        <button type="button" aria-label="Open artist info" onClick={() => onOpenInfo(item)} style={styles.infoRailButton}>
+        <button
+          type="button"
+          style={styles.railButton}
+          aria-label="Open info"
+          onClick={() => onOpenInfo(item)}
+        >
           <IconInfo />
         </button>
 
-        <button type="button" aria-label="Open sound" style={styles.soundButton}>
+        <button type="button" style={styles.dotsButton} aria-label="More">
+          <span style={styles.dotsGlyph}>•••</span>
+        </button>
+
+        <button type="button" style={styles.soundButton} aria-label="Open sound">
           <img
             src={artworkUrl}
             alt={`${item.trackTitle} artwork`}
@@ -558,75 +677,29 @@ function FeedCard({ item, isActive, onOpenInfo, currentIndex, totalItems }) {
         </button>
       </div>
 
-      <div style={styles.contentBlock}>
-        <div style={styles.artistRow}>
-          <span style={styles.artistName}>{item.artist}</span>
-          <span style={styles.verifiedBadge}>✓</span>
+      <div style={styles.bottomCopyWrap}>
+        <div style={styles.titleRow}>
+          <h2 style={styles.feedTitle}>{item.title}</h2>
         </div>
 
-        <div style={styles.handleRow}>
-          <span style={styles.handleText}>{item.handle}</span>
-          <span style={styles.feedBadge}>{item.badge}</span>
+        <div style={styles.reasonLine}>
+          {item.reasonTitle} {item.reasonSubtitle}
         </div>
 
-        <div style={styles.infoLine}>
-          {item.artist} • {item.badge === "FOR YOU" ? "Personalised Feed" : item.badge === "SMART" ? "Smart Feed" : "Predictive Feed"} • {item.country} • play_now
+        <div style={styles.audioLine}>
+          <span style={styles.audioNote}>♫</span>
+          <span style={styles.audioText}>{item.releaseLabel}</span>
         </div>
 
-        <div style={styles.songLine}>
-          {item.title}
-        </div>
+        <div style={styles.commentsLine}>{item.comments} Comments</div>
 
-        <div style={styles.whyWrap}>
-          <div style={styles.whyLabel}>WHY YOU ARE SEEING THIS</div>
-          <div style={styles.whyText}>
-            {item.reasonTitle} {item.reasonSubtitle}
+        {showBadge ? (
+          <div style={styles.badgeRow}>
+            <span style={styles.feedBadge}>{item.badge}</span>
           </div>
-        </div>
-
-        <div style={styles.musicRow}>
-          <span style={styles.musicNote}>♫</span>
-          <span style={styles.musicText}>{item.releaseLabel}</span>
-        </div>
+        ) : null}
       </div>
     </article>
-  );
-}
-
-function InfoOverlay({ item, onClose }) {
-  if (!item) return null;
-
-  return (
-    <div role="dialog" aria-modal="true" onClick={onClose} style={styles.overlayBackdrop}>
-      <div onClick={(event) => event.stopPropagation()} style={styles.overlayPanel}>
-        <div style={styles.overlayHeader}>
-          <div>
-            <div style={styles.overlayEyebrow}>IBAND INFO</div>
-            <h3 style={styles.overlayTitle}>{item.artist}</h3>
-            <p style={styles.overlaySubtitle}>{item.trackTitle}</p>
-          </div>
-
-          <button type="button" onClick={onClose} aria-label="Close info" style={styles.overlayClose}>
-            ×
-          </button>
-        </div>
-
-        <div style={styles.overlayBody}>
-          {[
-            ["Artist", item.artist],
-            ["Feed", item.badge],
-            ["Territory", item.country || "Global"],
-            ["Track", item.trackTitle],
-            ["Reason", `${item.reasonTitle} ${item.reasonSubtitle}`]
-          ].map(([label, value]) => (
-            <div key={label} style={styles.overlayRow}>
-              <span style={styles.overlayRowLabel}>{label}</span>
-              <span style={styles.overlayRowValue}>{value}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
   );
 }
 
@@ -638,6 +711,7 @@ export default function Feed() {
   const [activeIndex, setActiveIndex] = useState(0);
   const [infoItem, setInfoItem] = useState(null);
   const [searchText, setSearchText] = useState("");
+  const [topTab, setTopTab] = useState("for-you");
 
   const scrollRef = useRef(null);
   const cardRefs = useRef([]);
@@ -727,26 +801,94 @@ export default function Feed() {
 
   return (
     <div style={styles.page}>
-      <div style={styles.fixedLogoWrap}>
-        <img src={IBAND_LOGO_SRC} alt="iBand" style={styles.fixedLogo} />
-        <div style={styles.fixedBrandTextWrap}>
-          <div style={styles.fixedBrandTitle}>iBand</div>
-          <div style={styles.fixedBrandSubtitle}>Powered By Fans</div>
+      <div style={styles.fixedTopChrome}>
+        <div style={styles.logoCluster}>
+          <img src={IBAND_LOGO_SRC} alt="iBand" style={styles.fixedLogo} />
+          <div style={styles.logoTextWrap}>
+            <div style={styles.logoTitle}>iBand</div>
+            <div style={styles.logoSubtitle}>Powered By Fans</div>
+          </div>
         </div>
-      </div>
 
-      <div style={styles.floatingTopControls}>
-        <button type="button" aria-label="Live" style={styles.floatingIconButton}>
-          <IconLive />
-        </button>
+        <div style={styles.topTabsWrap}>
+          <button
+            type="button"
+            style={styles.topIconButton}
+            aria-label="Live"
+            onClick={() => setTopTab("live")}
+          >
+            <IconLive />
+          </button>
 
-        <button type="button" aria-label="Info" onClick={() => setInfoItem(unifiedFeed[activeIndex] || null)} style={styles.floatingIconButton}>
-          <IconInfo />
-        </button>
+          <button
+            type="button"
+            onClick={() => setTopTab("oxfordshire")}
+            style={styles.topTabButton}
+          >
+            <span
+              style={{
+                ...styles.topTabLabel,
+                ...(topTab === "oxfordshire" ? styles.topTabLabelActive : {})
+              }}
+            >
+              Oxfordshire
+            </span>
+          </button>
 
-        <button type="button" aria-label="Search" style={styles.floatingIconButton}>
-          <IconSearch />
-        </button>
+          <button
+            type="button"
+            onClick={() => setTopTab("following")}
+            style={styles.topTabButton}
+          >
+            <span
+              style={{
+                ...styles.topTabLabel,
+                ...(topTab === "following" ? styles.topTabLabelActive : {})
+              }}
+            >
+              Following
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setTopTab("friends")}
+            style={styles.topTabButton}
+          >
+            <span
+              style={{
+                ...styles.topTabLabel,
+                ...(topTab === "friends" ? styles.topTabLabelActive : {})
+              }}
+            >
+              Friends
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setTopTab("for-you")}
+            style={styles.topTabButton}
+          >
+            <span
+              style={{
+                ...styles.topTabLabel,
+                ...(topTab === "for-you" ? styles.topTabLabelActive : {})
+              }}
+            >
+              For You
+            </span>
+            {topTab === "for-you" ? <span style={styles.topTabUnderline} /> : null}
+          </button>
+
+          <button
+            type="button"
+            style={styles.topIconButton}
+            aria-label="Search"
+          >
+            <IconSearchTop />
+          </button>
+        </div>
       </div>
 
       <div ref={scrollRef} style={styles.scroller}>
@@ -766,16 +908,15 @@ export default function Feed() {
                 isActive={index === activeIndex}
                 onOpenInfo={setInfoItem}
                 currentIndex={index}
-                totalItems={unifiedFeed.length}
               />
             </div>
           ))
         )}
       </div>
 
-      <div style={styles.searchDock}>
-        <div style={styles.searchShell}>
-          <IconSearch />
+      <div style={styles.searchDockWrap}>
+        <div style={styles.searchDock}>
+          <IconSearchDock />
           <input
             value={searchText}
             onChange={(event) => setSearchText(event.target.value)}
@@ -785,32 +926,32 @@ export default function Feed() {
         </div>
       </div>
 
-      <nav aria-label="Primary" style={styles.bottomNav}>
-        <button type="button" aria-label="Home" style={styles.bottomNavItem}>
+      <nav aria-label="Primary" style={styles.bottomNavBar}>
+        <button type="button" style={styles.bottomNavItem}>
           <IconHome />
           <span style={styles.bottomNavLabelActive}>Home</span>
         </button>
 
-        <button type="button" aria-label="Shop" style={styles.bottomNavItem}>
+        <button type="button" style={styles.bottomNavItem}>
           <IconBag />
           <span style={styles.bottomNavLabel}>Shop</span>
         </button>
 
-        <button type="button" aria-label="Create" style={styles.createButton}>
+        <button type="button" style={styles.createButton} aria-label="Create">
           <span style={styles.createButtonOuter}>
             <span style={styles.createButtonInner}>+</span>
           </span>
         </button>
 
-        <button type="button" aria-label="Inbox" style={styles.bottomNavItem}>
-          <div style={styles.inboxIconWrap}>
+        <button type="button" style={styles.bottomNavItem}>
+          <div style={styles.bottomNavBadgeWrap}>
             <IconInbox />
-            <span style={styles.inboxBadge}>2</span>
+            <span style={styles.bottomNavBadge}>2</span>
           </div>
           <span style={styles.bottomNavLabel}>Inbox</span>
         </button>
 
-        <button type="button" aria-label="Profile" style={styles.bottomNavItem}>
+        <button type="button" style={styles.bottomNavItem}>
           <IconProfile />
           <span style={styles.bottomNavLabel}>Profile</span>
         </button>
@@ -827,17 +968,132 @@ const styles = {
     inset: 0,
     width: "100vw",
     height: "100dvh",
-    background: "#030712",
-    color: "#ffffff",
     overflow: "hidden",
-    margin: 0,
-    padding: 0,
+    background: "#000000",
+    color: "#ffffff",
     boxSizing: "border-box",
     fontFamily:
-      '"TikTok Sans", Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
+      '"TikTok Sans", Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
   },
+
+  fixedTopChrome: {
+    position: "fixed",
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 30,
+    pointerEvents: "none"
+  },
+
+  logoCluster: {
+    position: "absolute",
+    top: "calc(env(safe-area-inset-top) + 14px)",
+    left: "14px",
+    display: "flex",
+    alignItems: "center",
+    gap: "10px",
+    pointerEvents: "none"
+  },
+
+  fixedLogo: {
+    width: "52px",
+    height: "52px",
+    borderRadius: "50%",
+    objectFit: "cover",
+    display: "block",
+    filter: "drop-shadow(0 6px 14px rgba(0,0,0,0.35))"
+  },
+
+  logoTextWrap: {
+    display: "flex",
+    flexDirection: "column",
+    justifyContent: "center"
+  },
+
+  logoTitle: {
+    fontSize: "16px",
+    fontWeight: 800,
+    lineHeight: 1.02,
+    color: "#ffffff",
+    textShadow: "0 3px 10px rgba(0,0,0,0.38)"
+  },
+
+  logoSubtitle: {
+    marginTop: "3px",
+    fontSize: "13px",
+    fontWeight: 500,
+    lineHeight: 1.05,
+    color: "rgba(255,255,255,0.88)",
+    textShadow: "0 3px 10px rgba(0,0,0,0.38)"
+  },
+
+  topTabsWrap: {
+    position: "absolute",
+    top: "calc(env(safe-area-inset-top) + 18px)",
+    left: "50%",
+    transform: "translateX(-50%)",
+    display: "flex",
+    alignItems: "center",
+    gap: "12px",
+    pointerEvents: "auto"
+  },
+
+  topTabButton: {
+    appearance: "none",
+    background: "transparent",
+    border: "none",
+    color: "#ffffff",
+    padding: 0,
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center",
+    minWidth: "fit-content",
+    cursor: "pointer"
+  },
+
+  topTabLabel: {
+    fontSize: "13px",
+    fontWeight: 700,
+    color: "rgba(255,255,255,0.72)",
+    lineHeight: 1
+  },
+
+  topTabLabelActive: {
+    color: "#ffffff"
+  },
+
+  topTabUnderline: {
+    marginTop: "6px",
+    width: "34px",
+    height: "2.5px",
+    borderRadius: "999px",
+    background: "#ffffff"
+  },
+
+  topIconButton: {
+    appearance: "none",
+    background: "transparent",
+    border: "none",
+    color: "#ffffff",
+    padding: 0,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    cursor: "pointer"
+  },
+
+  topSvgIcon: {
+    width: "26px",
+    height: "26px",
+    display: "block",
+    color: "#ffffff",
+    filter: "drop-shadow(0 3px 8px rgba(0,0,0,0.34))"
+  },
+
   scroller: {
     position: "relative",
+    width: "100vw",
     height: "100dvh",
     overflowY: "auto",
     overflowX: "hidden",
@@ -845,381 +1101,327 @@ const styles = {
     scrollBehavior: "smooth",
     overscrollBehaviorY: "contain",
     WebkitOverflowScrolling: "touch",
-    zIndex: 1,
-    background: "#030712"
+    background: "#000000"
   },
+
   loadingState: {
     minHeight: "100dvh",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    color: "rgba(255,255,255,0.85)",
-    fontSize: 18,
-    fontWeight: 700
+    fontSize: "18px",
+    fontWeight: 700,
+    color: "rgba(255,255,255,0.88)"
   },
-  card: {
+
+  feedCard: {
     position: "relative",
+    width: "100vw",
     minHeight: "100dvh",
     height: "100dvh",
-    width: "100%",
+    overflow: "hidden",
     scrollSnapAlign: "start",
     scrollSnapStop: "always",
-    overflow: "hidden",
     background:
       "linear-gradient(180deg, rgba(7,10,26,1) 0%, rgba(5,9,20,1) 100%)"
   },
-  poster: {
+
+  posterLayer: {
     position: "absolute",
     inset: 0,
     backgroundSize: "cover",
     backgroundPosition: "center",
-    filter: "saturate(1.06) contrast(1.04)",
-    transition: "transform 320ms ease"
+    backgroundRepeat: "no-repeat",
+    filter: "saturate(1.06) contrast(1.04)"
   },
-  posterTint: {
+
+  posterOverlayTop: {
     position: "absolute",
-    inset: 0,
+    left: 0,
+    right: 0,
+    top: 0,
+    height: "26%",
     background:
-      "linear-gradient(180deg, rgba(4,7,20,0.24) 0%, rgba(4,7,20,0.08) 20%, rgba(4,7,20,0.04) 42%, rgba(4,7,20,0.18) 62%, rgba(4,7,20,0.34) 78%, rgba(4,7,20,0.68) 100%)"
+      "linear-gradient(180deg, rgba(0,0,0,0.16) 0%, rgba(0,0,0,0.05) 58%, rgba(0,0,0,0) 100%)"
   },
-  posterBottomTint: {
+
+  posterOverlayBottom: {
     position: "absolute",
     left: 0,
     right: 0,
     bottom: 0,
-    height: "38%",
+    height: "42%",
     background:
-      "linear-gradient(180deg, rgba(3,7,18,0) 0%, rgba(3,7,18,0.08) 18%, rgba(3,7,18,0.32) 58%, rgba(3,7,18,0.80) 100%)"
+      "linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.05) 18%, rgba(0,0,0,0.32) 66%, rgba(0,0,0,0.72) 100%)"
   },
-  fixedLogoWrap: {
-    position: "fixed",
-    top: "calc(env(safe-area-inset-top) + 12px)",
-    left: 14,
-    zIndex: 20,
-    display: "flex",
-    alignItems: "center",
-    gap: 8,
-    pointerEvents: "none"
-  },
-  fixedLogo: {
-    width: 36,
-    height: 36,
-    borderRadius: "50%",
-    objectFit: "cover",
-    boxShadow: "0 8px 18px rgba(0,0,0,0.22)"
-  },
-  fixedBrandTextWrap: {
-    display: "flex",
-    flexDirection: "column",
-    gap: 1
-  },
-  fixedBrandTitle: {
-    fontSize: 15,
-    fontWeight: 800,
-    letterSpacing: "-0.02em",
-    color: "#ffffff",
-    lineHeight: 1
-  },
-  fixedBrandSubtitle: {
-    fontSize: 10,
-    fontWeight: 600,
-    color: "rgba(255,255,255,0.82)",
-    lineHeight: 1.05
-  },
-  floatingTopControls: {
-    position: "fixed",
-    top: "calc(env(safe-area-inset-top) + 10px)",
-    right: 12,
-    zIndex: 20,
-    display: "flex",
-    alignItems: "center",
-    gap: 6
-  },
-  floatingIconButton: {
-    appearance: "none",
-    border: "1px solid rgba(255,255,255,0.10)",
-    background: "rgba(10,16,32,0.20)",
-    color: "#ffffff",
-    width: 34,
-    height: 34,
-    borderRadius: "50%",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    backdropFilter: "blur(10px)",
-    WebkitBackdropFilter: "blur(10px)",
-    cursor: "pointer",
-    boxShadow: "0 8px 18px rgba(0,0,0,0.14)"
-  },
-  utilitySvg: {
-    width: 18,
-    height: 18,
-    display: "block",
-    color: "#ffffff"
-  },
-  rankWrap: {
-    position: "absolute",
-    top: "calc(env(safe-area-inset-top) + 54px)",
-    left: 14,
-    zIndex: 6
-  },
+
   rankBadge: {
-    minWidth: 34,
-    height: 24,
-    borderRadius: 12,
+    position: "absolute",
+    top: "calc(env(safe-area-inset-top) + 78px)",
+    left: "16px",
+    zIndex: 7,
+    minWidth: "54px",
+    height: "40px",
+    padding: "0 16px",
+    borderRadius: "22px",
     display: "inline-flex",
     alignItems: "center",
     justifyContent: "center",
-    padding: "0 10px",
-    background: "rgba(10,16,32,0.26)",
-    border: "1px solid rgba(255,255,255,0.10)",
-    color: "rgba(255,255,255,0.96)",
-    fontSize: 11,
+    background: "rgba(12,16,30,0.34)",
+    border: "1px solid rgba(255,255,255,0.14)",
+    backdropFilter: "blur(10px)",
+    boxShadow: "0 10px 24px rgba(0,0,0,0.20)",
+    fontSize: "15px",
     fontWeight: 800,
-    backdropFilter: "blur(10px)"
+    color: "#ffffff"
   },
+
   rightRail: {
     position: "absolute",
-    right: "max(6px, env(safe-area-inset-right))",
-    bottom: "calc(212px + env(safe-area-inset-bottom))",
+    right: "max(10px, env(safe-area-inset-right))",
+    bottom: "calc(160px + env(safe-area-inset-bottom))",
     zIndex: 8,
     display: "flex",
     flexDirection: "column",
     alignItems: "center",
-    gap: 10
+    gap: "12px"
   },
+
   avatarBlock: {
-    position: "relative",
-    width: 58,
-    height: 66,
     display: "flex",
-    alignItems: "flex-start",
-    justifyContent: "center"
+    flexDirection: "column",
+    alignItems: "center",
+    gap: "6px",
+    marginBottom: "2px"
   },
-  avatar: {
-    width: 52,
-    height: 52,
+
+  avatarImageWrap: {
+    position: "relative",
+    width: "62px",
+    height: "62px"
+  },
+
+  avatarImage: {
+    width: "62px",
+    height: "62px",
     borderRadius: "50%",
     objectFit: "cover",
-    border: "2px solid rgba(255,255,255,0.92)",
-    boxShadow: "0 10px 22px rgba(0,0,0,0.28)"
+    border: "2.5px solid rgba(255,255,255,0.92)",
+    boxShadow: "0 10px 24px rgba(0,0,0,0.28)",
+    display: "block"
   },
-  followButton: {
+
+  followPlusButton: {
     position: "absolute",
-    left: "50%",
-    bottom: 0,
-    transform: "translateX(-50%)",
-    width: 22,
-    height: 22,
+    right: "-3px",
+    bottom: "-3px",
+    width: "24px",
+    height: "24px",
     borderRadius: "50%",
     border: "2px solid #ffffff",
     background: "#ff2f6f",
     color: "#ffffff",
+    fontSize: "18px",
+    fontWeight: 800,
+    lineHeight: 1,
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    fontSize: 16,
-    fontWeight: 800,
-    lineHeight: 1,
-    cursor: "pointer",
-    boxShadow: "0 6px 14px rgba(0,0,0,0.18)"
+    boxShadow: "0 8px 18px rgba(0,0,0,0.24)",
+    cursor: "pointer"
   },
-  railItem: {
+
+  railButton: {
+    appearance: "none",
+    border: "none",
+    background: "transparent",
+    color: "#ffffff",
     display: "flex",
     flexDirection: "column",
     alignItems: "center",
-    gap: 4
-  },
-  railButton: {
-    appearance: "none",
-    width: 42,
-    height: 42,
-    borderRadius: "50%",
-    border: "1px solid rgba(255,255,255,0.10)",
-    background: "rgba(10,16,32,0.14)",
-    color: "#ffffff",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    backdropFilter: "blur(8px)",
-    WebkitBackdropFilter: "blur(8px)",
-    boxShadow: "0 8px 18px rgba(0,0,0,0.16)",
+    gap: "5px",
+    padding: 0,
     cursor: "pointer"
   },
-  railSvg: {
-    width: 20,
-    height: 20,
+
+  railIconSvg: {
+    width: "28px",
+    height: "28px",
     display: "block",
-    color: "#ffffff"
-  },
-  railCount: {
-    fontSize: 11,
-    fontWeight: 700,
-    color: "rgba(255,255,255,0.94)",
-    textShadow: "0 2px 6px rgba(0,0,0,0.24)"
-  },
-  infoRailButton: {
-    appearance: "none",
-    width: 42,
-    height: 42,
-    borderRadius: "50%",
-    border: "1px solid rgba(255,255,255,0.10)",
-    background: "rgba(10,16,32,0.14)",
     color: "#ffffff",
+    filter: "drop-shadow(0 3px 10px rgba(0,0,0,0.34))"
+  },
+
+  railCount: {
+    fontSize: "12px",
+    fontWeight: 700,
+    color: "#ffffff",
+    lineHeight: 1,
+    textShadow: "0 2px 8px rgba(0,0,0,0.34)"
+  },
+
+  dotsButton: {
+    appearance: "none",
+    background: "transparent",
+    border: "none",
+    color: "#ffffff",
+    width: "48px",
+    height: "18px",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    backdropFilter: "blur(8px)",
-    WebkitBackdropFilter: "blur(8px)",
-    boxShadow: "0 8px 18px rgba(0,0,0,0.16)",
+    padding: 0,
     cursor: "pointer"
   },
+
+  dotsGlyph: {
+    fontSize: "17px",
+    fontWeight: 700,
+    lineHeight: 1,
+    letterSpacing: "0.18em",
+    textShadow: "0 2px 8px rgba(0,0,0,0.34)"
+  },
+
   soundButton: {
     appearance: "none",
-    width: 42,
-    height: 42,
-    padding: 0,
+    width: "56px",
+    height: "56px",
     borderRadius: "50%",
     overflow: "hidden",
-    border: "2px solid rgba(255,255,255,0.90)",
+    padding: 0,
     background: "transparent",
-    boxShadow: "0 8px 18px rgba(0,0,0,0.16)",
+    border: "3px solid rgba(255,255,255,0.92)",
+    boxShadow: "0 10px 22px rgba(0,0,0,0.24)",
     cursor: "pointer"
   },
+
   soundArtwork: {
     width: "100%",
     height: "100%",
-    objectFit: "cover"
+    objectFit: "cover",
+    display: "block"
   },
-  contentBlock: {
+
+  bottomCopyWrap: {
     position: "absolute",
-    left: 16,
-    right: 74,
-    bottom: "calc(128px + env(safe-area-inset-bottom))",
+    left: "16px",
+    right: "92px",
+    bottom: "calc(146px + env(safe-area-inset-bottom))",
     zIndex: 7,
-    maxWidth: "min(69vw, 430px)"
+    pointerEvents: "none"
   },
-  artistRow: {
+
+  titleRow: {
+    display: "flex",
+    alignItems: "flex-end",
+    gap: "8px"
+  },
+
+  feedTitle: {
+    margin: 0,
+    fontSize: "16px",
+    lineHeight: 1.18,
+    fontWeight: 700,
+    letterSpacing: "-0.01em",
+    color: "#ffffff",
+    textShadow: "0 3px 10px rgba(0,0,0,0.34)"
+  },
+
+  reasonLine: {
+    marginTop: "10px",
+    fontSize: "13px",
+    lineHeight: 1.22,
+    fontWeight: 500,
+    color: "rgba(255,255,255,0.88)",
+    textShadow: "0 3px 10px rgba(0,0,0,0.34)"
+  },
+
+  audioLine: {
+    marginTop: "10px",
     display: "flex",
     alignItems: "center",
-    gap: 6,
-    marginBottom: 3
-  },
-  artistName: {
-    fontSize: 16,
-    fontWeight: 800,
-    lineHeight: 1.08,
-    color: "#ffffff",
-    textShadow: "0 3px 10px rgba(0,0,0,0.32)"
-  },
-  verifiedBadge: {
-    width: 15,
-    height: 15,
-    borderRadius: "50%",
-    background: "#3b82f6",
-    color: "#ffffff",
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
-    fontSize: 9,
-    fontWeight: 800,
-    flexShrink: 0
-  },
-  handleRow: {
-    display: "flex",
-    alignItems: "center",
-    gap: 8,
-    marginBottom: 8,
-    flexWrap: "wrap"
-  },
-  handleText: {
-    fontSize: 12,
+    gap: "7px",
+    fontSize: "13px",
+    lineHeight: 1.2,
     fontWeight: 600,
-    color: "rgba(255,255,255,0.88)"
+    color: "rgba(156,223,255,0.96)",
+    textShadow: "0 3px 10px rgba(0,0,0,0.30)"
   },
+
+  audioNote: {
+    fontSize: "14px",
+    lineHeight: 1
+  },
+
+  audioText: {
+    whiteSpace: "nowrap",
+    overflow: "hidden",
+    textOverflow: "ellipsis"
+  },
+
+  commentsLine: {
+    marginTop: "10px",
+    fontSize: "12px",
+    lineHeight: 1.15,
+    fontWeight: 500,
+    color: "rgba(255,255,255,0.74)"
+  },
+
+  badgeRow: {
+    marginTop: "10px",
+    display: "flex",
+    alignItems: "center"
+  },
+
   feedBadge: {
     display: "inline-flex",
     alignItems: "center",
-    minHeight: 20,
-    padding: "0 8px",
-    borderRadius: 999,
-    fontSize: 9,
-    fontWeight: 800,
-    letterSpacing: "0.08em",
+    justifyContent: "center",
+    minHeight: "28px",
+    padding: "0 12px",
+    borderRadius: "999px",
+    border: "1px solid rgba(255,255,255,0.14)",
+    background: "rgba(14,18,32,0.34)",
     color: "#ffffff",
-    background: "rgba(17,24,39,0.34)",
-    border: "1px solid rgba(255,255,255,0.10)",
+    fontSize: "11px",
+    fontWeight: 800,
+    letterSpacing: "0.06em",
+    textTransform: "uppercase",
     backdropFilter: "blur(8px)"
   },
-  infoLine: {
-    fontSize: 11,
-    fontWeight: 600,
-    lineHeight: 1.25,
-    color: "rgba(255,255,255,0.88)",
-    marginBottom: 8,
-    textShadow: "0 3px 10px rgba(0,0,0,0.28)"
-  },
-  songLine: {
-    fontSize: 14,
-    fontWeight: 700,
-    lineHeight: 1.26,
-    color: "#ffffff",
-    marginBottom: 8,
-    textShadow: "0 3px 10px rgba(0,0,0,0.30)"
-  },
-  whyWrap: {
-    display: "flex",
-    flexDirection: "column",
-    gap: 3,
-    marginBottom: 7
-  },
-  whyLabel: {
-    fontSize: 9,
-    fontWeight: 800,
-    letterSpacing: "0.12em",
-    color: "rgba(255,255,255,0.78)"
-  },
-  whyText: {
-    fontSize: 11,
-    fontWeight: 600,
-    lineHeight: 1.28,
-    color: "rgba(255,255,255,0.94)"
-  },
-  musicRow: {
-    display: "flex",
-    alignItems: "center",
-    gap: 6
-  },
-  musicNote: {
-    fontSize: 12,
-    color: "rgba(255,255,255,0.96)"
-  },
-  musicText: {
-    fontSize: 11,
-    fontWeight: 600,
-    lineHeight: 1.24,
-    color: "rgba(255,255,255,0.88)"
-  },
-  searchDock: {
+
+  searchDockWrap: {
     position: "fixed",
-    left: 12,
-    right: 12,
-    bottom: "calc(70px + env(safe-area-inset-bottom))",
-    zIndex: 22
+    left: "14px",
+    right: "14px",
+    bottom: "calc(68px + env(safe-area-inset-bottom))",
+    zIndex: 20
   },
-  searchShell: {
-    height: 46,
-    borderRadius: 24,
-    border: "1px solid rgba(255,255,255,0.10)",
-    background: "rgba(6,10,22,0.22)",
-    boxShadow: "0 10px 24px rgba(0,0,0,0.14)",
-    backdropFilter: "blur(16px)",
-    WebkitBackdropFilter: "blur(16px)",
+
+  searchDock: {
+    width: "100%",
+    height: "56px",
+    borderRadius: "28px",
+    border: "1px solid rgba(255,255,255,0.14)",
+    background: "rgba(6,10,22,0.28)",
+    boxShadow:
+      "0 12px 28px rgba(0,0,0,0.22), inset 0 1px 0 rgba(255,255,255,0.05)",
+    backdropFilter: "blur(18px)",
+    WebkitBackdropFilter: "blur(18px)",
     display: "flex",
     alignItems: "center",
-    padding: "0 14px",
-    gap: 10
+    gap: "12px",
+    padding: "0 18px"
   },
+
+  searchIconSvg: {
+    width: "27px",
+    height: "27px",
+    display: "block",
+    color: "rgba(255,255,255,0.96)",
+    flexShrink: 0
+  },
+
   searchInput: {
     flex: 1,
     height: "100%",
@@ -1227,106 +1429,122 @@ const styles = {
     outline: "none",
     background: "transparent",
     color: "#ffffff",
-    fontSize: 14,
+    fontSize: "15px",
+    lineHeight: 1.2,
     fontWeight: 500,
     fontFamily:
-      '"TikTok Sans", Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
+      '"TikTok Sans", Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
   },
-  bottomNav: {
+
+  bottomNavBar: {
     position: "fixed",
     left: 0,
     right: 0,
     bottom: 0,
     zIndex: 21,
-    height: "calc(78px + env(safe-area-inset-bottom))",
-    paddingBottom: "env(safe-area-inset-bottom)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-around",
+    padding: "8px 12px calc(8px + env(safe-area-inset-bottom))",
     background:
-      "linear-gradient(180deg, rgba(0,0,0,0.02) 0%, rgba(2,6,18,0.88) 22%, rgba(2,6,18,0.96) 100%)",
-    borderTop: "1px solid rgba(255,255,255,0.05)",
+      "linear-gradient(180deg, rgba(0,0,0,0.02) 0%, rgba(2,6,18,0.88) 18%, rgba(2,6,18,0.97) 100%)",
+    borderTop: "1px solid rgba(255,255,255,0.06)",
     backdropFilter: "blur(16px)"
   },
+
   bottomNavItem: {
     appearance: "none",
-    border: "none",
     background: "transparent",
+    border: "none",
     color: "#ffffff",
     display: "flex",
     flexDirection: "column",
     alignItems: "center",
-    justifyContent: "center",
-    gap: 3,
-    cursor: "pointer"
+    gap: "3px",
+    cursor: "pointer",
+    minWidth: "52px"
   },
-  bottomNavSvg: {
-    width: 22,
-    height: 22,
+
+  bottomNavIconSvg: {
+    width: "26px",
+    height: "26px",
     display: "block",
     color: "#ffffff"
   },
+
   bottomNavLabel: {
-    fontSize: 11,
+    fontSize: "11px",
+    lineHeight: 1.1,
     fontWeight: 600,
-    color: "rgba(255,255,255,0.78)"
+    color: "rgba(255,255,255,0.82)"
   },
+
   bottomNavLabelActive: {
-    fontSize: 11,
+    fontSize: "11px",
+    lineHeight: 1.1,
     fontWeight: 700,
     color: "#ffffff"
   },
+
   createButton: {
     appearance: "none",
-    border: "none",
     background: "transparent",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    cursor: "pointer"
+    border: "none",
+    cursor: "pointer",
+    padding: 0,
+    marginTop: "-2px"
   },
+
   createButtonOuter: {
-    width: 58,
-    height: 34,
-    borderRadius: 12,
+    width: "82px",
+    height: "46px",
+    borderRadius: "16px",
     background:
-      "linear-gradient(90deg, #60dbf8 0%, #ffffff 50%, #ff4f7f 100%)",
+      "linear-gradient(90deg, #69c9d0 0%, #ffffff 50%, #ee1d52 100%)",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    boxShadow: "0 10px 22px rgba(0,0,0,0.18)"
+    boxShadow: "0 10px 24px rgba(0,0,0,0.22)"
   },
+
   createButtonInner: {
-    width: 44,
-    height: 34,
-    borderRadius: 10,
+    width: "66px",
+    height: "46px",
+    borderRadius: "14px",
     background: "#ffffff",
     color: "#111111",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    fontSize: 28,
-    fontWeight: 500,
+    fontSize: "30px",
+    fontWeight: 700,
     lineHeight: 1
   },
-  inboxIconWrap: {
+
+  bottomNavBadgeWrap: {
     position: "relative",
     display: "inline-flex"
   },
-  inboxBadge: {
+
+  bottomNavBadge: {
     position: "absolute",
-    top: -6,
-    right: -10,
-    minWidth: 16,
-    height: 16,
-    borderRadius: 999,
+    top: "-6px",
+    right: "-10px",
+    minWidth: "20px",
+    height: "20px",
+    borderRadius: "999px",
     background: "#ff476f",
     color: "#ffffff",
-    fontSize: 10,
+    fontSize: "11px",
     fontWeight: 800,
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    padding: "0 4px"
+    padding: "0 6px",
+    boxShadow: "0 8px 18px rgba(0,0,0,0.22)"
   },
-  overlayBackdrop: {
+
+  infoOverlayBackdrop: {
     position: "fixed",
     inset: 0,
     zIndex: 40,
@@ -1337,75 +1555,97 @@ const styles = {
     justifyContent: "center",
     padding: "18px 14px calc(16px + env(safe-area-inset-bottom))"
   },
-  overlayPanel: {
+
+  infoOverlayCard: {
     width: "min(760px, 100%)",
-    borderRadius: 26,
+    borderRadius: "26px",
     border: "1px solid rgba(255,255,255,0.12)",
     background:
       "linear-gradient(180deg, rgba(12,18,35,0.94) 0%, rgba(9,14,28,0.96) 100%)",
     boxShadow: "0 24px 50px rgba(0,0,0,0.35)",
-    color: "white",
-    padding: 20
+    color: "#ffffff",
+    padding: "20px"
   },
-  overlayHeader: {
+
+  infoOverlayHeader: {
     display: "flex",
     alignItems: "flex-start",
     justifyContent: "space-between",
-    gap: 14
+    gap: "14px"
   },
-  overlayEyebrow: {
-    fontSize: 13,
+
+  infoOverlayEyebrow: {
+    fontSize: "13px",
     fontWeight: 800,
     letterSpacing: "0.14em",
     color: "rgba(156,223,255,0.95)"
   },
-  overlayTitle: {
+
+  infoOverlayTitle: {
     margin: "8px 0 0 0",
-    fontSize: 28,
+    fontSize: "28px",
     lineHeight: 1.05,
     fontWeight: 900
   },
-  overlaySubtitle: {
+
+  infoOverlayTrack: {
     margin: "8px 0 0 0",
     color: "rgba(255,255,255,0.78)",
-    fontSize: 16,
+    fontSize: "16px",
     fontWeight: 600
   },
-  overlayClose: {
-    width: 40,
-    height: 40,
+
+  infoOverlayClose: {
+    width: "40px",
+    height: "40px",
     borderRadius: "50%",
     border: "1px solid rgba(255,255,255,0.12)",
     background: "rgba(255,255,255,0.06)",
-    color: "white",
-    fontSize: 22,
+    color: "#ffffff",
+    fontSize: "22px",
     lineHeight: 1,
     cursor: "pointer"
   },
-  overlayBody: {
-    marginTop: 16,
-    borderRadius: 20,
+
+  infoOverlaySection: {
+    marginTop: "16px",
+    borderRadius: "20px",
     border: "1px solid rgba(255,255,255,0.08)",
     background: "rgba(255,255,255,0.04)",
-    padding: 16
+    padding: "16px"
   },
-  overlayRow: {
+
+  infoOverlaySectionLabel: {
+    fontSize: "13px",
+    fontWeight: 800,
+    letterSpacing: "0.12em",
+    color: "rgba(255,255,255,0.66)"
+  },
+
+  infoOverlayGrid: {
+    marginTop: "12px",
+    display: "grid",
+    gap: "12px"
+  },
+
+  infoOverlayRow: {
     display: "flex",
     alignItems: "center",
     justifyContent: "space-between",
-    gap: 12,
+    gap: "12px",
     borderBottom: "1px solid rgba(255,255,255,0.07)",
-    paddingBottom: 10,
-    marginBottom: 10
+    paddingBottom: "10px"
   },
-  overlayRowLabel: {
+
+  infoOverlayRowLabel: {
     color: "rgba(255,255,255,0.6)",
-    fontSize: 15,
+    fontSize: "15px",
     fontWeight: 700
   },
-  overlayRowValue: {
-    color: "white",
-    fontSize: 16,
+
+  infoOverlayRowValue: {
+    color: "#ffffff",
+    fontSize: "16px",
     fontWeight: 800,
     textAlign: "right"
   }
