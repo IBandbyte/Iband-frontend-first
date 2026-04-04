@@ -414,6 +414,27 @@ function splitArtistAndTrack(title, artist, trackTitle) {
   };
 }
 
+function getActiveFeedContext(item) {
+  if (!item) {
+    return {
+      eyebrow: "WHY YOU ARE SEEING THIS",
+      line1: "High Momentum + Trending Worldwide",
+      line2: "Recommended by iBand intelligence."
+    };
+  }
+
+  const line1 = `${getString(item.reasonTitle, "High Momentum +")} ${getString(
+    item.reasonSubtitle,
+    "Trending Worldwide"
+  )}`.trim();
+
+  return {
+    eyebrow: "WHY YOU ARE SEEING THIS",
+    line1,
+    line2: getString(item.reasonText, "Recommended by iBand intelligence.")
+  };
+}
+
 function IconLive() {
   return (
     <svg viewBox="0 0 24 24" style={styles.topIconSvg} aria-hidden="true">
@@ -902,6 +923,9 @@ export default function Feed() {
     { key: "for-you", label: "For You" }
   ];
 
+  const activeItem = unifiedFeed[activeIndex] || unifiedFeed[0] || null;
+  const activeContext = getActiveFeedContext(activeItem);
+
   return (
     <div style={styles.page}>
       <div style={styles.fixedTopOverlay}>
@@ -985,17 +1009,29 @@ export default function Feed() {
       </div>
 
       <div style={styles.searchDock}>
+        <div style={styles.feedContextStrip}>
+          <div style={styles.feedContextEyebrow}>{activeContext.eyebrow}</div>
+          <div style={styles.feedContextLine1}>{activeContext.line1}</div>
+          <div style={styles.feedContextLine2}>{activeContext.line2}</div>
+        </div>
+
         <div style={styles.searchShell}>
           <div style={styles.searchIconWrap}>
             <IconSearch />
           </div>
 
-          <input
-            value={searchText}
-            onChange={(event) => setSearchText(event.target.value)}
-            placeholder="Search artists, songs, genres"
-            style={styles.searchInput}
-          />
+          <div style={styles.searchInputWrap}>
+            {!searchText ? (
+              <div style={styles.searchPlaceholder}>Search artists, songs, genres</div>
+            ) : null}
+
+            <input
+              value={searchText}
+              onChange={(event) => setSearchText(event.target.value)}
+              aria-label="Search artists, songs, genres"
+              style={styles.searchInput}
+            />
+          </div>
         </div>
       </div>
 
@@ -1082,7 +1118,7 @@ const styles = {
     top: 0,
     left: 0,
     right: 0,
-    height: "24%",
+    height: "22%",
     background:
       "linear-gradient(180deg, rgba(0,0,0,0.42) 0%, rgba(0,0,0,0.16) 56%, rgba(0,0,0,0) 100%)"
   },
@@ -1091,9 +1127,9 @@ const styles = {
     left: 0,
     right: 0,
     bottom: 0,
-    height: "42%",
+    height: "44%",
     background:
-      "linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.08) 22%, rgba(0,0,0,0.38) 70%, rgba(0,0,0,0.82) 100%)"
+      "linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.08) 22%, rgba(0,0,0,0.38) 70%, rgba(0,0,0,0.84) 100%)"
   },
   posterMidFade: {
     position: "absolute",
@@ -1103,16 +1139,16 @@ const styles = {
   },
   fixedTopOverlay: {
     position: "fixed",
-    top: "calc(env(safe-area-inset-top) + 8px)",
+    top: "calc(env(safe-area-inset-top) + 6px)",
     left: 0,
     right: 0,
     zIndex: 30,
     pointerEvents: "none",
-    height: 66
+    height: 62
   },
   logoCluster: {
     position: "absolute",
-    top: 1,
+    top: 0,
     left: "max(12px, calc(env(safe-area-inset-left) + 6px))",
     display: "flex",
     alignItems: "center",
@@ -1121,21 +1157,21 @@ const styles = {
     width: 120
   },
   logoImage: {
-    width: 46,
-    height: 46,
+    width: 42,
+    height: 42,
     objectFit: "contain",
     display: "block",
     filter: "drop-shadow(0 10px 20px rgba(0,0,0,0.24))"
   },
   logoFallback: {
-    width: 46,
-    height: 46,
-    borderRadius: 23,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
     background: "linear-gradient(135deg, #7c3aed 0%, #f97316 100%)",
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: 900,
     color: "#ffffff"
   },
@@ -1146,7 +1182,7 @@ const styles = {
     minWidth: 0
   },
   logoWordmark: {
-    fontSize: 13.5,
+    fontSize: 13,
     lineHeight: 1,
     fontWeight: 900,
     letterSpacing: "-0.02em",
@@ -1155,7 +1191,7 @@ const styles = {
   },
   logoSubline: {
     marginTop: 4,
-    fontSize: 9.5,
+    fontSize: 9.2,
     lineHeight: 1.02,
     fontWeight: 500,
     color: "rgba(255,255,255,0.90)",
@@ -1163,13 +1199,13 @@ const styles = {
   },
   topTabsWrap: {
     position: "absolute",
-    top: 10,
-    left: 140,
-    right: 50,
+    top: 8,
+    left: 132,
+    right: 48,
     display: "flex",
     alignItems: "center",
     justifyContent: "space-between",
-    gap: 8
+    gap: 7
   },
   topTabButton: {
     appearance: "none",
@@ -1190,7 +1226,7 @@ const styles = {
     alignItems: "center"
   },
   topTabLabel: {
-    fontSize: 9.8,
+    fontSize: 9.6,
     lineHeight: 1.1,
     fontWeight: 700,
     color: "rgba(255,255,255,0.70)",
@@ -1205,17 +1241,17 @@ const styles = {
     left: "50%",
     bottom: -7,
     transform: "translateX(-50%)",
-    width: 26,
+    width: 24,
     height: 2.5,
     borderRadius: 999,
     background: "#ffffff"
   },
   topSearchButton: {
     position: "absolute",
-    top: 8,
+    top: 6,
     right: "max(10px, calc(env(safe-area-inset-right) + 4px))",
-    width: 32,
-    height: 32,
+    width: 31,
+    height: 31,
     borderRadius: 16,
     border: "none",
     background: "transparent",
@@ -1235,18 +1271,18 @@ const styles = {
   },
   rankBadge: {
     position: "absolute",
-    top: "110px",
+    top: "102px",
     left: "max(14px, calc(env(safe-area-inset-left) + 8px))",
     zIndex: 8,
-    minWidth: 62,
-    height: 42,
-    padding: "0 16px",
-    borderRadius: 22,
+    minWidth: 58,
+    height: 40,
+    padding: "0 14px",
+    borderRadius: 20,
     display: "inline-flex",
     alignItems: "center",
     justifyContent: "center",
     color: "rgba(255,255,255,0.96)",
-    fontSize: 17,
+    fontSize: 16,
     fontWeight: 900,
     background: "rgba(8,12,28,0.30)",
     border: "1px solid rgba(255,255,255,0.14)",
@@ -1255,16 +1291,16 @@ const styles = {
   },
   rightRail: {
     position: "absolute",
-    right: "max(8px, calc(env(safe-area-inset-right) + 2px))",
-    top: "168px",
-    bottom: "214px",
+    right: "max(2px, calc(env(safe-area-inset-right) - 2px))",
+    top: "156px",
+    bottom: "212px",
     zIndex: 9,
-    width: 72,
+    width: 66,
     display: "flex",
     flexDirection: "column",
     alignItems: "center",
     justifyContent: "flex-start",
-    gap: 20
+    gap: 16
   },
   avatarRailBlock: {
     display: "flex",
@@ -1274,12 +1310,12 @@ const styles = {
   },
   avatarWrap: {
     position: "relative",
-    width: 78,
-    height: 78
+    width: 68,
+    height: 68
   },
   avatarImage: {
-    width: 78,
-    height: 78,
+    width: 68,
+    height: 68,
     borderRadius: "50%",
     objectFit: "cover",
     display: "block",
@@ -1288,15 +1324,15 @@ const styles = {
   },
   followPlusButton: {
     position: "absolute",
-    right: -3,
+    right: -2,
     bottom: 0,
-    width: 23,
-    height: 23,
-    borderRadius: 11.5,
+    width: 21,
+    height: 21,
+    borderRadius: 10.5,
     border: "2px solid #ffffff",
     background: "#ff3d6e",
     color: "#ffffff",
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: 900,
     lineHeight: 1,
     display: "flex",
@@ -1309,13 +1345,13 @@ const styles = {
     display: "flex",
     flexDirection: "column",
     alignItems: "center",
-    gap: 6
+    gap: 5
   },
   rightActionButton: {
     appearance: "none",
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    width: 52,
+    height: 52,
+    borderRadius: 26,
     border: "1px solid rgba(255,255,255,0.12)",
     background: "rgba(10,14,28,0.26)",
     color: "#ffffff",
@@ -1328,13 +1364,13 @@ const styles = {
     padding: 0
   },
   rightIconSvg: {
-    width: 28,
-    height: 28,
+    width: 26,
+    height: 26,
     display: "block",
     color: "#ffffff"
   },
   rightActionCount: {
-    fontSize: 11.5,
+    fontSize: 10.8,
     lineHeight: 1,
     fontWeight: 800,
     color: "rgba(255,255,255,0.96)",
@@ -1348,22 +1384,22 @@ const styles = {
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    width: 44,
-    height: 18,
+    width: 42,
+    height: 16,
     cursor: "pointer",
     padding: 0
   },
   dotsSvg: {
-    width: 26,
+    width: 24,
     height: 8,
     display: "block",
     color: "#ffffff"
   },
   soundDiscButton: {
     appearance: "none",
-    width: 58,
-    height: 58,
-    borderRadius: 29,
+    width: 54,
+    height: 54,
+    borderRadius: 27,
     border: "3px solid rgba(255,255,255,0.95)",
     padding: 0,
     overflow: "hidden",
@@ -1380,8 +1416,8 @@ const styles = {
   contentOverlay: {
     position: "absolute",
     left: "max(14px, calc(env(safe-area-inset-left) + 8px))",
-    right: "98px",
-    bottom: "204px",
+    right: "94px",
+    bottom: "222px",
     zIndex: 8,
     maxWidth: "min(66vw, 470px)"
   },
@@ -1392,7 +1428,7 @@ const styles = {
     flexWrap: "wrap"
   },
   artistNameText: {
-    fontSize: 16,
+    fontSize: 15.5,
     lineHeight: 1.08,
     fontWeight: 800,
     color: "#ffffff",
@@ -1400,22 +1436,22 @@ const styles = {
     textShadow: "0 3px 12px rgba(0,0,0,0.38)"
   },
   artistVerified: {
-    width: 16,
-    height: 16,
+    width: 15,
+    height: 15,
     borderRadius: 8,
     background: "#3b82f6",
     display: "inline-flex",
     alignItems: "center",
     justifyContent: "center",
     color: "#ffffff",
-    fontSize: 10,
+    fontSize: 9,
     fontWeight: 900,
     lineHeight: 1,
     flexShrink: 0
   },
   trackTitleText: {
     marginTop: 4,
-    fontSize: 16,
+    fontSize: 15.5,
     lineHeight: 1.08,
     fontWeight: 700,
     color: "#ffffff",
@@ -1423,46 +1459,46 @@ const styles = {
     textShadow: "0 3px 12px rgba(0,0,0,0.38)"
   },
   reasonLine: {
-    marginTop: 13,
-    fontSize: 12.3,
+    marginTop: 12,
+    fontSize: 11.6,
     lineHeight: 1.18,
     fontWeight: 500,
     color: "rgba(255,255,255,0.88)",
     textShadow: "0 2px 8px rgba(0,0,0,0.30)"
   },
   musicLine: {
-    marginTop: 13,
+    marginTop: 11,
     display: "flex",
     alignItems: "center",
     gap: 7,
-    fontSize: 11,
+    fontSize: 10.8,
     lineHeight: 1.16,
     fontWeight: 600,
     color: "#9edfff",
     textShadow: "0 2px 8px rgba(0,0,0,0.26)"
   },
   musicNote: {
-    fontSize: 16,
+    fontSize: 15,
     lineHeight: 1
   },
   commentLine: {
-    marginTop: 12,
-    fontSize: 11,
+    marginTop: 10,
+    fontSize: 10.8,
     lineHeight: 1.1,
     fontWeight: 500,
     color: "rgba(255,255,255,0.76)"
   },
   badgePill: {
-    marginTop: 14,
+    marginTop: 13,
     display: "inline-flex",
     alignItems: "center",
     justifyContent: "center",
-    minHeight: 36,
-    padding: "0 16px",
-    borderRadius: 18,
+    minHeight: 34,
+    padding: "0 15px",
+    borderRadius: 17,
     background: "rgba(8,12,28,0.28)",
     border: "1px solid rgba(255,255,255,0.13)",
-    fontSize: 11,
+    fontSize: 10.5,
     lineHeight: 1,
     fontWeight: 800,
     letterSpacing: "0.10em",
@@ -1475,14 +1511,59 @@ const styles = {
     left: 12,
     right: 12,
     bottom: "calc(84px + env(safe-area-inset-bottom))",
-    zIndex: 25
+    zIndex: 25,
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "flex-start",
+    gap: 8
+  },
+  feedContextStrip: {
+    width: "calc(100% - 84px)",
+    maxWidth: 300,
+    minHeight: 52,
+    padding: "10px 12px",
+    borderRadius: 16,
+    border: "1px solid rgba(255,255,255,0.10)",
+    background: "rgba(5,9,22,0.28)",
+    boxShadow:
+      "0 10px 26px rgba(0,0,0,0.20), inset 0 1px 0 rgba(255,255,255,0.04)",
+    backdropFilter: "blur(18px)",
+    WebkitBackdropFilter: "blur(18px)",
+    overflow: "hidden"
+  },
+  feedContextEyebrow: {
+    fontSize: 9.5,
+    lineHeight: 1,
+    fontWeight: 800,
+    letterSpacing: "0.09em",
+    color: "rgba(255,255,255,0.68)"
+  },
+  feedContextLine1: {
+    marginTop: 5,
+    fontSize: 11,
+    lineHeight: 1.18,
+    fontWeight: 700,
+    color: "rgba(255,255,255,0.96)",
+    whiteSpace: "nowrap",
+    overflow: "hidden",
+    textOverflow: "ellipsis"
+  },
+  feedContextLine2: {
+    marginTop: 4,
+    fontSize: 10.5,
+    lineHeight: 1.2,
+    fontWeight: 500,
+    color: "rgba(255,255,255,0.78)",
+    display: "-webkit-box",
+    WebkitLineClamp: 2,
+    WebkitBoxOrient: "vertical",
+    overflow: "hidden"
   },
   searchShell: {
-    width: "100%",
-    maxWidth: "calc(100vw - 24px)",
-    height: 56,
-    margin: "0 auto",
-    borderRadius: 30,
+    width: "calc(100% - 84px)",
+    maxWidth: 300,
+    height: 50,
+    borderRadius: 26,
     border: "1px solid rgba(255,255,255,0.12)",
     background: "rgba(5,9,22,0.34)",
     boxShadow:
@@ -1491,17 +1572,40 @@ const styles = {
     WebkitBackdropFilter: "blur(18px)",
     display: "flex",
     alignItems: "center",
-    padding: "0 16px",
+    padding: "0 14px",
     overflow: "hidden"
   },
   searchIconWrap: {
-    width: 36,
-    height: 36,
+    width: 34,
+    height: 34,
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
     color: "#ffffff",
     flexShrink: 0
+  },
+  searchInputWrap: {
+    position: "relative",
+    flex: 1,
+    minWidth: 0,
+    height: "100%",
+    display: "flex",
+    alignItems: "center"
+  },
+  searchPlaceholder: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    top: "50%",
+    transform: "translateY(-50%)",
+    pointerEvents: "none",
+    color: "rgba(255,255,255,0.68)",
+    fontSize: 12,
+    lineHeight: 1.2,
+    fontWeight: 500,
+    whiteSpace: "nowrap",
+    overflow: "hidden",
+    textOverflow: "ellipsis"
   },
   searchInput: {
     flex: 1,
@@ -1510,10 +1614,12 @@ const styles = {
     outline: "none",
     background: "transparent",
     color: "#ffffff",
-    fontSize: 13,
+    fontSize: 12,
     lineHeight: 1.2,
     fontWeight: 500,
-    fontFamily: FEED_FONT_STACK
+    fontFamily: FEED_FONT_STACK,
+    position: "relative",
+    zIndex: 1
   },
   bottomNav: {
     position: "fixed",
