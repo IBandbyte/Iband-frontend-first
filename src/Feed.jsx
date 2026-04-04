@@ -40,7 +40,7 @@ function createArtistAvatarDataUri(name, index = 0) {
         </linearGradient>
       </defs>
       <rect width="220" height="220" rx="110" fill="url(#g)" />
-      <circle cx="110" cy="86" r="32" fill="rgba(255,255,255,0.22)" />
+      <circle cx="110" cy="84" r="32" fill="rgba(255,255,255,0.22)" />
       <path d="M54 178c11-30 35-47 56-47s45 17 56 47" fill="rgba(255,255,255,0.22)" />
       <text x="50%" y="57%" dominant-baseline="middle" text-anchor="middle" fill="white" font-size="46" font-family="Arial, Helvetica, sans-serif" font-weight="700">
         ${initials || "A"}
@@ -89,6 +89,10 @@ function createArtworkDataUri(index = 0) {
   `);
 }
 
+function safeArray(value) {
+  return Array.isArray(value) ? value : [];
+}
+
 function isUsableImageSrc(value) {
   if (typeof value !== "string") return false;
 
@@ -133,10 +137,6 @@ function pickImageUrl(item) {
   return candidates.find((value) => isUsableImageSrc(value)) || "";
 }
 
-function safeArray(value) {
-  return Array.isArray(value) ? value : [];
-}
-
 function getString(value, fallback) {
   return typeof value === "string" && value.trim() ? value.trim() : fallback;
 }
@@ -164,12 +164,19 @@ function pickArtistLabel(item) {
   return getString(item.artistLabel, "Artist");
 }
 
+function getFeedBadge(feedType) {
+  if (feedType === "smart") return "SMART";
+  if (feedType === "predictive") return "PREDICTED";
+  return "FOR YOU";
+}
+
 function normaliseSmartFeed(data) {
   const items = safeArray(data?.feed);
 
   return items.map((item, index) => {
     const artist = getString(item.artist, "Sam Ryder");
     const trackTitle = getString(item.trackTitle, "Supernova Dreams");
+    const explicitTitle = getString(item.cardTitle, "");
 
     return {
       id: item.id || `smart-${index}`,
@@ -177,7 +184,7 @@ function normaliseSmartFeed(data) {
       badge: "SMART",
       artist,
       artistLabel: pickArtistLabel(item),
-      title: getString(item.cardTitle, `${artist} — “${trackTitle}”`),
+      title: explicitTitle || `${artist} — “${trackTitle}”`,
       reasonTitle: getString(item.feedReasonTitle, "High Momentum +"),
       reasonSubtitle: getString(item.feedReasonSubtitle, "Trending Worldwide"),
       reasonText: getString(
@@ -201,7 +208,7 @@ function normaliseSmartFeed(data) {
       comments: getNumber(item.comments, 322),
       likes: getNumber(item.likes, 3100),
       saves: getNumber(item.saves, 451),
-      shares: getNumber(item.shares, 27)
+      shares: getNumber(item.shares, 322)
     };
   });
 }
@@ -216,6 +223,7 @@ function normalisePersonalisedFeed(data) {
   return items.map((item, index) => {
     const artist = getString(item.artist, "Sam Ryder");
     const trackTitle = getString(item.trackTitle, "Supernova Dreams");
+    const explicitTitle = getString(item.cardTitle, "");
 
     return {
       id: item.id || `personalised-${index}`,
@@ -223,7 +231,7 @@ function normalisePersonalisedFeed(data) {
       badge: "FOR YOU",
       artist,
       artistLabel: pickArtistLabel(item),
-      title: getString(item.cardTitle, `${artist} — “${trackTitle}”`),
+      title: explicitTitle || `${artist} — “${trackTitle}”`,
       reasonTitle: getString(item.feedReasonTitle, "High Momentum +"),
       reasonSubtitle: getString(item.feedReasonSubtitle, "Trending Worldwide"),
       reasonText: getString(
@@ -247,7 +255,7 @@ function normalisePersonalisedFeed(data) {
       comments: getNumber(item.comments, 322),
       likes: getNumber(item.likes, 3100),
       saves: getNumber(item.saves, 451),
-      shares: getNumber(item.shares, 27)
+      shares: getNumber(item.shares, 322)
     };
   });
 }
@@ -262,6 +270,7 @@ function normalisePredictiveFeed(data) {
   return items.map((item, index) => {
     const artist = getString(item.artist || item.recommendedArtist, "Sam Ryder");
     const trackTitle = getString(item.trackTitle, "Supernova Dreams");
+    const explicitTitle = getString(item.cardTitle, "");
 
     return {
       id: item.id || `predictive-${index}`,
@@ -269,7 +278,7 @@ function normalisePredictiveFeed(data) {
       badge: "PREDICTED",
       artist,
       artistLabel: pickArtistLabel(item),
-      title: getString(item.cardTitle, `${artist} — “${trackTitle}”`),
+      title: explicitTitle || `${artist} — “${trackTitle}”`,
       reasonTitle: getString(item.feedReasonTitle, "High Momentum +"),
       reasonSubtitle: getString(item.feedReasonSubtitle, "Trending Worldwide"),
       reasonText: getString(
@@ -293,7 +302,7 @@ function normalisePredictiveFeed(data) {
       comments: getNumber(item.comments, 322),
       likes: getNumber(item.likes, 3100),
       saves: getNumber(item.saves, 451),
-      shares: getNumber(item.shares, 27)
+      shares: getNumber(item.shares, 322)
     };
   });
 }
@@ -318,7 +327,7 @@ function createFallbackFeed() {
       comments: 322,
       likes: 3100,
       saves: 451,
-      shares: 27
+      shares: 322
     },
     {
       id: "demo-jp",
@@ -338,7 +347,7 @@ function createFallbackFeed() {
       comments: 322,
       likes: 3100,
       saves: 451,
-      shares: 27
+      shares: 322
     },
     {
       id: "demo-br",
@@ -358,7 +367,7 @@ function createFallbackFeed() {
       comments: 322,
       likes: 3100,
       saves: 451,
-      shares: 27
+      shares: 322
     }
   ];
 
@@ -383,6 +392,7 @@ function buildUnifiedFeed({ smart, personalised, predictive }) {
 
   return merged.map((item, index) => ({
     ...item,
+    badge: item.badge || getFeedBadge(item.feedType),
     title: item.title || `${item.artist} — “${item.trackTitle || "New Release"}”`,
     fallbackPoster:
       item.fallbackPoster ||
@@ -391,6 +401,23 @@ function buildUnifiedFeed({ smart, personalised, predictive }) {
       item.artistAvatarFallback || createArtistAvatarDataUri(item.artist, index),
     artworkFallback: item.artworkFallback || createArtworkDataUri(index)
   }));
+}
+
+function dedupeTitle(title, artist, trackTitle) {
+  const cleanedTitle = getString(title, "");
+  const cleanedArtist = getString(artist, "");
+  const cleanedTrack = getString(trackTitle, "");
+
+  const artistTrackPattern = new RegExp(
+    `^${cleanedArtist.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s+[—-]\\s+[“"]?${cleanedTrack.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}[”"]?$`,
+    "i"
+  );
+
+  if (artistTrackPattern.test(cleanedTitle)) {
+    return { headingArtist: cleanedArtist, headingTrack: cleanedTrack };
+  }
+
+  return { headingArtist: cleanedArtist, headingTrack: cleanedTrack };
 }
 
 function IconLive() {
@@ -664,6 +691,8 @@ function FeedCard({ item, isActive, onOpenInfo, currentIndex, totalItems }) {
       ? item.artwork
       : item.artworkFallback;
 
+  const heading = dedupeTitle(item.title, item.artist, item.trackTitle);
+
   return (
     <article style={styles.slide}>
       <div
@@ -750,7 +779,12 @@ function FeedCard({ item, isActive, onOpenInfo, currentIndex, totalItems }) {
       </div>
 
       <div style={styles.contentOverlay}>
-        <div style={styles.titleText}>{item.title}</div>
+        <div style={styles.artistTitleRow}>
+          <span style={styles.artistNameText}>{heading.headingArtist}</span>
+          <span style={styles.artistVerified}>✓</span>
+        </div>
+
+        <div style={styles.trackTitleText}>— “{heading.headingTrack}”</div>
 
         <div style={styles.reasonLine}>
           {item.reasonTitle} {item.reasonSubtitle}
@@ -973,34 +1007,36 @@ export default function Feed() {
       </div>
 
       <nav aria-label="Primary" style={styles.bottomNav}>
-        <button type="button" style={styles.bottomNavButton}>
-          <IconHome />
-          <span style={styles.bottomNavLabelActive}>Home</span>
-        </button>
+        <div style={styles.bottomNavInner}>
+          <button type="button" style={styles.bottomNavButton}>
+            <IconHome />
+            <span style={styles.bottomNavLabelActive}>Home</span>
+          </button>
 
-        <button type="button" style={styles.bottomNavButton}>
-          <IconBag />
-          <span style={styles.bottomNavLabel}>Shop</span>
-        </button>
+          <button type="button" style={styles.bottomNavButton}>
+            <IconBag />
+            <span style={styles.bottomNavLabel}>Shop</span>
+          </button>
 
-        <button type="button" aria-label="Create" style={styles.createButton}>
-          <span style={styles.createButtonBlue} />
-          <span style={styles.createButtonRed} />
-          <span style={styles.createButtonCenter}>+</span>
-        </button>
+          <button type="button" aria-label="Create" style={styles.createButton}>
+            <span style={styles.createButtonBlue} />
+            <span style={styles.createButtonRed} />
+            <span style={styles.createButtonCenter}>+</span>
+          </button>
 
-        <button type="button" style={styles.bottomNavButton}>
-          <div style={styles.inboxBadgeWrap}>
-            <IconInbox />
-            <span style={styles.inboxBadge}>2</span>
-          </div>
-          <span style={styles.bottomNavLabel}>Inbox</span>
-        </button>
+          <button type="button" style={styles.bottomNavButton}>
+            <div style={styles.inboxBadgeWrap}>
+              <IconInbox />
+              <span style={styles.inboxBadge}>2</span>
+            </div>
+            <span style={styles.bottomNavLabel}>Inbox</span>
+          </button>
 
-        <button type="button" style={styles.bottomNavButton}>
-          <IconProfile />
-          <span style={styles.bottomNavLabel}>Profile</span>
-        </button>
+          <button type="button" style={styles.bottomNavButton}>
+            <IconProfile />
+            <span style={styles.bottomNavLabel}>Profile</span>
+          </button>
+        </div>
       </nav>
 
       <InfoOverlay item={infoItem} onClose={() => setInfoItem(null)} />
@@ -1078,43 +1114,46 @@ const styles = {
     left: 0,
     right: 0,
     zIndex: 30,
-    pointerEvents: "none"
+    pointerEvents: "none",
+    height: 66
   },
   logoCluster: {
     position: "absolute",
-    top: 4,
+    top: 2,
     left: "max(12px, calc(env(safe-area-inset-left) + 6px))",
     display: "flex",
     alignItems: "center",
     gap: 8,
-    pointerEvents: "none"
+    pointerEvents: "none",
+    width: 132
   },
   logoImage: {
-    width: 58,
-    height: 58,
+    width: 50,
+    height: 50,
     objectFit: "contain",
     display: "block",
     filter: "drop-shadow(0 10px 20px rgba(0,0,0,0.24))"
   },
   logoFallback: {
-    width: 58,
-    height: 58,
-    borderRadius: 29,
+    width: 50,
+    height: 50,
+    borderRadius: 25,
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
     background: "linear-gradient(135deg, #7c3aed 0%, #f97316 100%)",
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: 900,
     color: "#ffffff"
   },
   logoCopy: {
     display: "flex",
     flexDirection: "column",
-    justifyContent: "center"
+    justifyContent: "center",
+    minWidth: 0
   },
   logoWordmark: {
-    fontSize: 16,
+    fontSize: 15,
     lineHeight: 1,
     fontWeight: 900,
     letterSpacing: "-0.02em",
@@ -1123,19 +1162,21 @@ const styles = {
   },
   logoSubline: {
     marginTop: 4,
-    fontSize: 11,
+    fontSize: 10.5,
     lineHeight: 1.05,
     fontWeight: 500,
     color: "rgba(255,255,255,0.90)",
     textShadow: "0 2px 10px rgba(0,0,0,0.36)"
   },
   topTabsWrap: {
-    width: "100%",
+    position: "absolute",
+    top: 10,
+    left: 148,
+    right: 52,
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    gap: 12,
-    paddingTop: 10
+    gap: 12
   },
   topTabButton: {
     appearance: "none",
@@ -1148,7 +1189,8 @@ const styles = {
     position: "relative",
     padding: 0,
     pointerEvents: "auto",
-    cursor: "pointer"
+    cursor: "pointer",
+    flexShrink: 0
   },
   liveIconWrap: {
     display: "inline-flex",
@@ -1159,7 +1201,8 @@ const styles = {
     lineHeight: 1.1,
     fontWeight: 700,
     color: "rgba(255,255,255,0.70)",
-    textShadow: "0 2px 8px rgba(0,0,0,0.35)"
+    textShadow: "0 2px 8px rgba(0,0,0,0.35)",
+    whiteSpace: "nowrap"
   },
   topTabLabelActive: {
     color: "#ffffff"
@@ -1199,7 +1242,7 @@ const styles = {
   },
   rankBadge: {
     position: "absolute",
-    top: "116px",
+    top: "110px",
     left: "max(14px, calc(env(safe-area-inset-left) + 8px))",
     zIndex: 8,
     minWidth: 62,
@@ -1219,22 +1262,22 @@ const styles = {
   },
   rightRail: {
     position: "absolute",
-    right: "max(10px, calc(env(safe-area-inset-right) + 6px))",
-    top: "208px",
-    bottom: "188px",
+    right: "max(8px, calc(env(safe-area-inset-right) + 2px))",
+    top: "194px",
+    bottom: "204px",
     zIndex: 9,
-    width: 74,
+    width: 72,
     display: "flex",
     flexDirection: "column",
     alignItems: "center",
     justifyContent: "flex-start",
-    gap: 16
+    gap: 18
   },
   avatarRailBlock: {
     display: "flex",
     flexDirection: "column",
     alignItems: "center",
-    gap: 6
+    gap: 7
   },
   avatarWrap: {
     position: "relative",
@@ -1254,13 +1297,13 @@ const styles = {
     position: "absolute",
     right: -3,
     bottom: -1,
-    width: 24,
-    height: 24,
-    borderRadius: 12,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
     border: "2px solid #ffffff",
     background: "#ff3d6e",
     color: "#ffffff",
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: 900,
     lineHeight: 1,
     display: "flex",
@@ -1280,13 +1323,13 @@ const styles = {
     display: "flex",
     flexDirection: "column",
     alignItems: "center",
-    gap: 5
+    gap: 6
   },
   rightActionButton: {
     appearance: "none",
-    width: 52,
-    height: 52,
-    borderRadius: 26,
+    width: 54,
+    height: 54,
+    borderRadius: 27,
     border: "1px solid rgba(255,255,255,0.12)",
     background: "rgba(10,14,28,0.26)",
     color: "#ffffff",
@@ -1299,8 +1342,8 @@ const styles = {
     padding: 0
   },
   rightIconSvg: {
-    width: 26,
-    height: 26,
+    width: 27,
+    height: 27,
     display: "block",
     color: "#ffffff"
   },
@@ -1352,12 +1395,41 @@ const styles = {
     position: "absolute",
     left: "max(14px, calc(env(safe-area-inset-left) + 8px))",
     right: "92px",
-    bottom: "188px",
+    bottom: "198px",
     zIndex: 8,
-    maxWidth: "min(65vw, 460px)"
+    maxWidth: "min(66vw, 470px)"
   },
-  titleText: {
-    fontSize: 17,
+  artistTitleRow: {
+    display: "flex",
+    alignItems: "center",
+    gap: 7,
+    flexWrap: "wrap"
+  },
+  artistNameText: {
+    fontSize: 16.5,
+    lineHeight: 1.08,
+    fontWeight: 800,
+    color: "#ffffff",
+    letterSpacing: "-0.02em",
+    textShadow: "0 3px 12px rgba(0,0,0,0.38)"
+  },
+  artistVerified: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    background: "#3b82f6",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    color: "#ffffff",
+    fontSize: 10,
+    fontWeight: 900,
+    lineHeight: 1,
+    flexShrink: 0
+  },
+  trackTitleText: {
+    marginTop: 4,
+    fontSize: 16.5,
     lineHeight: 1.08,
     fontWeight: 700,
     color: "#ffffff",
@@ -1416,7 +1488,7 @@ const styles = {
     position: "fixed",
     left: 12,
     right: 12,
-    bottom: "calc(78px + env(safe-area-inset-bottom))",
+    bottom: "calc(82px + env(safe-area-inset-bottom))",
     zIndex: 25
   },
   searchShell: {
@@ -1463,12 +1535,19 @@ const styles = {
     right: 0,
     bottom: 0,
     zIndex: 24,
-    height: "calc(74px + env(safe-area-inset-bottom))",
+    height: "calc(78px + env(safe-area-inset-bottom))",
     paddingBottom: "env(safe-area-inset-bottom)",
     background:
       "linear-gradient(180deg, rgba(0,0,0,0.02) 0%, rgba(2,6,18,0.88) 18%, rgba(2,6,18,0.98) 100%)",
     borderTop: "1px solid rgba(255,255,255,0.06)",
     backdropFilter: "blur(16px)"
+  },
+  bottomNavInner: {
+    height: 78,
+    display: "grid",
+    gridTemplateColumns: "1fr 1fr 1fr 1fr 1fr",
+    alignItems: "center",
+    padding: "0 8px"
   },
   bottomNavButton: {
     appearance: "none",
@@ -1479,8 +1558,9 @@ const styles = {
     flexDirection: "column",
     alignItems: "center",
     justifyContent: "center",
-    gap: 2,
-    cursor: "pointer"
+    gap: 4,
+    cursor: "pointer",
+    minWidth: 0
   },
   bottomIconSvg: {
     width: 25,
@@ -1511,7 +1591,8 @@ const styles = {
     alignItems: "center",
     justifyContent: "center",
     cursor: "pointer",
-    padding: 0
+    padding: 0,
+    justifySelf: "center"
   },
   createButtonBlue: {
     position: "absolute",
