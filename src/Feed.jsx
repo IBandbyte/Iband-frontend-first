@@ -160,10 +160,6 @@ function formatCompactCount(value) {
   return String(num);
 }
 
-function pickArtistLabel(item) {
-  return getString(item.artistLabel, "Artist");
-}
-
 function getFeedBadge(feedType) {
   if (feedType === "smart") return "SMART";
   if (feedType === "predictive") return "PREDICTED";
@@ -183,7 +179,6 @@ function normaliseSmartFeed(data) {
       feedType: "smart",
       badge: "SMART",
       artist,
-      artistLabel: pickArtistLabel(item),
       title: explicitTitle || `${artist} — “${trackTitle}”`,
       reasonTitle: getString(item.feedReasonTitle, "High Momentum +"),
       reasonSubtitle: getString(item.feedReasonSubtitle, "Trending Worldwide"),
@@ -230,7 +225,6 @@ function normalisePersonalisedFeed(data) {
       feedType: "personalised",
       badge: "FOR YOU",
       artist,
-      artistLabel: pickArtistLabel(item),
       title: explicitTitle || `${artist} — “${trackTitle}”`,
       reasonTitle: getString(item.feedReasonTitle, "High Momentum +"),
       reasonSubtitle: getString(item.feedReasonSubtitle, "Trending Worldwide"),
@@ -277,7 +271,6 @@ function normalisePredictiveFeed(data) {
       feedType: "predictive",
       badge: "PREDICTED",
       artist,
-      artistLabel: pickArtistLabel(item),
       title: explicitTitle || `${artist} — “${trackTitle}”`,
       reasonTitle: getString(item.feedReasonTitle, "High Momentum +"),
       reasonSubtitle: getString(item.feedReasonSubtitle, "Trending Worldwide"),
@@ -314,7 +307,6 @@ function createFallbackFeed() {
       feedType: "personalised",
       badge: "FOR YOU",
       artist: "Sam Ryder",
-      artistLabel: "Artist",
       title: "Sam Ryder — “Supernova Dreams”",
       reasonTitle: "High Momentum +",
       reasonSubtitle: "Trending Worldwide",
@@ -334,7 +326,6 @@ function createFallbackFeed() {
       feedType: "smart",
       badge: "SMART",
       artist: "Demo Artist Japan",
-      artistLabel: "Artist",
       title: "Demo Artist Japan — “Supernova Dreams”",
       reasonTitle: "High Momentum +",
       reasonSubtitle: "Trending Worldwide",
@@ -354,7 +345,6 @@ function createFallbackFeed() {
       feedType: "predictive",
       badge: "PREDICTED",
       artist: "Demo Artist Brazil",
-      artistLabel: "Artist",
       title: "Demo Artist Brazil — “Supernova Dreams”",
       reasonTitle: "High Momentum +",
       reasonSubtitle: "Trending Worldwide",
@@ -403,21 +393,25 @@ function buildUnifiedFeed({ smart, personalised, predictive }) {
   }));
 }
 
-function dedupeTitle(title, artist, trackTitle) {
-  const cleanedTitle = getString(title, "");
-  const cleanedArtist = getString(artist, "");
-  const cleanedTrack = getString(trackTitle, "");
+function splitArtistAndTrack(title, artist, trackTitle) {
+  const cleanArtist = getString(artist, "Unknown Artist");
+  const cleanTrack = getString(trackTitle, "New Release");
+  const cleanTitle = getString(title, `${cleanArtist} — “${cleanTrack}”`);
 
-  const artistTrackPattern = new RegExp(
-    `^${cleanedArtist.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s+[—-]\\s+[“"]?${cleanedTrack.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}[”"]?$`,
-    "i"
-  );
+  const regex = /^(.+?)\s+[—-]\s+[“"]?(.+?)[”"]?$/;
+  const match = cleanTitle.match(regex);
 
-  if (artistTrackPattern.test(cleanedTitle)) {
-    return { headingArtist: cleanedArtist, headingTrack: cleanedTrack };
+  if (!match) {
+    return {
+      artistLine: cleanArtist,
+      trackLine: `— “${cleanTrack}”`
+    };
   }
 
-  return { headingArtist: cleanedArtist, headingTrack: cleanedTrack };
+  return {
+    artistLine: match[1].trim() || cleanArtist,
+    trackLine: `— “${match[2].trim() || cleanTrack}”`
+  };
 }
 
 function IconLive() {
@@ -691,7 +685,7 @@ function FeedCard({ item, isActive, onOpenInfo, currentIndex, totalItems }) {
       ? item.artwork
       : item.artworkFallback;
 
-  const heading = dedupeTitle(item.title, item.artist, item.trackTitle);
+  const heading = splitArtistAndTrack(item.title, item.artist, item.trackTitle);
 
   return (
     <article style={styles.slide}>
@@ -722,7 +716,6 @@ function FeedCard({ item, isActive, onOpenInfo, currentIndex, totalItems }) {
               +
             </button>
           </div>
-          <div style={styles.avatarLabel}>{item.artistLabel}</div>
         </div>
 
         <div style={styles.rightActionBlock}>
@@ -780,11 +773,11 @@ function FeedCard({ item, isActive, onOpenInfo, currentIndex, totalItems }) {
 
       <div style={styles.contentOverlay}>
         <div style={styles.artistTitleRow}>
-          <span style={styles.artistNameText}>{heading.headingArtist}</span>
+          <span style={styles.artistNameText}>{heading.artistLine}</span>
           <span style={styles.artistVerified}>✓</span>
         </div>
 
-        <div style={styles.trackTitleText}>— “{heading.headingTrack}”</div>
+        <div style={styles.trackTitleText}>{heading.trackLine}</div>
 
         <div style={styles.reasonLine}>
           {item.reasonTitle} {item.reasonSubtitle}
@@ -1119,30 +1112,30 @@ const styles = {
   },
   logoCluster: {
     position: "absolute",
-    top: 2,
+    top: 1,
     left: "max(12px, calc(env(safe-area-inset-left) + 6px))",
     display: "flex",
     alignItems: "center",
     gap: 8,
     pointerEvents: "none",
-    width: 132
+    width: 120
   },
   logoImage: {
-    width: 50,
-    height: 50,
+    width: 46,
+    height: 46,
     objectFit: "contain",
     display: "block",
     filter: "drop-shadow(0 10px 20px rgba(0,0,0,0.24))"
   },
   logoFallback: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
+    width: 46,
+    height: 46,
+    borderRadius: 23,
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
     background: "linear-gradient(135deg, #7c3aed 0%, #f97316 100%)",
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: 900,
     color: "#ffffff"
   },
@@ -1153,7 +1146,7 @@ const styles = {
     minWidth: 0
   },
   logoWordmark: {
-    fontSize: 15,
+    fontSize: 13.5,
     lineHeight: 1,
     fontWeight: 900,
     letterSpacing: "-0.02em",
@@ -1162,8 +1155,8 @@ const styles = {
   },
   logoSubline: {
     marginTop: 4,
-    fontSize: 10.5,
-    lineHeight: 1.05,
+    fontSize: 9.5,
+    lineHeight: 1.02,
     fontWeight: 500,
     color: "rgba(255,255,255,0.90)",
     textShadow: "0 2px 10px rgba(0,0,0,0.36)"
@@ -1171,12 +1164,12 @@ const styles = {
   topTabsWrap: {
     position: "absolute",
     top: 10,
-    left: 148,
-    right: 52,
+    left: 140,
+    right: 50,
     display: "flex",
     alignItems: "center",
-    justifyContent: "center",
-    gap: 12
+    justifyContent: "space-between",
+    gap: 8
   },
   topTabButton: {
     appearance: "none",
@@ -1185,7 +1178,7 @@ const styles = {
     color: "#ffffff",
     display: "flex",
     alignItems: "center",
-    gap: 5,
+    gap: 4,
     position: "relative",
     padding: 0,
     pointerEvents: "auto",
@@ -1197,7 +1190,7 @@ const styles = {
     alignItems: "center"
   },
   topTabLabel: {
-    fontSize: 10.5,
+    fontSize: 9.8,
     lineHeight: 1.1,
     fontWeight: 700,
     color: "rgba(255,255,255,0.70)",
@@ -1210,9 +1203,9 @@ const styles = {
   topTabUnderline: {
     position: "absolute",
     left: "50%",
-    bottom: -8,
+    bottom: -7,
     transform: "translateX(-50%)",
-    width: 28,
+    width: 26,
     height: 2.5,
     borderRadius: 999,
     background: "#ffffff"
@@ -1221,9 +1214,9 @@ const styles = {
     position: "absolute",
     top: 8,
     right: "max(10px, calc(env(safe-area-inset-right) + 4px))",
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     border: "none",
     background: "transparent",
     color: "#ffffff",
@@ -1234,8 +1227,8 @@ const styles = {
     cursor: "pointer"
   },
   topIconSvg: {
-    width: 26,
-    height: 26,
+    width: 24,
+    height: 24,
     display: "block",
     color: "#ffffff",
     filter: "drop-shadow(0 2px 8px rgba(0,0,0,0.38))"
@@ -1263,30 +1256,30 @@ const styles = {
   rightRail: {
     position: "absolute",
     right: "max(8px, calc(env(safe-area-inset-right) + 2px))",
-    top: "194px",
-    bottom: "204px",
+    top: "168px",
+    bottom: "214px",
     zIndex: 9,
     width: 72,
     display: "flex",
     flexDirection: "column",
     alignItems: "center",
     justifyContent: "flex-start",
-    gap: 18
+    gap: 20
   },
   avatarRailBlock: {
     display: "flex",
     flexDirection: "column",
     alignItems: "center",
-    gap: 7
+    gap: 6
   },
   avatarWrap: {
     position: "relative",
-    width: 74,
-    height: 74
+    width: 78,
+    height: 78
   },
   avatarImage: {
-    width: 74,
-    height: 74,
+    width: 78,
+    height: 78,
     borderRadius: "50%",
     objectFit: "cover",
     display: "block",
@@ -1296,10 +1289,10 @@ const styles = {
   followPlusButton: {
     position: "absolute",
     right: -3,
-    bottom: -1,
-    width: 22,
-    height: 22,
-    borderRadius: 11,
+    bottom: 0,
+    width: 23,
+    height: 23,
+    borderRadius: 11.5,
     border: "2px solid #ffffff",
     background: "#ff3d6e",
     color: "#ffffff",
@@ -1312,13 +1305,6 @@ const styles = {
     cursor: "pointer",
     boxShadow: "0 8px 18px rgba(0,0,0,0.26)"
   },
-  avatarLabel: {
-    fontSize: 10.5,
-    lineHeight: 1,
-    fontWeight: 700,
-    color: "#ffffff",
-    textShadow: "0 2px 8px rgba(0,0,0,0.36)"
-  },
   rightActionBlock: {
     display: "flex",
     flexDirection: "column",
@@ -1327,9 +1313,9 @@ const styles = {
   },
   rightActionButton: {
     appearance: "none",
-    width: 54,
-    height: 54,
-    borderRadius: 27,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     border: "1px solid rgba(255,255,255,0.12)",
     background: "rgba(10,14,28,0.26)",
     color: "#ffffff",
@@ -1342,8 +1328,8 @@ const styles = {
     padding: 0
   },
   rightIconSvg: {
-    width: 27,
-    height: 27,
+    width: 28,
+    height: 28,
     display: "block",
     color: "#ffffff"
   },
@@ -1394,8 +1380,8 @@ const styles = {
   contentOverlay: {
     position: "absolute",
     left: "max(14px, calc(env(safe-area-inset-left) + 8px))",
-    right: "92px",
-    bottom: "198px",
+    right: "98px",
+    bottom: "204px",
     zIndex: 8,
     maxWidth: "min(66vw, 470px)"
   },
@@ -1406,7 +1392,7 @@ const styles = {
     flexWrap: "wrap"
   },
   artistNameText: {
-    fontSize: 16.5,
+    fontSize: 16,
     lineHeight: 1.08,
     fontWeight: 800,
     color: "#ffffff",
@@ -1429,7 +1415,7 @@ const styles = {
   },
   trackTitleText: {
     marginTop: 4,
-    fontSize: 16.5,
+    fontSize: 16,
     lineHeight: 1.08,
     fontWeight: 700,
     color: "#ffffff",
@@ -1438,7 +1424,7 @@ const styles = {
   },
   reasonLine: {
     marginTop: 13,
-    fontSize: 12.5,
+    fontSize: 12.3,
     lineHeight: 1.18,
     fontWeight: 500,
     color: "rgba(255,255,255,0.88)",
@@ -1488,7 +1474,7 @@ const styles = {
     position: "fixed",
     left: 12,
     right: 12,
-    bottom: "calc(82px + env(safe-area-inset-bottom))",
+    bottom: "calc(84px + env(safe-area-inset-bottom))",
     zIndex: 25
   },
   searchShell: {
