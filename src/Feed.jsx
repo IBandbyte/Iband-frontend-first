@@ -1085,9 +1085,10 @@ const styles = {
     fontFamily: FEED_FONT_STACK
   },
   scroller: {
+    paddingTop: 72,
     position: "relative",
     width: "100%",
-    height: "100dvh",
+    height: "calc(100dvh - 72px)",
     overflowY: "auto",
     overflowX: "hidden",
     scrollSnapType: "y proximity",
@@ -1138,13 +1139,15 @@ const styles = {
       "radial-gradient(circle at 24% 30%, rgba(255,255,255,0.12) 0%, rgba(255,255,255,0.03) 18%, rgba(255,255,255,0) 42%)"
   },
   fixedTopOverlay: {
-    position: "fixed",
-    top: "calc(env(safe-area-inset-top) + 6px)",
-    left: 0,
-    right: 0,
-    zIndex: 30,
-    pointerEvents: "none",
-    height: 62
+  position: "fixed",
+  top: 0,
+  left: 0,
+  right: 0,
+  zIndex: 40,
+  height: 72,
+  paddingTop: "env(safe-area-inset-top)",
+  background: "linear-gradient(180deg, rgba(0,0,0,0.45), rgba(0,0,0,0))",
+  pointerEvents: "auto"
   },
   logoCluster: {
     position: "absolute",
@@ -1291,7 +1294,7 @@ const styles = {
   },
   rightRail: {
     position: "absolute",
-    right: "max(2px, calc(env(safe-area-inset-right) - 2px))",
+    right: 10,
     top: "170px",
     bottom: "200px",
     zIndex: 9,
@@ -1417,7 +1420,7 @@ const styles = {
     position: "absolute",
     left: "max(14px, calc(env(safe-area-inset-left) + 8px))",
     right: "94px",
-    bottom: "200px",
+    bottom: "180px",
     zIndex: 8,
     maxWidth: "min(66vw, 470px)"
   },
@@ -1459,7 +1462,7 @@ const styles = {
     textShadow: "0 3px 12px rgba(0,0,0,0.38)"
   },
   reasonLine: {
-    marginTop: 12,
+    marginTop: 8,
     fontSize: 11.6,
     lineHeight: 1.18,
     fontWeight: 500,
