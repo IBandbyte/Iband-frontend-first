@@ -1530,32 +1530,32 @@ const styles = {
   backdropFilter: "blur(16px)",
   },
   feedContextEyebrow: {
-    fontSize: 9.5,
-    lineHeight: 1,
-    fontWeight: 800,
-    letterSpacing: "0.09em",
-    color: "rgba(255,255,255,0.68)"
-  },
-  feedContextLine1: {
-    marginTop: 5,
-    fontSize: 11,
-    lineHeight: 1.18,
-    fontWeight: 700,
-    color: "rgba(255,255,255,0.96)",
-    whiteSpace: "nowrap",
-    overflow: "hidden",
-    textOverflow: "ellipsis"
-  },
-  feedContextLine2: {
-    marginTop: 4,
-    fontSize: 10.5,
-    lineHeight: 1.2,
-    fontWeight: 500,
-    color: "rgba(255,255,255,0.78)",
-    display: "-webkit-box",
-    WebkitLineClamp: 2,
-    WebkitBoxOrient: "vertical",
-    overflow: "hidden"
+  fontSize: 9,
+  lineHeight: 1,
+  fontWeight: 800,
+  letterSpacing: "0.08em",
+  color: "rgba(255,255,255,0.60)"
+},
+feedContextLine1: {
+  marginTop: 4,
+  fontSize: 10.5,
+  lineHeight: 1.16,
+  fontWeight: 700,
+  color: "rgba(255,255,255,0.96)",
+  whiteSpace: "nowrap",
+  overflow: "hidden",
+  textOverflow: "ellipsis"
+},
+feedContextLine2: {
+  marginTop: 3,
+  fontSize: 10,
+  lineHeight: 1.18,
+  fontWeight: 500,
+  color: "rgba(255,255,255,0.76)",
+  display: "-webkit-box",
+  WebkitLineClamp: 2,
+  WebkitBoxOrient: "vertical",
+  overflow: "hidden"
   },
   searchShell: {
   width: "calc(100% - 88px)",
