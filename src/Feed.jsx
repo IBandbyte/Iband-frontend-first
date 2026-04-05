@@ -1099,8 +1099,8 @@ const styles = {
   slide: {
     position: "relative",
     width: "100%",
-    height: "100dvh",
-    minHeight: "100dvh",
+    height: "calc(100dvh - 72px)",
+    minHeight: "calc(100dvh - 72px)",
     scrollSnapAlign: "start",
     scrollSnapStop: "normal",
     overflow: "hidden",
