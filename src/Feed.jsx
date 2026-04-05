@@ -811,7 +811,7 @@ function FeedCard({ item, isActive, onOpenInfo, currentIndex, totalItems }) {
 
         <div style={styles.commentLine}>{item.comments} Comments</div>
 
-        <div style={styles.badgePill}>{item.badge}</div>
+        
       </div>
     </article>
   );
@@ -1090,7 +1090,7 @@ const styles = {
     height: "100dvh",
     overflowY: "auto",
     overflowX: "hidden",
-    scrollSnapType: "y mandatory",
+    scrollSnapType: "y proximity",
     overscrollBehaviorY: "contain",
     WebkitOverflowScrolling: "touch",
     background: "#000000"
@@ -1101,7 +1101,7 @@ const styles = {
     height: "100dvh",
     minHeight: "100dvh",
     scrollSnapAlign: "start",
-    scrollSnapStop: "always",
+    scrollSnapStop: "normal",
     overflow: "hidden",
     background: "#020617"
   },
