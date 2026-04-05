@@ -1292,8 +1292,8 @@ const styles = {
   rightRail: {
     position: "absolute",
     right: "max(2px, calc(env(safe-area-inset-right) - 2px))",
-    top: "156px",
-    bottom: "212px",
+    top: "170px",
+    bottom: "200px",
     zIndex: 9,
     width: 66,
     display: "flex",
@@ -1417,7 +1417,7 @@ const styles = {
     position: "absolute",
     left: "max(14px, calc(env(safe-area-inset-left) + 8px))",
     right: "94px",
-    bottom: "222px",
+    bottom: "200px",
     zIndex: 8,
     maxWidth: "min(66vw, 470px)"
   },
@@ -1507,29 +1507,27 @@ const styles = {
     backdropFilter: "blur(12px)"
   },
   searchDock: {
-    position: "fixed",
-    left: 12,
-    right: 12,
-    bottom: "calc(84px + env(safe-area-inset-bottom))",
-    zIndex: 25,
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "flex-start",
-    gap: 8
+  position: "fixed",
+  left: 12,
+  right: 12,
+  bottom: "calc(82px + env(safe-area-inset-bottom))",
+  zIndex: 25,
+  display: "flex",
+  flexDirection: "column",
+  alignItems: "flex-start",
+  gap: 6
   },
   feedContextStrip: {
-    width: "calc(100% - 84px)",
-    maxWidth: 300,
-    minHeight: 52,
-    padding: "10px 12px",
-    borderRadius: 16,
-    border: "1px solid rgba(255,255,255,0.10)",
-    background: "rgba(5,9,22,0.28)",
-    boxShadow:
-      "0 10px 26px rgba(0,0,0,0.20), inset 0 1px 0 rgba(255,255,255,0.04)",
-    backdropFilter: "blur(18px)",
-    WebkitBackdropFilter: "blur(18px)",
-    overflow: "hidden"
+  width: "calc(100% - 88px)",
+  maxWidth: 280,
+  minHeight: 46,
+  padding: "8px 10px",
+  borderRadius: 14,
+  border: "1px solid rgba(255,255,255,0.08)",
+  background: "rgba(5,9,22,0.22)",
+  boxShadow:
+    "0 8px 22px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.03)",
+  backdropFilter: "blur(16px)",
   },
   feedContextEyebrow: {
     fontSize: 9.5,
@@ -1560,20 +1558,18 @@ const styles = {
     overflow: "hidden"
   },
   searchShell: {
-    width: "calc(100% - 84px)",
-    maxWidth: 300,
-    height: 50,
-    borderRadius: 26,
-    border: "1px solid rgba(255,255,255,0.12)",
-    background: "rgba(5,9,22,0.34)",
-    boxShadow:
-      "0 12px 28px rgba(0,0,0,0.22), inset 0 1px 0 rgba(255,255,255,0.04)",
-    backdropFilter: "blur(18px)",
-    WebkitBackdropFilter: "blur(18px)",
-    display: "flex",
-    alignItems: "center",
-    padding: "0 14px",
-    overflow: "hidden"
+  width: "calc(100% - 88px)",
+  maxWidth: 280,
+  height: 46,
+  borderRadius: 24,
+  border: "1px solid rgba(255,255,255,0.10)",
+  background: "rgba(5,9,22,0.28)",
+  boxShadow:
+    "0 10px 24px rgba(0,0,0,0.20), inset 0 1px 0 rgba(255,255,255,0.03)",
+  backdropFilter: "blur(16px)",
+  display: "flex",
+  alignItems: "center",
+  padding: "0 12px"
   },
   searchIconWrap: {
     width: 34,
