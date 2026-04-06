@@ -80,10 +80,10 @@ function createArtworkDataUri(index = 0) {
       <circle cx="220" cy="210" r="94" fill="url(#glowB)" />
       <circle cx="150" cy="150" r="76" stroke="rgba(255,255,255,0.30)" stroke-width="8" />
       <circle cx="150" cy="150" r="34" fill="rgba(255,255,255,0.22)" />
-      <path d="M150 44v34" stroke="rgba(255,255,255,0.22)" stroke-width="4" stroke-linecap="round"/>
-      <path d="M150 222v34" stroke="rgba(255,255,255,0.22)" stroke-width="4" stroke-linecap="round"/>
-      <path d="M44 150h34" stroke="rgba(255,255,255,0.22)" stroke-width="4" stroke-linecap="round"/>
-      <path d="M222 150h34" stroke="rgba(255,255,255,0.22)" stroke-width="4" stroke-linecap="round"/>
+      <path d="M150 44v34" stroke="rgba(255,255,255,0.22)" stroke-width="4" stroke-linecap="round" />
+      <path d="M150 222v34" stroke="rgba(255,255,255,0.22)" stroke-width="4" stroke-linecap="round" />
+      <path d="M44 150h34" stroke="rgba(255,255,255,0.22)" stroke-width="4" stroke-linecap="round" />
+      <path d="M222 150h34" stroke="rgba(255,255,255,0.22)" stroke-width="4" stroke-linecap="round" />
     </svg>
   `);
 }
@@ -533,35 +533,6 @@ function IconComment() {
   );
 }
 
-function IconBookmark() {
-  return (
-    <svg viewBox="0 0 24 24" style={styles.rightIconSvg} aria-hidden="true">
-      <path
-        d="M7 4.5h10a1 1 0 011 1V20l-6-3.8L6 20V5.5a1 1 0 011-1z"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2.1"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
-function IconShare() {
-  return (
-    <svg viewBox="0 0 24 24" style={styles.rightIconSvg} aria-hidden="true">
-      <path
-        d="M6 17c6-0.9 9.6-4.5 11.7-9.6M11.6 6.7h6.1v6.1"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2.6"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
 function IconInfo() {
   return (
     <svg viewBox="0 0 24 24" style={styles.rightIconSvg} aria-hidden="true">
@@ -585,6 +556,21 @@ function IconInfo() {
   );
 }
 
+function IconShare() {
+  return (
+    <svg viewBox="0 0 24 24" style={styles.rightIconSvg} aria-hidden="true">
+      <path
+        d="M6 17c6.2-0.9 9.7-4.5 11.9-9.8M11.4 6.4h6.4v6.4"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2.7"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 function IconSoundDots() {
   return (
     <svg viewBox="0 0 28 8" style={styles.dotsSvg} aria-hidden="true">
@@ -601,12 +587,12 @@ function IbandBrandBlock() {
       <div style={styles.brandLogoWrap}>
         <svg viewBox="0 0 64 64" style={styles.brandLogoSvg} aria-hidden="true">
           <defs>
-            <linearGradient id="ibandBrandGradientFinal" x1="0" y1="0" x2="1" y2="1">
+            <linearGradient id="ibandBrandGradientFinalCanon" x1="0" y1="0" x2="1" y2="1">
               <stop offset="0%" stopColor="#7c3aed" />
               <stop offset="100%" stopColor="#f97316" />
             </linearGradient>
           </defs>
-          <circle cx="32" cy="32" r="31" fill="url(#ibandBrandGradientFinal)" />
+          <circle cx="32" cy="32" r="31" fill="url(#ibandBrandGradientFinalCanon)" />
           <path
             d="M23 42V19c0-4.2 3.4-7.6 7.6-7.6h8.2V21h5.4v-9.6h3.2c4.2 0 7.6 3.4 7.6 7.6v7.6c0 4.2-3.4 7.6-7.6 7.6h-3.2v5.6h-5.4v-5.6h-5.4v7.8c0 6.4-5.2 11.6-11.6 11.6S12.2 48.4 12.2 42s5.2-11.6 11.6-11.6c0.5 0 1.1 0 1.6 0.1V42Z"
             fill="white"
@@ -691,7 +677,7 @@ function FeedCard({ item, isActive, onOpenInfo, currentIndex, totalItems }) {
     isUsableImageSrc(item.artistImage) && !avatarFailed
       ? item.artistImage
       : item.artistAvatarFallback;
-  const artworkUrl =
+  const soundArtworkUrl =
     isUsableImageSrc(item.artwork) && !artFailed
       ? item.artwork
       : item.artworkFallback;
@@ -749,6 +735,13 @@ function FeedCard({ item, isActive, onOpenInfo, currentIndex, totalItems }) {
         </div>
 
         <div style={styles.rightActionBlock}>
+          <button type="button" aria-label="Share" style={styles.rightActionButton}>
+            <IconShare />
+          </button>
+          <div style={styles.rightActionCount}>{formatCompactCount(item.shares)}</div>
+        </div>
+
+        <div style={styles.rightActionBlock}>
           <button
             type="button"
             aria-label="Open info"
@@ -763,10 +756,10 @@ function FeedCard({ item, isActive, onOpenInfo, currentIndex, totalItems }) {
           <IconSoundDots />
         </button>
 
-        <button type="button" aria-label="Open sound" style={styles.soundDiscButton}>
+        <button type="button" aria-label="Open original sound" style={styles.soundDiscButton}>
           <img
-            src={artworkUrl}
-            alt={`${item.trackTitle} artwork`}
+            src={soundArtworkUrl}
+            alt={`${item.trackTitle} original sound`}
             style={styles.soundDiscImage}
             onError={() => setArtFailed(true)}
           />
@@ -893,7 +886,7 @@ export default function Feed() {
       },
       {
         root: scrollRef.current,
-        threshold: [0.7, 0.82, 0.92]
+        threshold: [0.72, 0.84, 0.94]
       }
     );
 
@@ -1036,7 +1029,7 @@ const styles = {
     width: "100%",
     height: "100dvh",
     paddingTop: 156,
-    paddingBottom: "calc(110px + env(safe-area-inset-bottom))",
+    paddingBottom: "calc(106px + env(safe-area-inset-bottom))",
     overflowY: "auto",
     overflowX: "hidden",
     scrollSnapType: "y mandatory",
@@ -1093,7 +1086,8 @@ const styles = {
     right: 0,
     zIndex: 40,
     paddingTop: "env(safe-area-inset-top)",
-    background: "linear-gradient(180deg, rgba(0,0,0,0.70), rgba(0,0,0,0.08) 82%, rgba(0,0,0,0))",
+    background:
+      "linear-gradient(180deg, rgba(0,0,0,0.70), rgba(0,0,0,0.08) 82%, rgba(0,0,0,0))",
     pointerEvents: "auto"
   },
   topNavRow: {
@@ -1236,16 +1230,16 @@ const styles = {
   },
   rightRail: {
     position: "absolute",
-    right: 16,
-    top: "152px",
-    bottom: "162px",
+    right: 14,
+    top: "142px",
+    bottom: "120px",
     zIndex: 9,
-    width: 74,
+    width: 78,
     display: "flex",
     flexDirection: "column",
     alignItems: "center",
     justifyContent: "flex-start",
-    gap: 18
+    gap: 14
   },
   avatarRailBlock: {
     display: "flex",
@@ -1255,12 +1249,12 @@ const styles = {
   },
   avatarWrap: {
     position: "relative",
-    width: 80,
-    height: 80
+    width: 78,
+    height: 78
   },
   avatarImage: {
-    width: 80,
-    height: 80,
+    width: 78,
+    height: 78,
     borderRadius: "50%",
     objectFit: "cover",
     display: "block",
@@ -1296,13 +1290,13 @@ const styles = {
     display: "flex",
     flexDirection: "column",
     alignItems: "center",
-    gap: 6
+    gap: 5
   },
   rightActionButton: {
     appearance: "none",
-    width: 58,
-    height: 58,
-    borderRadius: 29,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     border: "1px solid rgba(255,255,255,0.13)",
     background: "rgba(10,14,28,0.18)",
     color: "#ffffff",
@@ -1337,7 +1331,8 @@ const styles = {
     width: 44,
     height: 18,
     cursor: "pointer",
-    padding: 0
+    padding: 0,
+    marginTop: 2
   },
   dotsSvg: {
     width: 28,
@@ -1347,9 +1342,9 @@ const styles = {
   },
   soundDiscButton: {
     appearance: "none",
-    width: 62,
-    height: 62,
-    borderRadius: 31,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
     border: "3px solid rgba(255,255,255,0.96)",
     padding: 0,
     overflow: "hidden",
@@ -1367,7 +1362,7 @@ const styles = {
     position: "absolute",
     left: "max(16px, calc(env(safe-area-inset-left) + 10px))",
     right: "112px",
-    bottom: "116px",
+    bottom: "46px",
     zIndex: 8,
     maxWidth: "min(66vw, 470px)"
   },
@@ -1409,7 +1404,7 @@ const styles = {
     textShadow: "0 3px 12px rgba(0,0,0,0.38)"
   },
   reasonLine: {
-    marginTop: 16,
+    marginTop: 14,
     fontSize: 12.3,
     lineHeight: 1.16,
     fontWeight: 500,
@@ -1423,7 +1418,7 @@ const styles = {
     color: "rgba(255,255,255,0.74)"
   },
   musicLine: {
-    marginTop: 14,
+    marginTop: 12,
     display: "flex",
     alignItems: "center",
     gap: 8,
@@ -1437,18 +1432,18 @@ const styles = {
     lineHeight: 1
   },
   commentLine: {
-    marginTop: 14,
+    marginTop: 12,
     fontSize: 11.1,
     lineHeight: 1.1,
     fontWeight: 500,
     color: "rgba(255,255,255,0.78)"
   },
   searchShell: {
-    marginTop: 16,
+    marginTop: 14,
     width: "100%",
     maxWidth: "100%",
-    height: 50,
-    borderRadius: 26,
+    height: 48,
+    borderRadius: 24,
     border: "1px solid rgba(255,255,255,0.11)",
     background: "rgba(5,9,22,0.28)",
     boxShadow:
