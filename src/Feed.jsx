@@ -5,7 +5,6 @@ import {
   fetchSmartFeed
 } from "./services/api";
 
-const IBAND_LOGO_SRC = "/iband-logo.png";
 const FEED_FONT_STACK =
   '"TikTok Sans", Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
 
@@ -172,14 +171,13 @@ function normaliseSmartFeed(data) {
   return items.map((item, index) => {
     const artist = getString(item.artist, "Sam Ryder");
     const trackTitle = getString(item.trackTitle, "Supernova Dreams");
-    const explicitTitle = getString(item.cardTitle, "");
 
     return {
       id: item.id || `smart-${index}`,
       feedType: "smart",
       badge: "SMART",
       artist,
-      title: explicitTitle || `${artist} — “${trackTitle}”`,
+      title: `${artist} — “${trackTitle}”`,
       reasonTitle: getString(item.feedReasonTitle, "High Momentum +"),
       reasonSubtitle: getString(item.feedReasonSubtitle, "Trending Worldwide"),
       reasonText: getString(
@@ -218,14 +216,13 @@ function normalisePersonalisedFeed(data) {
   return items.map((item, index) => {
     const artist = getString(item.artist, "Sam Ryder");
     const trackTitle = getString(item.trackTitle, "Supernova Dreams");
-    const explicitTitle = getString(item.cardTitle, "");
 
     return {
       id: item.id || `personalised-${index}`,
       feedType: "personalised",
       badge: "FOR YOU",
       artist,
-      title: explicitTitle || `${artist} — “${trackTitle}”`,
+      title: `${artist} — “${trackTitle}”`,
       reasonTitle: getString(item.feedReasonTitle, "High Momentum +"),
       reasonSubtitle: getString(item.feedReasonSubtitle, "Trending Worldwide"),
       reasonText: getString(
@@ -264,14 +261,13 @@ function normalisePredictiveFeed(data) {
   return items.map((item, index) => {
     const artist = getString(item.artist || item.recommendedArtist, "Sam Ryder");
     const trackTitle = getString(item.trackTitle, "Supernova Dreams");
-    const explicitTitle = getString(item.cardTitle, "");
 
     return {
       id: item.id || `predictive-${index}`,
       feedType: "predictive",
       badge: "PREDICTED",
       artist,
-      title: explicitTitle || `${artist} — “${trackTitle}”`,
+      title: `${artist} — “${trackTitle}”`,
       reasonTitle: getString(item.feedReasonTitle, "High Momentum +"),
       reasonSubtitle: getString(item.feedReasonSubtitle, "Trending Worldwide"),
       reasonText: getString(
@@ -306,14 +302,14 @@ function createFallbackFeed() {
       id: "demo-ng",
       feedType: "personalised",
       badge: "FOR YOU",
-      artist: "Sam Ryder",
-      title: "Sam Ryder — “Supernova Dreams”",
+      artist: "Demo Artist Nigeria",
+      title: "Demo Artist Nigeria — “Supernova Dreams”",
       reasonTitle: "High Momentum +",
       reasonSubtitle: "Trending Worldwide",
       reasonText: "Matches your genre taste and strong breakout momentum.",
-      handle: "@samryder",
-      country: "United Kingdom",
-      region: "Europe",
+      handle: "@demoartistnigeria",
+      country: "Nigeria",
+      region: "Africa",
       trackTitle: "Supernova Dreams",
       releaseLabel: "iBand Exclusive — New Release",
       comments: 322,
@@ -636,6 +632,30 @@ function IconSoundDots() {
   );
 }
 
+function IbandGuitarLogo() {
+  return (
+    <div style={styles.guitarLogoWrap} aria-label="iBand">
+      <svg viewBox="0 0 64 64" style={styles.guitarLogoSvg} aria-hidden="true">
+        <defs>
+          <linearGradient id="ibandGuitarGradient2" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stopColor="#7c3aed" />
+            <stop offset="100%" stopColor="#f97316" />
+          </linearGradient>
+        </defs>
+        <circle cx="32" cy="32" r="31" fill="url(#ibandGuitarGradient2)" />
+        <path
+          d="M23 42V19c0-4.2 3.4-7.6 7.6-7.6h8.2V21h5.4v-9.6h3.2c4.2 0 7.6 3.4 7.6 7.6v7.6c0 4.2-3.4 7.6-7.6 7.6h-3.2v5.6h-5.4v-5.6h-5.4v7.8c0 6.4-5.2 11.6-11.6 11.6S12.2 48.4 12.2 42s5.2-11.6 11.6-11.6c0.5 0 1.1 0 1.6 0.1V42Z"
+          fill="white"
+        />
+        <circle cx="44.5" cy="16.5" r="2" fill="#7c3aed" />
+        <circle cx="50" cy="16.5" r="2" fill="#7c3aed" />
+        <circle cx="44.5" cy="22" r="2" fill="#7c3aed" />
+        <circle cx="50" cy="22" r="2" fill="#7c3aed" />
+      </svg>
+    </div>
+  );
+}
+
 function InfoOverlay({ item, onClose }) {
   if (!item) return null;
 
@@ -714,7 +734,7 @@ function FeedCard({ item, isActive, onOpenInfo, currentIndex, totalItems }) {
         style={{
           ...styles.posterLayer,
           backgroundImage: `url("${posterUrl}")`,
-          transform: isActive ? "scale(1.015)" : "scale(1)"
+          transform: isActive ? "scale(1.012)" : "scale(1)"
         }}
       />
 
@@ -733,7 +753,11 @@ function FeedCard({ item, isActive, onOpenInfo, currentIndex, totalItems }) {
               style={styles.avatarImage}
               onError={() => setAvatarFailed(true)}
             />
-            <button type="button" aria-label={`Follow ${item.artist}`} style={styles.followPlusButton}>
+            <button
+              type="button"
+              aria-label={`Follow ${item.artist}`}
+              style={styles.followPlusButton}
+            >
               +
             </button>
           </div>
@@ -800,18 +824,10 @@ function FeedCard({ item, isActive, onOpenInfo, currentIndex, totalItems }) {
 
         <div style={styles.trackTitleText}>{heading.trackLine}</div>
 
-        <div style={styles.reasonLine}>
-          {item.reasonTitle} {item.reasonSubtitle}
-        </div>
-
         <div style={styles.musicLine}>
           <span style={styles.musicNote}>♫</span>
           <span>{item.releaseLabel}</span>
         </div>
-
-        <div style={styles.commentLine}>{item.comments} Comments</div>
-
-        
       </div>
     </article>
   );
@@ -826,7 +842,6 @@ export default function Feed() {
   const [infoItem, setInfoItem] = useState(null);
   const [searchText, setSearchText] = useState("");
   const [activeTopTab, setActiveTopTab] = useState("for-you");
-  const [logoFailed, setLogoFailed] = useState(false);
 
   const scrollRef = useRef(null);
   const cardRefs = useRef([]);
@@ -929,59 +944,47 @@ export default function Feed() {
   return (
     <div style={styles.page}>
       <div style={styles.fixedTopOverlay}>
-        <div style={styles.logoCluster}>
-          {!logoFailed ? (
-            <img
-              src={IBAND_LOGO_SRC}
-              alt="iBand"
-              style={styles.logoImage}
-              onError={() => setLogoFailed(true)}
-            />
-          ) : (
-            <div style={styles.logoFallback}>iB</div>
-          )}
+        <div style={styles.topHeaderRow}>
+          <div style={styles.topHeaderLeft}>
+            <IbandGuitarLogo />
 
-          <div style={styles.logoCopy}>
-            <div style={styles.logoWordmark}>iBand</div>
-            <div style={styles.logoSubline}>Powered By Fans</div>
+            <div style={styles.topTabsWrap}>
+              {topTabs.map((tab) => {
+                const isActive = activeTopTab === tab.key;
+
+                return (
+                  <button
+                    key={tab.key}
+                    type="button"
+                    onClick={() => setActiveTopTab(tab.key)}
+                    style={styles.topTabButton}
+                  >
+                    {tab.icon ? (
+                      <span style={styles.liveIconWrap}>
+                        <IconLive />
+                      </span>
+                    ) : null}
+
+                    <span
+                      style={{
+                        ...styles.topTabLabel,
+                        ...(isActive ? styles.topTabLabelActive : {})
+                      }}
+                    >
+                      {tab.label}
+                    </span>
+
+                    {isActive ? <span style={styles.topTabUnderline} /> : null}
+                  </button>
+                );
+              })}
+            </div>
           </div>
+
+          <button type="button" aria-label="Search" style={styles.topSearchButton}>
+            <IconSearch />
+          </button>
         </div>
-
-        <div style={styles.topTabsWrap}>
-          {topTabs.map((tab) => {
-            const isActive = activeTopTab === tab.key;
-
-            return (
-              <button
-                key={tab.key}
-                type="button"
-                onClick={() => setActiveTopTab(tab.key)}
-                style={styles.topTabButton}
-              >
-                {tab.icon ? (
-                  <span style={styles.liveIconWrap}>
-                    <IconLive />
-                  </span>
-                ) : null}
-
-                <span
-                  style={{
-                    ...styles.topTabLabel,
-                    ...(isActive ? styles.topTabLabelActive : {})
-                  }}
-                >
-                  {tab.label}
-                </span>
-
-                {isActive ? <span style={styles.topTabUnderline} /> : null}
-              </button>
-            );
-          })}
-        </div>
-
-        <button type="button" aria-label="Search" style={styles.topSearchButton}>
-          <IconSearch />
-        </button>
       </div>
 
       <div ref={scrollRef} style={styles.scroller}>
@@ -1008,7 +1011,7 @@ export default function Feed() {
         )}
       </div>
 
-      <div style={styles.searchDock}>
+      <div style={styles.bottomFixedStack}>
         <div style={styles.feedContextStrip}>
           <div style={styles.feedContextEyebrow}>{activeContext.eyebrow}</div>
           <div style={styles.feedContextLine1}>{activeContext.line1}</div>
@@ -1033,40 +1036,40 @@ export default function Feed() {
             />
           </div>
         </div>
+
+        <nav aria-label="Primary" style={styles.bottomNav}>
+          <div style={styles.bottomNavInner}>
+            <button type="button" style={styles.bottomNavButton}>
+              <IconHome />
+              <span style={styles.bottomNavLabelActive}>Home</span>
+            </button>
+
+            <button type="button" style={styles.bottomNavButton}>
+              <IconBag />
+              <span style={styles.bottomNavLabel}>Shop</span>
+            </button>
+
+            <button type="button" aria-label="Create" style={styles.createButton}>
+              <span style={styles.createButtonBlue} />
+              <span style={styles.createButtonRed} />
+              <span style={styles.createButtonCenter}>+</span>
+            </button>
+
+            <button type="button" style={styles.bottomNavButton}>
+              <div style={styles.inboxBadgeWrap}>
+                <IconInbox />
+                <span style={styles.inboxBadge}>2</span>
+              </div>
+              <span style={styles.bottomNavLabel}>Inbox</span>
+            </button>
+
+            <button type="button" style={styles.bottomNavButton}>
+              <IconProfile />
+              <span style={styles.bottomNavLabel}>Profile</span>
+            </button>
+          </div>
+        </nav>
       </div>
-
-      <nav aria-label="Primary" style={styles.bottomNav}>
-        <div style={styles.bottomNavInner}>
-          <button type="button" style={styles.bottomNavButton}>
-            <IconHome />
-            <span style={styles.bottomNavLabelActive}>Home</span>
-          </button>
-
-          <button type="button" style={styles.bottomNavButton}>
-            <IconBag />
-            <span style={styles.bottomNavLabel}>Shop</span>
-          </button>
-
-          <button type="button" aria-label="Create" style={styles.createButton}>
-            <span style={styles.createButtonBlue} />
-            <span style={styles.createButtonRed} />
-            <span style={styles.createButtonCenter}>+</span>
-          </button>
-
-          <button type="button" style={styles.bottomNavButton}>
-            <div style={styles.inboxBadgeWrap}>
-              <IconInbox />
-              <span style={styles.inboxBadge}>2</span>
-            </div>
-            <span style={styles.bottomNavLabel}>Inbox</span>
-          </button>
-
-          <button type="button" style={styles.bottomNavButton}>
-            <IconProfile />
-            <span style={styles.bottomNavLabel}>Profile</span>
-          </button>
-        </div>
-      </nav>
 
       <InfoOverlay item={infoItem} onClose={() => setInfoItem(null)} />
     </div>
@@ -1085,10 +1088,10 @@ const styles = {
     fontFamily: FEED_FONT_STACK
   },
   scroller: {
-    paddingTop: 72,
     position: "relative",
     width: "100%",
-    height: "calc(100dvh - 72px)",
+    height: "100dvh",
+    paddingTop: 72,
     overflowY: "auto",
     overflowX: "hidden",
     scrollSnapType: "y proximity",
@@ -1121,7 +1124,7 @@ const styles = {
     right: 0,
     height: "22%",
     background:
-      "linear-gradient(180deg, rgba(0,0,0,0.42) 0%, rgba(0,0,0,0.16) 56%, rgba(0,0,0,0) 100%)"
+      "linear-gradient(180deg, rgba(0,0,0,0.46) 0%, rgba(0,0,0,0.18) 56%, rgba(0,0,0,0) 100%)"
   },
   posterBottomFade: {
     position: "absolute",
@@ -1130,7 +1133,7 @@ const styles = {
     bottom: 0,
     height: "44%",
     background:
-      "linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.08) 22%, rgba(0,0,0,0.38) 70%, rgba(0,0,0,0.84) 100%)"
+      "linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.08) 22%, rgba(0,0,0,0.42) 70%, rgba(0,0,0,0.88) 100%)"
   },
   posterMidFade: {
     position: "absolute",
@@ -1139,76 +1142,53 @@ const styles = {
       "radial-gradient(circle at 24% 30%, rgba(255,255,255,0.12) 0%, rgba(255,255,255,0.03) 18%, rgba(255,255,255,0) 42%)"
   },
   fixedTopOverlay: {
-  position: "fixed",
-  top: 0,
-  left: 0,
-  right: 0,
-  zIndex: 40,
-  height: 72,
-  paddingTop: "env(safe-area-inset-top)",
-  background: "linear-gradient(180deg, rgba(0,0,0,0.45), rgba(0,0,0,0))",
-  pointerEvents: "auto"
-  },
-  logoCluster: {
-    position: "absolute",
+    position: "fixed",
     top: 0,
-    left: "max(12px, calc(env(safe-area-inset-left) + 6px))",
-    display: "flex",
-    alignItems: "center",
-    gap: 8,
-    pointerEvents: "none",
-    width: 120
+    left: 0,
+    right: 0,
+    zIndex: 40,
+    height: 72,
+    paddingTop: "env(safe-area-inset-top)",
+    background: "linear-gradient(180deg, rgba(0,0,0,0.52), rgba(0,0,0,0))",
+    pointerEvents: "auto"
   },
-  logoImage: {
-    width: 42,
-    height: 42,
-    objectFit: "contain",
-    display: "block",
-    filter: "drop-shadow(0 10px 20px rgba(0,0,0,0.24))"
-  },
-  logoFallback: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    background: "linear-gradient(135deg, #7c3aed 0%, #f97316 100%)",
-    fontSize: 17,
-    fontWeight: 900,
-    color: "#ffffff"
-  },
-  logoCopy: {
-    display: "flex",
-    flexDirection: "column",
-    justifyContent: "center",
-    minWidth: 0
-  },
-  logoWordmark: {
-    fontSize: 13,
-    lineHeight: 1,
-    fontWeight: 900,
-    letterSpacing: "-0.02em",
-    color: "#ffffff",
-    textShadow: "0 2px 10px rgba(0,0,0,0.40)"
-  },
-  logoSubline: {
-    marginTop: 4,
-    fontSize: 9.2,
-    lineHeight: 1.02,
-    fontWeight: 500,
-    color: "rgba(255,255,255,0.90)",
-    textShadow: "0 2px 10px rgba(0,0,0,0.36)"
-  },
-  topTabsWrap: {
-    position: "absolute",
-    top: 8,
-    left: 132,
-    right: 48,
+  topHeaderRow: {
+    height: 56,
     display: "flex",
     alignItems: "center",
     justifyContent: "space-between",
-    gap: 7
+    gap: 10,
+    paddingLeft: "max(12px, calc(env(safe-area-inset-left) + 6px))",
+    paddingRight: "max(10px, calc(env(safe-area-inset-right) + 4px))"
+  },
+  topHeaderLeft: {
+    minWidth: 0,
+    flex: 1,
+    display: "flex",
+    alignItems: "center",
+    gap: 12
+  },
+  guitarLogoWrap: {
+    width: 42,
+    height: 42,
+    flexShrink: 0,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    filter: "drop-shadow(0 10px 20px rgba(0,0,0,0.24))"
+  },
+  guitarLogoSvg: {
+    width: 42,
+    height: 42,
+    display: "block"
+  },
+  topTabsWrap: {
+    minWidth: 0,
+    flex: 1,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 8
   },
   topTabButton: {
     appearance: "none",
@@ -1229,7 +1209,7 @@ const styles = {
     alignItems: "center"
   },
   topTabLabel: {
-    fontSize: 9.6,
+    fontSize: 9.7,
     lineHeight: 1.1,
     fontWeight: 700,
     color: "rgba(255,255,255,0.70)",
@@ -1242,7 +1222,7 @@ const styles = {
   topTabUnderline: {
     position: "absolute",
     left: "50%",
-    bottom: -7,
+    bottom: -8,
     transform: "translateX(-50%)",
     width: 24,
     height: 2.5,
@@ -1250,9 +1230,7 @@ const styles = {
     background: "#ffffff"
   },
   topSearchButton: {
-    position: "absolute",
-    top: 6,
-    right: "max(10px, calc(env(safe-area-inset-right) + 4px))",
+    flexShrink: 0,
     width: 31,
     height: 31,
     borderRadius: 16,
@@ -1274,7 +1252,7 @@ const styles = {
   },
   rankBadge: {
     position: "absolute",
-    top: "102px",
+    top: "104px",
     left: "max(14px, calc(env(safe-area-inset-left) + 8px))",
     zIndex: 8,
     minWidth: 58,
@@ -1295,10 +1273,10 @@ const styles = {
   rightRail: {
     position: "absolute",
     right: 10,
-    top: "170px",
-    bottom: "200px",
+    top: "168px",
+    bottom: "226px",
     zIndex: 9,
-    width: 66,
+    width: 64,
     display: "flex",
     flexDirection: "column",
     alignItems: "center",
@@ -1420,9 +1398,9 @@ const styles = {
     position: "absolute",
     left: "max(14px, calc(env(safe-area-inset-left) + 8px))",
     right: "94px",
-    bottom: "180px",
+    bottom: "288px",
     zIndex: 8,
-    maxWidth: "min(66vw, 470px)"
+    maxWidth: "min(64vw, 470px)"
   },
   artistTitleRow: {
     display: "flex",
@@ -1461,16 +1439,8 @@ const styles = {
     letterSpacing: "-0.02em",
     textShadow: "0 3px 12px rgba(0,0,0,0.38)"
   },
-  reasonLine: {
-    marginTop: 8,
-    fontSize: 11.6,
-    lineHeight: 1.18,
-    fontWeight: 500,
-    color: "rgba(255,255,255,0.88)",
-    textShadow: "0 2px 8px rgba(0,0,0,0.30)"
-  },
   musicLine: {
-    marginTop: 11,
+    marginTop: 12,
     display: "flex",
     alignItems: "center",
     gap: 7,
@@ -1484,95 +1454,76 @@ const styles = {
     fontSize: 15,
     lineHeight: 1
   },
-  commentLine: {
-    marginTop: 10,
-    fontSize: 10.8,
-    lineHeight: 1.1,
-    fontWeight: 500,
-    color: "rgba(255,255,255,0.76)"
-  },
-  badgePill: {
-    marginTop: 13,
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
-    minHeight: 34,
-    padding: "0 15px",
-    borderRadius: 17,
-    background: "rgba(8,12,28,0.28)",
-    border: "1px solid rgba(255,255,255,0.13)",
-    fontSize: 10.5,
-    lineHeight: 1,
-    fontWeight: 800,
-    letterSpacing: "0.10em",
-    color: "#ffffff",
-    boxShadow: "0 8px 20px rgba(0,0,0,0.16)",
-    backdropFilter: "blur(12px)"
-  },
-  searchDock: {
-  position: "fixed",
-  left: 12,
-  right: 12,
-  bottom: "calc(82px + env(safe-area-inset-bottom))",
-  zIndex: 25,
-  display: "flex",
-  flexDirection: "column",
-  alignItems: "flex-start",
-  gap: 6
+  bottomFixedStack: {
+    position: "fixed",
+    left: 12,
+    right: 12,
+    bottom: 0,
+    zIndex: 35,
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "flex-start",
+    gap: 8,
+    paddingBottom: "max(8px, env(safe-area-inset-bottom))",
+    pointerEvents: "none"
   },
   feedContextStrip: {
-  width: "calc(100% - 88px)",
-  maxWidth: 280,
-  minHeight: 46,
-  padding: "8px 10px",
-  borderRadius: 14,
-  border: "1px solid rgba(255,255,255,0.08)",
-  background: "rgba(5,9,22,0.22)",
-  boxShadow:
-    "0 8px 22px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.03)",
-  backdropFilter: "blur(16px)",
+    width: "calc(100% - 92px)",
+    maxWidth: 282,
+    minHeight: 40,
+    padding: "6px 10px",
+    borderRadius: 14,
+    border: "1px solid rgba(255,255,255,0.08)",
+    background: "rgba(5,9,22,0.22)",
+    boxShadow:
+      "0 8px 22px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.03)",
+    backdropFilter: "blur(16px)",
+    WebkitBackdropFilter: "blur(16px)",
+    pointerEvents: "auto"
   },
   feedContextEyebrow: {
-  fontSize: 9,
-  lineHeight: 1,
-  fontWeight: 800,
-  letterSpacing: "0.08em",
-  color: "rgba(255,255,255,0.60)"
-},
-feedContextLine1: {
-  marginTop: 4,
-  fontSize: 10.5,
-  lineHeight: 1.16,
-  fontWeight: 700,
-  color: "rgba(255,255,255,0.96)",
-  whiteSpace: "nowrap",
-  overflow: "hidden",
-  textOverflow: "ellipsis"
-},
-feedContextLine2: {
-  marginTop: 3,
-  fontSize: 10,
-  lineHeight: 1.18,
-  fontWeight: 500,
-  color: "rgba(255,255,255,0.76)",
-  display: "-webkit-box",
-  WebkitLineClamp: 2,
-  WebkitBoxOrient: "vertical",
-  overflow: "hidden"
+    fontSize: 9,
+    lineHeight: 1,
+    fontWeight: 800,
+    letterSpacing: "0.08em",
+    color: "rgba(255,255,255,0.60)"
+  },
+  feedContextLine1: {
+    marginTop: 3,
+    fontSize: 10.5,
+    lineHeight: 1.16,
+    fontWeight: 700,
+    color: "rgba(255,255,255,0.96)",
+    whiteSpace: "nowrap",
+    overflow: "hidden",
+    textOverflow: "ellipsis"
+  },
+  feedContextLine2: {
+    marginTop: 2,
+    fontSize: 10,
+    lineHeight: 1.18,
+    fontWeight: 500,
+    color: "rgba(255,255,255,0.76)",
+    display: "-webkit-box",
+    WebkitLineClamp: 2,
+    WebkitBoxOrient: "vertical",
+    overflow: "hidden"
   },
   searchShell: {
-  width: "calc(100% - 88px)",
-  maxWidth: 280,
-  height: 46,
-  borderRadius: 24,
-  border: "1px solid rgba(255,255,255,0.10)",
-  background: "rgba(5,9,22,0.28)",
-  boxShadow:
-    "0 10px 24px rgba(0,0,0,0.20), inset 0 1px 0 rgba(255,255,255,0.03)",
-  backdropFilter: "blur(16px)",
-  display: "flex",
-  alignItems: "center",
-  padding: "0 12px"
+    width: "calc(100% - 92px)",
+    maxWidth: 282,
+    height: 46,
+    borderRadius: 24,
+    border: "1px solid rgba(255,255,255,0.10)",
+    background: "rgba(5,9,22,0.28)",
+    boxShadow:
+      "0 10px 24px rgba(0,0,0,0.20), inset 0 1px 0 rgba(255,255,255,0.03)",
+    backdropFilter: "blur(16px)",
+    WebkitBackdropFilter: "blur(16px)",
+    display: "flex",
+    alignItems: "center",
+    padding: "0 12px",
+    pointerEvents: "auto"
   },
   searchIconWrap: {
     width: 34,
@@ -1621,20 +1572,18 @@ feedContextLine2: {
     zIndex: 1
   },
   bottomNav: {
-    position: "fixed",
-    left: 0,
-    right: 0,
-    bottom: 0,
-    zIndex: 24,
-    height: "calc(78px + env(safe-area-inset-bottom))",
-    paddingBottom: "env(safe-area-inset-bottom)",
+    width: "calc(100% + 24px)",
+    marginLeft: -12,
+    marginRight: -12,
+    pointerEvents: "auto",
+    height: 72,
     background:
       "linear-gradient(180deg, rgba(0,0,0,0.02) 0%, rgba(2,6,18,0.88) 18%, rgba(2,6,18,0.98) 100%)",
     borderTop: "1px solid rgba(255,255,255,0.06)",
     backdropFilter: "blur(16px)"
   },
   bottomNavInner: {
-    height: 78,
+    height: 64,
     display: "grid",
     gridTemplateColumns: "1fr 1fr 1fr 1fr 1fr",
     alignItems: "center",
@@ -1755,7 +1704,7 @@ feedContextLine2: {
   infoOverlay: {
     position: "fixed",
     inset: 0,
-    zIndex: 40,
+    zIndex: 50,
     background: "rgba(3, 6, 16, 0.58)",
     backdropFilter: "blur(10px)",
     display: "flex",
