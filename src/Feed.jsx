@@ -410,27 +410,6 @@ function splitArtistAndTrack(title, artist, trackTitle) {
   };
 }
 
-function getActiveFeedContext(item) {
-  if (!item) {
-    return {
-      eyebrow: "WHY YOU ARE SEEING THIS",
-      line1: "High Momentum + Trending Worldwide",
-      line2: "Recommended by iBand intelligence."
-    };
-  }
-
-  const line1 = `${getString(item.reasonTitle, "High Momentum +")} ${getString(
-    item.reasonSubtitle,
-    "Trending Worldwide"
-  )}`.trim();
-
-  return {
-    eyebrow: "WHY YOU ARE SEEING THIS",
-    line1,
-    line2: getString(item.reasonText, "Recommended by iBand intelligence.")
-  };
-}
-
 function IconLive() {
   return (
     <svg viewBox="0 0 24 24" style={styles.topIconSvg} aria-hidden="true">
@@ -637,12 +616,12 @@ function IbandGuitarLogo() {
     <div style={styles.guitarLogoWrap} aria-label="iBand">
       <svg viewBox="0 0 64 64" style={styles.guitarLogoSvg} aria-hidden="true">
         <defs>
-          <linearGradient id="ibandGuitarGradient2" x1="0" y1="0" x2="1" y2="1">
+          <linearGradient id="ibandFinalGuitarGradient" x1="0" y1="0" x2="1" y2="1">
             <stop offset="0%" stopColor="#7c3aed" />
             <stop offset="100%" stopColor="#f97316" />
           </linearGradient>
         </defs>
-        <circle cx="32" cy="32" r="31" fill="url(#ibandGuitarGradient2)" />
+        <circle cx="32" cy="32" r="31" fill="url(#ibandFinalGuitarGradient)" />
         <path
           d="M23 42V19c0-4.2 3.4-7.6 7.6-7.6h8.2V21h5.4v-9.6h3.2c4.2 0 7.6 3.4 7.6 7.6v7.6c0 4.2-3.4 7.6-7.6 7.6h-3.2v5.6h-5.4v-5.6h-5.4v7.8c0 6.4-5.2 11.6-11.6 11.6S12.2 48.4 12.2 42s5.2-11.6 11.6-11.6c0.5 0 1.1 0 1.6 0.1V42Z"
           fill="white"
@@ -734,7 +713,7 @@ function FeedCard({ item, isActive, onOpenInfo, currentIndex, totalItems }) {
         style={{
           ...styles.posterLayer,
           backgroundImage: `url("${posterUrl}")`,
-          transform: isActive ? "scale(1.012)" : "scale(1)"
+          transform: isActive ? "scale(1.01)" : "scale(1)"
         }}
       />
 
@@ -828,6 +807,12 @@ function FeedCard({ item, isActive, onOpenInfo, currentIndex, totalItems }) {
           <span style={styles.musicNote}>♫</span>
           <span>{item.releaseLabel}</span>
         </div>
+
+        <div style={styles.cardMetaLine}>
+          <span>{item.badge}</span>
+          <span>•</span>
+          <span>{item.country}</span>
+        </div>
       </div>
     </article>
   );
@@ -840,7 +825,6 @@ export default function Feed() {
   const [loading, setLoading] = useState(true);
   const [activeIndex, setActiveIndex] = useState(0);
   const [infoItem, setInfoItem] = useState(null);
-  const [searchText, setSearchText] = useState("");
   const [activeTopTab, setActiveTopTab] = useState("for-you");
 
   const scrollRef = useRef(null);
@@ -919,7 +903,7 @@ export default function Feed() {
       },
       {
         root: scrollRef.current,
-        threshold: [0.55, 0.7, 0.85]
+        threshold: [0.6, 0.72, 0.84]
       }
     );
 
@@ -937,9 +921,6 @@ export default function Feed() {
     { key: "friends", label: "Friends" },
     { key: "for-you", label: "For You" }
   ];
-
-  const activeItem = unifiedFeed[activeIndex] || unifiedFeed[0] || null;
-  const activeContext = getActiveFeedContext(activeItem);
 
   return (
     <div style={styles.page}>
@@ -1011,65 +992,38 @@ export default function Feed() {
         )}
       </div>
 
-      <div style={styles.bottomFixedStack}>
-        <div style={styles.feedContextStrip}>
-          <div style={styles.feedContextEyebrow}>{activeContext.eyebrow}</div>
-          <div style={styles.feedContextLine1}>{activeContext.line1}</div>
-          <div style={styles.feedContextLine2}>{activeContext.line2}</div>
+      <nav aria-label="Primary" style={styles.bottomNav}>
+        <div style={styles.bottomNavInner}>
+          <button type="button" style={styles.bottomNavButton}>
+            <IconHome />
+            <span style={styles.bottomNavLabelActive}>Home</span>
+          </button>
+
+          <button type="button" style={styles.bottomNavButton}>
+            <IconBag />
+            <span style={styles.bottomNavLabel}>Shop</span>
+          </button>
+
+          <button type="button" aria-label="Create" style={styles.createButton}>
+            <span style={styles.createButtonBlue} />
+            <span style={styles.createButtonRed} />
+            <span style={styles.createButtonCenter}>+</span>
+          </button>
+
+          <button type="button" style={styles.bottomNavButton}>
+            <div style={styles.inboxBadgeWrap}>
+              <IconInbox />
+              <span style={styles.inboxBadge}>2</span>
+            </div>
+            <span style={styles.bottomNavLabel}>Inbox</span>
+          </button>
+
+          <button type="button" style={styles.bottomNavButton}>
+            <IconProfile />
+            <span style={styles.bottomNavLabel}>Profile</span>
+          </button>
         </div>
-
-        <div style={styles.searchShell}>
-          <div style={styles.searchIconWrap}>
-            <IconSearch />
-          </div>
-
-          <div style={styles.searchInputWrap}>
-            {!searchText ? (
-              <div style={styles.searchPlaceholder}>Search artists, songs, genres</div>
-            ) : null}
-
-            <input
-              value={searchText}
-              onChange={(event) => setSearchText(event.target.value)}
-              aria-label="Search artists, songs, genres"
-              style={styles.searchInput}
-            />
-          </div>
-        </div>
-
-        <nav aria-label="Primary" style={styles.bottomNav}>
-          <div style={styles.bottomNavInner}>
-            <button type="button" style={styles.bottomNavButton}>
-              <IconHome />
-              <span style={styles.bottomNavLabelActive}>Home</span>
-            </button>
-
-            <button type="button" style={styles.bottomNavButton}>
-              <IconBag />
-              <span style={styles.bottomNavLabel}>Shop</span>
-            </button>
-
-            <button type="button" aria-label="Create" style={styles.createButton}>
-              <span style={styles.createButtonBlue} />
-              <span style={styles.createButtonRed} />
-              <span style={styles.createButtonCenter}>+</span>
-            </button>
-
-            <button type="button" style={styles.bottomNavButton}>
-              <div style={styles.inboxBadgeWrap}>
-                <IconInbox />
-                <span style={styles.inboxBadge}>2</span>
-              </div>
-              <span style={styles.bottomNavLabel}>Inbox</span>
-            </button>
-
-            <button type="button" style={styles.bottomNavButton}>
-              <IconProfile />
-              <span style={styles.bottomNavLabel}>Profile</span>
-            </button>
-          </div>
-        </nav>
-      </div>
+      </nav>
 
       <InfoOverlay item={infoItem} onClose={() => setInfoItem(null)} />
     </div>
@@ -1092,9 +1046,10 @@ const styles = {
     width: "100%",
     height: "100dvh",
     paddingTop: 72,
+    paddingBottom: "calc(78px + env(safe-area-inset-bottom))",
     overflowY: "auto",
     overflowX: "hidden",
-    scrollSnapType: "y proximity",
+    scrollSnapType: "y mandatory",
     overscrollBehaviorY: "contain",
     WebkitOverflowScrolling: "touch",
     background: "#000000"
@@ -1105,7 +1060,7 @@ const styles = {
     height: "calc(100dvh - 72px)",
     minHeight: "calc(100dvh - 72px)",
     scrollSnapAlign: "start",
-    scrollSnapStop: "normal",
+    scrollSnapStop: "always",
     overflow: "hidden",
     background: "#020617"
   },
@@ -1115,25 +1070,25 @@ const styles = {
     backgroundSize: "cover",
     backgroundPosition: "center",
     filter: "saturate(1.05) contrast(1.04)",
-    transition: "transform 320ms ease"
+    transition: "transform 260ms ease"
   },
   posterTopFade: {
     position: "absolute",
     top: 0,
     left: 0,
     right: 0,
-    height: "22%",
+    height: "20%",
     background:
-      "linear-gradient(180deg, rgba(0,0,0,0.46) 0%, rgba(0,0,0,0.18) 56%, rgba(0,0,0,0) 100%)"
+      "linear-gradient(180deg, rgba(0,0,0,0.48) 0%, rgba(0,0,0,0.20) 58%, rgba(0,0,0,0) 100%)"
   },
   posterBottomFade: {
     position: "absolute",
     left: 0,
     right: 0,
     bottom: 0,
-    height: "44%",
+    height: "34%",
     background:
-      "linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.08) 22%, rgba(0,0,0,0.42) 70%, rgba(0,0,0,0.88) 100%)"
+      "linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.08) 22%, rgba(0,0,0,0.40) 68%, rgba(0,0,0,0.86) 100%)"
   },
   posterMidFade: {
     position: "absolute",
@@ -1149,7 +1104,7 @@ const styles = {
     zIndex: 40,
     height: 72,
     paddingTop: "env(safe-area-inset-top)",
-    background: "linear-gradient(180deg, rgba(0,0,0,0.52), rgba(0,0,0,0))",
+    background: "linear-gradient(180deg, rgba(0,0,0,0.56), rgba(0,0,0,0))",
     pointerEvents: "auto"
   },
   topHeaderRow: {
@@ -1209,7 +1164,7 @@ const styles = {
     alignItems: "center"
   },
   topTabLabel: {
-    fontSize: 9.7,
+    fontSize: 9.8,
     lineHeight: 1.1,
     fontWeight: 700,
     color: "rgba(255,255,255,0.70)",
@@ -1252,7 +1207,7 @@ const styles = {
   },
   rankBadge: {
     position: "absolute",
-    top: "104px",
+    top: "102px",
     left: "max(14px, calc(env(safe-area-inset-left) + 8px))",
     zIndex: 8,
     minWidth: 58,
@@ -1274,7 +1229,7 @@ const styles = {
     position: "absolute",
     right: 10,
     top: "168px",
-    bottom: "226px",
+    bottom: "126px",
     zIndex: 9,
     width: 64,
     display: "flex",
@@ -1397,8 +1352,8 @@ const styles = {
   contentOverlay: {
     position: "absolute",
     left: "max(14px, calc(env(safe-area-inset-left) + 8px))",
-    right: "94px",
-    bottom: "288px",
+    right: "96px",
+    bottom: "106px",
     zIndex: 8,
     maxWidth: "min(64vw, 470px)"
   },
@@ -1440,7 +1395,7 @@ const styles = {
     textShadow: "0 3px 12px rgba(0,0,0,0.38)"
   },
   musicLine: {
-    marginTop: 12,
+    marginTop: 10,
     display: "flex",
     alignItems: "center",
     gap: 7,
@@ -1454,136 +1409,31 @@ const styles = {
     fontSize: 15,
     lineHeight: 1
   },
-  bottomFixedStack: {
-    position: "fixed",
-    left: 12,
-    right: 12,
-    bottom: 0,
-    zIndex: 35,
+  cardMetaLine: {
+    marginTop: 10,
     display: "flex",
-    flexDirection: "column",
-    alignItems: "flex-start",
-    gap: 8,
-    paddingBottom: "max(8px, env(safe-area-inset-bottom))",
-    pointerEvents: "none"
-  },
-  feedContextStrip: {
-    width: "calc(100% - 92px)",
-    maxWidth: 282,
-    minHeight: 40,
-    padding: "6px 10px",
-    borderRadius: 14,
-    border: "1px solid rgba(255,255,255,0.08)",
-    background: "rgba(5,9,22,0.22)",
-    boxShadow:
-      "0 8px 22px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.03)",
-    backdropFilter: "blur(16px)",
-    WebkitBackdropFilter: "blur(16px)",
-    pointerEvents: "auto"
-  },
-  feedContextEyebrow: {
-    fontSize: 9,
-    lineHeight: 1,
-    fontWeight: 800,
-    letterSpacing: "0.08em",
-    color: "rgba(255,255,255,0.60)"
-  },
-  feedContextLine1: {
-    marginTop: 3,
+    alignItems: "center",
+    gap: 6,
     fontSize: 10.5,
-    lineHeight: 1.16,
-    fontWeight: 700,
-    color: "rgba(255,255,255,0.96)",
-    whiteSpace: "nowrap",
-    overflow: "hidden",
-    textOverflow: "ellipsis"
-  },
-  feedContextLine2: {
-    marginTop: 2,
-    fontSize: 10,
-    lineHeight: 1.18,
-    fontWeight: 500,
-    color: "rgba(255,255,255,0.76)",
-    display: "-webkit-box",
-    WebkitLineClamp: 2,
-    WebkitBoxOrient: "vertical",
-    overflow: "hidden"
-  },
-  searchShell: {
-    width: "calc(100% - 92px)",
-    maxWidth: 282,
-    height: 46,
-    borderRadius: 24,
-    border: "1px solid rgba(255,255,255,0.10)",
-    background: "rgba(5,9,22,0.28)",
-    boxShadow:
-      "0 10px 24px rgba(0,0,0,0.20), inset 0 1px 0 rgba(255,255,255,0.03)",
-    backdropFilter: "blur(16px)",
-    WebkitBackdropFilter: "blur(16px)",
-    display: "flex",
-    alignItems: "center",
-    padding: "0 12px",
-    pointerEvents: "auto"
-  },
-  searchIconWrap: {
-    width: 34,
-    height: 34,
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    color: "#ffffff",
-    flexShrink: 0
-  },
-  searchInputWrap: {
-    position: "relative",
-    flex: 1,
-    minWidth: 0,
-    height: "100%",
-    display: "flex",
-    alignItems: "center"
-  },
-  searchPlaceholder: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    top: "50%",
-    transform: "translateY(-50%)",
-    pointerEvents: "none",
-    color: "rgba(255,255,255,0.68)",
-    fontSize: 12,
-    lineHeight: 1.2,
-    fontWeight: 500,
-    whiteSpace: "nowrap",
-    overflow: "hidden",
-    textOverflow: "ellipsis"
-  },
-  searchInput: {
-    flex: 1,
-    minWidth: 0,
-    border: "none",
-    outline: "none",
-    background: "transparent",
-    color: "#ffffff",
-    fontSize: 12,
-    lineHeight: 1.2,
-    fontWeight: 500,
-    fontFamily: FEED_FONT_STACK,
-    position: "relative",
-    zIndex: 1
+    lineHeight: 1.1,
+    fontWeight: 600,
+    color: "rgba(255,255,255,0.74)"
   },
   bottomNav: {
-    width: "calc(100% + 24px)",
-    marginLeft: -12,
-    marginRight: -12,
-    pointerEvents: "auto",
-    height: 72,
+    position: "fixed",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 35,
+    height: "calc(78px + env(safe-area-inset-bottom))",
+    paddingBottom: "env(safe-area-inset-bottom)",
     background:
       "linear-gradient(180deg, rgba(0,0,0,0.02) 0%, rgba(2,6,18,0.88) 18%, rgba(2,6,18,0.98) 100%)",
     borderTop: "1px solid rgba(255,255,255,0.06)",
     backdropFilter: "blur(16px)"
   },
   bottomNavInner: {
-    height: 64,
+    height: 78,
     display: "grid",
     gridTemplateColumns: "1fr 1fr 1fr 1fr 1fr",
     alignItems: "center",
