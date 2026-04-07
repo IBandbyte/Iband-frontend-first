@@ -1213,7 +1213,7 @@ const styles = {
     flexDirection: "column",
     alignItems: "center",
     justifyContent: "flex-start",
-    gap: 12
+    gap: 10
   },
   avatarRailBlock: {
     display: "flex",
@@ -1308,7 +1308,7 @@ const styles = {
     position: "absolute",
     left: "max(16px, calc(env(safe-area-inset-left) + 10px))",
     right: "102px",
-    bottom: "calc(108px + env(safe-area-inset-bottom))",
+    bottom: "calc(96px + env(safe-area-inset-bottom))",
     zIndex: 8,
     maxWidth: "min(68vw, 490px)"
   },
