@@ -5,6 +5,7 @@ import {
   fetchSmartFeed
 } from "./services/api";
 
+const IBAND_LOGO_SRC = "/iband-logo.png";
 const FEED_FONT_STACK =
   '"TikTok Sans", Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
 
@@ -171,7 +172,7 @@ function normaliseSmartFeed(data) {
       feedType: "smart",
       badge: "SMART",
       artist,
-      title: `${artist} — “${trackTitle}”`,
+      title: getString(item.cardTitle, `${artist} — “${trackTitle}”`),
       reasonTitle: getString(item.feedReasonTitle, "High Momentum +"),
       reasonSubtitle: getString(item.feedReasonSubtitle, "Trending Worldwide"),
       reasonText: getString(
@@ -209,7 +210,7 @@ function normalisePersonalisedFeed(data) {
       feedType: "personalised",
       badge: "FOR YOU",
       artist,
-      title: `${artist} — “${trackTitle}”`,
+      title: getString(item.cardTitle, `${artist} — “${trackTitle}”`),
       reasonTitle: getString(item.feedReasonTitle, "High Momentum +"),
       reasonSubtitle: getString(item.feedReasonSubtitle, "Trending Worldwide"),
       reasonText: getString(
@@ -247,7 +248,7 @@ function normalisePredictiveFeed(data) {
       feedType: "predictive",
       badge: "PREDICTED",
       artist,
-      title: `${artist} — “${trackTitle}”`,
+      title: getString(item.cardTitle, `${artist} — “${trackTitle}”`),
       reasonTitle: getString(item.feedReasonTitle, "High Momentum +"),
       reasonSubtitle: getString(item.feedReasonSubtitle, "Trending Worldwide"),
       reasonText: getString(
@@ -564,33 +565,36 @@ function IconShare() {
 }
 
 function IbandBrandBlock() {
+  const [logoFailed, setLogoFailed] = useState(false);
+
   return (
     <div style={styles.brandBlock}>
       <div style={styles.brandLogoWrap}>
-        <img
-          src="/iband-logo.png"
-          alt="iBand"
-          style={styles.brandLogoImage}
-          onError={(event) => {
-            event.currentTarget.style.display = "none";
-          }}
-        />
-        <svg viewBox="0 0 64 64" style={styles.brandLogoSvgFallback} aria-hidden="true">
-          <defs>
-            <linearGradient id="ibandBrandGradientFinalCanon" x1="0" y1="0" x2="1" y2="1">
-              <stop offset="0%" stopColor="#7c3aed" />
-              <stop offset="100%" stopColor="#f97316" />
-            </linearGradient>
-          </defs>
-          <circle cx="32" cy="32" r="31" fill="url(#ibandBrandGradientFinalCanon)" />
-          <path
-            d="M30 47V16h4.6c3.7 0 6.6 2.9 6.6 6.6V44h-4.6V33.5H30ZM23 52c-5.5 0-10-4.5-10-10s4.5-10 10-10c0.6 0 1.1 0 1.6 0.1V47c0 2.8-0.8 5-1.6 5Z"
-            fill="white"
+        {!logoFailed ? (
+          <img
+            src={IBAND_LOGO_SRC}
+            alt="iBand"
+            style={styles.brandLogoImage}
+            onError={() => setLogoFailed(true)}
           />
-          <circle cx="41.5" cy="18" r="2" fill="white" />
-          <circle cx="41.5" cy="24" r="2" fill="white" />
-          <circle cx="41.5" cy="30" r="2" fill="white" />
-        </svg>
+        ) : (
+          <svg viewBox="0 0 64 64" style={styles.brandLogoSvgFallback} aria-hidden="true">
+            <defs>
+              <linearGradient id="ibandBrandGradientFinalCanon" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stopColor="#7c3aed" />
+                <stop offset="100%" stopColor="#f97316" />
+              </linearGradient>
+            </defs>
+            <circle cx="32" cy="32" r="31" fill="url(#ibandBrandGradientFinalCanon)" />
+            <path
+              d="M30 47V16h4.6c3.7 0 6.6 2.9 6.6 6.6V44h-4.6V33.5H30ZM23 52c-5.5 0-10-4.5-10-10s4.5-10 10-10c0.6 0 1.1 0 1.6 0.1V47c0 2.8-0.8 5-1.6 5Z"
+              fill="white"
+            />
+            <circle cx="41.5" cy="18" r="2" fill="white" />
+            <circle cx="41.5" cy="24" r="2" fill="white" />
+            <circle cx="41.5" cy="30" r="2" fill="white" />
+          </svg>
+        )}
       </div>
 
       <div style={styles.brandTextBlock}>
@@ -601,63 +605,7 @@ function IbandBrandBlock() {
   );
 }
 
-function InfoOverlay({ item, onClose }) {
-  if (!item) return null;
-
-  return (
-    <div role="dialog" aria-modal="true" onClick={onClose} style={styles.infoOverlay}>
-      <div
-        onClick={(event) => event.stopPropagation()}
-        style={styles.infoCard}
-      >
-        <div style={styles.infoHeader}>
-          <div>
-            <div style={styles.infoEyebrow}>IBAND INFO</div>
-            <h3 style={styles.infoTitle}>{item.artist}</h3>
-            <p style={styles.infoSubTitle}>{item.trackTitle}</p>
-          </div>
-
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Close info"
-            style={styles.infoCloseButton}
-          >
-            ×
-          </button>
-        </div>
-
-        <div style={styles.infoSection}>
-          <div style={styles.infoSectionLabel}>PERSONALISATION DETAILS</div>
-
-          <div style={styles.infoGrid}>
-            {[
-              ["Artist", item.artist],
-              ["Feed", item.badge],
-              ["Territory", item.country || "Global"],
-              ["Track", item.trackTitle]
-            ].map(([label, value]) => (
-              <div key={label} style={styles.infoRow}>
-                <span style={styles.infoRowLabel}>{label}</span>
-                <span style={styles.infoRowValue}>{value}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div style={styles.infoButtonGrid}>
-          {["Artist bio", "Lyrics", "Concerts", "Merch"].map((label) => (
-            <button key={label} type="button" style={styles.infoActionButton}>
-              {label}
-            </button>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function FeedCard({ item, isActive, onOpenInfo, currentIndex, totalItems }) {
+function FeedCard({ item, isActive, currentIndex, totalItems }) {
   const [avatarFailed, setAvatarFailed] = useState(false);
   const [artFailed, setArtFailed] = useState(false);
 
@@ -686,8 +634,6 @@ function FeedCard({ item, isActive, onOpenInfo, currentIndex, totalItems }) {
       <div style={styles.posterTopFade} />
       <div style={styles.posterBottomFade} />
       <div style={styles.posterMidFade} />
-
-      <div style={styles.rankBadge}>#{Math.min(currentIndex + 1, totalItems)}</div>
 
       <div style={styles.rightRail}>
         <div style={styles.avatarRailBlock}>
@@ -777,6 +723,8 @@ function FeedCard({ item, isActive, onOpenInfo, currentIndex, totalItems }) {
           </div>
         </div>
       </div>
+
+      <div style={styles.rankBadge}>#{Math.min(currentIndex + 1, totalItems)}</div>
     </article>
   );
 }
@@ -787,7 +735,6 @@ export default function Feed() {
   const [predictiveFeed, setPredictiveFeed] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeIndex, setActiveIndex] = useState(0);
-  const [infoItem, setInfoItem] = useState(null);
   const [activeTopTab, setActiveTopTab] = useState("for-you");
 
   const scrollRef = useRef(null);
@@ -867,7 +814,7 @@ export default function Feed() {
       },
       {
         root: scrollRef.current,
-        threshold: [0.76, 0.88, 0.96]
+        threshold: [0.8, 0.9, 0.97]
       }
     );
 
@@ -880,12 +827,12 @@ export default function Feed() {
 
   const topTabs = [
     { key: "live", label: "LIVE", icon: true },
-    { key: "stem", label: "STEM" },
-    { key: "explore", label: "Explore" },
     { key: "country", label: "Oxfordshire" },
     { key: "following", label: "Following" },
     { key: "friends", label: "Friends" },
-    { key: "for-you", label: "For You" }
+    { key: "for-you", label: "For You" },
+    { key: "stem", label: "STEM" },
+    { key: "explore", label: "Explore" }
   ];
 
   return (
@@ -959,11 +906,11 @@ export default function Feed() {
                 cardRefs.current[index] = node;
               }}
               data-index={index}
+              style={styles.slideWrap}
             >
               <FeedCard
                 item={item}
                 isActive={index === activeIndex}
-                onOpenInfo={setInfoItem}
                 currentIndex={index}
                 totalItems={unifiedFeed.length}
               />
@@ -1004,8 +951,6 @@ export default function Feed() {
           </button>
         </div>
       </nav>
-
-      <InfoOverlay item={infoItem} onClose={() => setInfoItem(null)} />
     </div>
   );
 }
@@ -1025,8 +970,6 @@ const styles = {
     position: "relative",
     width: "100%",
     height: "100dvh",
-    paddingTop: 154,
-    paddingBottom: "calc(106px + env(safe-area-inset-bottom))",
     overflowY: "auto",
     overflowX: "hidden",
     scrollSnapType: "y mandatory",
@@ -1034,13 +977,19 @@ const styles = {
     WebkitOverflowScrolling: "touch",
     background: "#000000"
   },
+  slideWrap: {
+    position: "relative",
+    width: "100%",
+    height: "100dvh",
+    minHeight: "100dvh",
+    scrollSnapAlign: "start",
+    scrollSnapStop: "always"
+  },
   slide: {
     position: "relative",
     width: "100%",
-    height: "calc(100dvh - 154px)",
-    minHeight: "calc(100dvh - 154px)",
-    scrollSnapAlign: "start",
-    scrollSnapStop: "always",
+    height: "100dvh",
+    minHeight: "100dvh",
     overflow: "hidden",
     background: "#020617"
   },
@@ -1059,16 +1008,16 @@ const styles = {
     right: 0,
     height: "24%",
     background:
-      "linear-gradient(180deg, rgba(0,0,0,0.58) 0%, rgba(0,0,0,0.26) 58%, rgba(0,0,0,0) 100%)"
+      "linear-gradient(180deg, rgba(0,0,0,0.62) 0%, rgba(0,0,0,0.26) 58%, rgba(0,0,0,0) 100%)"
   },
   posterBottomFade: {
     position: "absolute",
     left: 0,
     right: 0,
     bottom: 0,
-    height: "34%",
+    height: "42%",
     background:
-      "linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.08) 22%, rgba(0,0,0,0.42) 68%, rgba(0,0,0,0.88) 100%)"
+      "linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.08) 20%, rgba(0,0,0,0.42) 66%, rgba(0,0,0,0.90) 100%)"
   },
   posterMidFade: {
     position: "absolute",
@@ -1084,7 +1033,7 @@ const styles = {
     zIndex: 40,
     paddingTop: "env(safe-area-inset-top)",
     background:
-      "linear-gradient(180deg, rgba(0,0,0,0.74), rgba(0,0,0,0.10) 82%, rgba(0,0,0,0))",
+      "linear-gradient(180deg, rgba(0,0,0,0.78), rgba(0,0,0,0.14) 82%, rgba(0,0,0,0))",
     pointerEvents: "auto"
   },
   topNavRow: {
@@ -1111,9 +1060,10 @@ const styles = {
     paddingRight: 8
   },
   brandRow: {
-    height: 82,
+    height: 86,
     display: "flex",
     alignItems: "center",
+    justifyContent: "space-between",
     paddingLeft: "max(14px, calc(env(safe-area-inset-left) + 8px))",
     paddingRight: "max(14px, calc(env(safe-area-inset-right) + 8px))"
   },
@@ -1123,8 +1073,8 @@ const styles = {
     gap: 10
   },
   brandLogoWrap: {
-    width: 56,
-    height: 56,
+    width: 58,
+    height: 58,
     position: "relative",
     flexShrink: 0,
     display: "flex",
@@ -1132,19 +1082,16 @@ const styles = {
     justifyContent: "center"
   },
   brandLogoImage: {
-    width: 56,
-    height: 56,
+    width: 58,
+    height: 58,
     display: "block",
     objectFit: "contain",
     filter: "drop-shadow(0 10px 20px rgba(0,0,0,0.26))"
   },
   brandLogoSvgFallback: {
-    position: "absolute",
-    inset: 0,
-    width: 56,
-    height: 56,
-    display: "block",
-    pointerEvents: "none"
+    width: 58,
+    height: 58,
+    display: "block"
   },
   brandTextBlock: {
     display: "flex",
@@ -1237,7 +1184,7 @@ const styles = {
   },
   rankBadge: {
     position: "absolute",
-    top: "30px",
+    top: "92px",
     left: "max(14px, calc(env(safe-area-inset-left) + 8px))",
     zIndex: 8,
     minWidth: 62,
@@ -1257,11 +1204,11 @@ const styles = {
   },
   rightRail: {
     position: "absolute",
-    right: 14,
-    top: "138px",
-    bottom: "96px",
+    right: 16,
+    top: "208px",
+    bottom: "calc(112px + env(safe-area-inset-bottom))",
     zIndex: 9,
-    width: 70,
+    width: 72,
     display: "flex",
     flexDirection: "column",
     alignItems: "center",
@@ -1276,12 +1223,12 @@ const styles = {
   },
   avatarWrap: {
     position: "relative",
-    width: 78,
-    height: 78
+    width: 82,
+    height: 82
   },
   avatarImage: {
-    width: 78,
-    height: 78,
+    width: 82,
+    height: 82,
     borderRadius: "50%",
     objectFit: "cover",
     display: "block",
@@ -1327,8 +1274,8 @@ const styles = {
     height: 40
   },
   rightIconSvg: {
-    width: 31,
-    height: 31,
+    width: 34,
+    height: 34,
     display: "block",
     color: "#ffffff"
   },
@@ -1340,9 +1287,9 @@ const styles = {
   },
   soundDiscButton: {
     appearance: "none",
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 50,
+    height: 50,
+    borderRadius: 25,
     border: "2px solid rgba(255,255,255,0.96)",
     padding: 0,
     overflow: "hidden",
@@ -1360,8 +1307,8 @@ const styles = {
   contentOverlay: {
     position: "absolute",
     left: "max(16px, calc(env(safe-area-inset-left) + 10px))",
-    right: "102px",
-    bottom: "20px",
+    right: "104px",
+    bottom: "calc(108px + env(safe-area-inset-bottom))",
     zIndex: 8,
     maxWidth: "min(68vw, 490px)"
   },
@@ -1609,114 +1556,5 @@ const styles = {
     fontSize: 18,
     fontWeight: 700,
     fontFamily: FEED_FONT_STACK
-  },
-  infoOverlay: {
-    position: "fixed",
-    inset: 0,
-    zIndex: 60,
-    background: "rgba(3, 6, 16, 0.58)",
-    backdropFilter: "blur(10px)",
-    display: "flex",
-    alignItems: "flex-end",
-    justifyContent: "center",
-    padding: "18px 14px calc(16px + env(safe-area-inset-bottom))"
-  },
-  infoCard: {
-    width: "min(760px, 100%)",
-    borderRadius: 26,
-    border: "1px solid rgba(255,255,255,0.12)",
-    background:
-      "linear-gradient(180deg, rgba(12,18,35,0.94) 0%, rgba(9,14,28,0.96) 100%)",
-    boxShadow: "0 24px 50px rgba(0,0,0,0.35)",
-    color: "white",
-    padding: 20
-  },
-  infoHeader: {
-    display: "flex",
-    alignItems: "flex-start",
-    justifyContent: "space-between",
-    gap: 14
-  },
-  infoEyebrow: {
-    fontSize: 13,
-    fontWeight: 800,
-    letterSpacing: "0.14em",
-    color: "rgba(156,223,255,0.95)"
-  },
-  infoTitle: {
-    margin: "8px 0 0 0",
-    fontSize: 28,
-    lineHeight: 1.05,
-    fontWeight: 900
-  },
-  infoSubTitle: {
-    margin: "8px 0 0 0",
-    color: "rgba(255,255,255,0.78)",
-    fontSize: 16,
-    fontWeight: 600
-  },
-  infoCloseButton: {
-    width: 40,
-    height: 40,
-    borderRadius: "50%",
-    border: "1px solid rgba(255,255,255,0.12)",
-    background: "rgba(255,255,255,0.06)",
-    color: "white",
-    fontSize: 22,
-    lineHeight: 1,
-    cursor: "pointer"
-  },
-  infoSection: {
-    marginTop: 16,
-    borderRadius: 20,
-    border: "1px solid rgba(255,255,255,0.08)",
-    background: "rgba(255,255,255,0.04)",
-    padding: 16
-  },
-  infoSectionLabel: {
-    fontSize: 13,
-    fontWeight: 800,
-    letterSpacing: "0.12em",
-    color: "rgba(255,255,255,0.66)"
-  },
-  infoGrid: {
-    marginTop: 12,
-    display: "grid",
-    gap: 12
-  },
-  infoRow: {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 12,
-    borderBottom: "1px solid rgba(255,255,255,0.07)",
-    paddingBottom: 10
-  },
-  infoRowLabel: {
-    color: "rgba(255,255,255,0.6)",
-    fontSize: 15,
-    fontWeight: 700
-  },
-  infoRowValue: {
-    color: "white",
-    fontSize: 16,
-    fontWeight: 800,
-    textAlign: "right"
-  },
-  infoButtonGrid: {
-    marginTop: 16,
-    display: "grid",
-    gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-    gap: 12
-  },
-  infoActionButton: {
-    height: 48,
-    borderRadius: 16,
-    border: "1px solid rgba(255,255,255,0.1)",
-    background: "rgba(255,255,255,0.06)",
-    color: "white",
-    fontSize: 15,
-    fontWeight: 800,
-    cursor: "pointer"
   }
 };
