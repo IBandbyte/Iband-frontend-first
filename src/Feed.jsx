@@ -1184,7 +1184,7 @@ const styles = {
   },
   rankBadge: {
     position: "absolute",
-    top: "92px",
+    top: "18px",
     left: "max(14px, calc(env(safe-area-inset-left) + 8px))",
     zIndex: 8,
     minWidth: 62,
@@ -1204,9 +1204,9 @@ const styles = {
   },
   rightRail: {
     position: "absolute",
-    right: 16,
-    top: "208px",
-    bottom: "calc(112px + env(safe-area-inset-bottom))",
+    right: 14,
+    top: "100px",
+    bottom: "120px",
     zIndex: 9,
     width: 72,
     display: "flex",
@@ -1307,8 +1307,8 @@ const styles = {
   contentOverlay: {
     position: "absolute",
     left: "max(16px, calc(env(safe-area-inset-left) + 10px))",
-    right: "104px",
-    bottom: "calc(108px + env(safe-area-inset-bottom))",
+    right: "102px",
+    bottom: "calc(88px + env(safe-area-inset-bottom))",
     zIndex: 8,
     maxWidth: "min(68vw, 490px)"
   },
