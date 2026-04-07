@@ -1184,7 +1184,7 @@ const styles = {
   },
   rankBadge: {
     position: "absolute",
-    top: "18px",
+    top: "12px",
     left: "max(14px, calc(env(safe-area-inset-left) + 8px))",
     zIndex: 8,
     minWidth: 62,
@@ -1205,8 +1205,8 @@ const styles = {
   rightRail: {
     position: "absolute",
     right: 14,
-    top: "100px",
-    bottom: "120px",
+    top: "88px",
+    bottom: "132px",
     zIndex: 9,
     width: 72,
     display: "flex",
@@ -1308,7 +1308,7 @@ const styles = {
     position: "absolute",
     left: "max(16px, calc(env(safe-area-inset-left) + 10px))",
     right: "102px",
-    bottom: "calc(88px + env(safe-area-inset-bottom))",
+    bottom: "calc(108px + env(safe-area-inset-bottom))",
     zIndex: 8,
     maxWidth: "min(68vw, 490px)"
   },
