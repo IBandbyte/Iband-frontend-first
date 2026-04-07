@@ -164,7 +164,7 @@ function normaliseSmartFeed(data) {
 
   return items.map((item, index) => {
     const artist = getString(item.artist, "Demo Artist Japan");
-    const trackTitle = getString(item.trackTitle, "Supernova Dreams");
+    const trackTitle = getString(item.trackTitle, "Tokyo Lights");
 
     return {
       id: item.id || `smart-${index}`,
@@ -177,10 +177,6 @@ function normaliseSmartFeed(data) {
       reasonText: getString(
         item.feedReason || item.message,
         "Radar and momentum signals increasing."
-      ),
-      handle: getString(
-        item.profileHandle,
-        `@${artist.replace(/\s+/g, "").toLowerCase()}`
       ),
       country: getString(item.country, "Japan"),
       region: getString(item.region, "Asia"),
@@ -220,10 +216,6 @@ function normalisePersonalisedFeed(data) {
         item.feedReason || item.message,
         "Matches your genre taste and strong breakout momentum."
       ),
-      handle: getString(
-        item.profileHandle,
-        `@${artist.replace(/\s+/g, "").toLowerCase()}`
-      ),
       country: getString(item.country, "United Kingdom"),
       region: getString(item.region, "Europe"),
       trackTitle,
@@ -248,7 +240,7 @@ function normalisePredictiveFeed(data) {
 
   return items.map((item, index) => {
     const artist = getString(item.artist || item.recommendedArtist, "Demo Artist Brazil");
-    const trackTitle = getString(item.trackTitle, "Supernova Dreams");
+    const trackTitle = getString(item.trackTitle, "Rio Pulse");
 
     return {
       id: item.id || `predictive-${index}`,
@@ -261,10 +253,6 @@ function normalisePredictiveFeed(data) {
       reasonText: getString(
         item.feedReason || item.reason || item.message,
         "Watch this artist before the breakout."
-      ),
-      handle: getString(
-        item.profileHandle,
-        `@${artist.replace(/\s+/g, "").toLowerCase()}`
       ),
       country: getString(item.country || item.userMode, "Brazil"),
       region: getString(item.region, "South America"),
@@ -287,12 +275,11 @@ function createFallbackFeed() {
       id: "demo-ng",
       feedType: "personalised",
       badge: "FOR YOU",
-      artist: "Sam Ryder",
-      title: "Sam Ryder — “Supernova Dreams”",
+      artist: "Demo Artist Nigeria",
+      title: "Demo Artist Nigeria — “Supernova Dreams”",
       reasonTitle: "High Momentum +",
       reasonSubtitle: "Trending Worldwide",
       reasonText: "Matches your genre taste and strong breakout momentum.",
-      handle: "@samryder",
       country: "United Kingdom",
       region: "Europe",
       trackTitle: "Supernova Dreams",
@@ -307,14 +294,13 @@ function createFallbackFeed() {
       feedType: "smart",
       badge: "SMART",
       artist: "Demo Artist Japan",
-      title: "Demo Artist Japan — “Supernova Dreams”",
+      title: "Demo Artist Japan — “Tokyo Lights”",
       reasonTitle: "High Momentum +",
       reasonSubtitle: "Trending Worldwide",
       reasonText: "Radar and momentum signals increasing.",
-      handle: "@demoartistjapan",
       country: "Japan",
       region: "Asia",
-      trackTitle: "Supernova Dreams",
+      trackTitle: "Tokyo Lights",
       releaseLabel: "iBand Exclusive — New Release",
       comments: 322,
       likes: 3100,
@@ -326,14 +312,13 @@ function createFallbackFeed() {
       feedType: "predictive",
       badge: "PREDICTED",
       artist: "Demo Artist Brazil",
-      title: "Demo Artist Brazil — “Supernova Dreams”",
+      title: "Demo Artist Brazil — “Rio Pulse”",
       reasonTitle: "High Momentum +",
       reasonSubtitle: "Trending Worldwide",
       reasonText: "Watch this artist before the breakout.",
-      handle: "@demoartistbrazil",
       country: "Brazil",
       region: "South America",
-      trackTitle: "Supernova Dreams",
+      trackTitle: "Rio Pulse",
       releaseLabel: "iBand Exclusive — New Release",
       comments: 322,
       likes: 3100,
@@ -450,6 +435,22 @@ function IconSearch() {
   );
 }
 
+function IconChevronCircle() {
+  return (
+    <svg viewBox="0 0 24 24" style={styles.topIconSvg} aria-hidden="true">
+      <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" strokeWidth="2.3" />
+      <path
+        d="M10 8.5L14 12l-4 3.5"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2.3"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 function IconHome() {
   return (
     <svg viewBox="0 0 24 24" style={styles.bottomIconSvg} aria-hidden="true">
@@ -533,24 +534,15 @@ function IconComment() {
   );
 }
 
-function IconInfo() {
+function IconBookmark() {
   return (
     <svg viewBox="0 0 24 24" style={styles.rightIconSvg} aria-hidden="true">
-      <circle
-        cx="12"
-        cy="12"
-        r="9"
+      <path
+        d="M7 4.5h10a1 1 0 011 1V20l-6-3.8L6 20V5.5a1 1 0 011-1z"
         fill="none"
         stroke="currentColor"
         strokeWidth="2.1"
-      />
-      <circle cx="12" cy="8" r="1.3" fill="currentColor" />
-      <path
-        d="M12 11v5"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2.2"
-        strokeLinecap="round"
+        strokeLinejoin="round"
       />
     </svg>
   );
@@ -563,20 +555,10 @@ function IconShare() {
         d="M6 17c6.2-0.9 9.7-4.5 11.9-9.8M11.4 6.4h6.4v6.4"
         fill="none"
         stroke="currentColor"
-        strokeWidth="2.7"
+        strokeWidth="2.8"
         strokeLinecap="round"
         strokeLinejoin="round"
       />
-    </svg>
-  );
-}
-
-function IconSoundDots() {
-  return (
-    <svg viewBox="0 0 28 8" style={styles.dotsSvg} aria-hidden="true">
-      <circle cx="4" cy="4" r="2.2" fill="currentColor" />
-      <circle cx="14" cy="4" r="2.2" fill="currentColor" />
-      <circle cx="24" cy="4" r="2.2" fill="currentColor" />
     </svg>
   );
 }
@@ -585,7 +567,15 @@ function IbandBrandBlock() {
   return (
     <div style={styles.brandBlock}>
       <div style={styles.brandLogoWrap}>
-        <svg viewBox="0 0 64 64" style={styles.brandLogoSvg} aria-hidden="true">
+        <img
+          src="/iband-logo.png"
+          alt="iBand"
+          style={styles.brandLogoImage}
+          onError={(event) => {
+            event.currentTarget.style.display = "none";
+          }}
+        />
+        <svg viewBox="0 0 64 64" style={styles.brandLogoSvgFallback} aria-hidden="true">
           <defs>
             <linearGradient id="ibandBrandGradientFinalCanon" x1="0" y1="0" x2="1" y2="1">
               <stop offset="0%" stopColor="#7c3aed" />
@@ -594,13 +584,12 @@ function IbandBrandBlock() {
           </defs>
           <circle cx="32" cy="32" r="31" fill="url(#ibandBrandGradientFinalCanon)" />
           <path
-            d="M23 42V19c0-4.2 3.4-7.6 7.6-7.6h8.2V21h5.4v-9.6h3.2c4.2 0 7.6 3.4 7.6 7.6v7.6c0 4.2-3.4 7.6-7.6 7.6h-3.2v5.6h-5.4v-5.6h-5.4v7.8c0 6.4-5.2 11.6-11.6 11.6S12.2 48.4 12.2 42s5.2-11.6 11.6-11.6c0.5 0 1.1 0 1.6 0.1V42Z"
+            d="M30 47V16h4.6c3.7 0 6.6 2.9 6.6 6.6V44h-4.6V33.5H30ZM23 52c-5.5 0-10-4.5-10-10s4.5-10 10-10c0.6 0 1.1 0 1.6 0.1V47c0 2.8-0.8 5-1.6 5Z"
             fill="white"
           />
-          <circle cx="44.5" cy="16.5" r="2" fill="#7c3aed" />
-          <circle cx="50" cy="16.5" r="2" fill="#7c3aed" />
-          <circle cx="44.5" cy="22" r="2" fill="#7c3aed" />
-          <circle cx="50" cy="22" r="2" fill="#7c3aed" />
+          <circle cx="41.5" cy="18" r="2" fill="white" />
+          <circle cx="41.5" cy="24" r="2" fill="white" />
+          <circle cx="41.5" cy="30" r="2" fill="white" />
         </svg>
       </div>
 
@@ -690,7 +679,7 @@ function FeedCard({ item, isActive, onOpenInfo, currentIndex, totalItems }) {
         style={{
           ...styles.posterLayer,
           backgroundImage: `url("${posterUrl}")`,
-          transform: isActive ? "scale(1.01)" : "scale(1)"
+          transform: isActive ? "scale(1.008)" : "scale(1)"
         }}
       />
 
@@ -717,7 +706,6 @@ function FeedCard({ item, isActive, onOpenInfo, currentIndex, totalItems }) {
               +
             </button>
           </div>
-          <div style={styles.artistRailLabel}>Artist</div>
         </div>
 
         <div style={styles.rightActionBlock}>
@@ -735,26 +723,18 @@ function FeedCard({ item, isActive, onOpenInfo, currentIndex, totalItems }) {
         </div>
 
         <div style={styles.rightActionBlock}>
+          <button type="button" aria-label="Save" style={styles.rightActionButton}>
+            <IconBookmark />
+          </button>
+          <div style={styles.rightActionCount}>{formatCompactCount(item.saves)}</div>
+        </div>
+
+        <div style={styles.rightActionBlock}>
           <button type="button" aria-label="Share" style={styles.rightActionButton}>
             <IconShare />
           </button>
           <div style={styles.rightActionCount}>{formatCompactCount(item.shares)}</div>
         </div>
-
-        <div style={styles.rightActionBlock}>
-          <button
-            type="button"
-            aria-label="Open info"
-            style={styles.rightActionButton}
-            onClick={() => onOpenInfo(item)}
-          >
-            <IconInfo />
-          </button>
-        </div>
-
-        <button type="button" aria-label="More" style={styles.soundDotsButton}>
-          <IconSoundDots />
-        </button>
 
         <button type="button" aria-label="Open original sound" style={styles.soundDiscButton}>
           <img
@@ -788,7 +768,7 @@ function FeedCard({ item, isActive, onOpenInfo, currentIndex, totalItems }) {
         <div style={styles.commentLine}>{item.comments} Comments</div>
 
         <div style={styles.searchShell}>
-          <div style={styles.searchIconWrap}>
+          <div style={styles.searchIconWrapInCard}>
             <IconSearch />
           </div>
 
@@ -812,6 +792,7 @@ export default function Feed() {
 
   const scrollRef = useRef(null);
   const cardRefs = useRef([]);
+  const topTabsScrollRef = useRef(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -886,7 +867,7 @@ export default function Feed() {
       },
       {
         root: scrollRef.current,
-        threshold: [0.72, 0.84, 0.94]
+        threshold: [0.76, 0.88, 0.96]
       }
     );
 
@@ -899,6 +880,8 @@ export default function Feed() {
 
   const topTabs = [
     { key: "live", label: "LIVE", icon: true },
+    { key: "stem", label: "STEM" },
+    { key: "explore", label: "Explore" },
     { key: "country", label: "Oxfordshire" },
     { key: "following", label: "Following" },
     { key: "friends", label: "Friends" },
@@ -909,37 +892,51 @@ export default function Feed() {
     <div style={styles.page}>
       <div style={styles.fixedTopOverlay}>
         <div style={styles.topNavRow}>
-          <div style={styles.topNavTabs}>
-            {topTabs.map((tab) => {
-              const isActive = activeTopTab === tab.key;
+          <div ref={topTabsScrollRef} style={styles.topNavTabsScroller}>
+            <div style={styles.topNavTabs}>
+              {topTabs.map((tab) => {
+                const isActive = activeTopTab === tab.key;
 
-              return (
-                <button
-                  key={tab.key}
-                  type="button"
-                  onClick={() => setActiveTopTab(tab.key)}
-                  style={styles.topTabButton}
-                >
-                  {tab.icon ? (
-                    <span style={styles.liveIconWrap}>
-                      <IconLive />
-                    </span>
-                  ) : null}
-
-                  <span
-                    style={{
-                      ...styles.topTabLabel,
-                      ...(isActive ? styles.topTabLabelActive : {})
-                    }}
+                return (
+                  <button
+                    key={tab.key}
+                    type="button"
+                    onClick={() => setActiveTopTab(tab.key)}
+                    style={styles.topTabButton}
                   >
-                    {tab.label}
-                  </span>
+                    {tab.icon ? (
+                      <span style={styles.liveIconWrap}>
+                        <IconLive />
+                      </span>
+                    ) : null}
 
-                  {isActive ? <span style={styles.topTabUnderline} /> : null}
-                </button>
-              );
-            })}
+                    <span
+                      style={{
+                        ...styles.topTabLabel,
+                        ...(isActive ? styles.topTabLabelActive : {})
+                      }}
+                    >
+                      {tab.label}
+                    </span>
+
+                    {isActive ? <span style={styles.topTabUnderline} /> : null}
+                  </button>
+                );
+              })}
+            </div>
           </div>
+
+          <button
+            type="button"
+            aria-label="Scroll top categories"
+            style={styles.topArrowButton}
+            onClick={() => {
+              if (!topTabsScrollRef.current) return;
+              topTabsScrollRef.current.scrollBy({ left: 120, behavior: "smooth" });
+            }}
+          >
+            <IconChevronCircle />
+          </button>
 
           <button type="button" aria-label="Search" style={styles.topSearchButton}>
             <IconSearch />
@@ -1028,7 +1025,7 @@ const styles = {
     position: "relative",
     width: "100%",
     height: "100dvh",
-    paddingTop: 156,
+    paddingTop: 154,
     paddingBottom: "calc(106px + env(safe-area-inset-bottom))",
     overflowY: "auto",
     overflowX: "hidden",
@@ -1040,8 +1037,8 @@ const styles = {
   slide: {
     position: "relative",
     width: "100%",
-    height: "calc(100dvh - 156px)",
-    minHeight: "calc(100dvh - 156px)",
+    height: "calc(100dvh - 154px)",
+    minHeight: "calc(100dvh - 154px)",
     scrollSnapAlign: "start",
     scrollSnapStop: "always",
     overflow: "hidden",
@@ -1087,27 +1084,34 @@ const styles = {
     zIndex: 40,
     paddingTop: "env(safe-area-inset-top)",
     background:
-      "linear-gradient(180deg, rgba(0,0,0,0.70), rgba(0,0,0,0.08) 82%, rgba(0,0,0,0))",
+      "linear-gradient(180deg, rgba(0,0,0,0.74), rgba(0,0,0,0.10) 82%, rgba(0,0,0,0))",
     pointerEvents: "auto"
   },
   topNavRow: {
     height: 56,
     display: "flex",
     alignItems: "center",
-    gap: 10,
+    gap: 6,
     paddingLeft: "max(14px, calc(env(safe-area-inset-left) + 8px))",
     paddingRight: "max(14px, calc(env(safe-area-inset-right) + 8px))"
   },
-  topNavTabs: {
+  topNavTabsScroller: {
     flex: 1,
     minWidth: 0,
+    overflowX: "auto",
+    overflowY: "hidden",
+    WebkitOverflowScrolling: "touch",
+    scrollbarWidth: "none"
+  },
+  topNavTabs: {
     display: "flex",
     alignItems: "center",
-    justifyContent: "space-between",
-    gap: 8
+    gap: 22,
+    width: "max-content",
+    paddingRight: 8
   },
   brandRow: {
-    height: 86,
+    height: 82,
     display: "flex",
     alignItems: "center",
     paddingLeft: "max(14px, calc(env(safe-area-inset-left) + 8px))",
@@ -1119,18 +1123,28 @@ const styles = {
     gap: 10
   },
   brandLogoWrap: {
-    width: 54,
-    height: 54,
+    width: 56,
+    height: 56,
+    position: "relative",
     flexShrink: 0,
     display: "flex",
     alignItems: "center",
-    justifyContent: "center",
+    justifyContent: "center"
+  },
+  brandLogoImage: {
+    width: 56,
+    height: 56,
+    display: "block",
+    objectFit: "contain",
     filter: "drop-shadow(0 10px 20px rgba(0,0,0,0.26))"
   },
-  brandLogoSvg: {
-    width: 54,
-    height: 54,
-    display: "block"
+  brandLogoSvgFallback: {
+    position: "absolute",
+    inset: 0,
+    width: 56,
+    height: 56,
+    display: "block",
+    pointerEvents: "none"
   },
   brandTextBlock: {
     display: "flex",
@@ -1189,6 +1203,19 @@ const styles = {
     borderRadius: 999,
     background: "#ffffff"
   },
+  topArrowButton: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    border: "none",
+    background: "transparent",
+    color: "#ffffff",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
+    cursor: "pointer"
+  },
   topSearchButton: {
     width: 34,
     height: 34,
@@ -1210,7 +1237,7 @@ const styles = {
   },
   rankBadge: {
     position: "absolute",
-    top: "34px",
+    top: "30px",
     left: "max(14px, calc(env(safe-area-inset-left) + 8px))",
     zIndex: 8,
     minWidth: 62,
@@ -1231,15 +1258,15 @@ const styles = {
   rightRail: {
     position: "absolute",
     right: 14,
-    top: "142px",
-    bottom: "120px",
+    top: "138px",
+    bottom: "96px",
     zIndex: 9,
-    width: 78,
+    width: 70,
     display: "flex",
     flexDirection: "column",
     alignItems: "center",
     justifyContent: "flex-start",
-    gap: 14
+    gap: 12
   },
   avatarRailBlock: {
     display: "flex",
@@ -1280,47 +1307,13 @@ const styles = {
     cursor: "pointer",
     boxShadow: "0 8px 18px rgba(0,0,0,0.26)"
   },
-  artistRailLabel: {
-    fontSize: 10,
-    lineHeight: 1,
-    fontWeight: 700,
-    color: "rgba(255,255,255,0.94)"
-  },
   rightActionBlock: {
     display: "flex",
     flexDirection: "column",
     alignItems: "center",
-    gap: 5
+    gap: 3
   },
   rightActionButton: {
-    appearance: "none",
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    border: "1px solid rgba(255,255,255,0.13)",
-    background: "rgba(10,14,28,0.18)",
-    color: "#ffffff",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    backdropFilter: "blur(10px)",
-    boxShadow: "0 10px 24px rgba(0,0,0,0.18)",
-    cursor: "pointer",
-    padding: 0
-  },
-  rightIconSvg: {
-    width: 30,
-    height: 30,
-    display: "block",
-    color: "#ffffff"
-  },
-  rightActionCount: {
-    fontSize: 11,
-    lineHeight: 1,
-    fontWeight: 800,
-    color: "rgba(255,255,255,0.96)"
-  },
-  soundDotsButton: {
     appearance: "none",
     border: "none",
     background: "transparent",
@@ -1328,29 +1321,35 @@ const styles = {
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    width: 44,
-    height: 18,
     cursor: "pointer",
     padding: 0,
-    marginTop: 2
+    width: 40,
+    height: 40
   },
-  dotsSvg: {
-    width: 28,
-    height: 8,
+  rightIconSvg: {
+    width: 31,
+    height: 31,
     display: "block",
     color: "#ffffff"
   },
+  rightActionCount: {
+    fontSize: 11.2,
+    lineHeight: 1,
+    fontWeight: 700,
+    color: "rgba(255,255,255,0.96)"
+  },
   soundDiscButton: {
     appearance: "none",
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    border: "3px solid rgba(255,255,255,0.96)",
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    border: "2px solid rgba(255,255,255,0.96)",
     padding: 0,
     overflow: "hidden",
     background: "transparent",
     cursor: "pointer",
-    boxShadow: "0 10px 24px rgba(0,0,0,0.24)"
+    boxShadow: "0 10px 24px rgba(0,0,0,0.24)",
+    marginTop: 2
   },
   soundDiscImage: {
     width: "100%",
@@ -1361,10 +1360,10 @@ const styles = {
   contentOverlay: {
     position: "absolute",
     left: "max(16px, calc(env(safe-area-inset-left) + 10px))",
-    right: "112px",
-    bottom: "46px",
+    right: "102px",
+    bottom: "20px",
     zIndex: 8,
-    maxWidth: "min(66vw, 470px)"
+    maxWidth: "min(68vw, 490px)"
   },
   artistTitleRow: {
     display: "flex",
@@ -1404,21 +1403,21 @@ const styles = {
     textShadow: "0 3px 12px rgba(0,0,0,0.38)"
   },
   reasonLine: {
-    marginTop: 14,
-    fontSize: 12.3,
+    marginTop: 12,
+    fontSize: 12.2,
     lineHeight: 1.16,
     fontWeight: 500,
     color: "rgba(255,255,255,0.90)"
   },
   reasonSubline: {
-    marginTop: 6,
-    fontSize: 11.2,
+    marginTop: 5,
+    fontSize: 11,
     lineHeight: 1.18,
     fontWeight: 500,
     color: "rgba(255,255,255,0.74)"
   },
   musicLine: {
-    marginTop: 12,
+    marginTop: 11,
     display: "flex",
     alignItems: "center",
     gap: 8,
@@ -1432,7 +1431,7 @@ const styles = {
     lineHeight: 1
   },
   commentLine: {
-    marginTop: 12,
+    marginTop: 11,
     fontSize: 11.1,
     lineHeight: 1.1,
     fontWeight: 500,
@@ -1441,7 +1440,6 @@ const styles = {
   searchShell: {
     marginTop: 14,
     width: "100%",
-    maxWidth: "100%",
     height: 48,
     borderRadius: 24,
     border: "1px solid rgba(255,255,255,0.11)",
@@ -1454,7 +1452,7 @@ const styles = {
     alignItems: "center",
     padding: "0 14px"
   },
-  searchIconWrap: {
+  searchIconWrapInCard: {
     width: 36,
     height: 36,
     display: "flex",
