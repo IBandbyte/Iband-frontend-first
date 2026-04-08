@@ -1205,7 +1205,7 @@ topLiveFixedButton: {
   rightRail: {
     position: "absolute",
     right: 14,
-    top: "108px",
+    top: "128px",
     bottom: "112px",
     zIndex: 9,
     width: 72,
@@ -1308,7 +1308,7 @@ topLiveFixedButton: {
     position: "absolute",
     left: "max(16px, calc(env(safe-area-inset-left) + 10px))",
     right: "102px",
-    bottom: "calc(88px + env(safe-area-inset-bottom))",
+    bottom: "calc(84px + env(safe-area-inset-bottom))",
     zIndex: 8,
     maxWidth: "min(68vw, 490px)"
   },
