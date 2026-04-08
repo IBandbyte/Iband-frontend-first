@@ -1037,20 +1037,42 @@ const styles = {
     pointerEvents: "auto"
   },
   topNavRow: {
-    height: 56,
-    display: "flex",
-    alignItems: "center",
-    gap: 6,
-    paddingLeft: "max(14px, calc(env(safe-area-inset-left) + 8px))",
-    paddingRight: "max(14px, calc(env(safe-area-inset-right) + 8px))"
+  height: 56,
+  display: "flex",
+  alignItems: "center",
+  position: "relative",
+  },
+  
+  topLiveFixedButton: {
+  position: "absolute",
+  left: "max(14px, calc(env(safe-area-inset-left) + 8px))",
+  top: "50%",
+  transform: "translateY(-50%)",
+  width: 34,
+  height: 34,
+  borderRadius: 17,
+  border: "none",
+  background: "transparent",
+  color: "#ffffff",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  zIndex: 2,
+  cursor: "pointer"
+  },
+  paddingLeft: "max(14px, calc(env(safe-area-inset-left) + 8px))",
+  paddingRight: "max(14px, calc(env(safe-area-inset-right) + 8px))"
   },
   topNavTabsScroller: {
-    flex: 1,
-    minWidth: 0,
-    overflowX: "auto",
-    overflowY: "hidden",
-    WebkitOverflowScrolling: "touch",
-    scrollbarWidth: "none"
+  flex: 1,
+  minWidth: 0,
+  overflowX: "auto",
+  overflowY: "hidden",
+  WebkitOverflowScrolling: "touch",
+  scrollbarWidth: "none",
+  marginLeft: 0,
+  paddingLeft: 54,
+  paddingRight: 44
   },
   topNavTabs: {
     display: "flex",
@@ -1150,7 +1172,6 @@ const styles = {
     borderRadius: 999,
     background: "#ffffff"
   },
-  topArrowButton: {
     width: 34,
     height: 34,
     borderRadius: 17,
@@ -1184,7 +1205,7 @@ const styles = {
   },
   rankBadge: {
     position: "absolute",
-    top: "12px",
+    top: "20px",
     left: "max(14px, calc(env(safe-area-inset-left) + 8px))",
     zIndex: 8,
     minWidth: 62,
@@ -1205,8 +1226,8 @@ const styles = {
   rightRail: {
     position: "absolute",
     right: 14,
-    top: "88px",
-    bottom: "132px",
+    top: "108px",
+    bottom: "112px",
     zIndex: 9,
     width: 72,
     display: "flex",
@@ -1308,7 +1329,7 @@ const styles = {
     position: "absolute",
     left: "max(16px, calc(env(safe-area-inset-left) + 10px))",
     right: "102px",
-    bottom: "calc(96px + env(safe-area-inset-bottom))",
+    bottom: "calc(88px + env(safe-area-inset-bottom))",
     zIndex: 8,
     maxWidth: "min(68vw, 490px)"
   },
