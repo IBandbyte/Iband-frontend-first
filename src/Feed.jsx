@@ -1205,15 +1205,15 @@ topLiveFixedButton: {
   rightRail: {
     position: "absolute",
     right: 14,
-    top: "128px",
-    bottom: "112px",
+    top: "150px",
+    bottom: "80px",
     zIndex: 9,
     width: 72,
     display: "flex",
     flexDirection: "column",
     alignItems: "center",
-    justifyContent: "flex-start",
-    gap: 10
+    justifyContent: "space-between",
+    gap: 18
   },
   avatarRailBlock: {
     display: "flex",
@@ -1223,8 +1223,8 @@ topLiveFixedButton: {
   },
   avatarWrap: {
     position: "relative",
-    width: 82,
-    height: 82
+    width: 88,
+    height: 88
   },
   avatarImage: {
     width: 82,
@@ -1270,12 +1270,12 @@ topLiveFixedButton: {
     justifyContent: "center",
     cursor: "pointer",
     padding: 0,
-    width: 40,
-    height: 40
+    width: 46,
+    height: 46
   },
   rightIconSvg: {
-    width: 34,
-    height: 34,
+    width: 38,
+    height: 38,
     display: "block",
     color: "#ffffff"
   },
@@ -1287,8 +1287,8 @@ topLiveFixedButton: {
   },
   soundDiscButton: {
     appearance: "none",
-    width: 50,
-    height: 50,
+    width: 56,
+    height: 56,
     borderRadius: 25,
     border: "2px solid rgba(255,255,255,0.96)",
     padding: 0,
