@@ -1061,7 +1061,7 @@ topLiveFixedButton: {
   WebkitOverflowScrolling: "touch",
   scrollbarWidth: "none",
   marginLeft: 0,
-  paddingLeft: 54,
+  paddingLeft: 72,
   paddingRight: 44
   },
   topNavTabs: {
