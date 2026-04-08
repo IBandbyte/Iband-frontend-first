@@ -826,19 +826,21 @@ export default function Feed() {
   }, [unifiedFeed]);
 
   const topTabs = [
-    { key: "live", label: "LIVE", icon: true },
-    { key: "country", label: "Oxfordshire" },
-    { key: "following", label: "Following" },
-    { key: "friends", label: "Friends" },
-    { key: "for-you", label: "For You" },
-    { key: "stem", label: "STEM" },
-    { key: "explore", label: "Explore" }
-  ];
+  { key: "country", label: "Oxfordshire" },
+  { key: "following", label: "Following" },
+  { key: "friends", label: "Friends" },
+  { key: "for-you", label: "For You" },
+  { key: "stem", label: "STEM" },
+  { key: "explore", label: "Explore" }
+];
 
   return (
     <div style={styles.page}>
       <div style={styles.fixedTopOverlay}>
         <div style={styles.topNavRow}>
+          <button type="button" aria-label="Live" style={styles.topLiveFixedButton}>
+  <IconLive />
+</button>
           <div ref={topTabsScrollRef} style={styles.topNavTabsScroller}>
             <div style={styles.topNavTabs}>
               {topTabs.map((tab) => {
@@ -873,17 +875,7 @@ export default function Feed() {
             </div>
           </div>
 
-          <button
-            type="button"
-            aria-label="Scroll top categories"
-            style={styles.topArrowButton}
-            onClick={() => {
-              if (!topTabsScrollRef.current) return;
-              topTabsScrollRef.current.scrollBy({ left: 120, behavior: "smooth" });
-            }}
-          >
-            <IconChevronCircle />
-          </button>
+          
 
           <button type="button" aria-label="Search" style={styles.topSearchButton}>
             <IconSearch />
@@ -1041,9 +1033,10 @@ const styles = {
   display: "flex",
   alignItems: "center",
   position: "relative",
-  },
-  
-  topLiveFixedButton: {
+  paddingLeft: "max(14px, calc(env(safe-area-inset-left) + 8px))",
+  paddingRight: "max(14px, calc(env(safe-area-inset-right) + 8px))"
+},
+topLiveFixedButton: {
   position: "absolute",
   left: "max(14px, calc(env(safe-area-inset-left) + 8px))",
   top: "50%",
@@ -1059,10 +1052,7 @@ const styles = {
   justifyContent: "center",
   zIndex: 2,
   cursor: "pointer"
-  },
-  paddingLeft: "max(14px, calc(env(safe-area-inset-left) + 8px))",
-  paddingRight: "max(14px, calc(env(safe-area-inset-right) + 8px))"
-  },
+},
   topNavTabsScroller: {
   flex: 1,
   minWidth: 0,
@@ -1172,18 +1162,7 @@ const styles = {
     borderRadius: 999,
     background: "#ffffff"
   },
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    border: "none",
-    background: "transparent",
-    color: "#ffffff",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    flexShrink: 0,
-    cursor: "pointer"
-  },
+    
   topSearchButton: {
     width: 34,
     height: 34,
