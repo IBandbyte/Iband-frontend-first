@@ -1061,7 +1061,7 @@ topLiveFixedButton: {
   WebkitOverflowScrolling: "touch",
   scrollbarWidth: "none",
   marginLeft: 0,
-  paddingLeft: 72,
+  paddingLeft: 62,
   paddingRight: 44
   },
   topNavTabs: {
@@ -1184,7 +1184,7 @@ topLiveFixedButton: {
   },
   rankBadge: {
     position: "absolute",
-    top: "20px",
+    top: "28px",
     left: "max(14px, calc(env(safe-area-inset-left) + 8px))",
     zIndex: 8,
     minWidth: 62,
@@ -1205,8 +1205,8 @@ topLiveFixedButton: {
   rightRail: {
     position: "absolute",
     right: 14,
-    top: "150px",
-    bottom: "96px",
+    top: "135px",
+    bottom: "108px",
     zIndex: 9,
     width: 72,
     display: "flex",
@@ -1309,7 +1309,7 @@ topLiveFixedButton: {
     position: "absolute",
     left: "max(16px, calc(env(safe-area-inset-left) + 10px))",
     right: "102px",
-    bottom: "calc(84px + env(safe-area-inset-bottom))",
+    bottom: "calc(78px + env(safe-area-inset-bottom))",
     zIndex: 8,
     maxWidth: "min(68vw, 490px)"
   },
