@@ -1041,9 +1041,9 @@ topLiveFixedButton: {
   left: "max(14px, calc(env(safe-area-inset-left) + 8px))",
   top: "50%",
   transform: "translateY(-50%)",
-  width: 40,
-  height: 40,
-  borderRadius: 20,
+  width: 44,
+  height: 44,
+  borderRadius: 22,
   border: "none",
   background: "transparent",
   color: "#ffffff",
@@ -1177,8 +1177,8 @@ topLiveFixedButton: {
     cursor: "pointer"
   },
   topIconSvg: {
-    width: 29,
-    height: 29,
+    width: 31,
+    height: 31,
     display: "block",
     color: "#ffffff"
   },
@@ -1205,8 +1205,8 @@ topLiveFixedButton: {
   rightRail: {
     position: "absolute",
     right: 14,
-    top: "135px",
-    bottom: "108px",
+    top: "125px",
+    bottom: "118px",
     zIndex: 9,
     width: 72,
     display: "flex",
