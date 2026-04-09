@@ -1206,13 +1206,13 @@ topLiveFixedButton: {
     position: "absolute",
     right: 14,
     top: "150px",
-    bottom: "80px",
+    bottom: "96px",
     zIndex: 9,
     width: 72,
     display: "flex",
     flexDirection: "column",
     alignItems: "center",
-    justifyContent: "space-between",
+    justifyContent: "flex-start",
     gap: 18
   },
   avatarRailBlock: {
@@ -1289,7 +1289,8 @@ topLiveFixedButton: {
     appearance: "none",
     width: 56,
     height: 56,
-    borderRadius: 25,
+    aspectRatio: "1 / 1",aa
+    borderRadius: 999,
     border: "2px solid rgba(255,255,255,0.96)",
     padding: 0,
     overflow: "hidden",
