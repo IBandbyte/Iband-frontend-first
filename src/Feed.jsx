@@ -1289,7 +1289,7 @@ topLiveFixedButton: {
     appearance: "none",
     width: 56,
     height: 56,
-    aspectRatio: "1 / 1",aa
+    aspectRatio: "1 / 1",
     borderRadius: 999,
     border: "2px solid rgba(255,255,255,0.96)",
     padding: 0,
