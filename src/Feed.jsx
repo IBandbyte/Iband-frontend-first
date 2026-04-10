@@ -1204,15 +1204,15 @@ topLiveFixedButton: {
   },
   rightRail: {
     position: "absolute",
-    right: 14,
-    top: "125px",
-    bottom: "118px",
+    right: 12,
+    top: "160px",
+    bottom: "120px",
     zIndex: 9,
-    width: 72,
+    width: 70,
     display: "flex",
     flexDirection: "column",
     alignItems: "center",
-    justifyContent: "flex-start",
+    justifyContent: "space-betweenq",
     gap: 18
   },
   avatarRailBlock: {
@@ -1258,24 +1258,28 @@ topLiveFixedButton: {
     display: "flex",
     flexDirection: "column",
     alignItems: "center",
-    gap: 3
+    gap: 6
   },
   rightActionButton: {
-    appearance: "none",
-    border: "none",
-    background: "transparent",
-    color: "#ffffff",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    cursor: "pointer",
-    padding: 0,
-    width: 46,
-    height: 46
-  },
+  appearance: "none",
+  width: 58,
+  height: 58,
+  borderRadius: 29,
+  border: "1px solid rgba(255,255,255,0.14)",
+  background: "rgba(10,14,28,0.30)",
+  color: "#ffffff",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  backdropFilter: "blur(14px)",
+  boxShadow: "0 10px 26px rgba(0,0,0,0.24)",
+  cursor: "pointer",
+  padding: 0
+},
+  
   rightIconSvg: {
-    width: 38,
-    height: 38,
+    width: 30,
+    height: 30,
     display: "block",
     color: "#ffffff"
   },
