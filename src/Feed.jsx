@@ -972,8 +972,8 @@ const styles = {
   slideWrap: {
     position: "relative",
     width: "100%",
-    height: "100dvh",
-    minHeight: "100dvh",
+    height: "99.2dvh",
+    minHeight: "99.2dvh",
     scrollSnapAlign: "start",
     scrollSnapStop: "always"
   },
@@ -1204,15 +1204,15 @@ topLiveFixedButton: {
   },
   rightRail: {
     position: "absolute",
-    right: 12,
-    top: "160px",
-    bottom: "120px",
+    right: 14,
+    top: "138px",
+    bottom: "118px",
     zIndex: 9,
-    width: 70,
+    width: 74,
     display: "flex",
     flexDirection: "column",
     alignItems: "center",
-    justifyContent: "space-betweenq",
+    justifyContent: "flex-start",
     gap: 18
   },
   avatarRailBlock: {
@@ -1318,8 +1318,8 @@ alignSelf: "center",
   contentOverlay: {
     position: "absolute",
     left: "max(16px, calc(env(safe-area-inset-left) + 10px))",
-    right: "102px",
-    bottom: "calc(78px + env(safe-area-inset-bottom))",
+    right: "112px",
+    bottom: "calc(94px + env(safe-area-inset-bottom))",
     zIndex: 8,
     maxWidth: "min(68vw, 490px)"
   },
