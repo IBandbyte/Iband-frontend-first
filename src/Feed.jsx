@@ -1143,7 +1143,7 @@ topLiveFixedButton: {
     alignItems: "center"
   },
   topTabLabel: {
-    fontSize: 9.8,
+    fontSize: 10.8,
     lineHeight: 1.08,
     fontWeight: 700,
     color: "rgba(255,255,255,0.70)",
@@ -1177,8 +1177,8 @@ topLiveFixedButton: {
     cursor: "pointer"
   },
   topIconSvg: {
-    width: 31,
-    height: 31,
+    width: 28,
+    height: 28,
     display: "block",
     color: "#ffffff"
   },
@@ -1206,7 +1206,7 @@ topLiveFixedButton: {
     position: "absolute",
     right: 14,
     top: "138px",
-    bottom: "118px",
+    bottom: "84px",
     zIndex: 9,
     width: 74,
     display: "flex",
