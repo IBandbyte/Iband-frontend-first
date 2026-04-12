@@ -976,7 +976,7 @@ const styles = {
     height: "99.2dvh",
     minHeight: "99.2dvh",
     scrollSnapAlign: "start",
-    scrollSnapStop: "always"
+    scrollSnapStop: "always",
     overscrollBehavior: "contain",
 touchAction: "pan-y",
   },
