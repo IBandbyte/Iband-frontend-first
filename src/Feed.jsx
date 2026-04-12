@@ -1206,7 +1206,7 @@ topLiveFixedButton: {
     position: "absolute",
     right: 14,
     top: "138px",
-    bottom: "96px",
+    bottom: "126px",
     zIndex: 9,
     width: 74,
     display: "flex",
