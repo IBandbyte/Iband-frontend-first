@@ -966,7 +966,8 @@ const styles = {
     overflowX: "hidden",
     scrollSnapType: "y mandatory",
     overscrollBehaviorY: "contain",
-    WebkitOverflowScrolling: "touch",
+    WebkitOverflowScrolling: "auto",
+    scrollBehavior: "smooth"
     background: "#000000"
   },
   slideWrap: {
@@ -976,6 +977,8 @@ const styles = {
     minHeight: "99.2dvh",
     scrollSnapAlign: "start",
     scrollSnapStop: "always"
+    overscrollBehavior: "contain",
+touchAction: "pan-y",
   },
   slide: {
     position: "relative",
