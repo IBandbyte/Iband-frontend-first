@@ -1397,7 +1397,7 @@ alignSelf: "center",
   },
   searchShell: {
     marginTop: 14,
-    width: "calc(100% - 64px)",
+    width: "calc(100% - 48px)",
     height: 48,
     borderRadius: 24,
     border: "1px solid rgba(255,255,255,0.11)",
