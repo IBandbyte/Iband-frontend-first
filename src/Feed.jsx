@@ -1408,7 +1408,7 @@ alignSelf: "center",
     WebkitBackdropFilter: "blur(16px)",
     display: "flex",
     alignItems: "center",
-    padding: "0 14px"
+    padding: "0 22px 0 14px"
   },
   searchIconWrapInCard: {
     width: 36,
