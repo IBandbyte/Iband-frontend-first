@@ -967,7 +967,7 @@ const styles = {
     scrollSnapType: "y mandatory",
     overscrollBehaviorY: "contain",
     WebkitOverflowScrolling: "auto",
-    scrollBehavior: "smooth"
+    scrollBehavior: "smooth",
     background: "#000000"
   },
   slideWrap: {
