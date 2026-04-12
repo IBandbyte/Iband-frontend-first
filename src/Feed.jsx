@@ -1213,7 +1213,7 @@ topLiveFixedButton: {
     flexDirection: "column",
     alignItems: "center",
     justifyContent: "flex-start",
-    gap: 18
+    gap: 12
   },
   avatarRailBlock: {
     display: "flex",
@@ -1258,7 +1258,7 @@ topLiveFixedButton: {
     display: "flex",
     flexDirection: "column",
     alignItems: "center",
-    gap: 6
+    gap: 4
   },
   rightActionButton: {
   appearance: "none",
