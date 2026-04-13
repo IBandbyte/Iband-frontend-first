@@ -627,7 +627,7 @@ function FeedCard({ item, isActive, currentIndex, totalItems }) {
         style={{
           ...styles.posterLayer,
           backgroundImage: `url("${posterUrl}")`,
-          transform: isActive ? "scale(1.008)" : "scale(1)"
+          
         }}
       />
 
@@ -994,7 +994,7 @@ touchAction: "pan-y",
     backgroundSize: "cover",
     backgroundPosition: "center",
     filter: "saturate(1.05) contrast(1.04)",
-    transition: "transform 220ms ease"
+    transition: "none"
   },
   posterTopFade: {
     position: "absolute",
