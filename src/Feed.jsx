@@ -736,7 +736,9 @@ export default function Feed() {
   const [loading, setLoading] = useState(true);
   const [activeIndex, setActiveIndex] = useState(0);
   const [activeTopTab, setActiveTopTab] = useState("for-you");
-
+const scrollRef = useRef(null);
+const cardRefs = useRef([]);
+const topTabsScrollRef = useRef(null);
   
   useEffect(() => {
     let isMounted = true;
