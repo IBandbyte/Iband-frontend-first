@@ -854,20 +854,20 @@ const isAutoSnappingRef = useRef(false);
 
     scrollRef.current.scrollTo({
       top: targetNode.offsetTop,
-      behavior: "smooth"
+      behavior: "auto"
     });
 
     window.clearTimeout(snapTimeoutRef.current);
     snapTimeoutRef.current = window.setTimeout(() => {
       isAutoSnappingRef.current = false;
-    }, 180);
+    }, 100);
   }
 
   function handleScroll() {
     window.clearTimeout(snapTimeoutRef.current);
     snapTimeoutRef.current = window.setTimeout(() => {
       snapToNearestCard();
-    }, 70);
+    }, 20);
   }
 
   scroller.addEventListener("scroll", handleScroll, { passive: true });
