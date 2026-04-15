@@ -860,14 +860,14 @@ const isAutoSnappingRef = useRef(false);
     window.clearTimeout(snapTimeoutRef.current);
     snapTimeoutRef.current = window.setTimeout(() => {
       isAutoSnappingRef.current = false;
-    }, 100);
+    }, 60);
   }
 
   function handleScroll() {
     window.clearTimeout(snapTimeoutRef.current);
     snapTimeoutRef.current = window.setTimeout(() => {
       snapToNearestCard();
-    }, 20);
+    }, 0);
   }
 
   scroller.addEventListener("scroll", handleScroll, { passive: true });
