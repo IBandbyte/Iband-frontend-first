@@ -739,6 +739,8 @@ export default function Feed() {
 const scrollRef = useRef(null);
 const cardRefs = useRef([]);
 const topTabsScrollRef = useRef(null);
+const snapTimeoutRef = useRef(null);
+const isAutoSnappingRef = useRef(false);
   
   useEffect(() => {
     let isMounted = true;
@@ -823,6 +825,59 @@ const topTabsScrollRef = useRef(null);
 
     return () => observer.disconnect();
   }, [unifiedFeed]);
+  useEffect(() => {
+  const scroller = scrollRef.current;
+  if (!scroller || !unifiedFeed.length) return;
+
+  function snapToNearestCard() {
+    if (!scrollRef.current || !cardRefs.current.length) return;
+    if (isAutoSnappingRef.current) return;
+
+    const currentScrollTop = scrollRef.current.scrollTop;
+
+    let nearestIndex = 0;
+    let nearestDistance = Infinity;
+
+    cardRefs.current.forEach((node, index) => {
+      if (!node) return;
+      const distance = Math.abs(node.offsetTop - currentScrollTop);
+      if (distance < nearestDistance) {
+        nearestDistance = distance;
+        nearestIndex = index;
+      }
+    });
+
+    const targetNode = cardRefs.current[nearestIndex];
+    if (!targetNode) return;
+
+    isAutoSnappingRef.current = true;
+
+    scrollRef.current.scrollTo({
+      top: targetNode.offsetTop,
+      behavior: "smooth"
+    });
+
+    window.clearTimeout(snapTimeoutRef.current);
+    snapTimeoutRef.current = window.setTimeout(() => {
+      isAutoSnappingRef.current = false;
+    }, 180);
+  }
+
+  function handleScroll() {
+    window.clearTimeout(snapTimeoutRef.current);
+    snapTimeoutRef.current = window.setTimeout(() => {
+      snapToNearestCard();
+    }, 70);
+  }
+
+  scroller.addEventListener("scroll", handleScroll, { passive: true });
+
+  return () => {
+    scroller.removeEventListener("scroll", handleScroll);
+    window.clearTimeout(snapTimeoutRef.current);
+  };
+}, [unifiedFeed]);
+
 
   const topTabs = [
   { key: "country", label: "Oxfordshire" },
@@ -966,6 +1021,7 @@ const styles = {
     scrollSnapType: "y mandatory",
     overscrollBehaviorY: "contain",
     WebkitOverflowScrolling: "touch",
+    touchAction: "pan-y",
     
     background: "#000000"
   },
