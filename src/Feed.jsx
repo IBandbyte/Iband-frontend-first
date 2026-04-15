@@ -739,8 +739,9 @@ export default function Feed() {
 const scrollRef = useRef(null);
 const cardRefs = useRef([]);
 const topTabsScrollRef = useRef(null);
-const snapTimeoutRef = useRef(null);
-const isAutoSnappingRef = useRef(false);
+const touchStartYRef = useRef(0);
+const touchEndYRef = useRef(0);
+const isDirectionalSnappingRef = useRef(false);
   
   useEffect(() => {
     let isMounted = true;
@@ -827,7 +828,83 @@ const isAutoSnappingRef = useRef(false);
   }, [unifiedFeed]);
   
 
+useEffect(() => {
+  const scroller = scrollRef.current;
+  if (!scroller || !cardRefs.current.length) return;
 
+  function getNearestIndex() {
+    const currentScrollTop = scroller.scrollTop;
+
+    let nearestIndex = 0;
+    let nearestDistance = Infinity;
+
+    cardRefs.current.forEach((node, index) => {
+      if (!node) return;
+      const distance = Math.abs(node.offsetTop - currentScrollTop);
+      if (distance < nearestDistance) {
+        nearestDistance = distance;
+        nearestIndex = index;
+      }
+    });
+
+    return nearestIndex;
+  }
+
+  function snapToIndex(index) {
+    const clampedIndex = Math.max(0, Math.min(index, cardRefs.current.length - 1));
+    const targetNode = cardRefs.current[clampedIndex];
+    if (!targetNode) return;
+
+    isDirectionalSnappingRef.current = true;
+
+    scroller.scrollTo({
+      top: targetNode.offsetTop,
+      behavior: "auto"
+    });
+
+    window.setTimeout(() => {
+      isDirectionalSnappingRef.current = false;
+    }, 120);
+  }
+
+  function handleTouchStart(event) {
+    touchStartYRef.current = event.touches[0]?.clientY || 0;
+    touchEndYRef.current = touchStartYRef.current;
+  }
+
+  function handleTouchMove(event) {
+    touchEndYRef.current = event.touches[0]?.clientY || touchEndYRef.current;
+  }
+
+  function handleTouchEnd() {
+    if (isDirectionalSnappingRef.current) return;
+
+    const deltaY = touchStartYRef.current - touchEndYRef.current;
+    const absDeltaY = Math.abs(deltaY);
+    const currentIndex = getNearestIndex();
+
+    if (absDeltaY < 18) {
+      snapToIndex(currentIndex);
+      return;
+    }
+
+    if (deltaY > 0) {
+      snapToIndex(currentIndex + 1);
+    } else {
+      snapToIndex(currentIndex - 1);
+    }
+  }
+
+  scroller.addEventListener("touchstart", handleTouchStart, { passive: true });
+  scroller.addEventListener("touchmove", handleTouchMove, { passive: true });
+  scroller.addEventListener("touchend", handleTouchEnd, { passive: true });
+
+  return () => {
+    scroller.removeEventListener("touchstart", handleTouchStart);
+    scroller.removeEventListener("touchmove", handleTouchMove);
+    scroller.removeEventListener("touchend", handleTouchEnd);
+  };
+}, [unifiedFeed]);
   const topTabs = [
   { key: "country", label: "Oxfordshire" },
   { key: "following", label: "Following" },
