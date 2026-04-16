@@ -1297,7 +1297,7 @@ topLiveFixedButton: {
     flexDirection: "column",
     alignItems: "center",
     justifyContent: "flex-start",
-    gap: 12
+    gap: 10
   },
   avatarRailBlock: {
     display: "flex",
@@ -1307,12 +1307,12 @@ topLiveFixedButton: {
   },
   avatarWrap: {
     position: "relative",
-    width: 88,
-    height: 88
+    width: 72,
+    height: 72
   },
   avatarImage: {
-    width: 82,
-    height: 82,
+    width: 68,
+    height: 68,
     borderRadius: "50%",
     objectFit: "cover",
     display: "block",
@@ -1346,8 +1346,8 @@ topLiveFixedButton: {
   },
   rightActionButton: {
   appearance: "none",
-  width: 58,
-  height: 58,
+  width: 50,
+  height: 50,
   borderRadius: 29,
   border: "1px solid rgba(255,255,255,0.14)",
   background: "rgba(10,14,28,0.30)",
@@ -1362,21 +1362,22 @@ topLiveFixedButton: {
 },
   
   rightIconSvg: {
-    width: 30,
-    height: 30,
+    width: 26,
+    height: 26,
     display: "block",
     color: "#ffffff"
   },
   rightActionCount: {
-    fontSize: 11.2,
-    lineHeight: 1,
-    fontWeight: 700,
-    color: "rgba(255,255,255,0.96)"
-  },
+  fontSize: 10.5,
+  lineHeight: 1,
+  fontWeight: 700,
+  color: "rgba(255,255,255,0.96)",
+  marginTop: -2
+},
   soundDiscButton: {
     appearance: "none",
-    width: 56,
-    height: 56,
+    width: 48,
+    height: 48,
     minWidth: 56,
 minHeight: 56,
 maxWidth: 56,
