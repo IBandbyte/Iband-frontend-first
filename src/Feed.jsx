@@ -513,12 +513,20 @@ function IconProfile() {
   );
 }
 
-function IconHeart() {
+// ===== IconHeart — iBand Gradient Upgrade =====
+function IconHeart({ active = true }) {
   return (
     <svg viewBox="0 0 24 24" style={styles.rightIconSvg} aria-hidden="true">
+      <defs>
+        <linearGradient id="ibandHeartGradient" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stopColor="#7c3aed" />
+          <stop offset="100%" stopColor="#f97316" />
+        </linearGradient>
+      </defs>
+
       <path
-        d="M12 20.6c-.2 0-.4-.1-.6-.2l-1.5-1.4C5.1 14.6 2.5 12 2.5 8.4 2.5 5.3 4.9 3 8 3c1.8 0 3.3.8 4 2 .7-1.2 2.2-2 4-2 3.1 0 5.5 2.3 5.5 5.4 0 3.6-2.6 6.2-7.4 10.6l-1.5 1.4c-.2.1-.4.2-.6.2Z"
-        fill="currentColor"
+        d="M12 20.4l-1.1-1C5.3 14.4 2 11.4 2 7.8 2 5 4.2 3 7 3c1.7 0 3.4.8 5 2.7C13.6 3.8 15.3 3 17 3c2.8 0 5 2 5 4.8 0 3.6-3.3 6.6-8.9 11.6l-1.1 1z"
+        fill={active ? "url(#ibandHeartGradient)" : "white"}
       />
     </svg>
   );
@@ -668,7 +676,7 @@ function FeedCard({ item, isActive, currentIndex, totalItems }) {
 
         <div style={styles.rightActionBlock}>
           <button type="button" aria-label="Like" style={styles.rightActionButton}>
-            <IconHeart />
+            <IconHeart active={true} />
           </button>
           <div style={styles.rightActionCount}>{formatCompactCount(item.likes)}</div>
         </div>
@@ -1360,21 +1368,20 @@ topLiveFixedButton: {
   appearance: "none",
   width: 50,
   height: 50,
-  borderRadius: 999,
-  border: "1px solid rgba(255,255,255,0.06)",
-  background: "rgba(0,0,0,0.28)",
+  borderRadius: 29,
+  border: "none",
+  background: "transparent",
   color: "#ffffff",
   display: "flex",
   alignItems: "center",
   justifyContent: "center",
   cursor: "pointer",
-  padding: 0,
-  boxShadow: "0 6px 18px rgba(0,0,0,0.35)"
+  padding: 0
 },
   
   rightIconSvg: {
-    width: 26,
-    height: 26,
+    width: 28,
+    height: 28,
     display: "block",
     color: "#ffffff"
   },
