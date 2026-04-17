@@ -517,7 +517,7 @@ function IconHeart() {
   return (
     <svg viewBox="0 0 24 24" style={styles.rightIconSvg} aria-hidden="true">
       <path
-        d="M12 20.4l-1.1-1C5.3 14.4 2 11.4 2 7.8 2 5 4.2 3 7 3c1.7 0 3.4.8 5 2.7C13.6 3.8 15.3 3 17 3c2.8 0 5 2 5 4.8 0 3.6-3.3 6.6-8.9 11.6l-1.1 1z"
+        d="M12 20.6c-.2 0-.4-.1-.6-.2l-1.5-1.4C5.1 14.6 2.5 12 2.5 8.4 2.5 5.3 4.9 3 8 3c1.8 0 3.3.8 4 2 .7-1.2 2.2-2 4-2 3.1 0 5.5 2.3 5.5 5.4 0 3.6-2.6 6.2-7.4 10.6l-1.5 1.4c-.2.1-.4.2-.6.2Z"
         fill="currentColor"
       />
     </svg>
@@ -528,9 +528,11 @@ function IconComment() {
   return (
     <svg viewBox="0 0 24 24" style={styles.rightIconSvg} aria-hidden="true">
       <path
-        d="M6 6h12a3 3 0 013 3v4a3 3 0 01-3 3h-5l-4.5 3v-3H6a3 3 0 01-3-3V9a3 3 0 013-3z"
+        d="M6.8 5.2h10.4c2 0 3.6 1.6 3.6 3.6v4.5c0 2-1.6 3.6-3.6 3.6h-4.2l-3.8 2.7c-.5.3-1.2 0-1.2-.7v-2H6.8c-2 0-3.6-1.6-3.6-3.6V8.8c0-2 1.6-3.6 3.6-3.6Z"
         fill="currentColor"
       />
+      <rect x="7.2" y="9.2" width="9.6" height="1.4" rx="0.7" fill="rgba(2,6,23,0.9)" />
+      <rect x="7.2" y="12" width="6.8" height="1.4" rx="0.7" fill="rgba(2,6,23,0.9)" />
     </svg>
   );
 }
@@ -539,11 +541,14 @@ function IconBookmark() {
   return (
     <svg viewBox="0 0 24 24" style={styles.rightIconSvg} aria-hidden="true">
       <path
-        d="M7 4.5h10a1 1 0 011 1V20l-6-3.8L6 20V5.5a1 1 0 011-1z"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2.1"
-        strokeLinejoin="round"
+        d="M7 3.8h10c.9 0 1.6.7 1.6 1.6v14.2c0 .6-.7 1-1.2.7L12 16.8l-5.4 3.5c-.5.3-1.2-.1-1.2-.7V5.4c0-.9.7-1.6 1.6-1.6Z"
+        fill="currentColor"
+      />
+      <path
+        d="M9.2 7.6h5.6"
+        stroke="rgba(2,6,23,0.9)"
+        strokeWidth="1.4"
+        strokeLinecap="round"
       />
     </svg>
   );
@@ -553,10 +558,17 @@ function IconShare() {
   return (
     <svg viewBox="0 0 24 24" style={styles.rightIconSvg} aria-hidden="true">
       <path
-        d="M6 17c6.2-0.9 9.7-4.5 11.9-9.8M11.4 6.4h6.4v6.4"
+        d="M6.2 17.4c4.9-.8 8.1-3.5 10.3-8.3"
         fill="none"
         stroke="currentColor"
-        strokeWidth="2.8"
+        strokeWidth="2.6"
+        strokeLinecap="round"
+      />
+      <path
+        d="M11.8 6.3h5.9v5.9"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2.6"
         strokeLinecap="round"
         strokeLinejoin="round"
       />
@@ -1348,15 +1360,13 @@ topLiveFixedButton: {
   appearance: "none",
   width: 50,
   height: 50,
-  borderRadius: 29,
-  border: "1px solid rgba(255,255,255,0.14)",
-  background: "rgba(10,14,28,0.30)",
+  borderRadius: 999,
+  border: "none",
+  background: "rgba(0,0,0,0.10)",
   color: "#ffffff",
   display: "flex",
   alignItems: "center",
   justifyContent: "center",
-  backdropFilter: "blur(14px)",
-  boxShadow: "0 10px 26px rgba(0,0,0,0.24)",
   cursor: "pointer",
   padding: 0
 },
