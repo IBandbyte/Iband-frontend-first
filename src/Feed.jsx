@@ -1361,14 +1361,15 @@ topLiveFixedButton: {
   width: 50,
   height: 50,
   borderRadius: 999,
-  border: "none",
-  background: "rgba(0,0,0,0.10)",
+  border: "1px solid rgba(255,255,255,0.06)",
+  background: "rgba(0,0,0,0.28)",
   color: "#ffffff",
   display: "flex",
   alignItems: "center",
   justifyContent: "center",
   cursor: "pointer",
-  padding: 0
+  padding: 0,
+  boxShadow: "0 6px 18px rgba(0,0,0,0.35)"
 },
   
   rightIconSvg: {
