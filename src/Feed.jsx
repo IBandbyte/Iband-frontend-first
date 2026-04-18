@@ -1368,7 +1368,7 @@ topLiveFixedButton: {
   appearance: "none",
   width: 50,
   height: 50,
-  borderRadius: 29,
+  borderRadius: 0,
   border: "none",
   background: "transparent",
   color: "#ffffff",
