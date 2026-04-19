@@ -532,51 +532,45 @@ function IconHeart({ active = true }) {
   );
 }
 
+// ===== IconComment — iBand Icon Set v1 =====
 function IconComment() {
   return (
     <svg viewBox="0 0 24 24" style={styles.rightIconSvg} aria-hidden="true">
       <path
-        d="M6.8 5.2h10.4c2 0 3.6 1.6 3.6 3.6v4.5c0 2-1.6 3.6-3.6 3.6h-4.2l-3.8 2.7c-.5.3-1.2 0-1.2-.7v-2H6.8c-2 0-3.6-1.6-3.6-3.6V8.8c0-2 1.6-3.6 3.6-3.6Z"
+        d="M5.5 5.5h13a2.5 2.5 0 0 1 2.5 2.5v6a2.5 2.5 0 0 1-2.5 2.5h-5.1l-3.8 2.9c-.6.4-1.4 0-1.4-.8v-2.1H5.5A2.5 2.5 0 0 1 3 14V8a2.5 2.5 0 0 1 2.5-2.5Z"
         fill="currentColor"
       />
-      <rect x="7.2" y="9.2" width="9.6" height="1.4" rx="0.7" fill="rgba(2,6,23,0.9)" />
-      <rect x="7.2" y="12" width="6.8" height="1.4" rx="0.7" fill="rgba(2,6,23,0.9)" />
     </svg>
   );
 }
 
+// ===== IconBookmark — iBand Icon Set v1 =====
 function IconBookmark() {
   return (
     <svg viewBox="0 0 24 24" style={styles.rightIconSvg} aria-hidden="true">
       <path
-        d="M7 3.8h10c.9 0 1.6.7 1.6 1.6v14.2c0 .6-.7 1-1.2.7L12 16.8l-5.4 3.5c-.5.3-1.2-.1-1.2-.7V5.4c0-.9.7-1.6 1.6-1.6Z"
+        d="M7 4h10a1.5 1.5 0 0 1 1.5 1.5v14.2c0 .7-.8 1.2-1.4.8L12 17.2l-5.1 3.3c-.6.4-1.4-.1-1.4-.8V5.5A1.5 1.5 0 0 1 7 4Z"
         fill="currentColor"
-      />
-      <path
-        d="M9.2 7.6h5.6"
-        stroke="rgba(2,6,23,0.9)"
-        strokeWidth="1.4"
-        strokeLinecap="round"
       />
     </svg>
   );
 }
 
+// ===== IconShare — iBand Icon Set v1 (TikTok-style) =====
 function IconShare() {
   return (
     <svg viewBox="0 0 24 24" style={styles.rightIconSvg} aria-hidden="true">
       <path
-        d="M6.2 17.4c4.9-.8 8.1-3.5 10.3-8.3"
-        fill="none"
+        d="M4 12h10"
         stroke="currentColor"
-        strokeWidth="2.6"
+        strokeWidth="2.4"
         strokeLinecap="round"
       />
       <path
-        d="M11.8 6.3h5.9v5.9"
+        d="M10 6l6 6-6 6"
         fill="none"
         stroke="currentColor"
-        strokeWidth="2.6"
+        strokeWidth="2.4"
         strokeLinecap="round"
         strokeLinejoin="round"
       />
@@ -1308,7 +1302,7 @@ topLiveFixedButton: {
   },
   rightRail: {
     position: "absolute",
-    right: 14,
+    right: 10,
     top: "82px",
     
     zIndex: 9,
@@ -1317,7 +1311,7 @@ topLiveFixedButton: {
     flexDirection: "column",
     alignItems: "center",
     justifyContent: "flex-start",
-    gap: 10
+    gap: 6
   },
   avatarRailBlock: {
     display: "flex",
@@ -1366,8 +1360,8 @@ topLiveFixedButton: {
   },
   rightActionButton: {
   appearance: "none",
-  width: 50,
-  height: 50,
+  width: 46,
+  height: 46,
   borderRadius: 0,
   border: "none",
   background: "transparent",
@@ -1375,49 +1369,52 @@ topLiveFixedButton: {
   display: "flex",
   alignItems: "center",
   justifyContent: "center",
+  boxShadow: "none",
   cursor: "pointer",
   padding: 0
 },
   
   rightIconSvg: {
-    width: 28,
-    height: 28,
+    width: 22,
+    height: 22,
     display: "block",
     color: "#ffffff"
   },
   rightActionCount: {
-  fontSize: 10.5,
+  fontSize: 10,
   lineHeight: 1,
   fontWeight: 700,
-  color: "rgba(255,255,255,0.96)",
-  marginTop: -2
+  color: "rgba(255,255,255,0.92)",
+  marginTop: -1
 },
   soundDiscButton: {
-    appearance: "none",
-    width: 48,
-    height: 48,
-    minWidth: 56,
-minHeight: 56,
-maxWidth: 56,
-maxHeight: 56,
-flexShrink: 0,
-alignSelf: "center",
-    aspectRatio: "1 / 1",
-    borderRadius: 999,
-    border: "2px solid rgba(255,255,255,0.96)",
-    padding: 0,
-    overflow: "hidden",
-    background: "transparent",
-    cursor: "pointer",
-    boxShadow: "0 10px 24px rgba(0,0,0,0.24)",
-    marginTop: 2
-  },
+  appearance: "none",
+  width: 56,
+  height: 56,
+  minWidth: 56,
+  minHeight: 56,
+  maxWidth: 56,
+  maxHeight: 56,
+  flexShrink: 0,
+  alignSelf: "center",
+  aspectRatio: "1 / 1",
+  borderRadius: 999,
+  border: "2px solid rgba(255,255,255,0.96)",
+  padding: 0,
+  overflow: "hidden",
+  background: "transparent",
+  cursor: "pointer",
+  boxShadow: "0 10px 24px rgba(0,0,0,0.24)",
+  marginTop: 2
+},
   soundDiscImage: {
-    width: "100%",
-    height: "100%",
-    objectFit: "cover",
-    display: "block"
-  },
+  width: "100%",
+  height: "100%",
+  borderRadius: "50%",
+  objectFit: "cover",
+  display: "block",
+  background: "#000000"
+},
   contentOverlay: {
     position: "absolute",
     left: "max(16px, calc(env(safe-area-inset-left) + 10px))",
