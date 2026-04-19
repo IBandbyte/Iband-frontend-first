@@ -1356,12 +1356,12 @@ topLiveFixedButton: {
     display: "flex",
     flexDirection: "column",
     alignItems: "center",
-    gap: 4
+    gap: 6
   },
   rightActionButton: {
   appearance: "none",
-  width: 46,
-  height: 46,
+  width: 56,
+  height: 56,
   borderRadius: 0,
   border: "none",
   background: "transparent",
@@ -1375,17 +1375,17 @@ topLiveFixedButton: {
 },
   
   rightIconSvg: {
-    width: 22,
-    height: 22,
+    width: 28,
+    height: 28,
     display: "block",
     color: "#ffffff"
   },
   rightActionCount: {
-  fontSize: 10,
+  fontSize: 11,
   lineHeight: 1,
   fontWeight: 700,
   color: "rgba(255,255,255,0.92)",
-  marginTop: -1
+  marginTop: 0
 },
   soundDiscButton: {
   appearance: "none",
