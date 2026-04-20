@@ -557,17 +557,32 @@ function IconBookmark() {
 }
 
 // ===== IconShare — TikTok-style warm rounded upgrade =====
-function IconShare() {
+function IconShare({ active = false }) {
   return (
     <svg viewBox="0 0 24 24" style={styles.rightIconSvg} aria-hidden="true">
       <path
-        d="M6 17.2L17.2 12 6 6.8"
+        d="M22 12L13 5v5H9c-3.3 0-5 2.2-5 5 0 2.8 1.7 5 5 5h1"
         fill="none"
         stroke="currentColor"
-        strokeWidth="3.2"
+        strokeWidth="2.8"
         strokeLinecap="round"
         strokeLinejoin="round"
       />
+      <path
+        d="M13 5v6"
+        stroke="currentColor"
+        strokeWidth="2.8"
+        strokeLinecap="round"
+      />
+
+      {/* Fill effect when active */}
+      {active && (
+        <path
+          d="M22 12L13 5v5H9c-3.3 0-5 2.2-5 5 0 2.8 1.7 5 5 5h1"
+          fill="currentColor"
+          opacity="0.15"
+        />
+      )}
     </svg>
   );
 }
@@ -685,7 +700,7 @@ function FeedCard({ item, isActive, currentIndex, totalItems }) {
 
         <div style={styles.rightActionBlock}>
           <button type="button" aria-label="Share" style={styles.rightActionButton}>
-            <IconShare />
+            <IconShare active={false} />
           </button>
           <div style={styles.rightActionCount}>{formatCompactCount(item.shares)}</div>
         </div>
