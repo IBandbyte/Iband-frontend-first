@@ -561,7 +561,7 @@ function IconShare({ active = false }) {
   return (
     <svg viewBox="0 0 24 24" style={styles.rightIconSvg} aria-hidden="true">
       <path
-        d="M22 12L13 5v5H9c-3.3 0-5 2.2-5 5 0 2.8 1.7 5 5 5h1"
+        d="M6 17L18 12L6 7"
         fill="none"
         stroke="currentColor"
         strokeWidth="2.8"
@@ -569,18 +569,18 @@ function IconShare({ active = false }) {
         strokeLinejoin="round"
       />
       <path
-        d="M13 5v6"
+        d="M6 12H14.5"
+        fill="none"
         stroke="currentColor"
         strokeWidth="2.8"
         strokeLinecap="round"
       />
 
-      {/* Fill effect when active */}
       {active && (
         <path
-          d="M22 12L13 5v5H9c-3.3 0-5 2.2-5 5 0 2.8 1.7 5 5 5h1"
+          d="M6 17L18 12L6 7V17Z"
           fill="currentColor"
-          opacity="0.15"
+          opacity="0.14"
         />
       )}
     </svg>
