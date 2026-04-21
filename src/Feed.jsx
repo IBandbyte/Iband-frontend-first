@@ -1349,14 +1349,14 @@ topLiveFixedButton: {
   rightRail: {
   position: "absolute",
   right: 8,
-  top: "88px",
+  top: "92px",
   zIndex: 9,
-  width: 78,
+  width: 76,
   display: "flex",
   flexDirection: "column",
   alignItems: "center",
   justifyContent: "flex-start",
-  gap: 8
+  gap: 7
 },
   avatarRailBlock: {
     display: "flex",
@@ -1366,48 +1366,48 @@ topLiveFixedButton: {
   },
   avatarWrap: {
     position: "relative",
-    width: 72,
-    height: 72
+    width: 64,
+    height: 64
   },
   avatarImage: {
-    width: 68,
-    height: 68,
-    borderRadius: "50%",
-    objectFit: "cover",
-    display: "block",
-    border: "3px solid rgba(255,255,255,0.96)",
-    boxShadow: "0 14px 28px rgba(0,0,0,0.34)"
-  },
-  followPlusButton: {
-    position: "absolute",
-    right: -3,
-    bottom: 2,
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    border: "2px solid #ffffff",
-    background: "#ff3d6e",
-    color: "#ffffff",
-    fontSize: 16,
-    fontWeight: 900,
-    lineHeight: 1,
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    cursor: "pointer",
-    boxShadow: "0 8px 18px rgba(0,0,0,0.26)"
-  },
-  rightActionBlock: {
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    gap: 6
-  },
-  rightActionButton: {
-  appearance: "none",
   width: 60,
   height: 60,
-  borderRadius: 18,
+  borderRadius: "50%",
+  objectFit: "cover",
+  display: "block",
+  border: "3px solid rgba(255,255,255,0.96)",
+  boxShadow: "0 14px 28px rgba(0,0,0,0.34)"
+},
+  followPlusButton: {
+  position: "absolute",
+  right: -2,
+  bottom: 1,
+  width: 22,
+  height: 22,
+  borderRadius: 11,
+  border: "2px solid #ffffff",
+  background: "#ff3d6e",
+  color: "#ffffff",
+  fontSize: 14,
+  fontWeight: 900,
+  lineHeight: 1,
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  cursor: "pointer",
+  boxShadow: "0 8px 18px rgba(0,0,0,0.26)"
+},
+  rightActionBlock: {
+  display: "flex",
+  flexDirection: "column",
+  alignItems: "center",
+  gap: 5
+},
+  rightActionButton: {
+  appearance: "none",
+  width: 58,
+  height: 58,
+  borderRadius: 16,
   border: "none",
   background: "transparent",
   color: "#ffffff",
@@ -1420,26 +1420,26 @@ topLiveFixedButton: {
 },
   
   rightIconSvg: {
-    width: 31,
-    height: 31,
-    display: "block",
-    color: "#ffffff"
-  },
+  width: 30,
+  height: 30,
+  display: "block",
+  color: "#ffffff"
+},
   rightActionCount: {
-  fontSize: 11,
+  fontSize: 10.5,
   lineHeight: 1,
   fontWeight: 700,
   color: "rgba(255,255,255,0.92)",
-  marginTop: 0
+  marginTop: -1
 },
   soundDiscButton: {
   appearance: "none",
-  width: 56,
-  height: 56,
-  minWidth: 56,
-  minHeight: 56,
-  maxWidth: 56,
-  maxHeight: 56,
+  width: 54,
+  height: 54,
+  minWidth: 54,
+  minHeight: 54,
+  maxWidth: 54,
+  maxHeight: 54,
   flexShrink: 0,
   alignSelf: "center",
   aspectRatio: "1 / 1",
