@@ -1349,14 +1349,14 @@ topLiveFixedButton: {
   rightRail: {
   position: "absolute",
   right: 8,
-  top: "92px",
+  top: "118px",
   zIndex: 9,
   width: 76,
   display: "flex",
   flexDirection: "column",
   alignItems: "center",
   justifyContent: "flex-start",
-  gap: 7
+  gap: 10
 },
   avatarRailBlock: {
     display: "flex",
@@ -1366,12 +1366,12 @@ topLiveFixedButton: {
   },
   avatarWrap: {
     position: "relative",
-    width: 64,
-    height: 64
+    width: 60,
+    height: 60
   },
   avatarImage: {
-  width: 60,
-  height: 60,
+  width: 56,
+  height: 56,
   borderRadius: "50%",
   objectFit: "cover",
   display: "block",
@@ -1434,12 +1434,12 @@ topLiveFixedButton: {
 },
   soundDiscButton: {
   appearance: "none",
-  width: 54,
-  height: 54,
-  minWidth: 54,
-  minHeight: 54,
-  maxWidth: 54,
-  maxHeight: 54,
+  width: 50,
+  height: 50,
+  minWidth: 50,
+  minHeight: 50,
+  maxWidth: 50,
+  maxHeight: 50,
   flexShrink: 0,
   alignSelf: "center",
   aspectRatio: "1 / 1",
@@ -1461,13 +1461,13 @@ topLiveFixedButton: {
   background: "#000000"
 },
   contentOverlay: {
-    position: "absolute",
-    left: "max(16px, calc(env(safe-area-inset-left) + 10px))",
-    right: "112px",
-    bottom: "calc(94px + env(safe-area-inset-bottom))",
-    zIndex: 8,
-    maxWidth: "min(68vw, 490px)"
-  },
+  position: "absolute",
+  left: "max(16px, calc(env(safe-area-inset-left) + 10px))",
+  right: "112px",
+  bottom: "calc(82px + env(safe-area-inset-bottom))",
+  zIndex: 8,
+  maxWidth: "min(68vw, 490px)"
+},
   artistTitleRow: {
     display: "flex",
     alignItems: "center",
@@ -1582,25 +1582,25 @@ topLiveFixedButton: {
     textOverflow: "ellipsis"
   },
   bottomNav: {
-    position: "fixed",
-    left: 0,
-    right: 0,
-    bottom: 0,
-    zIndex: 35,
-    height: "calc(84px + env(safe-area-inset-bottom))",
-    paddingBottom: "env(safe-area-inset-bottom)",
-    background:
-      "linear-gradient(180deg, rgba(0,0,0,0.04) 0%, rgba(2,6,18,0.90) 18%, rgba(2,6,18,0.99) 100%)",
-    borderTop: "1px solid rgba(255,255,255,0.06)",
-    backdropFilter: "blur(16px)"
-  },
+  position: "fixed",
+  left: 0,
+  right: 0,
+  bottom: 0,
+  zIndex: 35,
+  height: "calc(64px + env(safe-area-inset-bottom))",
+  paddingBottom: "env(safe-area-inset-bottom)",
+  background:
+    "linear-gradient(180deg, rgba(0,0,0,0.04) 0%, rgba(2,6,18,0.90) 18%, rgba(2,6,18,0.99) 100%)",
+  borderTop: "1px solid rgba(255,255,255,0.06)",
+  backdropFilter: "blur(16px)"
+},
   bottomNavInner: {
-    height: 84,
-    display: "grid",
-    gridTemplateColumns: "1fr 1fr 1fr 1fr 1fr",
-    alignItems: "center",
-    padding: "0 8px"
-  },
+  height: 64,
+  display: "grid",
+  gridTemplateColumns: "1fr 1fr 1fr 1fr 1fr",
+  alignItems: "center",
+  padding: "0 8px"
+},
   bottomNavButton: {
     appearance: "none",
     border: "none",
@@ -1615,23 +1615,23 @@ topLiveFixedButton: {
     minWidth: 0
   },
   bottomIconSvg: {
-    width: 25,
-    height: 25,
-    display: "block",
-    color: "#ffffff"
-  },
+  width: 22,
+  height: 22,
+  display: "block",
+  color: "#ffffff"
+},
   bottomNavLabel: {
-    fontSize: 10,
-    lineHeight: 1,
-    fontWeight: 600,
-    color: "rgba(255,255,255,0.84)"
-  },
+  fontSize: 9,
+  lineHeight: 1,
+  fontWeight: 600,
+  color: "rgba(255,255,255,0.84)"
+},
   bottomNavLabelActive: {
-    fontSize: 10,
-    lineHeight: 1,
-    fontWeight: 700,
-    color: "#ffffff"
-  },
+  fontSize: 9,
+  lineHeight: 1,
+  fontWeight: 700,
+  color: "#ffffff"
+},
   createButton: {
     appearance: "none",
     border: "none",
