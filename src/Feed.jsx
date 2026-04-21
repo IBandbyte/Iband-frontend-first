@@ -1349,7 +1349,7 @@ topLiveFixedButton: {
   rightRail: {
   position: "absolute",
   right: 8,
-  top: "118px",
+  top: "146px",
   zIndex: 9,
   width: 76,
   display: "flex",
@@ -1587,7 +1587,7 @@ topLiveFixedButton: {
   right: 0,
   bottom: 0,
   zIndex: 35,
-  height: "calc(64px + env(safe-area-inset-bottom))",
+  height: "calc(58px + env(safe-area-inset-bottom))",
   paddingBottom: "env(safe-area-inset-bottom)",
   background:
     "linear-gradient(180deg, rgba(0,0,0,0.04) 0%, rgba(2,6,18,0.90) 18%, rgba(2,6,18,0.99) 100%)",
@@ -1595,7 +1595,7 @@ topLiveFixedButton: {
   backdropFilter: "blur(16px)"
 },
   bottomNavInner: {
-  height: 64,
+  height: 58,
   display: "grid",
   gridTemplateColumns: "1fr 1fr 1fr 1fr 1fr",
   alignItems: "center",
@@ -1615,72 +1615,72 @@ topLiveFixedButton: {
     minWidth: 0
   },
   bottomIconSvg: {
-  width: 22,
-  height: 22,
+  width: 20,
+  height: 20,
   display: "block",
   color: "#ffffff"
 },
   bottomNavLabel: {
-  fontSize: 9,
+  fontSize: 8.5,
   lineHeight: 1,
   fontWeight: 600,
   color: "rgba(255,255,255,0.84)"
 },
   bottomNavLabelActive: {
-  fontSize: 9,
+  fontSize: 8.5,
   lineHeight: 1,
   fontWeight: 700,
   color: "#ffffff"
 },
   createButton: {
-    appearance: "none",
-    border: "none",
-    background: "transparent",
-    position: "relative",
-    width: 86,
-    height: 50,
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    cursor: "pointer",
-    padding: 0,
-    justifySelf: "center"
-  },
+  appearance: "none",
+  border: "none",
+  background: "transparent",
+  position: "relative",
+  width: 78,
+  height: 44,
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  cursor: "pointer",
+  padding: 0,
+  justifySelf: "center"
+},
   createButtonBlue: {
-    position: "absolute",
-    left: 12,
-    top: "50%",
-    transform: "translateY(-50%)",
-    width: 54,
-    height: 46,
-    borderRadius: 14,
-    background: "#7dd3fc"
-  },
+  position: "absolute",
+  left: 12,
+  top: "50%",
+  transform: "translateY(-50%)",
+  width: 48,
+  height: 40,
+  borderRadius: 12,
+  background: "#7dd3fc"
+},
   createButtonRed: {
-    position: "absolute",
-    right: 12,
-    top: "50%",
-    transform: "translateY(-50%)",
-    width: 54,
-    height: 46,
-    borderRadius: 14,
-    background: "#fb7185"
-  },
+  position: "absolute",
+  right: 12,
+  top: "50%",
+  transform: "translateY(-50%)",
+  width: 48,
+  height: 40,
+  borderRadius: 12,
+  background: "#fb7185"
+},
   createButtonCenter: {
-    position: "relative",
-    zIndex: 1,
-    width: 54,
-    height: 46,
-    borderRadius: 14,
-    background: "#ffffff",
-    color: "#111111",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    fontSize: 34,
-    lineHeight: 1,
-    fontWeight: 700
-  },
+  position: "relative",
+  zIndex: 1,
+  width: 48,
+  height: 40,
+  borderRadius: 12,
+  background: "#ffffff",
+  color: "#111111",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  fontSize: 30,
+  lineHeight: 1,
+  fontWeight: 700
+},
   inboxBadgeWrap: {
     position: "relative",
     display: "inline-flex"
