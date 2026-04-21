@@ -532,17 +532,7 @@ function IconHeart({ active = true }) {
   );
 }
 
-// ===== IconComment — iBand Icon Set v1 =====
-function IconComment() {
-  return (
-    <svg viewBox="0 0 24 24" style={styles.rightIconSvg} aria-hidden="true">
-      <path
-        d="M5.5 5.5h13a2.5 2.5 0 0 1 2.5 2.5v6a2.5 2.5 0 0 1-2.5 2.5h-5.1l-3.8 2.9c-.6.4-1.4 0-1.4-.8v-2.1H5.5A2.5 2.5 0 0 1 3 14V8a2.5 2.5 0 0 1 2.5-2.5Z"
-        fill="currentColor"
-      />
-    </svg>
-  );
-}
+
 
 // ===== IconComment — iBand Icon Set v2 (TikTok-style) =====
 function IconComment({ active = false }) {
