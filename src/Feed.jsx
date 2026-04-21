@@ -583,29 +583,29 @@ function IconBookmark({ active = false }) {
     </svg>
   );
 }
-// ===== IconShare — TikTok-style warm rounded upgrade =====
+
+// ===== IconShare — TikTok-style precision pass =====
 function IconShare({ active = false }) {
   return (
     <svg viewBox="0 0 24 24" style={styles.rightIconSvg} aria-hidden="true">
       <path
-        d="M6 17L18 12L6 7"
+        d="M7 17.2L17.4 12 7 6.8"
         fill="none"
         stroke="currentColor"
-        strokeWidth="2.8"
+        strokeWidth="2.5"
         strokeLinecap="round"
         strokeLinejoin="round"
       />
       <path
-        d="M6 12H14.5"
+        d="M7.4 12H14.2"
         fill="none"
         stroke="currentColor"
-        strokeWidth="2.8"
+        strokeWidth="2.5"
         strokeLinecap="round"
       />
-
       {active && (
         <path
-          d="M6 17L18 12L6 7V17Z"
+          d="M7 17.2L17.4 12 7 6.8V17.2Z"
           fill="currentColor"
           opacity="0.14"
         />
