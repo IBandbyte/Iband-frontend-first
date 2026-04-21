@@ -792,7 +792,7 @@ const topTabsScrollRef = useRef(null);
 const touchStartYRef = useRef(0);
 const touchEndYRef = useRef(0);
 const isDirectionalSnappingRef = useRef(false);
-  
+  const hasInitialTopTabsPositionedRef = useRef(false);
   useEffect(() => {
     let isMounted = true;
 
@@ -846,7 +846,17 @@ const isDirectionalSnappingRef = useRef(false);
       }),
     [smartFeed, personalisedFeed, predictiveFeed]
   );
+useEffect(() => {
+  const scroller = topTabsScrollRef.current;
+  if (!scroller || hasInitialTopTabsPositionedRef.current) return;
 
+  const id = window.requestAnimationFrame(() => {
+    scroller.scrollLeft = 118;
+    hasInitialTopTabsPositionedRef.current = true;
+  });
+
+  return () => window.cancelAnimationFrame(id);
+}, []);
   useEffect(() => {
     if (!scrollRef.current || !unifiedFeed.length) return;
 
@@ -956,12 +966,12 @@ useEffect(() => {
   };
 }, [unifiedFeed]);
   const topTabs = [
+  { key: "stem", label: "STEM" },
+  { key: "explore", label: "Explore" },
   { key: "country", label: "Oxfordshire" },
   { key: "following", label: "Following" },
   { key: "friends", label: "Friends" },
-  { key: "for-you", label: "For You" },
-  { key: "stem", label: "STEM" },
-  { key: "explore", label: "Explore" }
+  { key: "for-you", label: "For You" }
 ];
 
   return (
