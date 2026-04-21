@@ -544,18 +544,33 @@ function IconComment() {
   );
 }
 
-// ===== IconBookmark — iBand Icon Set v1 =====
-function IconBookmark() {
+// ===== IconComment — iBand Icon Set v2 (TikTok-style) =====
+function IconComment({ active = false }) {
   return (
     <svg viewBox="0 0 24 24" style={styles.rightIconSvg} aria-hidden="true">
+      
+      {/* Main bubble (outline) */}
       <path
-        d="M7 4h10a1.5 1.5 0 0 1 1.5 1.5v14.2c0 .7-.8 1.2-1.4.8L12 17.2l-5.1 3.3c-.6.4-1.4-.1-1.4-.8V5.5A1.5 1.5 0 0 1 7 4Z"
-        fill="currentColor"
+        d="M5 6.5C5 5.1 6.1 4 7.5 4h9C17.9 4 19 5.1 19 6.5v6c0 1.4-1.1 2.5-2.5 2.5h-4.6l-3.4 2.5c-.6.4-1.5 0-1.5-.8v-1.7H7.5C6.1 15 5 13.9 5 12.5v-6Z"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2.4"
+        strokeLinecap="round"
+        strokeLinejoin="round"
       />
+
+      {/* Filled state (on press) */}
+      {active && (
+        <path
+          d="M5 6.5C5 5.1 6.1 4 7.5 4h9C17.9 4 19 5.1 19 6.5v6c0 1.4-1.1 2.5-2.5 2.5h-4.6l-3.4 2.5c-.6.4-1.5 0-1.5-.8v-1.7H7.5C6.1 15 5 13.9 5 12.5v-6Z"
+          fill="currentColor"
+          opacity="0.14"
+        />
+      )}
+
     </svg>
   );
 }
-
 // ===== IconShare — TikTok-style warm rounded upgrade =====
 function IconShare({ active = false }) {
   return (
