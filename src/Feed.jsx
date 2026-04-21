@@ -1337,18 +1337,17 @@ topLiveFixedButton: {
     backdropFilter: "blur(14px)"
   },
   rightRail: {
-    position: "absolute",
-    right: 10,
-    top: "82px",
-    
-    zIndex: 9,
-    width: 74,
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    justifyContent: "flex-start",
-    gap: 6
-  },
+  position: "absolute",
+  right: 8,
+  top: "88px",
+  zIndex: 9,
+  width: 78,
+  display: "flex",
+  flexDirection: "column",
+  alignItems: "center",
+  justifyContent: "flex-start",
+  gap: 8
+},
   avatarRailBlock: {
     display: "flex",
     flexDirection: "column",
@@ -1396,9 +1395,9 @@ topLiveFixedButton: {
   },
   rightActionButton: {
   appearance: "none",
-  width: 56,
-  height: 56,
-  borderRadius: 0,
+  width: 60,
+  height: 60,
+  borderRadius: 18,
   border: "none",
   background: "transparent",
   color: "#ffffff",
@@ -1411,8 +1410,8 @@ topLiveFixedButton: {
 },
   
   rightIconSvg: {
-    width: 28,
-    height: 28,
+    width: 31,
+    height: 31,
     display: "block",
     color: "#ffffff"
   },
