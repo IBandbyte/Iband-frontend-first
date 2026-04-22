@@ -11,15 +11,15 @@ const FEED_FONT_STACK =
   '"TikTok Sans", Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
 
 const DEFAULT_LAYOUT = {
-  rightRailTop: "44%",
-  rightRailGap: 14,
+  rightRailTop: "47.25%",
+  rightRailGap: 6,
   contentOverlayBottom: 142,
-  searchDockBottom: 64,
-  bottomNavHeight: 50,
-  rightRailScale: 1,
-  contentOverlayScale: 1,
-  bottomNavScale: 1,
-  searchDockWidth: 100
+  searchDockBottom: 45,
+  bottomNavHeight: 42,
+  rightRailScale: 1.2,
+  contentOverlayScale: 0.9,
+  bottomNavScale: 1.05,
+  searchDockWidth: 75
 };
 
 function clamp(value, min, max) {
@@ -856,20 +856,20 @@ export default function Feed() {
   }, [activeItem, isActiveLiked]);
 
   const uiCodeBlock = useMemo(() => {
-    return [
-      "const layoutTweaks = {",
-      `  rightRailTop: "${layoutValues.rightRailTop}",`,
-      `  rightRailGap: ${layoutValues.rightRailGap},`,
-      `  contentOverlayBottom: ${layoutValues.contentOverlayBottom},`,
-      `  searchDockBottom: ${layoutValues.searchDockBottom},`,
-      `  bottomNavHeight: ${layoutValues.bottomNavHeight},`,
-      `  rightRailScale: ${layoutValues.rightRailScale},`,
-      `  contentOverlayScale: ${layoutValues.contentOverlayScale},`,
-      `  bottomNavScale: ${layoutValues.bottomNavScale},`,
-      `  searchDockWidth: ${layoutValues.searchDockWidth}`,
-      "};"
-    ].join("\n");
-  }, [layoutValues]);
+  return [
+    "const layoutTweaks = {",
+    `  rightRailTop: "${layoutValues.rightRailTop}",`,
+    `  rightRailGap: ${layoutValues.rightRailGap},`,
+    `  contentOverlayBottom: ${layoutValues.contentOverlayBottom},`,
+    `  searchDockBottom: ${layoutValues.searchDockBottom},`,
+    `  bottomNavHeight: ${layoutValues.bottomNavHeight},`,
+    `  rightRailScale: ${layoutValues.rightRailScale},`,
+    `  contentOverlayScale: ${layoutValues.contentOverlayScale},`,
+    `  bottomNavScale: ${layoutValues.bottomNavScale},`,
+    `  searchDockWidth: ${layoutValues.searchDockWidth}`,
+    "};"
+  ].join("\n");
+}, [layoutValues]);
 
   const shellStyles = useMemo(() => ({
     position: "relative",
@@ -906,15 +906,15 @@ export default function Feed() {
   }), []);
 
   const contentOverlayStyles = useMemo(() => ({
-    position: "fixed",
-    left: 12,
-    right: 76,
-    bottom: layoutValues.contentOverlayBottom,
-    zIndex: 35,
-    pointerEvents: "none",
-    transform: `scale(${layoutValues.contentOverlayScale})`,
-    transformOrigin: "bottom left"
-  }), [layoutValues.contentOverlayBottom, layoutValues.contentOverlayScale]);
+  position: "fixed",
+  left: 12,
+  right: 92,
+  bottom: layoutValues.contentOverlayBottom,
+  zIndex: 35,
+  pointerEvents: DEV_LAYOUT_MODE ? "auto" : "none",
+  transform: `scale(${layoutValues.contentOverlayScale})`,
+  transformOrigin: "bottom left"
+}), [layoutValues.contentOverlayBottom, layoutValues.contentOverlayScale]);
 
   const searchDockStyles = useMemo(() => ({
     position: "fixed",
@@ -1038,47 +1038,47 @@ export default function Feed() {
         })}
       </div>
 
-      <div
-        style={contentOverlayStyles}
-        onTouchStart={(event) => beginDrag("contentOverlay", event)}
-        onMouseDown={(event) => beginDrag("contentOverlay", event)}
-      >
+     <div
+  style={contentOverlayStyles}
+  onTouchStart={(event) => beginDrag("contentOverlay", event)}
+  onMouseDown={(event) => beginDrag("contentOverlay", event)}
+>
         <div
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 8,
-            marginBottom: 10,
-            padding: "5px 9px",
-            borderRadius: 999,
-            background: "rgba(0,0,0,0.32)",
-            border: "1px solid rgba(255,255,255,0.12)",
-            pointerEvents: DEV_LAYOUT_MODE ? "auto" : "none",
-            cursor: DEV_LAYOUT_MODE ? "grab" : "default"
-          }}
-        >
-          <span
-            style={{
-              fontSize: 10,
-              fontWeight: 800,
-              letterSpacing: "0.08em",
-              color: "#ffffff"
-            }}
-          >
-            {activeItem.badge}
-          </span>
-          {DEV_LAYOUT_MODE && (
-            <span
-              style={{
-                fontSize: 10,
-                color: "#fbbf24",
-                fontWeight: 700
-              }}
-            >
-              DRAG OVERLAY
-            </span>
-          )}
-        </div>
+  style={{
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 10,
+    padding: "5px 9px",
+    borderRadius: 999,
+    background: "rgba(0,0,0,0.32)",
+    border: "1px solid rgba(255,255,255,0.12)",
+    pointerEvents: "auto",
+    cursor: DEV_LAYOUT_MODE ? "grab" : "default"
+  }}
+>
+  <span
+    style={{
+      fontSize: 10,
+      fontWeight: 800,
+      letterSpacing: "0.08em",
+      color: "#ffffff"
+    }}
+  >
+    {activeItem.badge}
+  </span>
+  {DEV_LAYOUT_MODE && (
+    <span
+      style={{
+        fontSize: 10,
+        color: "#fbbf24",
+        fontWeight: 700
+      }}
+    >
+      DRAG OVERLAY
+    </span>
+  )}
+</div>
 
         <div
           style={{
@@ -1169,30 +1169,32 @@ export default function Feed() {
           </div>
 
           <div
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              maxWidth: "100%",
-              padding: "6px 10px",
-              borderRadius: 12,
-              background: "rgba(0,0,0,0.30)",
-              border: "1px solid rgba(255,255,255,0.10)"
-            }}
-          >
-            <div
-              style={{
-                fontSize: 11,
-                lineHeight: 1.25,
-                color: "#ffffff",
-                whiteSpace: "normal",
-                wordBreak: "break-word"
-              }}
-            >
-              <span style={{ fontWeight: 800 }}>WHY YOU ARE SEEING THIS</span>
-              <span style={{ opacity: 0.88 }}> · </span>
-              <span style={{ fontWeight: 600 }}>{activeItem.reason}</span>
-            </div>
-          </div>
+  style={{
+    display: "inline-flex",
+    alignItems: "center",
+    maxWidth: "100%",
+    width: "fit-content",
+    padding: "6px 10px",
+    borderRadius: 12,
+    background: "rgba(0,0,0,0.30)",
+    border: "1px solid rgba(255,255,255,0.10)"
+  }}
+>
+  <div
+    style={{
+      fontSize: 10.5,
+      lineHeight: 1.22,
+      color: "#ffffff",
+      whiteSpace: "normal",
+      wordBreak: "break-word",
+      maxWidth: 320
+    }}
+  >
+    <span style={{ fontWeight: 800 }}>WHY YOU ARE SEEING THIS</span>
+    <span style={{ opacity: 0.88 }}> · </span>
+    <span style={{ fontWeight: 600 }}>{activeItem.reason}</span>
+  </div>
+</div>
         </div>
       </div>
 
