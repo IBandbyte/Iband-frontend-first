@@ -489,7 +489,8 @@ export default function Feed() {
       target,
       startY: clientY,
       startRightRailTop: toPercentNumber(layoutValues.rightRailTop, 44),
-      startContentOverlayBottom: toPxNumber(layoutValues.contentOverlayBottom, 142)
+      startContentOverlayBottom: toPxNumber(layoutValues.contentOverlayBottom, 142),
+      startBottomNavHeight: toPxNumber(layoutValues.bottomNavHeight, 50)
     });
   }, [layoutValues]);
 
@@ -526,6 +527,19 @@ export default function Feed() {
       setLayoutValues((prev) => ({
         ...prev,
         contentOverlayBottom: Math.round(nextBottom)
+      }));
+    }
+
+    if (dragState.target === "bottomNav") {
+      const nextHeight = clamp(
+        (dragState.startBottomNavHeight || 50) - deltaY,
+        42,
+        88
+      );
+
+      setLayoutValues((prev) => ({
+        ...prev,
+        bottomNavHeight: Math.round(nextHeight)
       }));
     }
   }, [dragState]);
@@ -608,11 +622,11 @@ export default function Feed() {
     overflowY: "auto",
     scrollSnapType: "y mandatory",
     scrollSnapStop: "always",
-    overscrollBehaviorY: dragState.active ? "contain" : "contain",
+    overscrollBehaviorY: "contain",
     WebkitOverflowScrolling: "touch",
     scrollbarWidth: "none",
     msOverflowStyle: "none"
-  }), [dragState.active]);
+  }), []);
 
   const contentOverlayStyles = useMemo(() => ({
     position: "fixed",
@@ -1024,7 +1038,11 @@ export default function Feed() {
         <MusicDiscIcon artwork={activeItem.artwork} />
       </div>
 
-      <div style={bottomNavStyles}>
+      <div
+        style={bottomNavStyles}
+        onTouchStart={(event) => beginDrag("bottomNav", event)}
+        onMouseDown={(event) => beginDrag("bottomNav", event)}
+      >
         {[
           { label: "Home", active: true, badge: null },
           { label: "Discover", active: false, badge: null },
@@ -1099,6 +1117,29 @@ export default function Feed() {
             </div>
           </div>
         ))}
+
+        {DEV_LAYOUT_MODE && (
+          <div
+            style={{
+              position: "absolute",
+              left: "50%",
+              top: -30,
+              transform: "translateX(-50%)",
+              padding: "5px 9px",
+              borderRadius: 999,
+              background: "rgba(0,0,0,0.78)",
+              border: "1px solid rgba(255,255,255,0.14)",
+              color: "#fbbf24",
+              fontSize: 10,
+              fontWeight: 800,
+              letterSpacing: "0.06em",
+              cursor: "grab",
+              pointerEvents: "auto"
+            }}
+          >
+            DRAG NAV
+          </div>
+        )}
       </div>
 
       {DEV_LAYOUT_MODE && (
@@ -1181,6 +1222,14 @@ export default function Feed() {
                 <br />
                 <span style={{ fontWeight: 700 }}>
                   {layoutValues.contentOverlayBottom}px
+                </span>
+              </div>
+
+              <div>
+                <span style={{ opacity: 0.72 }}>bottomNavHeight</span>
+                <br />
+                <span style={{ fontWeight: 700 }}>
+                  {layoutValues.bottomNavHeight}px
                 </span>
               </div>
             </div>
