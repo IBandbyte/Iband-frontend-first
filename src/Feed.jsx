@@ -13,7 +13,11 @@ const FEED_FONT_STACK =
 const DEFAULT_LAYOUT = {
   rightRailTop: "44%",
   contentOverlayBottom: 142,
-  bottomNavHeight: 50
+  bottomNavHeight: 50,
+  rightRailScale: 1,
+  contentOverlayScale: 1,
+  bottomNavScale: 1,
+  searchDockWidth: 100
 };
 
 function clamp(value, min, max) {
@@ -36,6 +40,11 @@ function toPercentNumber(value, fallback = 50) {
     return Number.isFinite(parsed) ? parsed : fallback;
   }
   return fallback;
+}
+
+function safeScale(value, fallback = 1) {
+  const num = Number(value);
+  return Number.isFinite(num) ? num : fallback;
 }
 
 function svgDataUri(svg) {
@@ -325,17 +334,20 @@ function ShareIcon() {
   );
 }
 
-function MusicDiscIcon({ artwork }) {
+function MusicDiscIcon({ artwork, scale = 1 }) {
+  const size = 42 * scale;
+
   return (
     <div
       style={{
-        width: 42,
-        height: 42,
+        width: size,
+        height: size,
         borderRadius: "50%",
         overflow: "hidden",
         border: "1.5px solid rgba(255,255,255,0.75)",
         boxShadow: "0 8px 20px rgba(0,0,0,0.28)",
-        background: "#111"
+        background: "#111",
+        flexShrink: 0
       }}
     >
       <img
@@ -352,7 +364,10 @@ function MusicDiscIcon({ artwork }) {
   );
 }
 
-function RightRailAction({ value, label, children }) {
+function RightRailAction({ value, label, scale = 1, children }) {
+  const bubbleSize = 42 * scale;
+  const labelSize = 11 * Math.min(scale, 1.25);
+
   return (
     <div
       aria-label={label}
@@ -361,24 +376,26 @@ function RightRailAction({ value, label, children }) {
         flexDirection: "column",
         alignItems: "center",
         gap: 4,
-        width: 52
+        width: 52 * scale
       }}
     >
       <div
         style={{
-          width: 42,
-          height: 42,
+          width: bubbleSize,
+          height: bubbleSize,
           borderRadius: "50%",
           display: "grid",
           placeItems: "center",
           background: "rgba(0,0,0,0.18)"
         }}
       >
-        {children}
+        <div style={{ transform: `scale(${scale})`, transformOrigin: "center" }}>
+          {children}
+        </div>
       </div>
       <div
         style={{
-          fontSize: 11,
+          fontSize: labelSize,
           lineHeight: 1,
           color: "#fff",
           fontWeight: 600,
@@ -390,6 +407,77 @@ function RightRailAction({ value, label, children }) {
     </div>
   );
 }
+
+function Stepper({ label, valueText, onMinus, onPlus }) {
+  return (
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: "1fr auto auto auto",
+        alignItems: "center",
+        gap: 6
+      }}
+    >
+      <div
+        style={{
+          fontSize: 10.5,
+          lineHeight: 1.15,
+          color: "rgba(255,255,255,0.76)",
+          fontWeight: 600
+        }}
+      >
+        {label}
+      </div>
+
+      <div
+        style={{
+          minWidth: 44,
+          textAlign: "right",
+          fontSize: 10.8,
+          lineHeight: 1,
+          color: "#ffffff",
+          fontWeight: 800
+        }}
+      >
+        {valueText}
+      </div>
+
+      <button
+        type="button"
+        onClick={onMinus}
+        style={stepperButtonStyle}
+      >
+        −
+      </button>
+
+      <button
+        type="button"
+        onClick={onPlus}
+        style={stepperButtonStyle}
+      >
+        +
+      </button>
+    </div>
+  );
+}
+
+const stepperButtonStyle = {
+  appearance: "none",
+  border: "1px solid rgba(255,255,255,0.12)",
+  background: "rgba(255,255,255,0.06)",
+  color: "#ffffff",
+  borderRadius: 999,
+  width: 24,
+  height: 24,
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  fontSize: 14,
+  lineHeight: 1,
+  fontWeight: 800,
+  cursor: "pointer",
+  padding: 0
+};
 
 export default function Feed() {
   const feedRef = useRef(null);
@@ -584,12 +672,37 @@ export default function Feed() {
     };
   }, [endDrag, updateDrag]);
 
+  const adjustScale = useCallback((key, delta, min, max) => {
+    setLayoutValues((prev) => ({
+      ...prev,
+      [key]: Number(clamp(safeScale(prev[key], 1) + delta, min, max).toFixed(2))
+    }));
+  }, []);
+
+  const adjustNumber = useCallback((key, delta, min, max) => {
+    setLayoutValues((prev) => ({
+      ...prev,
+      [key]: Math.round(clamp(toPxNumber(prev[key], 0) + delta, min, max))
+    }));
+  }, []);
+
+  const adjustPercentNumber = useCallback((key, delta, min, max) => {
+    setLayoutValues((prev) => ({
+      ...prev,
+      [key]: Math.round(clamp(Number(prev[key]) + delta, min, max))
+    }));
+  }, []);
+
   const uiCodeBlock = useMemo(() => {
     return [
       "const layoutTweaks = {",
       `  rightRailTop: "${layoutValues.rightRailTop}",`,
       `  contentOverlayBottom: ${layoutValues.contentOverlayBottom},`,
-      `  bottomNavHeight: ${layoutValues.bottomNavHeight}`,
+      `  bottomNavHeight: ${layoutValues.bottomNavHeight},`,
+      `  rightRailScale: ${layoutValues.rightRailScale},`,
+      `  contentOverlayScale: ${layoutValues.contentOverlayScale},`,
+      `  bottomNavScale: ${layoutValues.bottomNavScale},`,
+      `  searchDockWidth: ${layoutValues.searchDockWidth}`,
       "};"
     ].join("\n");
   }, [layoutValues]);
@@ -634,13 +747,16 @@ export default function Feed() {
     right: 76,
     bottom: layoutValues.contentOverlayBottom,
     zIndex: 35,
-    pointerEvents: "none"
-  }), [layoutValues.contentOverlayBottom]);
+    pointerEvents: "none",
+    transform: `scale(${layoutValues.contentOverlayScale})`,
+    transformOrigin: "bottom left"
+  }), [layoutValues.contentOverlayBottom, layoutValues.contentOverlayScale]);
 
   const searchDockStyles = useMemo(() => ({
     position: "fixed",
     left: 12,
-    right: 12,
+    width: `calc((100vw - 24px) * ${layoutValues.searchDockWidth / 100})`,
+    maxWidth: "calc(100vw - 24px)",
     bottom: layoutValues.bottomNavHeight + 10,
     zIndex: 36,
     display: "flex",
@@ -653,19 +769,20 @@ export default function Feed() {
     backdropFilter: "blur(14px)",
     WebkitBackdropFilter: "blur(14px)",
     boxShadow: "0 10px 28px rgba(0,0,0,0.28)"
-  }), [layoutValues.bottomNavHeight]);
+  }), [layoutValues.bottomNavHeight, layoutValues.searchDockWidth]);
 
   const rightRailStyles = useMemo(() => ({
     position: "fixed",
     right: 8,
     top: layoutValues.rightRailTop,
-    transform: "translateY(-50%)",
+    transform: `translateY(-50%) scale(${layoutValues.rightRailScale})`,
+    transformOrigin: "top right",
     zIndex: 37,
     display: "flex",
     flexDirection: "column",
     alignItems: "center",
     gap: 14
-  }), [layoutValues.rightRailTop]);
+  }), [layoutValues.rightRailTop, layoutValues.rightRailScale]);
 
   const bottomNavStyles = useMemo(() => ({
     position: "fixed",
@@ -681,8 +798,12 @@ export default function Feed() {
     background: "rgba(7,7,9,0.92)",
     borderTop: "1px solid rgba(255,255,255,0.08)",
     backdropFilter: "blur(14px)",
-    WebkitBackdropFilter: "blur(14px)"
-  }), [layoutValues.bottomNavHeight]);
+    WebkitBackdropFilter: "blur(14px)",
+    transform: `scale(${layoutValues.bottomNavScale})`,
+    transformOrigin: "bottom center"
+  }), [layoutValues.bottomNavHeight, layoutValues.bottomNavScale]);
+
+  const bottomNavLabelSize = 10 * layoutValues.bottomNavScale;
 
   return (
     <div style={shellStyles}>
@@ -707,11 +828,7 @@ export default function Feed() {
         </div>
       </div>
 
-      <div
-        ref={feedRef}
-        onScroll={handleScroll}
-        style={feedScrollStyles}
-      >
+      <div ref={feedRef} onScroll={handleScroll} style={feedScrollStyles}>
         {items.map((item, index) => {
           const isActive = index === activeIndex;
 
@@ -913,10 +1030,7 @@ export default function Feed() {
         </div>
       </div>
 
-      <div
-        style={searchDockStyles}
-        aria-label="Search artists songs genres"
-      >
+      <div style={searchDockStyles} aria-label="Search artists songs genres">
         <svg
           viewBox="0 0 24 24"
           width="18"
@@ -969,7 +1083,7 @@ export default function Feed() {
 
         <div
           style={{
-            width: 52,
+            width: 52 * layoutValues.rightRailScale,
             display: "flex",
             flexDirection: "column",
             alignItems: "center",
@@ -979,8 +1093,8 @@ export default function Feed() {
           <div
             style={{
               position: "relative",
-              width: 48,
-              height: 48
+              width: 48 * layoutValues.rightRailScale,
+              height: 48 * layoutValues.rightRailScale
             }}
           >
             <img
@@ -999,16 +1113,16 @@ export default function Feed() {
               style={{
                 position: "absolute",
                 left: "50%",
-                bottom: -4,
+                bottom: -4 * layoutValues.rightRailScale,
                 transform: "translateX(-50%)",
-                width: 18,
-                height: 18,
+                width: 18 * layoutValues.rightRailScale,
+                height: 18 * layoutValues.rightRailScale,
                 borderRadius: "50%",
                 background: "#ff2d55",
                 border: "2px solid #000",
                 display: "grid",
                 placeItems: "center",
-                fontSize: 12,
+                fontSize: 12 * Math.min(layoutValues.rightRailScale, 1.3),
                 fontWeight: 800,
                 lineHeight: 1,
                 color: "#fff"
@@ -1019,23 +1133,42 @@ export default function Feed() {
           </div>
         </div>
 
-        <RightRailAction value={activeItem.likes} label="Like">
+        <RightRailAction
+          value={activeItem.likes}
+          label="Like"
+          scale={layoutValues.rightRailScale}
+        >
           <HeartIcon />
         </RightRailAction>
 
-        <RightRailAction value={activeItem.comments} label="Comment">
+        <RightRailAction
+          value={activeItem.comments}
+          label="Comment"
+          scale={layoutValues.rightRailScale}
+        >
           <CommentIcon />
         </RightRailAction>
 
-        <RightRailAction value={activeItem.saves} label="Save">
+        <RightRailAction
+          value={activeItem.saves}
+          label="Save"
+          scale={layoutValues.rightRailScale}
+        >
           <SaveIcon />
         </RightRailAction>
 
-        <RightRailAction value={activeItem.shares} label="Share">
+        <RightRailAction
+          value={activeItem.shares}
+          label="Share"
+          scale={layoutValues.rightRailScale}
+        >
           <ShareIcon />
         </RightRailAction>
 
-        <MusicDiscIcon artwork={activeItem.artwork} />
+        <MusicDiscIcon
+          artwork={activeItem.artwork}
+          scale={layoutValues.rightRailScale}
+        />
       </div>
 
       <div
@@ -1065,16 +1198,16 @@ export default function Feed() {
             <div
               style={{
                 position: "relative",
-                width: 22,
-                height: 22,
+                width: 22 * layoutValues.bottomNavScale,
+                height: 22 * layoutValues.bottomNavScale,
                 display: "grid",
                 placeItems: "center"
               }}
             >
               <div
                 style={{
-                  width: 19,
-                  height: 19,
+                  width: 19 * layoutValues.bottomNavScale,
+                  height: 19 * layoutValues.bottomNavScale,
                   borderRadius: item.label === "Upload" ? 6 : 5,
                   border: "1.8px solid currentColor",
                   background:
@@ -1086,17 +1219,17 @@ export default function Feed() {
                 <div
                   style={{
                     position: "absolute",
-                    top: -9,
-                    right: -8,
-                    minWidth: 16,
-                    height: 16,
-                    padding: "0 4px",
+                    top: -9 * layoutValues.bottomNavScale,
+                    right: -8 * layoutValues.bottomNavScale,
+                    minWidth: 16 * layoutValues.bottomNavScale,
+                    height: 16 * layoutValues.bottomNavScale,
+                    padding: `0 ${4 * layoutValues.bottomNavScale}px`,
                     borderRadius: 999,
                     background: "#ff2d55",
                     color: "#ffffff",
-                    fontSize: 10,
+                    fontSize: 10 * Math.min(layoutValues.bottomNavScale, 1.3),
                     fontWeight: 800,
-                    lineHeight: "16px",
+                    lineHeight: `${16 * layoutValues.bottomNavScale}px`,
                     textAlign: "center",
                     boxShadow: "0 4px 10px rgba(0,0,0,0.32)"
                   }}
@@ -1108,7 +1241,7 @@ export default function Feed() {
 
             <div
               style={{
-                fontSize: 10,
+                fontSize: bottomNavLabelSize,
                 lineHeight: 1,
                 fontWeight: item.active ? 700 : 500
               }}
@@ -1150,7 +1283,7 @@ export default function Feed() {
               left: 10,
               top: 58,
               zIndex: 60,
-              width: 182,
+              width: 196,
               padding: "10px 11px",
               borderRadius: 14,
               background: "rgba(9,9,12,0.76)",
@@ -1208,7 +1341,8 @@ export default function Feed() {
                 flexDirection: "column",
                 gap: 6,
                 fontSize: 12,
-                color: "#ffffff"
+                color: "#ffffff",
+                marginBottom: 10
               }}
             >
               <div>
@@ -1233,6 +1367,36 @@ export default function Feed() {
                 </span>
               </div>
             </div>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              <Stepper
+                label="Right rail size"
+                valueText={`${layoutValues.rightRailScale.toFixed(2)}x`}
+                onMinus={() => adjustScale("rightRailScale", -0.05, 0.7, 1.6)}
+                onPlus={() => adjustScale("rightRailScale", 0.05, 0.7, 1.6)}
+              />
+
+              <Stepper
+                label="Overlay size"
+                valueText={`${layoutValues.contentOverlayScale.toFixed(2)}x`}
+                onMinus={() => adjustScale("contentOverlayScale", -0.05, 0.7, 1.4)}
+                onPlus={() => adjustScale("contentOverlayScale", 0.05, 0.7, 1.4)}
+              />
+
+              <Stepper
+                label="Nav size"
+                valueText={`${layoutValues.bottomNavScale.toFixed(2)}x`}
+                onMinus={() => adjustScale("bottomNavScale", -0.05, 0.8, 1.4)}
+                onPlus={() => adjustScale("bottomNavScale", 0.05, 0.8, 1.4)}
+              />
+
+              <Stepper
+                label="Search width"
+                valueText={`${layoutValues.searchDockWidth}%`}
+                onMinus={() => adjustPercentNumber("searchDockWidth", -5, 60, 100)}
+                onPlus={() => adjustPercentNumber("searchDockWidth", 5, 60, 100)}
+              />
+            </div>
           </div>
 
           {showDevCode && (
@@ -1241,7 +1405,7 @@ export default function Feed() {
                 position: "fixed",
                 left: 10,
                 right: 10,
-                top: 190,
+                top: 328,
                 zIndex: 60,
                 padding: "10px 11px",
                 borderRadius: 14,
@@ -1249,7 +1413,9 @@ export default function Feed() {
                 border: "1px solid rgba(255,255,255,0.12)",
                 backdropFilter: "blur(12px)",
                 WebkitBackdropFilter: "blur(12px)",
-                boxShadow: "0 14px 28px rgba(0,0,0,0.28)"
+                boxShadow: "0 14px 28px rgba(0,0,0,0.28)",
+                maxHeight: "28vh",
+                overflow: "auto"
               }}
             >
               <div
