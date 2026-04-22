@@ -13,11 +13,11 @@ const FEED_FONT_STACK =
 const DEFAULT_LAYOUT = {
   rightRailTop: "47.25%",
   rightRailGap: 6,
-  contentOverlayBottom: 142,
+  contentOverlayBottom: 86,
   searchDockBottom: 45,
   bottomNavHeight: 42,
   rightRailScale: 1.2,
-  contentOverlayScale: 0.9,
+  contentOverlayScale: 0.95,
   bottomNavScale: 1.05,
   searchDockWidth: 75
 };
@@ -451,7 +451,7 @@ function NavProfileIcon({ scale = 1 }) {
 }
 
 function MusicDiscIcon({ artwork, scale = 1 }) {
-  const size = 42 * scale;
+  const size = 38 * scale;
 
   return (
     <div
@@ -482,8 +482,8 @@ function MusicDiscIcon({ artwork, scale = 1 }) {
           position: "absolute",
           inset: "50%",
           transform: "translate(-50%, -50%)",
-          width: 9 * scale,
-          height: 9 * scale,
+          width: 8 * scale,
+          height: 8 * scale,
           borderRadius: "50%",
           background: "rgba(0,0,0,0.72)",
           border: "1px solid rgba(255,255,255,0.44)"
@@ -500,8 +500,8 @@ function RightRailAction({
   onPress,
   children
 }) {
-  const bubbleSize = 42 * scale;
-  const labelSize = 11 * Math.min(scale, 1.25);
+  const bubbleSize = 40 * scale;
+  const labelSize = 8.6 * Math.min(scale, 1.1);
 
   return (
     <button
@@ -515,8 +515,8 @@ function RightRailAction({
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
-        gap: 4,
-        width: 52 * scale,
+        gap: 2,
+        width: 48 * scale,
         padding: 0,
         cursor: "pointer"
       }}
@@ -1273,7 +1273,7 @@ export default function Feed() {
 
         <div
           style={{
-            width: 52 * layoutValues.rightRailScale,
+            width: 46 * layoutValues.rightRailScale,
             display: "flex",
             flexDirection: "column",
             alignItems: "center",
@@ -1281,12 +1281,12 @@ export default function Feed() {
           }}
         >
           <div
-            style={{
-              position: "relative",
-              width: 48 * layoutValues.rightRailScale,
-              height: 48 * layoutValues.rightRailScale
-            }}
-          >
+  style={{
+    position: "relative",
+    width: 40 * layoutValues.rightRailScale,
+    height: 40 * layoutValues.rightRailScale
+  }}
+>
             <img
               src={activeItem.avatar}
               alt={activeItem.artist}
@@ -1305,14 +1305,14 @@ export default function Feed() {
                 left: "50%",
                 bottom: -4 * layoutValues.rightRailScale,
                 transform: "translateX(-50%)",
-                width: 18 * layoutValues.rightRailScale,
-                height: 18 * layoutValues.rightRailScale,
+                width: 16 * layoutValues.rightRailScale,
+                height: 16 * layoutValues.rightRailScale,
                 borderRadius: "50%",
                 background: "#ff2d55",
                 border: "2px solid #000",
                 display: "grid",
                 placeItems: "center",
-                fontSize: 12 * Math.min(layoutValues.rightRailScale, 1.3),
+                fontSize: 10 * Math.min(layoutValues.rightRailScale, 1.3),
                 fontWeight: 800,
                 lineHeight: 1,
                 color: "#fff"
