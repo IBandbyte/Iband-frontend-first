@@ -12,7 +12,9 @@ const FEED_FONT_STACK =
 
 const DEFAULT_LAYOUT = {
   rightRailTop: "44%",
+  rightRailGap: 14,
   contentOverlayBottom: 142,
+  searchDockBottom: 64,
   bottomNavHeight: 50,
   rightRailScale: 1,
   contentOverlayScale: 1,
@@ -285,10 +287,16 @@ function IconShell({ children, size = 24 }) {
   );
 }
 
-function HeartIcon() {
+function HeartIcon({ active = false }) {
   return (
     <IconShell>
-      <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true">
+      <svg
+        viewBox="0 0 24 24"
+        width="22"
+        height="22"
+        fill={active ? "#ff2d55" : "#ffffff"}
+        aria-hidden="true"
+      >
         <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5A4.5 4.5 0 0 1 6.5 4C8.24 4 9.91 4.81 11 6.08 12.09 4.81 13.76 4 15.5 4A4.5 4.5 0 0 1 20 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
       </svg>
     </IconShell>
@@ -305,9 +313,11 @@ function CommentIcon() {
         fill="none"
         stroke="currentColor"
         strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
         aria-hidden="true"
       >
-        <path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z" />
+        <path d="M21 15.2a3.8 3.8 0 0 1-3.8 3.8H9.4L4 22V6.8A3.8 3.8 0 0 1 7.8 3h9.4A3.8 3.8 0 0 1 21 6.8v8.4z" />
       </svg>
     </IconShell>
   );
@@ -326,11 +336,117 @@ function SaveIcon() {
 function ShareIcon() {
   return (
     <IconShell>
-      <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true">
-        <path d="M14 3l7 7-1.41 1.41L15 6.83V16h-2V6.83l-4.59 4.58L7 10l7-7z" />
-        <path d="M5 14h2v5h10v-5h2v7H5v-7z" />
+      <svg
+        viewBox="0 0 24 24"
+        width="22"
+        height="22"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2.15"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden="true"
+      >
+        <path d="M22 3L11 14" />
+        <path d="M22 3l-7 18-4-8-8-4 19-6z" />
       </svg>
     </IconShell>
+  );
+}
+
+function NavHomeIcon({ scale = 1 }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width={22 * scale}
+      height={22 * scale}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M3 10.5L12 3l9 7.5" />
+      <path d="M5.5 9.5V20h13V9.5" />
+    </svg>
+  );
+}
+
+function NavShopIcon({ scale = 1 }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width={22 * scale}
+      height={22 * scale}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M4 8h16l-1.3 12H5.3L4 8z" />
+      <path d="M9 8V6a3 3 0 0 1 6 0v2" />
+    </svg>
+  );
+}
+
+function NavUploadIcon({ scale = 1 }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width={22 * scale}
+      height={22 * scale}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <rect x="3.5" y="3.5" width="17" height="17" rx="4.5" />
+      <path d="M12 16V8" />
+      <path d="M8.8 11.2L12 8l3.2 3.2" />
+    </svg>
+  );
+}
+
+function NavInboxIcon({ scale = 1 }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width={22 * scale}
+      height={22 * scale}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M4 5h16v14H4z" />
+      <path d="M4 13h4l2 3h4l2-3h4" />
+    </svg>
+  );
+}
+
+function NavProfileIcon({ scale = 1 }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width={22 * scale}
+      height={22 * scale}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <circle cx="12" cy="8" r="3.5" />
+      <path d="M5 20a7 7 0 0 1 14 0" />
+    </svg>
   );
 }
 
@@ -344,10 +460,11 @@ function MusicDiscIcon({ artwork, scale = 1 }) {
         height: size,
         borderRadius: "50%",
         overflow: "hidden",
-        border: "1.5px solid rgba(255,255,255,0.75)",
+        border: "1.5px solid rgba(255,255,255,0.76)",
         boxShadow: "0 8px 20px rgba(0,0,0,0.28)",
         background: "#111",
-        flexShrink: 0
+        flexShrink: 0,
+        position: "relative"
       }}
     >
       <img
@@ -360,23 +477,48 @@ function MusicDiscIcon({ artwork, scale = 1 }) {
           display: "block"
         }}
       />
+      <div
+        style={{
+          position: "absolute",
+          inset: "50%",
+          transform: "translate(-50%, -50%)",
+          width: 9 * scale,
+          height: 9 * scale,
+          borderRadius: "50%",
+          background: "rgba(0,0,0,0.72)",
+          border: "1px solid rgba(255,255,255,0.44)"
+        }}
+      />
     </div>
   );
 }
 
-function RightRailAction({ value, label, scale = 1, children }) {
+function RightRailAction({
+  value,
+  label,
+  scale = 1,
+  onPress,
+  children
+}) {
   const bubbleSize = 42 * scale;
   const labelSize = 11 * Math.min(scale, 1.25);
 
   return (
-    <div
+    <button
+      type="button"
       aria-label={label}
+      onClick={onPress}
       style={{
+        appearance: "none",
+        border: 0,
+        background: "transparent",
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
         gap: 4,
-        width: 52 * scale
+        width: 52 * scale,
+        padding: 0,
+        cursor: "pointer"
       }}
     >
       <div
@@ -386,7 +528,7 @@ function RightRailAction({ value, label, scale = 1, children }) {
           borderRadius: "50%",
           display: "grid",
           placeItems: "center",
-          background: "rgba(0,0,0,0.18)"
+          background: "rgba(0,0,0,0.16)"
         }}
       >
         <div style={{ transform: `scale(${scale})`, transformOrigin: "center" }}>
@@ -404,7 +546,7 @@ function RightRailAction({ value, label, scale = 1, children }) {
       >
         {formatCompactNumber(value)}
       </div>
-    </div>
+    </button>
   );
 }
 
@@ -431,7 +573,7 @@ function Stepper({ label, valueText, onMinus, onPlus }) {
 
       <div
         style={{
-          minWidth: 44,
+          minWidth: 48,
           textAlign: "right",
           fontSize: 10.8,
           lineHeight: 1,
@@ -442,19 +584,11 @@ function Stepper({ label, valueText, onMinus, onPlus }) {
         {valueText}
       </div>
 
-      <button
-        type="button"
-        onClick={onMinus}
-        style={stepperButtonStyle}
-      >
+      <button type="button" onClick={onMinus} style={stepperButtonStyle}>
         −
       </button>
 
-      <button
-        type="button"
-        onClick={onPlus}
-        style={stepperButtonStyle}
-      >
+      <button type="button" onClick={onPlus} style={stepperButtonStyle}>
         +
       </button>
     </div>
@@ -493,7 +627,10 @@ export default function Feed() {
     target: null
   });
 
+  const [likedMap, setLikedMap] = useState({});
+
   const activeItem = items[activeIndex] || items[0] || createDemoFeed()[0];
+  const isActiveLiked = Boolean(likedMap[activeItem?.id]);
 
   useEffect(() => {
     let cancelled = false;
@@ -578,6 +715,7 @@ export default function Feed() {
       startY: clientY,
       startRightRailTop: toPercentNumber(layoutValues.rightRailTop, 44),
       startContentOverlayBottom: toPxNumber(layoutValues.contentOverlayBottom, 142),
+      startSearchDockBottom: toPxNumber(layoutValues.searchDockBottom, 64),
       startBottomNavHeight: toPxNumber(layoutValues.bottomNavHeight, 50)
     });
   }, [layoutValues]);
@@ -609,12 +747,25 @@ export default function Feed() {
       const nextBottom = clamp(
         (dragState.startContentOverlayBottom || 142) - deltaY,
         86,
-        260
+        320
       );
 
       setLayoutValues((prev) => ({
         ...prev,
         contentOverlayBottom: Math.round(nextBottom)
+      }));
+    }
+
+    if (dragState.target === "searchDock") {
+      const nextBottom = clamp(
+        (dragState.startSearchDockBottom || 64) - deltaY,
+        8,
+        220
+      );
+
+      setLayoutValues((prev) => ({
+        ...prev,
+        searchDockBottom: Math.round(nextBottom)
       }));
     }
 
@@ -693,11 +844,24 @@ export default function Feed() {
     }));
   }, []);
 
+  const toggleLike = useCallback((itemId) => {
+    setLikedMap((prev) => ({
+      ...prev,
+      [itemId]: !prev[itemId]
+    }));
+  }, []);
+
+  const displayLikes = useMemo(() => {
+    return activeItem ? activeItem.likes + (isActiveLiked ? 1 : 0) : 0;
+  }, [activeItem, isActiveLiked]);
+
   const uiCodeBlock = useMemo(() => {
     return [
       "const layoutTweaks = {",
       `  rightRailTop: "${layoutValues.rightRailTop}",`,
+      `  rightRailGap: ${layoutValues.rightRailGap},`,
       `  contentOverlayBottom: ${layoutValues.contentOverlayBottom},`,
+      `  searchDockBottom: ${layoutValues.searchDockBottom},`,
       `  bottomNavHeight: ${layoutValues.bottomNavHeight},`,
       `  rightRailScale: ${layoutValues.rightRailScale},`,
       `  contentOverlayScale: ${layoutValues.contentOverlayScale},`,
@@ -757,7 +921,7 @@ export default function Feed() {
     left: 12,
     width: `calc((100vw - 24px) * ${layoutValues.searchDockWidth / 100})`,
     maxWidth: "calc(100vw - 24px)",
-    bottom: layoutValues.bottomNavHeight + 10,
+    bottom: layoutValues.searchDockBottom,
     zIndex: 36,
     display: "flex",
     alignItems: "center",
@@ -768,8 +932,10 @@ export default function Feed() {
     border: "1px solid rgba(255,255,255,0.10)",
     backdropFilter: "blur(14px)",
     WebkitBackdropFilter: "blur(14px)",
-    boxShadow: "0 10px 28px rgba(0,0,0,0.28)"
-  }), [layoutValues.bottomNavHeight, layoutValues.searchDockWidth]);
+    boxShadow: "0 10px 28px rgba(0,0,0,0.28)",
+    pointerEvents: DEV_LAYOUT_MODE ? "auto" : "none",
+    cursor: DEV_LAYOUT_MODE ? "grab" : "default"
+  }), [layoutValues.searchDockBottom, layoutValues.searchDockWidth]);
 
   const rightRailStyles = useMemo(() => ({
     position: "fixed",
@@ -781,8 +947,8 @@ export default function Feed() {
     display: "flex",
     flexDirection: "column",
     alignItems: "center",
-    gap: 14
-  }), [layoutValues.rightRailTop, layoutValues.rightRailScale]);
+    gap: layoutValues.rightRailGap
+  }), [layoutValues.rightRailGap, layoutValues.rightRailScale, layoutValues.rightRailTop]);
 
   const bottomNavStyles = useMemo(() => ({
     position: "fixed",
@@ -1030,7 +1196,12 @@ export default function Feed() {
         </div>
       </div>
 
-      <div style={searchDockStyles} aria-label="Search artists songs genres">
+      <div
+        style={searchDockStyles}
+        aria-label="Search artists songs genres"
+        onTouchStart={(event) => beginDrag("searchDock", event)}
+        onMouseDown={(event) => beginDrag("searchDock", event)}
+      >
         <svg
           viewBox="0 0 24 24"
           width="18"
@@ -1038,6 +1209,8 @@ export default function Feed() {
           fill="none"
           stroke="rgba(255,255,255,0.82)"
           strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
           aria-hidden="true"
         >
           <circle cx="11" cy="11" r="7" />
@@ -1051,11 +1224,26 @@ export default function Feed() {
             color: "rgba(255,255,255,0.84)",
             whiteSpace: "nowrap",
             overflow: "hidden",
-            textOverflow: "ellipsis"
+            textOverflow: "ellipsis",
+            flex: 1
           }}
         >
           Search artists, songs, genres
         </div>
+
+        {DEV_LAYOUT_MODE && (
+          <div
+            style={{
+              fontSize: 10,
+              fontWeight: 800,
+              color: "#fbbf24",
+              letterSpacing: "0.05em",
+              flexShrink: 0
+            }}
+          >
+            DRAG
+          </div>
+        )}
       </div>
 
       <div
@@ -1134,17 +1322,19 @@ export default function Feed() {
         </div>
 
         <RightRailAction
-          value={activeItem.likes}
+          value={displayLikes}
           label="Like"
           scale={layoutValues.rightRailScale}
+          onPress={() => toggleLike(activeItem.id)}
         >
-          <HeartIcon />
+          <HeartIcon active={isActiveLiked} />
         </RightRailAction>
 
         <RightRailAction
           value={activeItem.comments}
           label="Comment"
           scale={layoutValues.rightRailScale}
+          onPress={() => {}}
         >
           <CommentIcon />
         </RightRailAction>
@@ -1153,6 +1343,7 @@ export default function Feed() {
           value={activeItem.saves}
           label="Save"
           scale={layoutValues.rightRailScale}
+          onPress={() => {}}
         >
           <SaveIcon />
         </RightRailAction>
@@ -1161,6 +1352,7 @@ export default function Feed() {
           value={activeItem.shares}
           label="Share"
           scale={layoutValues.rightRailScale}
+          onPress={() => {}}
         >
           <ShareIcon />
         </RightRailAction>
@@ -1177,11 +1369,36 @@ export default function Feed() {
         onMouseDown={(event) => beginDrag("bottomNav", event)}
       >
         {[
-          { label: "Home", active: true, badge: null },
-          { label: "Discover", active: false, badge: null },
-          { label: "Upload", active: false, badge: null },
-          { label: "Inbox", active: false, badge: 2 },
-          { label: "Profile", active: false, badge: null }
+          {
+            label: "Home",
+            active: true,
+            badge: null,
+            icon: <NavHomeIcon scale={layoutValues.bottomNavScale} />
+          },
+          {
+            label: "Shop",
+            active: false,
+            badge: null,
+            icon: <NavShopIcon scale={layoutValues.bottomNavScale} />
+          },
+          {
+            label: "Upload",
+            active: false,
+            badge: null,
+            icon: <NavUploadIcon scale={layoutValues.bottomNavScale} />
+          },
+          {
+            label: "Inbox",
+            active: false,
+            badge: 2,
+            icon: <NavInboxIcon scale={layoutValues.bottomNavScale} />
+          },
+          {
+            label: "Profile",
+            active: false,
+            badge: null,
+            icon: <NavProfileIcon scale={layoutValues.bottomNavScale} />
+          }
         ].map((item) => (
           <div
             key={item.label}
@@ -1198,29 +1415,20 @@ export default function Feed() {
             <div
               style={{
                 position: "relative",
-                width: 22 * layoutValues.bottomNavScale,
-                height: 22 * layoutValues.bottomNavScale,
+                width: 24 * layoutValues.bottomNavScale,
+                height: 24 * layoutValues.bottomNavScale,
                 display: "grid",
                 placeItems: "center"
               }}
             >
-              <div
-                style={{
-                  width: 19 * layoutValues.bottomNavScale,
-                  height: 19 * layoutValues.bottomNavScale,
-                  borderRadius: item.label === "Upload" ? 6 : 5,
-                  border: "1.8px solid currentColor",
-                  background:
-                    item.label === "Upload" ? "rgba(255,255,255,0.08)" : "transparent"
-                }}
-              />
+              {item.icon}
 
               {typeof item.badge === "number" && (
                 <div
                   style={{
                     position: "absolute",
-                    top: -9 * layoutValues.bottomNavScale,
-                    right: -8 * layoutValues.bottomNavScale,
+                    top: -7 * layoutValues.bottomNavScale,
+                    right: -10 * layoutValues.bottomNavScale,
                     minWidth: 16 * layoutValues.bottomNavScale,
                     height: 16 * layoutValues.bottomNavScale,
                     padding: `0 ${4 * layoutValues.bottomNavScale}px`,
@@ -1283,7 +1491,7 @@ export default function Feed() {
               left: 10,
               top: 58,
               zIndex: 60,
-              width: 196,
+              width: 208,
               padding: "10px 11px",
               borderRadius: 14,
               background: "rgba(9,9,12,0.76)",
@@ -1352,10 +1560,24 @@ export default function Feed() {
               </div>
 
               <div>
+                <span style={{ opacity: 0.72 }}>rightRailGap</span>
+                <br />
+                <span style={{ fontWeight: 700 }}>{layoutValues.rightRailGap}px</span>
+              </div>
+
+              <div>
                 <span style={{ opacity: 0.72 }}>contentOverlayBottom</span>
                 <br />
                 <span style={{ fontWeight: 700 }}>
                   {layoutValues.contentOverlayBottom}px
+                </span>
+              </div>
+
+              <div>
+                <span style={{ opacity: 0.72 }}>searchDockBottom</span>
+                <br />
+                <span style={{ fontWeight: 700 }}>
+                  {layoutValues.searchDockBottom}px
                 </span>
               </div>
 
@@ -1377,6 +1599,13 @@ export default function Feed() {
               />
 
               <Stepper
+                label="Right rail gap"
+                valueText={`${layoutValues.rightRailGap}px`}
+                onMinus={() => adjustNumber("rightRailGap", -2, 6, 34)}
+                onPlus={() => adjustNumber("rightRailGap", 2, 6, 34)}
+              />
+
+              <Stepper
                 label="Overlay size"
                 valueText={`${layoutValues.contentOverlayScale.toFixed(2)}x`}
                 onMinus={() => adjustScale("contentOverlayScale", -0.05, 0.7, 1.4)}
@@ -1384,17 +1613,17 @@ export default function Feed() {
               />
 
               <Stepper
-                label="Nav size"
-                valueText={`${layoutValues.bottomNavScale.toFixed(2)}x`}
-                onMinus={() => adjustScale("bottomNavScale", -0.05, 0.8, 1.4)}
-                onPlus={() => adjustScale("bottomNavScale", 0.05, 0.8, 1.4)}
-              />
-
-              <Stepper
                 label="Search width"
                 valueText={`${layoutValues.searchDockWidth}%`}
                 onMinus={() => adjustPercentNumber("searchDockWidth", -5, 60, 100)}
                 onPlus={() => adjustPercentNumber("searchDockWidth", 5, 60, 100)}
+              />
+
+              <Stepper
+                label="Nav size"
+                valueText={`${layoutValues.bottomNavScale.toFixed(2)}x`}
+                onMinus={() => adjustScale("bottomNavScale", -0.05, 0.8, 1.4)}
+                onPlus={() => adjustScale("bottomNavScale", 0.05, 0.8, 1.4)}
               />
             </div>
           </div>
@@ -1405,7 +1634,7 @@ export default function Feed() {
                 position: "fixed",
                 left: 10,
                 right: 10,
-                top: 328,
+                top: 382,
                 zIndex: 60,
                 padding: "10px 11px",
                 borderRadius: 14,
@@ -1487,6 +1716,10 @@ export default function Feed() {
 
         div::-webkit-scrollbar {
           display: none;
+        }
+
+        button {
+          font: inherit;
         }
       `}</style>
     </div>
