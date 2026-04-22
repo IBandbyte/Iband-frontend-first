@@ -1,30 +1,48 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  fetchSmartFeed,
   fetchPersonalisedFeed,
-  fetchPredictiveFeed,
-  fetchSmartFeed
+  fetchPredictiveFeed
 } from "./services/api";
 
 const DEV_LAYOUT_MODE = true;
-
 const IBAND_LOGO_SRC = "/iband-logo.png";
 const FEED_FONT_STACK =
   '"TikTok Sans", Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
 
-const DEFAULT_LAYOUT_VALUES = {
-  rightRailTop: 146,
-  contentOverlayBottom: 56
+const DEFAULT_LAYOUT = {
+  rightRailTop: "44%",
+  contentOverlayBottom: 142,
+  bottomNavHeight: 50
 };
-
-function svgDataUri(svg) {
-  return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
-}
 
 function clamp(value, min, max) {
   return Math.min(Math.max(value, min), max);
 }
 
-function createArtistAvatarDataUri(name, index = 0) {
+function toPxNumber(value, fallback = 0) {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string") {
+    const parsed = parseFloat(value.replace("px", "").trim());
+    return Number.isFinite(parsed) ? parsed : fallback;
+  }
+  return fallback;
+}
+
+function toPercentNumber(value, fallback = 50) {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string") {
+    const parsed = parseFloat(value.replace("%", "").trim());
+    return Number.isFinite(parsed) ? parsed : fallback;
+  }
+  return fallback;
+}
+
+function svgDataUri(svg) {
+  return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+}
+
+function createArtistAvatarDataUri(name, index) {
   const initials = String(name || "A")
     .trim()
     .split(/\s+/)
@@ -42,205 +60,154 @@ function createArtistAvatarDataUri(name, index = 0) {
 
   const [start, end] = gradients[index % gradients.length];
 
-  return svgDataUri(`
-    <svg xmlns="http://www.w3.org/2000/svg" width="220" height="220" viewBox="0 0 220 220" fill="none">
+  const svg = `
+    <svg xmlns="http://www.w3.org/2000/svg" width="160" height="160" viewBox="0 0 160 160">
       <defs>
-        <linearGradient id="g" x1="0" y1="0" x2="220" y2="220" gradientUnits="userSpaceOnUse">
-          <stop stop-color="${start}" />
-          <stop offset="1" stop-color="${end}" />
+        <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="${start}" />
+          <stop offset="100%" stop-color="${end}" />
         </linearGradient>
       </defs>
-      <rect width="220" height="220" rx="110" fill="url(#g)" />
-      <circle cx="110" cy="84" r="32" fill="rgba(255,255,255,0.22)" />
-      <path d="M54 178c11-30 35-47 56-47s45 17 56 47" fill="rgba(255,255,255,0.22)" />
-      <text x="50%" y="57%" dominant-baseline="middle" text-anchor="middle" fill="white" font-size="46" font-family="Arial, Helvetica, sans-serif" font-weight="700">
+      <rect width="160" height="160" rx="80" fill="url(#g)" />
+      <text
+        x="50%"
+        y="54%"
+        text-anchor="middle"
+        font-family="Arial, Helvetica, sans-serif"
+        font-size="52"
+        font-weight="700"
+        fill="white"
+      >
         ${initials || "A"}
       </text>
     </svg>
-  `);
+  `;
+
+  return svgDataUri(svg);
 }
 
-function createArtworkDataUri(index = 0) {
-  const palettes = [
-    ["#0f172a", "#1d4ed8", "#06b6d4", "#eab308"],
-    ["#111827", "#7c3aed", "#ec4899", "#f97316"],
-    ["#052e16", "#059669", "#22c55e", "#fde047"],
-    ["#1f2937", "#2563eb", "#60a5fa", "#f8fafc"],
-    ["#172554", "#4338ca", "#a855f7", "#fb7185"]
+function createFallbackArtworkDataUri(title, index) {
+  const safeTitle = String(title || "iBand").slice(0, 22);
+  const gradients = [
+    ["#111827", "#7c3aed"],
+    ["#0f172a", "#ea580c"],
+    ["#111111", "#ec4899"],
+    ["#1f2937", "#2563eb"]
   ];
+  const [start, end] = gradients[index % gradients.length];
 
-  const [bg1, bg2, glow1, glow2] = palettes[index % palettes.length];
-
-  return svgDataUri(`
-    <svg xmlns="http://www.w3.org/2000/svg" width="300" height="300" viewBox="0 0 300 300" fill="none">
+  const svg = `
+    <svg xmlns="http://www.w3.org/2000/svg" width="720" height="1280" viewBox="0 0 720 1280">
       <defs>
-        <radialGradient id="bg" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(150 150) rotate(90) scale(180)">
-          <stop stop-color="${bg2}" />
-          <stop offset="1" stop-color="${bg1}" />
-        </radialGradient>
-        <radialGradient id="glowA" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(90 100) rotate(90) scale(80)">
-          <stop stop-color="${glow1}" stop-opacity="0.95" />
-          <stop offset="1" stop-color="${glow1}" stop-opacity="0" />
-        </radialGradient>
-        <radialGradient id="glowB" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(220 210) rotate(90) scale(90)">
-          <stop stop-color="${glow2}" stop-opacity="0.9" />
-          <stop offset="1" stop-color="${glow2}" stop-opacity="0" />
-        </radialGradient>
+        <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="${start}" />
+          <stop offset="100%" stop-color="${end}" />
+        </linearGradient>
+        <linearGradient id="shine" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="rgba(255,255,255,0.12)" />
+          <stop offset="100%" stop-color="rgba(255,255,255,0.02)" />
+        </linearGradient>
       </defs>
-      <rect width="300" height="300" rx="150" fill="url(#bg)" />
-      <circle cx="90" cy="100" r="84" fill="url(#glowA)" />
-      <circle cx="220" cy="210" r="94" fill="url(#glowB)" />
-      <circle cx="150" cy="150" r="76" stroke="rgba(255,255,255,0.30)" stroke-width="8" />
-      <circle cx="150" cy="150" r="34" fill="rgba(255,255,255,0.22)" />
-      <path d="M150 44v34" stroke="rgba(255,255,255,0.22)" stroke-width="4" stroke-linecap="round" />
-      <path d="M150 222v34" stroke="rgba(255,255,255,0.22)" stroke-width="4" stroke-linecap="round" />
-      <path d="M44 150h34" stroke="rgba(255,255,255,0.22)" stroke-width="4" stroke-linecap="round" />
-      <path d="M222 150h34" stroke="rgba(255,255,255,0.22)" stroke-width="4" stroke-linecap="round" />
+      <rect width="720" height="1280" fill="url(#bg)" />
+      <circle cx="590" cy="220" r="170" fill="rgba(255,255,255,0.08)" />
+      <circle cx="130" cy="1060" r="220" fill="rgba(255,255,255,0.06)" />
+      <rect x="40" y="40" width="640" height="1200" rx="42" fill="url(#shine)" stroke="rgba(255,255,255,0.10)" />
+      <text
+        x="60"
+        y="1080"
+        font-family="Arial, Helvetica, sans-serif"
+        font-size="48"
+        font-weight="700"
+        fill="white"
+      >
+        ${safeTitle}
+      </text>
+      <text
+        x="60"
+        y="1140"
+        font-family="Arial, Helvetica, sans-serif"
+        font-size="28"
+        fill="rgba(255,255,255,0.86)"
+      >
+        iBand Discovery Feed
+      </text>
     </svg>
-  `);
+  `;
+
+  return svgDataUri(svg);
 }
 
-function safeArray(value) {
-  return Array.isArray(value) ? value : [];
-}
+function normaliseItem(raw, source, index) {
+  const artist = raw?.artist || raw?.name || raw?.title || `Demo Artist ${index + 1}`;
+  const country = raw?.country || raw?.region || "Global";
 
-function isUsableImageSrc(value) {
-  if (typeof value !== "string") return false;
+  const badgeMap = {
+    smart: "SMART",
+    personalised: "PERSONALISED",
+    predictive: "PREDICTED"
+  };
 
-  const src = value.trim();
-  if (!src) return false;
-
-  const invalidValues = new Set([
-    "null",
-    "undefined",
-    "false",
-    "none",
-    "n/a",
-    "na",
-    "[object Object]"
-  ]);
-
-  if (invalidValues.has(src.toLowerCase())) return false;
-
-  return (
-    src.startsWith("/") ||
-    src.startsWith("./") ||
-    src.startsWith("../") ||
-    src.startsWith("data:image/") ||
-    src.startsWith("blob:") ||
-    /^https?:\/\//i.test(src)
-  );
-}
-
-function pickImageUrl(item) {
-  const candidates = [
-    item?.imageUrl,
-    item?.artistImage,
-    item?.avatarUrl,
-    item?.profileImage,
-    item?.coverImage,
-    item?.thumbnailUrl,
-    item?.photoUrl,
-    item?.image,
-    item?.artwork
-  ];
-
-  return candidates.find((value) => isUsableImageSrc(value)) || "";
-}
-
-function getString(value, fallback) {
-  return typeof value === "string" && value.trim() ? value.trim() : fallback;
-}
-
-function getNumber(value, fallback) {
-  const num = Number(value);
-  return Number.isFinite(num) ? num : fallback;
-}
-
-function formatCompactCount(value) {
-  const num = Number(value || 0);
-
-  if (num >= 1_000_000) {
-    return `${(num / 1_000_000).toFixed(num >= 10_000_000 ? 0 : 1)}M`;
-  }
-
-  if (num >= 1_000) {
-    return `${(num / 1_000).toFixed(num >= 10_000 ? 0 : 1)}K`;
-  }
-
-  return String(num);
+  return {
+    id: raw?.id || `${source}-${index}`,
+    source,
+    badge: badgeMap[source] || "IBAND",
+    artist,
+    title:
+      raw?.cardTitle ||
+      raw?.title ||
+      raw?.trackTitle ||
+      raw?.song ||
+      "Momentum Discovery",
+    subtitle:
+      raw?.cardSubtitle ||
+      raw?.subtitle ||
+      raw?.genre ||
+      "Fan-powered discovery",
+    reason:
+      raw?.feedReason ||
+      raw?.message ||
+      raw?.reason ||
+      "High Momentum + Trending Worldwide",
+    country,
+    handle:
+      raw?.profileHandle ||
+      `@${String(artist).toLowerCase().replace(/[^a-z0-9]+/g, "") || "artist"}`,
+    avatar:
+      raw?.avatar ||
+      raw?.avatarUrl ||
+      raw?.profileImage ||
+      createArtistAvatarDataUri(artist, index),
+    artwork:
+      raw?.artwork ||
+      raw?.image ||
+      raw?.coverArt ||
+      raw?.poster ||
+      createFallbackArtworkDataUri(raw?.title || artist, index),
+    likes: Number(raw?.likes || raw?.hearts || raw?.votes || 1280 + index * 11),
+    comments: Number(raw?.comments || raw?.commentCount || 72 + index * 3),
+    saves: Number(raw?.saves || raw?.saveCount || 31 + index * 2),
+    shares: Number(raw?.shares || raw?.shareCount || 19 + index),
+    audioLabel: raw?.audioLabel || raw?.trackTitle || raw?.song || artist,
+    action: raw?.action || "play_now"
+  };
 }
 
 function normaliseSmartFeed(data) {
-  const items = safeArray(data?.feed);
-
-  return items.map((item, index) => {
-    const artist = getString(item.artist, "Demo Artist Japan");
-    const trackTitle = getString(item.trackTitle, "Tokyo Lights");
-
-    return {
-      id: item.id || `smart-${index}`,
-      feedType: "smart",
-      badge: "SMART",
-      artist,
-      title: getString(item.cardTitle, `${artist} — “${trackTitle}”`),
-      reasonTitle: getString(item.feedReasonTitle, "High Momentum +"),
-      reasonSubtitle: getString(item.feedReasonSubtitle, "Trending Worldwide"),
-      reasonText: getString(
-        item.feedReason || item.message,
-        "Radar and momentum signals increasing."
-      ),
-      country: getString(item.country, "Japan"),
-      region: getString(item.region, "Asia"),
-      trackTitle,
-      releaseLabel: getString(item.releaseLabel, "iBand Exclusive — New Release"),
-      artistImage: pickImageUrl(item),
-      artwork: getString(item.artwork, ""),
-      videoUrl: getString(item.videoUrl, ""),
-      comments: getNumber(item.comments, 322),
-      likes: getNumber(item.likes, 3100),
-      saves: getNumber(item.saves, 451),
-      shares: getNumber(item.shares, 322)
-    };
-  });
+  const items = Array.isArray(data?.feed)
+    ? data.feed
+    : Array.isArray(data)
+      ? data
+      : [];
+  return items.map((item, index) => normaliseItem(item, "smart", index));
 }
 
 function normalisePersonalisedFeed(data) {
   const items = Array.isArray(data?.feed)
     ? data.feed
-    : Array.isArray(data?.profiles?.[0]?.feed)
-      ? data.profiles[0].feed
+    : Array.isArray(data)
+      ? data
       : [];
-
-  return items.map((item, index) => {
-    const artist = getString(item.artist, "Demo Artist Nigeria");
-    const trackTitle = getString(item.trackTitle, "Supernova Dreams");
-
-    return {
-      id: item.id || `personalised-${index}`,
-      feedType: "personalised",
-      badge: "FOR YOU",
-      artist,
-      title: getString(item.cardTitle, `${artist} — “${trackTitle}”`),
-      reasonTitle: getString(item.feedReasonTitle, "High Momentum +"),
-      reasonSubtitle: getString(item.feedReasonSubtitle, "Trending Worldwide"),
-      reasonText: getString(
-        item.feedReason || item.message,
-        "Matches your genre taste and strong breakout momentum."
-      ),
-      country: getString(item.country, "United Kingdom"),
-      region: getString(item.region, "Europe"),
-      trackTitle,
-      releaseLabel: getString(item.releaseLabel, "iBand Exclusive — New Release"),
-      artistImage: pickImageUrl(item),
-      artwork: getString(item.artwork, ""),
-      videoUrl: getString(item.videoUrl, ""),
-      comments: getNumber(item.comments, 322),
-      likes: getNumber(item.likes, 3100),
-      saves: getNumber(item.saves, 451),
-      shares: getNumber(item.shares, 322)
-    };
-  });
+  return items.map((item, index) => normaliseItem(item, "personalised", index));
 }
 
 function normalisePredictiveFeed(data) {
@@ -248,1774 +215,1065 @@ function normalisePredictiveFeed(data) {
     ? data.feed
     : Array.isArray(data?.predictions)
       ? data.predictions
-      : [];
-
-  return items.map((item, index) => {
-    const artist = getString(item.artist || item.recommendedArtist, "Demo Artist Brazil");
-    const trackTitle = getString(item.trackTitle, "Rio Pulse");
-
-    return {
-      id: item.id || `predictive-${index}`,
-      feedType: "predictive",
-      badge: "PREDICTED",
-      artist,
-      title: getString(item.cardTitle, `${artist} — “${trackTitle}”`),
-      reasonTitle: getString(item.feedReasonTitle, "High Momentum +"),
-      reasonSubtitle: getString(item.feedReasonSubtitle, "Trending Worldwide"),
-      reasonText: getString(
-        item.feedReason || item.reason || item.message,
-        "Watch this artist before the breakout."
-      ),
-      country: getString(item.country || item.userMode, "Brazil"),
-      region: getString(item.region, "South America"),
-      trackTitle,
-      releaseLabel: getString(item.releaseLabel, "iBand Exclusive — New Release"),
-      artistImage: pickImageUrl(item),
-      artwork: getString(item.artwork, ""),
-      videoUrl: getString(item.videoUrl, ""),
-      comments: getNumber(item.comments, 322),
-      likes: getNumber(item.likes, 3100),
-      saves: getNumber(item.saves, 451),
-      shares: getNumber(item.shares, 322)
-    };
-  });
+      : Array.isArray(data)
+        ? data
+        : [];
+  return items.map((item, index) => normaliseItem(item, "predictive", index));
 }
 
-function createFallbackFeed() {
-  const base = [
+function createDemoFeed() {
+  const demo = [
     {
-      id: "demo-ng",
-      feedType: "personalised",
-      badge: "FOR YOU",
-      artist: "Demo Artist Nigeria",
-      title: "Demo Artist Nigeria — “Supernova Dreams”",
-      reasonTitle: "High Momentum +",
-      reasonSubtitle: "Trending Worldwide",
-      reasonText: "Matches your genre taste and strong breakout momentum.",
-      country: "United Kingdom",
-      region: "Europe",
-      trackTitle: "Supernova Dreams",
-      releaseLabel: "iBand Exclusive — New Release",
-      comments: 322,
-      likes: 3100,
-      saves: 451,
-      shares: 322
-    },
-    {
-      id: "demo-jp",
-      feedType: "smart",
-      badge: "SMART",
-      artist: "Demo Artist Japan",
-      title: "Demo Artist Japan — “Tokyo Lights”",
-      reasonTitle: "High Momentum +",
-      reasonSubtitle: "Trending Worldwide",
-      reasonText: "Radar and momentum signals increasing.",
-      country: "Japan",
-      region: "Asia",
-      trackTitle: "Tokyo Lights",
-      releaseLabel: "iBand Exclusive — New Release",
-      comments: 322,
-      likes: 3100,
-      saves: 451,
-      shares: 322
-    },
-    {
-      id: "demo-br",
-      feedType: "predictive",
-      badge: "PREDICTED",
       artist: "Demo Artist Brazil",
-      title: "Demo Artist Brazil — “Rio Pulse”",
-      reasonTitle: "High Momentum +",
-      reasonSubtitle: "Trending Worldwide",
-      reasonText: "Watch this artist before the breakout.",
+      title: "Neon Hearts",
+      subtitle: "Latin Pop • Rising",
       country: "Brazil",
-      region: "South America",
-      trackTitle: "Rio Pulse",
-      releaseLabel: "iBand Exclusive — New Release",
-      comments: 322,
-      likes: 3100,
-      saves: 451,
-      shares: 322
+      reason: "High Momentum + Trending Worldwide"
+    },
+    {
+      artist: "Demo Artist Nigeria",
+      title: "Skyline Rhythm",
+      subtitle: "Afrobeats • Breakout",
+      country: "Nigeria",
+      reason: "Strong fan signals + Rapid share velocity"
+    },
+    {
+      artist: "Demo Artist UK",
+      title: "Midnight Echo",
+      subtitle: "Alt Pop • Discovery",
+      country: "United Kingdom",
+      reason: "Predicted strong response from similar listeners"
     }
   ];
 
-  return base.map((item, index) => ({
-    ...item,
-    artistImage: "",
-    artwork: "",
-    videoUrl: "",
-    fallbackPoster:
-      "https://images.unsplash.com/photo-1571266028243-d220c9c3b7dc?auto=format&fit=crop&w=1200&q=80",
-    artistAvatarFallback: createArtistAvatarDataUri(item.artist, index),
-    artworkFallback: createArtworkDataUri(index)
-  }));
+  return demo.map((item, index) => normaliseItem(item, "smart", index));
 }
 
-function buildUnifiedFeed({ smart, personalised, predictive }) {
-  const merged = [...personalised, ...smart, ...predictive];
-
-  if (!merged.length) {
-    return createFallbackFeed();
+function formatCompactNumber(value) {
+  try {
+    return new Intl.NumberFormat("en-GB", {
+      notation: "compact",
+      maximumFractionDigits: 1
+    }).format(Number(value || 0));
+  } catch {
+    return String(value || 0);
   }
-
-  return merged.map((item, index) => ({
-    ...item,
-    title: item.title || `${item.artist} — “${item.trackTitle || "New Release"}”`,
-    fallbackPoster:
-      item.fallbackPoster ||
-      "https://images.unsplash.com/photo-1571266028243-d220c9c3b7dc?auto=format&fit=crop&w=1200&q=80",
-    artistAvatarFallback:
-      item.artistAvatarFallback || createArtistAvatarDataUri(item.artist, index),
-    artworkFallback: item.artworkFallback || createArtworkDataUri(index)
-  }));
 }
 
-function splitArtistAndTrack(title, artist, trackTitle) {
-  const cleanArtist = getString(artist, "Unknown Artist");
-  const cleanTrack = getString(trackTitle, "New Release");
-  const cleanTitle = getString(title, `${cleanArtist} — “${cleanTrack}”`);
-
-  const regex = /^(.+?)\s+[—-]\s+[“"]?(.+?)[”"]?$/;
-  const match = cleanTitle.match(regex);
-
-  if (!match) {
-    return {
-      artistLine: cleanArtist,
-      trackLine: `— “${cleanTrack}”`
-    };
-  }
-
-  return {
-    artistLine: match[1].trim() || cleanArtist,
-    trackLine: `— “${match[2].trim() || cleanTrack}”`
-  };
-}
-
-function IconLive() {
+function IconShell({ children, size = 24 }) {
   return (
-    <svg viewBox="0 0 24 24" style={styles.topIconSvg} aria-hidden="true">
-      <rect
-        x="4"
-        y="6"
-        width="16"
-        height="12"
-        rx="2.4"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.9"
-      />
-      <path
-        d="M8 4.6h8M9.6 19.4h4.8"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-      />
-      <text
-        x="12"
-        y="14"
-        textAnchor="middle"
-        fontSize="5.4"
-        fontWeight="800"
-        fill="currentColor"
-      >
-        LIVE
-      </text>
-    </svg>
-  );
-}
-
-function IconSearch() {
-  return (
-    <svg viewBox="0 0 24 24" style={styles.topIconSvg} aria-hidden="true">
-      <circle
-        cx="11"
-        cy="11"
-        r="6.5"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2.3"
-      />
-      <path
-        d="M16 16l4.2 4.2"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2.3"
-        strokeLinecap="round"
-      />
-    </svg>
-  );
-}
-
-function IconChevronCircle() {
-  return (
-    <svg viewBox="0 0 24 24" style={styles.topIconSvg} aria-hidden="true">
-      <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" strokeWidth="2.3" />
-      <path
-        d="M10 8.5L14 12l-4 3.5"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2.3"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
-function IconHome() {
-  return (
-    <svg viewBox="0 0 24 24" style={styles.bottomIconSvg} aria-hidden="true">
-      <path
-        d="M4 10.5L12 4l8 6.5V20a1 1 0 01-1 1h-4.8v-6H9.8v6H5a1 1 0 01-1-1v-9.5z"
-        fill="currentColor"
-      />
-    </svg>
-  );
-}
-
-function IconBag() {
-  return (
-    <svg viewBox="0 0 24 24" style={styles.bottomIconSvg} aria-hidden="true">
-      <path
-        d="M7 8V7a5 5 0 0110 0v1h2l-1.1 11H6.1L5 8h2zm2 0h6V7a3 3 0 00-6 0v1z"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.9"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
-function IconInbox() {
-  return (
-    <svg viewBox="0 0 24 24" style={styles.bottomIconSvg} aria-hidden="true">
-      <path
-        d="M4 6h16l1 10h-5l-2 3h-4l-2-3H3L4 6z"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.9"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
-function IconProfile() {
-  return (
-    <svg viewBox="0 0 24 24" style={styles.bottomIconSvg} aria-hidden="true">
-      <circle
-        cx="12"
-        cy="8"
-        r="3.5"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.9"
-      />
-      <path
-        d="M5 20a7 7 0 0114 0"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.9"
-        strokeLinecap="round"
-      />
-    </svg>
-  );
-}
-
-function IconHeart({ active = true }) {
-  return (
-    <svg viewBox="0 0 24 24" style={styles.rightIconSvg} aria-hidden="true">
-      <defs>
-        <linearGradient id="ibandHeartGradient" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stopColor="#7c3aed" />
-          <stop offset="100%" stopColor="#f97316" />
-        </linearGradient>
-      </defs>
-
-      <path
-        d="M12 20.4l-1.1-1C5.3 14.4 2 11.4 2 7.8 2 5 4.2 3 7 3c1.7 0 3.4.8 5 2.7C13.6 3.8 15.3 3 17 3c2.8 0 5 2 5 4.8 0 3.6-3.3 6.6-8.9 11.6l-1.1 1z"
-        fill={active ? "url(#ibandHeartGradient)" : "white"}
-      />
-    </svg>
-  );
-}
-
-function IconComment({ active = false }) {
-  return (
-    <svg viewBox="0 0 24 24" style={styles.rightIconSvg} aria-hidden="true">
-      <path
-        d="M5 6.5C5 5.1 6.1 4 7.5 4h9C17.9 4 19 5.1 19 6.5v6c0 1.4-1.1 2.5-2.5 2.5h-4.6l-3.4 2.5c-.6.4-1.5 0-1.5-.8v-1.7H7.5C6.1 15 5 13.9 5 12.5v-6Z"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2.4"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      {active ? (
-        <path
-          d="M5 6.5C5 5.1 6.1 4 7.5 4h9C17.9 4 19 5.1 19 6.5v6c0 1.4-1.1 2.5-2.5 2.5h-4.6l-3.4 2.5c-.6.4-1.5 0-1.5-.8v-1.7H7.5C6.1 15 5 13.9 5 12.5v-6Z"
-          fill="currentColor"
-          opacity="0.14"
-        />
-      ) : null}
-    </svg>
-  );
-}
-
-function IconBookmark({ active = false }) {
-  return (
-    <svg viewBox="0 0 24 24" style={styles.rightIconSvg} aria-hidden="true">
-      <path
-        d="M7 4.5h10A1.5 1.5 0 0 1 18.5 6v13.6c0 .7-.8 1.1-1.4.8L12 17l-5.1 3.4c-.6.4-1.4-.1-1.4-.8V6A1.5 1.5 0 0 1 7 4.5Z"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2.4"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      {active ? (
-        <path
-          d="M7 4.5h10A1.5 1.5 0 0 1 18.5 6v13.6c0 .7-.8 1.1-1.4.8L12 17l-5.1 3.4c-.6.4-1.4-.1-1.4-.8V6A1.5 1.5 0 0 1 7 4.5Z"
-          fill="currentColor"
-          opacity="0.14"
-        />
-      ) : null}
-    </svg>
-  );
-}
-
-function IconShare({ active = false }) {
-  return (
-    <svg viewBox="0 0 24 24" style={styles.rightIconSvg} aria-hidden="true">
-      <path
-        d="M7 17.2L17.4 12 7 6.8"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <path
-        d="M7.4 12H14.2"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2.5"
-        strokeLinecap="round"
-      />
-      {active ? (
-        <path
-          d="M7 17.2L17.4 12 7 6.8V17.2Z"
-          fill="currentColor"
-          opacity="0.14"
-        />
-      ) : null}
-    </svg>
-  );
-}
-
-function IbandBrandBlock() {
-  const [logoFailed, setLogoFailed] = useState(false);
-
-  return (
-    <div style={styles.brandBlock}>
-      <div style={styles.brandLogoWrap}>
-        {!logoFailed ? (
-          <img
-            src={IBAND_LOGO_SRC}
-            alt="iBand"
-            style={styles.brandLogoImage}
-            onError={() => setLogoFailed(true)}
-          />
-        ) : (
-          <svg viewBox="0 0 64 64" style={styles.brandLogoSvgFallback} aria-hidden="true">
-            <defs>
-              <linearGradient id="ibandBrandGradientFinalCanon" x1="0" y1="0" x2="1" y2="1">
-                <stop offset="0%" stopColor="#7c3aed" />
-                <stop offset="100%" stopColor="#f97316" />
-              </linearGradient>
-            </defs>
-            <circle cx="32" cy="32" r="31" fill="url(#ibandBrandGradientFinalCanon)" />
-            <path
-              d="M30 47V16h4.6c3.7 0 6.6 2.9 6.6 6.6V44h-4.6V33.5H30ZM23 52c-5.5 0-10-4.5-10-10s4.5-10 10-10c0.6 0 1.1 0 1.6 0.1V47c0 2.8-0.8 5-1.6 5Z"
-              fill="white"
-            />
-            <circle cx="41.5" cy="18" r="2" fill="white" />
-            <circle cx="41.5" cy="24" r="2" fill="white" />
-            <circle cx="41.5" cy="30" r="2" fill="white" />
-          </svg>
-        )}
-      </div>
-
-      <div style={styles.brandTextBlock}>
-        <div style={styles.brandWordmark}>iBand</div>
-        <div style={styles.brandSubline}>Powered By Fans</div>
-      </div>
+    <div
+      style={{
+        width: size,
+        height: size,
+        display: "grid",
+        placeItems: "center",
+        color: "#ffffff"
+      }}
+    >
+      {children}
     </div>
   );
 }
 
-function FeedCard({
-  item,
-  isActive,
-  currentIndex,
-  totalItems,
-  layoutValues,
-  onDragStart
-}) {
-  const [avatarFailed, setAvatarFailed] = useState(false);
-  const [artFailed, setArtFailed] = useState(false);
-
-  const posterUrl = item.videoUrl || item.fallbackPoster;
-  const avatarUrl =
-    isUsableImageSrc(item.artistImage) && !avatarFailed
-      ? item.artistImage
-      : item.artistAvatarFallback;
-  const soundArtworkUrl =
-    isUsableImageSrc(item.artwork) && !artFailed
-      ? item.artwork
-      : item.artworkFallback;
-
-  const heading = splitArtistAndTrack(item.title, item.artist, item.trackTitle);
-
+function HeartIcon() {
   return (
-    <article style={styles.slide}>
-      <div
+    <IconShell>
+      <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true">
+        <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5A4.5 4.5 0 0 1 6.5 4C8.24 4 9.91 4.81 11 6.08 12.09 4.81 13.76 4 15.5 4A4.5 4.5 0 0 1 20 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
+      </svg>
+    </IconShell>
+  );
+}
+
+function CommentIcon() {
+  return (
+    <IconShell>
+      <svg
+        viewBox="0 0 24 24"
+        width="22"
+        height="22"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        aria-hidden="true"
+      >
+        <path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z" />
+      </svg>
+    </IconShell>
+  );
+}
+
+function SaveIcon() {
+  return (
+    <IconShell>
+      <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true">
+        <path d="M6 3h12a1 1 0 0 1 1 1v17l-7-4-7 4V4a1 1 0 0 1 1-1z" />
+      </svg>
+    </IconShell>
+  );
+}
+
+function ShareIcon() {
+  return (
+    <IconShell>
+      <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true">
+        <path d="M14 3l7 7-1.41 1.41L15 6.83V16h-2V6.83l-4.59 4.58L7 10l7-7z" />
+        <path d="M5 14h2v5h10v-5h2v7H5v-7z" />
+      </svg>
+    </IconShell>
+  );
+}
+
+function MusicDiscIcon({ artwork }) {
+  return (
+    <div
+      style={{
+        width: 42,
+        height: 42,
+        borderRadius: "50%",
+        overflow: "hidden",
+        border: "1.5px solid rgba(255,255,255,0.75)",
+        boxShadow: "0 8px 20px rgba(0,0,0,0.28)",
+        background: "#111"
+      }}
+    >
+      <img
+        src={artwork}
+        alt=""
         style={{
-          ...styles.posterLayer,
-          backgroundImage: `url("${posterUrl}")`
+          width: "100%",
+          height: "100%",
+          objectFit: "cover",
+          display: "block"
         }}
       />
+    </div>
+  );
+}
 
-      <div style={styles.posterTopFade} />
-      <div style={styles.posterBottomFade} />
-      <div style={styles.posterMidFade} />
-
+function RightRailAction({ value, label, children }) {
+  return (
+    <div
+      aria-label={label}
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        gap: 4,
+        width: 52
+      }}
+    >
       <div
         style={{
-          ...styles.rightRail,
-          top: `${layoutValues.rightRailTop}px`
+          width: 42,
+          height: 42,
+          borderRadius: "50%",
+          display: "grid",
+          placeItems: "center",
+          background: "rgba(0,0,0,0.18)"
         }}
       >
-        {DEV_LAYOUT_MODE ? (
-          <button
-            type="button"
-            aria-label="Drag right rail"
-            style={styles.devRailHandle}
-            onMouseDown={(event) => onDragStart("rightRail", event)}
-            onTouchStart={(event) => onDragStart("rightRail", event)}
-          >
-            DRAG
-          </button>
-        ) : null}
-
-        <div style={styles.avatarRailBlock}>
-          <div style={styles.avatarWrap}>
-            <img
-              src={avatarUrl}
-              alt={item.artist}
-              style={styles.avatarImage}
-              onError={() => setAvatarFailed(true)}
-            />
-            <button
-              type="button"
-              aria-label={`Follow ${item.artist}`}
-              style={styles.followPlusButton}
-            >
-              +
-            </button>
-          </div>
-        </div>
-
-        <div style={styles.rightActionBlock}>
-          <button type="button" aria-label="Like" style={styles.rightActionButton}>
-            <IconHeart active={true} />
-          </button>
-          <div style={styles.rightActionCount}>{formatCompactCount(item.likes)}</div>
-        </div>
-
-        <div style={styles.rightActionBlock}>
-          <button type="button" aria-label="Comments" style={styles.rightActionButton}>
-            <IconComment />
-          </button>
-          <div style={styles.rightActionCount}>{formatCompactCount(item.comments)}</div>
-        </div>
-
-        <div style={styles.rightActionBlock}>
-          <button type="button" aria-label="Save" style={styles.rightActionButton}>
-            <IconBookmark />
-          </button>
-          <div style={styles.rightActionCount}>{formatCompactCount(item.saves)}</div>
-        </div>
-
-        <div style={styles.rightActionBlock}>
-          <button type="button" aria-label="Share" style={styles.rightActionButton}>
-            <IconShare active={false} />
-          </button>
-          <div style={styles.rightActionCount}>{formatCompactCount(item.shares)}</div>
-        </div>
-
-        <button type="button" aria-label="Open original sound" style={styles.soundDiscButton}>
-          <img
-            src={soundArtworkUrl}
-            alt={`${item.trackTitle} original sound`}
-            style={styles.soundDiscImage}
-            onError={() => setArtFailed(true)}
-          />
-        </button>
+        {children}
       </div>
-
       <div
         style={{
-          ...styles.contentOverlay,
-          bottom: `calc(${layoutValues.contentOverlayBottom}px + env(safe-area-inset-bottom))`
+          fontSize: 11,
+          lineHeight: 1,
+          color: "#fff",
+          fontWeight: 600,
+          textShadow: "0 1px 3px rgba(0,0,0,0.45)"
         }}
       >
-        {DEV_LAYOUT_MODE ? (
-          <button
-            type="button"
-            aria-label="Drag content overlay"
-            style={styles.devOverlayHandle}
-            onMouseDown={(event) => onDragStart("contentOverlay", event)}
-            onTouchStart={(event) => onDragStart("contentOverlay", event)}
-          >
-            DRAG OVERLAY
-          </button>
-        ) : null}
-
-        <div style={styles.artistTitleRow}>
-          <span style={styles.artistNameText}>{heading.artistLine}</span>
-          <span style={styles.artistVerified}>✓</span>
-        </div>
-
-        <div style={styles.trackTitleText}>{heading.trackLine}</div>
-
-        <div style={styles.reasonLine}>
-          {item.reasonTitle} {item.reasonSubtitle}
-        </div>
-
-        <div style={styles.reasonSubline}>{item.reasonText}</div>
-
-        <div style={styles.musicLine}>
-          <span style={styles.musicNote}>♫</span>
-          <span>{item.releaseLabel}</span>
-        </div>
-
-        <div style={styles.commentLine}>{item.comments} Comments</div>
-
-        <div style={styles.searchShell}>
-          <div style={styles.searchIconWrapInCard}>
-            <IconSearch />
-          </div>
-
-          <div style={styles.searchInputWrap}>
-            <div style={styles.searchPlaceholder}>Search artists, songs, genres</div>
-          </div>
-        </div>
+        {formatCompactNumber(value)}
       </div>
-
-      <div style={styles.rankBadge}>#{Math.min(currentIndex + 1, totalItems)}</div>
-    </article>
+    </div>
   );
 }
 
 export default function Feed() {
-  const [smartFeed, setSmartFeed] = useState([]);
-  const [personalisedFeed, setPersonalisedFeed] = useState([]);
-  const [predictiveFeed, setPredictiveFeed] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const feedRef = useRef(null);
+
+  const [items, setItems] = useState(createDemoFeed());
   const [activeIndex, setActiveIndex] = useState(0);
-  const [activeTopTab, setActiveTopTab] = useState("for-you");
-  const [layoutValues, setLayoutValues] = useState(DEFAULT_LAYOUT_VALUES);
+  const [isLoading, setIsLoading] = useState(true);
+  const [showDevCode, setShowDevCode] = useState(true);
+
+  const [layoutValues, setLayoutValues] = useState(DEFAULT_LAYOUT);
   const [dragState, setDragState] = useState({
     active: false,
-    target: null,
-    startClientY: 0,
-    startValue: 0
+    target: null
   });
 
-  const scrollRef = useRef(null);
-  const cardRefs = useRef([]);
-  const topTabsScrollRef = useRef(null);
-  const touchStartYRef = useRef(0);
-  const touchEndYRef = useRef(0);
-  const isDirectionalSnappingRef = useRef(false);
-  const hasInitialTopTabsPositionedRef = useRef(false);
+  const activeItem = items[activeIndex] || items[0] || createDemoFeed()[0];
 
   useEffect(() => {
-    let isMounted = true;
+    let cancelled = false;
 
-    async function loadFeeds() {
-      setLoading(true);
+    async function loadFeed() {
+      setIsLoading(true);
 
-      const results = await Promise.allSettled([
-        fetchSmartFeed(),
-        fetchPersonalisedFeed(),
-        fetchPredictiveFeed()
-      ]);
+      try {
+        const results = await Promise.allSettled([
+          fetchSmartFeed(),
+          fetchPersonalisedFeed(),
+          fetchPredictiveFeed()
+        ]);
 
-      if (!isMounted) return;
+        const smartData =
+          results[0]?.status === "fulfilled"
+            ? normaliseSmartFeed(results[0].value)
+            : [];
+        const personalisedData =
+          results[1]?.status === "fulfilled"
+            ? normalisePersonalisedFeed(results[1].value)
+            : [];
+        const predictiveData =
+          results[2]?.status === "fulfilled"
+            ? normalisePredictiveFeed(results[2].value)
+            : [];
 
-      const [smartResult, personalisedResult, predictiveResult] = results;
+        const merged = [
+          ...smartData,
+          ...personalisedData,
+          ...predictiveData
+        ].filter(Boolean);
 
-      setSmartFeed(
-        smartResult.status === "fulfilled"
-          ? normaliseSmartFeed(smartResult.value)
-          : []
-      );
-
-      setPersonalisedFeed(
-        personalisedResult.status === "fulfilled"
-          ? normalisePersonalisedFeed(personalisedResult.value)
-          : []
-      );
-
-      setPredictiveFeed(
-        predictiveResult.status === "fulfilled"
-          ? normalisePredictiveFeed(predictiveResult.value)
-          : []
-      );
-
-      setLoading(false);
+        if (!cancelled) {
+          setItems(merged.length ? merged : createDemoFeed());
+        }
+      } catch {
+        if (!cancelled) {
+          setItems(createDemoFeed());
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoading(false);
+        }
+      }
     }
 
-    loadFeeds();
+    loadFeed();
 
     return () => {
-      isMounted = false;
+      cancelled = true;
     };
   }, []);
 
-  const unifiedFeed = useMemo(
-    () =>
-      buildUnifiedFeed({
-        smart: smartFeed,
-        personalised: personalisedFeed,
-        predictive: predictiveFeed
-      }),
-    [smartFeed, personalisedFeed, predictiveFeed]
-  );
+  const handleScroll = useCallback(() => {
+    const container = feedRef.current;
+    if (!container) return;
 
-  useEffect(() => {
-    const scroller = topTabsScrollRef.current;
-    if (!scroller || hasInitialTopTabsPositionedRef.current) return;
-
-    const id = window.requestAnimationFrame(() => {
-      scroller.scrollLeft = 118;
-      hasInitialTopTabsPositionedRef.current = true;
-    });
-
-    return () => window.cancelAnimationFrame(id);
-  }, []);
-
-  useEffect(() => {
-    if (!scrollRef.current || !unifiedFeed.length) return;
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const visibleEntry = entries
-          .filter((entry) => entry.isIntersecting)
-          .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
-
-        if (!visibleEntry) return;
-
-        const index = Number(visibleEntry.target.getAttribute("data-index"));
-
-        if (Number.isFinite(index)) {
-          setActiveIndex(index);
-        }
-      },
-      {
-        root: scrollRef.current,
-        threshold: [0.8, 0.9, 0.97]
-      }
+    const height = container.clientHeight || window.innerHeight || 1;
+    const nextIndex = clamp(
+      Math.round(container.scrollTop / height),
+      0,
+      Math.max(items.length - 1, 0)
     );
 
-    cardRefs.current.forEach((node) => {
-      if (node) observer.observe(node);
-    });
-
-    return () => observer.disconnect();
-  }, [unifiedFeed]);
-
-  useEffect(() => {
-    const scroller = scrollRef.current;
-    if (!scroller || !cardRefs.current.length) return;
-
-    function getNearestIndex() {
-      const currentScrollTop = scroller.scrollTop;
-
-      let nearestIndex = 0;
-      let nearestDistance = Infinity;
-
-      cardRefs.current.forEach((node, index) => {
-        if (!node) return;
-        const distance = Math.abs(node.offsetTop - currentScrollTop);
-        if (distance < nearestDistance) {
-          nearestDistance = distance;
-          nearestIndex = index;
-        }
-      });
-
-      return nearestIndex;
+    if (nextIndex !== activeIndex) {
+      setActiveIndex(nextIndex);
     }
+  }, [activeIndex, items.length]);
 
-    function snapToIndex(index) {
-      const clampedIndex = Math.max(0, Math.min(index, cardRefs.current.length - 1));
-      const targetNode = cardRefs.current[clampedIndex];
-      if (!targetNode) return;
-
-      isDirectionalSnappingRef.current = true;
-
-      scroller.scrollTo({
-        top: targetNode.offsetTop,
-        behavior: "auto"
-      });
-
-      window.setTimeout(() => {
-        isDirectionalSnappingRef.current = false;
-      }, 120);
-    }
-
-    function handleTouchStart(event) {
-      touchStartYRef.current = event.touches[0]?.clientY || 0;
-      touchEndYRef.current = touchStartYRef.current;
-    }
-
-    function handleTouchMove(event) {
-      touchEndYRef.current = event.touches[0]?.clientY || touchEndYRef.current;
-    }
-
-    function handleTouchEnd() {
-      if (isDirectionalSnappingRef.current || dragState.active) return;
-
-      const deltaY = touchStartYRef.current - touchEndYRef.current;
-      const absDeltaY = Math.abs(deltaY);
-      const currentIndex = getNearestIndex();
-
-      if (absDeltaY < 18) {
-        snapToIndex(currentIndex);
-        return;
-      }
-
-      if (deltaY > 0) {
-        snapToIndex(currentIndex + 1);
-      } else {
-        snapToIndex(currentIndex - 1);
-      }
-    }
-
-    scroller.addEventListener("touchstart", handleTouchStart, { passive: true });
-    scroller.addEventListener("touchmove", handleTouchMove, { passive: true });
-    scroller.addEventListener("touchend", handleTouchEnd, { passive: true });
-
-    return () => {
-      scroller.removeEventListener("touchstart", handleTouchStart);
-      scroller.removeEventListener("touchmove", handleTouchMove);
-      scroller.removeEventListener("touchend", handleTouchEnd);
-    };
-  }, [unifiedFeed, dragState.active]);
-
-  useEffect(() => {
-    if (!DEV_LAYOUT_MODE || !dragState.active || !dragState.target) return undefined;
-
-    function getClientY(event) {
-      if (event.touches?.[0]?.clientY != null) return event.touches[0].clientY;
-      if (event.changedTouches?.[0]?.clientY != null) return event.changedTouches[0].clientY;
-      if (typeof event.clientY === "number") return event.clientY;
-      return dragState.startClientY;
-    }
-
-    function handleMove(event) {
-      const nextClientY = getClientY(event);
-      const deltaY = nextClientY - dragState.startClientY;
-
-      if (dragState.target === "rightRail") {
-        setLayoutValues((prev) => ({
-          ...prev,
-          rightRailTop: clamp(Math.round(dragState.startValue + deltaY), 72, 420)
-        }));
-      }
-
-      if (dragState.target === "contentOverlay") {
-        setLayoutValues((prev) => ({
-          ...prev,
-          contentOverlayBottom: clamp(Math.round(dragState.startValue - deltaY), 0, 220)
-        }));
-      }
-    }
-
-    function handleEnd() {
-      setDragState({
-        active: false,
-        target: null,
-        startClientY: 0,
-        startValue: 0
-      });
-    }
-
-    window.addEventListener("mousemove", handleMove);
-    window.addEventListener("mouseup", handleEnd);
-    window.addEventListener("touchmove", handleMove, { passive: true });
-    window.addEventListener("touchend", handleEnd);
-    window.addEventListener("touchcancel", handleEnd);
-
-    return () => {
-      window.removeEventListener("mousemove", handleMove);
-      window.removeEventListener("mouseup", handleEnd);
-      window.removeEventListener("touchmove", handleMove);
-      window.removeEventListener("touchend", handleEnd);
-      window.removeEventListener("touchcancel", handleEnd);
-    };
-  }, [dragState]);
-
-  function startLayoutDrag(target, event) {
+  const beginDrag = useCallback((target, event) => {
     if (!DEV_LAYOUT_MODE) return;
 
-    event.stopPropagation();
+    event.preventDefault();
 
-    const clientY =
-      event.touches?.[0]?.clientY ??
-      event.changedTouches?.[0]?.clientY ??
-      event.clientY ??
-      0;
+    const touch = event.touches?.[0];
+    const clientY = touch?.clientY ?? event.clientY ?? 0;
 
-    if (target === "rightRail") {
-      setDragState({
-        active: true,
-        target,
-        startClientY: clientY,
-        startValue: layoutValues.rightRailTop
-      });
+    setDragState({
+      active: true,
+      target,
+      startY: clientY,
+      startRightRailTop: toPercentNumber(layoutValues.rightRailTop, 44),
+      startContentOverlayBottom: toPxNumber(layoutValues.contentOverlayBottom, 142)
+    });
+  }, [layoutValues]);
+
+  const updateDrag = useCallback((event) => {
+    if (!DEV_LAYOUT_MODE) return;
+    if (!dragState.active || !dragState.target) return;
+
+    const touch = event.touches?.[0];
+    const clientY = touch?.clientY ?? event.clientY ?? 0;
+    const deltaY = clientY - (dragState.startY || 0);
+    const viewportHeight = window.innerHeight || 844;
+
+    if (dragState.target === "rightRail") {
+      const deltaPercent = (deltaY / viewportHeight) * 100;
+      const nextPercent = clamp(
+        (dragState.startRightRailTop || 44) + deltaPercent,
+        16,
+        82
+      );
+
+      setLayoutValues((prev) => ({
+        ...prev,
+        rightRailTop: `${nextPercent.toFixed(2)}%`
+      }));
     }
 
-    if (target === "contentOverlay") {
-      setDragState({
-        active: true,
-        target,
-        startClientY: clientY,
-        startValue: layoutValues.contentOverlayBottom
-      });
+    if (dragState.target === "contentOverlay") {
+      const nextBottom = clamp(
+        (dragState.startContentOverlayBottom || 142) - deltaY,
+        86,
+        260
+      );
+
+      setLayoutValues((prev) => ({
+        ...prev,
+        contentOverlayBottom: Math.round(nextBottom)
+      }));
     }
-  }
+  }, [dragState]);
 
-  const topTabs = [
-    { key: "stem", label: "STEM" },
-    { key: "explore", label: "Explore" },
-    { key: "country", label: "Oxfordshire" },
-    { key: "following", label: "Following" },
-    { key: "friends", label: "Friends" },
-    { key: "for-you", label: "For You" }
-  ];
+  const endDrag = useCallback(() => {
+    if (!DEV_LAYOUT_MODE) return;
 
-  const layoutCodeOutput = `rightRail: {
-  position: "absolute",
-  right: 8,
-  top: "${layoutValues.rightRailTop}px",
-  zIndex: 9,
-  width: 76,
-  display: "flex",
-  flexDirection: "column",
-  alignItems: "center",
-  justifyContent: "flex-start",
-  gap: 10
-},
+    setDragState({
+      active: false,
+      target: null
+    });
+  }, []);
 
-contentOverlay: {
-  position: "absolute",
-  left: "max(16px, calc(env(safe-area-inset-left) + 10px))",
-  right: "112px",
-  bottom: "calc(${layoutValues.contentOverlayBottom}px + env(safe-area-inset-bottom))",
-  zIndex: 8,
-  maxWidth: "min(68vw, 490px)"
-}`;
+  useEffect(() => {
+    if (!DEV_LAYOUT_MODE) return undefined;
 
-  return (
-    <div style={styles.page}>
-      <div style={styles.fixedTopOverlay}>
-        <div style={styles.topNavRow}>
-          <button type="button" aria-label="Live" style={styles.topLiveFixedButton}>
-            <IconLive />
-          </button>
+    const onTouchMove = (event) => {
+      updateDrag(event);
+    };
+    const onMouseMove = (event) => {
+      updateDrag(event);
+    };
+    const onTouchEnd = () => {
+      endDrag();
+    };
+    const onMouseUp = () => {
+      endDrag();
+    };
 
-          <div ref={topTabsScrollRef} style={styles.topNavTabsScroller}>
-            <div style={styles.topNavTabs}>
-              {topTabs.map((tab) => {
-                const isActive = activeTopTab === tab.key;
+    window.addEventListener("touchmove", onTouchMove, { passive: false });
+    window.addEventListener("mousemove", onMouseMove);
+    window.addEventListener("touchend", onTouchEnd);
+    window.addEventListener("mouseup", onMouseUp);
+    window.addEventListener("touchcancel", onTouchEnd);
 
-                return (
-                  <button
-                    key={tab.key}
-                    type="button"
-                    onClick={() => setActiveTopTab(tab.key)}
-                    style={styles.topTabButton}
-                  >
-                    {tab.icon ? (
-                      <span style={styles.liveIconWrap}>
-                        <IconLive />
-                      </span>
-                    ) : null}
+    return () => {
+      window.removeEventListener("touchmove", onTouchMove);
+      window.removeEventListener("mousemove", onMouseMove);
+      window.removeEventListener("touchend", onTouchEnd);
+      window.removeEventListener("mouseup", onMouseUp);
+      window.removeEventListener("touchcancel", onTouchEnd);
+    };
+  }, [endDrag, updateDrag]);
 
-                    <span
-                      style={{
-                        ...styles.topTabLabel,
-                        ...(isActive ? styles.topTabLabelActive : {})
-                      }}
-                    >
-                      {tab.label}
-                    </span>
+  const uiCodeBlock = useMemo(() => {
+    return [
+      "const layoutTweaks = {",
+      `  rightRailTop: "${layoutValues.rightRailTop}",`,
+      `  contentOverlayBottom: ${layoutValues.contentOverlayBottom},`,
+      `  bottomNavHeight: ${layoutValues.bottomNavHeight}`,
+      "};"
+    ].join("\n");
+  }, [layoutValues]);
 
-                    {isActive ? <span style={styles.topTabUnderline} /> : null}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          <button type="button" aria-label="Search" style={styles.topSearchButton}>
-            <IconSearch />
-          </button>
-        </div>
-
-        <div style={styles.brandRow}>
-          <IbandBrandBlock />
-        </div>
-      </div>
-
-      {DEV_LAYOUT_MODE ? (
-        <>
-          <div style={styles.devInfoPanel}>
-            <div style={styles.devPanelTitle}>LAYOUT CONTROL MODE</div>
-            <div style={styles.devValueRow}>
-              <span style={styles.devValueLabel}>rightRailTop</span>
-              <span style={styles.devValueText}>{layoutValues.rightRailTop}px</span>
-            </div>
-            <div style={styles.devValueRow}>
-              <span style={styles.devValueLabel}>contentOverlayBottom</span>
-              <span style={styles.devValueText}>{layoutValues.contentOverlayBottom}px</span>
-            </div>
-            <div style={styles.devHintText}>
-              Drag the right-rail handle or overlay handle.
-            </div>
-          </div>
-
-          <div style={styles.devCodePanel}>
-            <div style={styles.devPanelTitle}>READY TO PASTE</div>
-            <pre style={styles.devCodeText}>{layoutCodeOutput}</pre>
-          </div>
-        </>
-      ) : null}
-
-      <div
-        ref={scrollRef}
-        style={{
-          ...styles.scroller,
-          ...(dragState.active ? styles.scrollerWhileDragging : {})
-        }}
-      >
-        {loading && !unifiedFeed.length ? (
-          <div style={styles.loadingState}>Loading iBand feed…</div>
-        ) : (
-          unifiedFeed.map((item, index) => (
-            <div
-              key={item.id}
-              ref={(node) => {
-                cardRefs.current[index] = node;
-              }}
-              data-index={index}
-              style={styles.slideWrap}
-            >
-              <FeedCard
-                item={item}
-                isActive={index === activeIndex}
-                currentIndex={index}
-                totalItems={unifiedFeed.length}
-                layoutValues={layoutValues}
-                onDragStart={startLayoutDrag}
-              />
-            </div>
-          ))
-        )}
-      </div>
-
-      <nav aria-label="Primary" style={styles.bottomNav}>
-        <div style={styles.bottomNavInner}>
-          <button type="button" style={styles.bottomNavButton}>
-            <IconHome />
-            <span style={styles.bottomNavLabelActive}>Home</span>
-          </button>
-
-          <button type="button" style={styles.bottomNavButton}>
-            <IconBag />
-            <span style={styles.bottomNavLabel}>Shop</span>
-          </button>
-
-          <button type="button" aria-label="Create" style={styles.createButton}>
-            <span style={styles.createButtonBlue} />
-            <span style={styles.createButtonRed} />
-            <span style={styles.createButtonCenter}>+</span>
-          </button>
-
-          <button type="button" style={styles.bottomNavButton}>
-            <div style={styles.inboxBadgeWrap}>
-              <IconInbox />
-              <span style={styles.inboxBadge}>2</span>
-            </div>
-            <span style={styles.bottomNavLabel}>Inbox</span>
-          </button>
-
-          <button type="button" style={styles.bottomNavButton}>
-            <IconProfile />
-            <span style={styles.bottomNavLabel}>Profile</span>
-          </button>
-        </div>
-      </nav>
-    </div>
-  );
-}
-
-const styles = {
-  page: {
-    position: "fixed",
-    inset: 0,
-    width: "100vw",
+  const shellStyles = useMemo(() => ({
+    position: "relative",
+    width: "100%",
     height: "100dvh",
     overflow: "hidden",
     background: "#000000",
     color: "#ffffff",
     fontFamily: FEED_FONT_STACK
-  },
-  scroller: {
-    position: "relative",
-    width: "100%",
-    height: "100dvh",
-    overflowY: "auto",
-    overflowX: "hidden",
-    scrollSnapType: "y mandatory",
-    scrollBehavior: "auto",
-    overscrollBehaviorY: "none",
-    WebkitOverflowScrolling: "touch",
-    touchAction: "pan-y",
-    background: "#000000"
-  },
-  scrollerWhileDragging: {
-    overscrollBehaviorY: "contain"
-  },
-  slideWrap: {
-    position: "relative",
-    width: "100%",
-    height: "100dvh",
-    minHeight: "100dvh",
-    scrollSnapAlign: "start",
-    scrollSnapStop: "always",
-    overscrollBehavior: "none",
-    touchAction: "pan-y"
-  },
-  slide: {
-    position: "relative",
-    width: "100%",
-    height: "100dvh",
-    minHeight: "100dvh",
-    overflow: "hidden",
-    background: "#020617"
-  },
-  posterLayer: {
-    position: "absolute",
-    inset: 0,
-    backgroundSize: "cover",
-    backgroundPosition: "center",
-    filter: "saturate(1.05) contrast(1.04)",
-    transition: "none"
-  },
-  posterTopFade: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    height: "24%",
-    background:
-      "linear-gradient(180deg, rgba(0,0,0,0.62) 0%, rgba(0,0,0,0.26) 58%, rgba(0,0,0,0) 100%)"
-  },
-  posterBottomFade: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: 0,
-    height: "42%",
-    background:
-      "linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.08) 20%, rgba(0,0,0,0.42) 66%, rgba(0,0,0,0.90) 100%)"
-  },
-  posterMidFade: {
-    position: "absolute",
-    inset: 0,
-    background:
-      "radial-gradient(circle at 24% 30%, rgba(255,255,255,0.12) 0%, rgba(255,255,255,0.03) 18%, rgba(255,255,255,0) 42%)"
-  },
-  fixedTopOverlay: {
+  }), []);
+
+  const topBarStyles = useMemo(() => ({
     position: "fixed",
     top: 0,
     left: 0,
     right: 0,
     zIndex: 40,
-    paddingTop: "env(safe-area-inset-top)",
+    padding: "12px 14px 8px",
+    pointerEvents: "none",
     background:
-      "linear-gradient(180deg, rgba(0,0,0,0.78), rgba(0,0,0,0.14) 82%, rgba(0,0,0,0))",
-    pointerEvents: "auto"
-  },
-  topNavRow: {
-    height: 56,
-    display: "flex",
-    alignItems: "center",
+      "linear-gradient(to bottom, rgba(0,0,0,0.40), rgba(0,0,0,0.08), rgba(0,0,0,0))"
+  }), []);
+
+  const feedScrollStyles = useMemo(() => ({
     position: "relative",
-    paddingLeft: "max(14px, calc(env(safe-area-inset-left) + 8px))",
-    paddingRight: "max(14px, calc(env(safe-area-inset-right) + 8px))"
-  },
-  topLiveFixedButton: {
-    position: "absolute",
-    left: "max(14px, calc(env(safe-area-inset-left) + 8px))",
-    top: "50%",
-    transform: "translateY(-50%)",
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    border: "none",
-    background: "transparent",
-    color: "#ffffff",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    zIndex: 2,
-    cursor: "pointer"
-  },
-  topNavTabsScroller: {
-    flex: 1,
-    minWidth: 0,
-    overflowX: "auto",
-    overflowY: "hidden",
+    height: "100dvh",
+    overflowY: "auto",
+    scrollSnapType: "y mandatory",
+    scrollSnapStop: "always",
+    overscrollBehaviorY: dragState.active ? "contain" : "contain",
     WebkitOverflowScrolling: "touch",
     scrollbarWidth: "none",
-    marginLeft: 0,
-    paddingLeft: 62,
-    paddingRight: 44,
-    WebkitMaskImage:
-      "linear-gradient(to right, rgba(0,0,0,0) 0px, rgba(0,0,0,1) 22px, rgba(0,0,0,1) calc(100% - 18px), rgba(0,0,0,0) 100%)",
-    maskImage:
-      "linear-gradient(to right, rgba(0,0,0,0) 0px, rgba(0,0,0,1) 22px, rgba(0,0,0,1) calc(100% - 18px), rgba(0,0,0,0) 100%)"
-  },
-  topNavTabs: {
+    msOverflowStyle: "none"
+  }), [dragState.active]);
+
+  const contentOverlayStyles = useMemo(() => ({
+    position: "fixed",
+    left: 12,
+    right: 76,
+    bottom: layoutValues.contentOverlayBottom,
+    zIndex: 35,
+    pointerEvents: "none"
+  }), [layoutValues.contentOverlayBottom]);
+
+  const searchDockStyles = useMemo(() => ({
+    position: "fixed",
+    left: 12,
+    right: 12,
+    bottom: layoutValues.bottomNavHeight + 10,
+    zIndex: 36,
     display: "flex",
     alignItems: "center",
-    gap: 22,
-    width: "max-content",
-    paddingRight: 8
-  },
-  brandRow: {
-    height: 86,
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingLeft: "max(14px, calc(env(safe-area-inset-left) + 8px))",
-    paddingRight: "max(14px, calc(env(safe-area-inset-right) + 8px))"
-  },
-  brandBlock: {
-    display: "flex",
-    alignItems: "center",
-    gap: 10
-  },
-  brandLogoWrap: {
-    width: 58,
-    height: 58,
-    position: "relative",
-    flexShrink: 0,
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center"
-  },
-  brandLogoImage: {
-    width: 58,
-    height: 58,
-    display: "block",
-    objectFit: "contain",
-    filter: "drop-shadow(0 10px 20px rgba(0,0,0,0.26))"
-  },
-  brandLogoSvgFallback: {
-    width: 58,
-    height: 58,
-    display: "block"
-  },
-  brandTextBlock: {
-    display: "flex",
-    flexDirection: "column",
-    justifyContent: "center"
-  },
-  brandWordmark: {
-    fontSize: 18,
-    lineHeight: 1,
-    fontWeight: 900,
-    letterSpacing: "-0.03em",
-    color: "#ffffff"
-  },
-  brandSubline: {
-    marginTop: 5,
-    fontSize: 8.8,
-    lineHeight: 1.05,
-    fontWeight: 600,
-    color: "rgba(255,255,255,0.86)"
-  },
-  topTabButton: {
-    appearance: "none",
-    border: "none",
-    background: "transparent",
-    color: "#ffffff",
-    display: "flex",
-    alignItems: "center",
-    gap: 5,
-    position: "relative",
-    padding: 0,
-    pointerEvents: "auto",
-    cursor: "pointer",
-    flexShrink: 0
-  },
-  liveIconWrap: {
-    display: "inline-flex",
-    alignItems: "center"
-  },
-  topTabLabel: {
-    fontSize: 10.8,
-    lineHeight: 1.08,
-    fontWeight: 700,
-    color: "rgba(255,255,255,0.70)",
-    whiteSpace: "nowrap"
-  },
-  topTabLabelActive: {
-    color: "#ffffff"
-  },
-  topTabUnderline: {
-    position: "absolute",
-    left: "50%",
-    bottom: -10,
-    transform: "translateX(-50%)",
-    width: 38,
-    height: 2.8,
-    borderRadius: 999,
-    background: "#ffffff"
-  },
-  topSearchButton: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    border: "none",
-    background: "transparent",
-    color: "#ffffff",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    flexShrink: 0,
-    cursor: "pointer"
-  },
-  topIconSvg: {
-    width: 28,
-    height: 28,
-    display: "block",
-    color: "#ffffff"
-  },
-  rankBadge: {
-    position: "absolute",
-    top: "28px",
-    left: "max(14px, calc(env(safe-area-inset-left) + 8px))",
-    zIndex: 8,
-    minWidth: 62,
-    height: 42,
-    padding: "0 16px",
-    borderRadius: 21,
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
-    color: "rgba(255,255,255,0.96)",
-    fontSize: 17,
-    fontWeight: 900,
-    background: "rgba(8,12,28,0.30)",
-    border: "1px solid rgba(255,255,255,0.14)",
-    boxShadow: "0 10px 24px rgba(0,0,0,0.16)",
-    backdropFilter: "blur(14px)"
-  },
-  rightRail: {
-    position: "absolute",
+    gap: 10,
+    padding: "11px 14px",
+    borderRadius: 18,
+    background: "rgba(13,13,16,0.66)",
+    border: "1px solid rgba(255,255,255,0.10)",
+    backdropFilter: "blur(14px)",
+    WebkitBackdropFilter: "blur(14px)",
+    boxShadow: "0 10px 28px rgba(0,0,0,0.28)"
+  }), [layoutValues.bottomNavHeight]);
+
+  const rightRailStyles = useMemo(() => ({
+    position: "fixed",
     right: 8,
-    top: "146px",
-    zIndex: 9,
-    width: 76,
+    top: layoutValues.rightRailTop,
+    transform: "translateY(-50%)",
+    zIndex: 37,
     display: "flex",
     flexDirection: "column",
     alignItems: "center",
-    justifyContent: "flex-start",
-    gap: 10
-  },
-  avatarRailBlock: {
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    gap: 7
-  },
-  avatarWrap: {
-    position: "relative",
-    width: 60,
-    height: 60
-  },
-  avatarImage: {
-    width: 56,
-    height: 56,
-    borderRadius: "50%",
-    objectFit: "cover",
-    display: "block",
-    border: "3px solid rgba(255,255,255,0.96)",
-    boxShadow: "0 14px 28px rgba(0,0,0,0.34)"
-  },
-  followPlusButton: {
-    position: "absolute",
-    right: -2,
-    bottom: 1,
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    border: "2px solid #ffffff",
-    background: "#ff3d6e",
-    color: "#ffffff",
-    fontSize: 14,
-    fontWeight: 900,
-    lineHeight: 1,
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    cursor: "pointer",
-    boxShadow: "0 8px 18px rgba(0,0,0,0.26)"
-  },
-  rightActionBlock: {
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    gap: 5
-  },
-  rightActionButton: {
-    appearance: "none",
-    width: 58,
-    height: 58,
-    borderRadius: 16,
-    border: "none",
-    background: "transparent",
-    color: "#ffffff",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    boxShadow: "none",
-    cursor: "pointer",
-    padding: 0
-  },
-  rightIconSvg: {
-    width: 30,
-    height: 30,
-    display: "block",
-    color: "#ffffff"
-  },
-  rightActionCount: {
-    fontSize: 10.5,
-    lineHeight: 1,
-    fontWeight: 700,
-    color: "rgba(255,255,255,0.92)",
-    marginTop: -1
-  },
-  soundDiscButton: {
-    appearance: "none",
-    width: 50,
-    height: 50,
-    minWidth: 50,
-    minHeight: 50,
-    maxWidth: 50,
-    maxHeight: 50,
-    flexShrink: 0,
-    alignSelf: "center",
-    aspectRatio: "1 / 1",
-    borderRadius: 999,
-    border: "2px solid rgba(255,255,255,0.96)",
-    padding: 0,
-    overflow: "hidden",
-    background: "transparent",
-    cursor: "pointer",
-    boxShadow: "0 10px 24px rgba(0,0,0,0.24)",
-    marginTop: 2
-  },
-  soundDiscImage: {
-    width: "100%",
-    height: "100%",
-    borderRadius: "50%",
-    objectFit: "cover",
-    display: "block",
-    background: "#000000"
-  },
-  contentOverlay: {
-    position: "absolute",
-    left: "max(16px, calc(env(safe-area-inset-left) + 10px))",
-    right: "112px",
-    bottom: "calc(56px + env(safe-area-inset-bottom))",
-    zIndex: 8,
-    maxWidth: "min(68vw, 490px)"
-  },
-  artistTitleRow: {
-    display: "flex",
-    alignItems: "center",
-    gap: 8,
-    flexWrap: "wrap"
-  },
-  artistNameText: {
-    fontSize: 17,
-    lineHeight: 1.06,
-    fontWeight: 900,
-    color: "#ffffff",
-    letterSpacing: "-0.03em",
-    textShadow: "0 3px 12px rgba(0,0,0,0.38)"
-  },
-  artistVerified: {
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-    background: "#3b82f6",
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
-    color: "#ffffff",
-    fontSize: 10,
-    fontWeight: 900,
-    lineHeight: 1,
-    flexShrink: 0
-  },
-  trackTitleText: {
-    marginTop: 4,
-    fontSize: 16,
-    lineHeight: 1.08,
-    fontWeight: 700,
-    color: "#ffffff",
-    letterSpacing: "-0.02em",
-    textShadow: "0 3px 12px rgba(0,0,0,0.38)"
-  },
-  reasonLine: {
-    marginTop: 12,
-    fontSize: 12.2,
-    lineHeight: 1.16,
-    fontWeight: 500,
-    color: "rgba(255,255,255,0.90)"
-  },
-  reasonSubline: {
-    marginTop: 5,
-    fontSize: 11,
-    lineHeight: 1.18,
-    fontWeight: 500,
-    color: "rgba(255,255,255,0.74)"
-  },
-  musicLine: {
-    marginTop: 11,
-    display: "flex",
-    alignItems: "center",
-    gap: 8,
-    fontSize: 11.4,
-    lineHeight: 1.16,
-    fontWeight: 700,
-    color: "#9edfff"
-  },
-  musicNote: {
-    fontSize: 18,
-    lineHeight: 1
-  },
-  commentLine: {
-    marginTop: 11,
-    fontSize: 11.1,
-    lineHeight: 1.1,
-    fontWeight: 500,
-    color: "rgba(255,255,255,0.78)"
-  },
-  searchShell: {
-    marginTop: 16,
-    width: "calc(100% - 48px)",
-    height: 48,
-    borderRadius: 24,
-    border: "1px solid rgba(255,255,255,0.11)",
-    background: "rgba(5,9,22,0.28)",
-    boxShadow:
-      "0 10px 24px rgba(0,0,0,0.20), inset 0 1px 0 rgba(255,255,255,0.03)",
-    backdropFilter: "blur(16px)",
-    WebkitBackdropFilter: "blur(16px)",
-    display: "flex",
-    alignItems: "center",
-    padding: "0 22px 0 14px"
-  },
-  searchIconWrapInCard: {
-    width: 36,
-    height: 36,
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    color: "#ffffff",
-    flexShrink: 0
-  },
-  searchInputWrap: {
-    position: "relative",
-    flex: 1,
-    minWidth: 0,
-    height: "100%",
-    display: "flex",
-    alignItems: "center"
-  },
-  searchPlaceholder: {
-    color: "rgba(255,255,255,0.70)",
-    fontSize: 12.2,
-    lineHeight: 1.2,
-    fontWeight: 500,
-    whiteSpace: "nowrap",
-    overflow: "hidden",
-    textOverflow: "ellipsis"
-  },
-  bottomNav: {
+    gap: 14
+  }), [layoutValues.rightRailTop]);
+
+  const bottomNavStyles = useMemo(() => ({
     position: "fixed",
     left: 0,
     right: 0,
     bottom: 0,
-    zIndex: 35,
-    height: "calc(50px + env(safe-area-inset-bottom))",
-    paddingBottom: "env(safe-area-inset-bottom)",
-    background:
-      "linear-gradient(180deg, rgba(0,0,0,0.04) 0%, rgba(2,6,18,0.90) 18%, rgba(2,6,18,0.99) 100%)",
-    borderTop: "1px solid rgba(255,255,255,0.06)",
-    backdropFilter: "blur(16px)"
-  },
-  bottomNavInner: {
-    height: 50,
+    zIndex: 38,
+    height: layoutValues.bottomNavHeight,
     display: "grid",
-    gridTemplateColumns: "1fr 1fr 1fr 1fr 1fr",
+    gridTemplateColumns: "repeat(5, 1fr)",
     alignItems: "center",
-    padding: "0 8px"
-  },
-  bottomNavButton: {
-    appearance: "none",
-    border: "none",
-    background: "transparent",
-    color: "#ffffff",
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 1,
-    cursor: "pointer",
-    minWidth: 0
-  },
-  bottomIconSvg: {
-    width: 17,
-    height: 17,
-    display: "block",
-    color: "#ffffff"
-  },
-  bottomNavLabel: {
-    fontSize: 7.8,
-    lineHeight: 1,
-    fontWeight: 600,
-    color: "rgba(255,255,255,0.84)"
-  },
-  bottomNavLabelActive: {
-    fontSize: 7.8,
-    lineHeight: 1,
-    fontWeight: 700,
-    color: "#ffffff"
-  },
-  createButton: {
-    appearance: "none",
-    border: "none",
-    background: "transparent",
-    position: "relative",
-    width: 72,
-    height: 40,
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    cursor: "pointer",
-    padding: 0,
-    justifySelf: "center"
-  },
-  createButtonBlue: {
-    position: "absolute",
-    left: 11,
-    top: "50%",
-    transform: "translateY(-50%)",
-    width: 44,
-    height: 36,
-    borderRadius: 11,
-    background: "#7dd3fc"
-  },
-  createButtonRed: {
-    position: "absolute",
-    right: 11,
-    top: "50%",
-    transform: "translateY(-50%)",
-    width: 44,
-    height: 36,
-    borderRadius: 11,
-    background: "#fb7185"
-  },
-  createButtonCenter: {
-    position: "relative",
-    zIndex: 1,
-    width: 44,
-    height: 36,
-    borderRadius: 11,
-    background: "#ffffff",
-    color: "#111111",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    fontSize: 28,
-    lineHeight: 1,
-    fontWeight: 700
-  },
-  inboxBadgeWrap: {
-    position: "relative",
-    display: "inline-flex"
-  },
-  inboxBadge: {
-    position: "absolute",
-    top: -7,
-    right: -12,
-    minWidth: 22,
-    height: 22,
-    borderRadius: 11,
-    background: "#fb7185",
-    color: "#ffffff",
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
-    fontSize: 12,
-    lineHeight: 1,
-    fontWeight: 800,
-    padding: "0 6px",
-    boxShadow: "0 8px 18px rgba(0,0,0,0.20)"
-  },
-  loadingState: {
-    minHeight: "100dvh",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    color: "rgba(255,255,255,0.88)",
-    fontSize: 18,
-    fontWeight: 700,
-    fontFamily: FEED_FONT_STACK
-  },
-  devInfoPanel: {
-    position: "fixed",
-    top: "calc(env(safe-area-inset-top) + 10px)",
-    right: 10,
-    zIndex: 70,
-    width: 164,
-    padding: "10px 10px 11px",
-    borderRadius: 14,
-    background: "rgba(8,12,28,0.78)",
-    border: "1px solid rgba(255,255,255,0.14)",
-    boxShadow: "0 12px 26px rgba(0,0,0,0.24)",
+    padding: "0 12px env(safe-area-inset-right) env(safe-area-inset-bottom)",
+    background: "rgba(7,7,9,0.92)",
+    borderTop: "1px solid rgba(255,255,255,0.08)",
     backdropFilter: "blur(14px)",
     WebkitBackdropFilter: "blur(14px)"
-  },
-  devCodePanel: {
-    position: "fixed",
-    left: 10,
-    right: 10,
-    top: "calc(env(safe-area-inset-top) + 112px)",
-    zIndex: 70,
-    padding: "10px 10px 12px",
-    borderRadius: 14,
-    background: "rgba(8,12,28,0.78)",
-    border: "1px solid rgba(255,255,255,0.14)",
-    boxShadow: "0 12px 26px rgba(0,0,0,0.24)",
-    backdropFilter: "blur(14px)",
-    WebkitBackdropFilter: "blur(14px)"
-  },
-  devPanelTitle: {
-    fontSize: 10.5,
-    lineHeight: 1.1,
-    fontWeight: 900,
-    letterSpacing: "0.08em",
-    color: "#fbbf24",
-    marginBottom: 8
-  },
-  devValueRow: {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 8,
-    marginBottom: 6
-  },
-  devValueLabel: {
-    fontSize: 11,
-    lineHeight: 1.1,
-    fontWeight: 600,
-    color: "rgba(255,255,255,0.74)"
-  },
-  devValueText: {
-    fontSize: 11.5,
-    lineHeight: 1.1,
-    fontWeight: 800,
-    color: "#ffffff"
-  },
-  devHintText: {
-    marginTop: 4,
-    fontSize: 10.5,
-    lineHeight: 1.25,
-    fontWeight: 500,
-    color: "rgba(255,255,255,0.72)"
-  },
-  devCodeText: {
-    margin: 0,
-    whiteSpace: "pre-wrap",
-    wordBreak: "break-word",
-    fontSize: 10.7,
-    lineHeight: 1.42,
-    color: "#ffffff",
-    fontFamily:
-      'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace'
-  },
-  devRailHandle: {
-    appearance: "none",
-    border: "1px solid rgba(255,255,255,0.14)",
-    background: "rgba(8,12,28,0.78)",
-    color: "#fbbf24",
-    width: 54,
-    height: 22,
-    borderRadius: 999,
-    fontSize: 9.5,
-    fontWeight: 900,
-    letterSpacing: "0.08em",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    cursor: "grab",
-    boxShadow: "0 10px 20px rgba(0,0,0,0.18)",
-    backdropFilter: "blur(12px)",
-    WebkitBackdropFilter: "blur(12px)"
-  },
-  devOverlayHandle: {
-    appearance: "none",
-    border: "1px solid rgba(255,255,255,0.14)",
-    background: "rgba(8,12,28,0.78)",
-    color: "#fbbf24",
-    minWidth: 96,
-    height: 24,
-    padding: "0 10px",
-    borderRadius: 999,
-    fontSize: 9.5,
-    fontWeight: 900,
-    letterSpacing: "0.08em",
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
-    cursor: "grab",
-    boxShadow: "0 10px 20px rgba(0,0,0,0.18)",
-    backdropFilter: "blur(12px)",
-    WebkitBackdropFilter: "blur(12px)",
-    marginBottom: 10
-  }
-};
+  }), [layoutValues.bottomNavHeight]);
+
+  return (
+    <div style={shellStyles}>
+      <div style={topBarStyles}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "flex-start"
+          }}
+        >
+          <img
+            src={IBAND_LOGO_SRC}
+            alt="iBand"
+            style={{
+              width: 38,
+              height: 38,
+              objectFit: "contain",
+              filter: "drop-shadow(0 4px 12px rgba(0,0,0,0.45))"
+            }}
+          />
+        </div>
+      </div>
+
+      <div
+        ref={feedRef}
+        onScroll={handleScroll}
+        style={feedScrollStyles}
+      >
+        {items.map((item, index) => {
+          const isActive = index === activeIndex;
+
+          return (
+            <section
+              key={item.id}
+              style={{
+                position: "relative",
+                height: "100dvh",
+                scrollSnapAlign: "start",
+                scrollSnapStop: "always",
+                overflow: "hidden",
+                background: "#000"
+              }}
+            >
+              <img
+                src={item.artwork}
+                alt={item.title}
+                style={{
+                  position: "absolute",
+                  inset: 0,
+                  width: "100%",
+                  height: "100%",
+                  objectFit: "cover",
+                  display: "block",
+                  transform: isActive ? "scale(1.02)" : "scale(1)",
+                  transition: "transform 280ms ease"
+                }}
+              />
+
+              <div
+                style={{
+                  position: "absolute",
+                  inset: 0,
+                  background:
+                    "linear-gradient(to top, rgba(0,0,0,0.66) 0%, rgba(0,0,0,0.22) 30%, rgba(0,0,0,0.10) 55%, rgba(0,0,0,0.32) 100%)"
+                }}
+              />
+            </section>
+          );
+        })}
+      </div>
+
+      <div
+        style={contentOverlayStyles}
+        onTouchStart={(event) => beginDrag("contentOverlay", event)}
+        onMouseDown={(event) => beginDrag("contentOverlay", event)}
+      >
+        <div
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 8,
+            marginBottom: 10,
+            padding: "5px 9px",
+            borderRadius: 999,
+            background: "rgba(0,0,0,0.32)",
+            border: "1px solid rgba(255,255,255,0.12)",
+            pointerEvents: DEV_LAYOUT_MODE ? "auto" : "none",
+            cursor: DEV_LAYOUT_MODE ? "grab" : "default"
+          }}
+        >
+          <span
+            style={{
+              fontSize: 10,
+              fontWeight: 800,
+              letterSpacing: "0.08em",
+              color: "#ffffff"
+            }}
+          >
+            {activeItem.badge}
+          </span>
+          {DEV_LAYOUT_MODE && (
+            <span
+              style={{
+                fontSize: 10,
+                color: "#fbbf24",
+                fontWeight: 700
+              }}
+            >
+              DRAG OVERLAY
+            </span>
+          )}
+        </div>
+
+        <div
+          style={{
+            maxWidth: "100%",
+            display: "flex",
+            flexDirection: "column",
+            gap: 6
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 10
+            }}
+          >
+            <img
+              src={activeItem.avatar}
+              alt={activeItem.artist}
+              style={{
+                width: 38,
+                height: 38,
+                borderRadius: "50%",
+                objectFit: "cover",
+                border: "1.5px solid rgba(255,255,255,0.78)",
+                boxShadow: "0 8px 20px rgba(0,0,0,0.24)"
+              }}
+            />
+
+            <div
+              style={{
+                minWidth: 0,
+                display: "flex",
+                flexDirection: "column",
+                gap: 2
+              }}
+            >
+              <div
+                style={{
+                  fontSize: 16,
+                  fontWeight: 700,
+                  lineHeight: 1.1,
+                  color: "#ffffff",
+                  textShadow: "0 2px 10px rgba(0,0,0,0.38)",
+                  whiteSpace: "nowrap",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis"
+                }}
+              >
+                {activeItem.artist}
+              </div>
+
+              <div
+                style={{
+                  fontSize: 12,
+                  fontWeight: 500,
+                  color: "rgba(255,255,255,0.90)",
+                  whiteSpace: "nowrap",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis"
+                }}
+              >
+                {activeItem.handle}
+              </div>
+            </div>
+          </div>
+
+          <div
+            style={{
+              fontSize: 14,
+              fontWeight: 700,
+              lineHeight: 1.15,
+              color: "#ffffff",
+              textShadow: "0 2px 10px rgba(0,0,0,0.36)"
+            }}
+          >
+            {activeItem.title}
+          </div>
+
+          <div
+            style={{
+              fontSize: 12,
+              lineHeight: 1.25,
+              color: "rgba(255,255,255,0.90)"
+            }}
+          >
+            {activeItem.subtitle}
+          </div>
+
+          <div
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              maxWidth: "100%",
+              padding: "6px 10px",
+              borderRadius: 12,
+              background: "rgba(0,0,0,0.30)",
+              border: "1px solid rgba(255,255,255,0.10)"
+            }}
+          >
+            <div
+              style={{
+                fontSize: 11,
+                lineHeight: 1.25,
+                color: "#ffffff",
+                whiteSpace: "normal",
+                wordBreak: "break-word"
+              }}
+            >
+              <span style={{ fontWeight: 800 }}>WHY YOU ARE SEEING THIS</span>
+              <span style={{ opacity: 0.88 }}> · </span>
+              <span style={{ fontWeight: 600 }}>{activeItem.reason}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div
+        style={searchDockStyles}
+        aria-label="Search artists songs genres"
+      >
+        <svg
+          viewBox="0 0 24 24"
+          width="18"
+          height="18"
+          fill="none"
+          stroke="rgba(255,255,255,0.82)"
+          strokeWidth="2"
+          aria-hidden="true"
+        >
+          <circle cx="11" cy="11" r="7" />
+          <path d="M20 20l-3.5-3.5" />
+        </svg>
+
+        <div
+          style={{
+            fontSize: 14,
+            fontWeight: 500,
+            color: "rgba(255,255,255,0.84)",
+            whiteSpace: "nowrap",
+            overflow: "hidden",
+            textOverflow: "ellipsis"
+          }}
+        >
+          Search artists, songs, genres
+        </div>
+      </div>
+
+      <div
+        style={rightRailStyles}
+        onTouchStart={(event) => beginDrag("rightRail", event)}
+        onMouseDown={(event) => beginDrag("rightRail", event)}
+      >
+        {DEV_LAYOUT_MODE && (
+          <div
+            style={{
+              padding: "5px 8px",
+              borderRadius: 999,
+              background: "rgba(0,0,0,0.38)",
+              border: "1px solid rgba(255,255,255,0.12)",
+              fontSize: 10,
+              fontWeight: 800,
+              color: "#fbbf24",
+              letterSpacing: "0.06em",
+              cursor: "grab"
+            }}
+          >
+            DRAG RAIL
+          </div>
+        )}
+
+        <div
+          style={{
+            width: 52,
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: 6
+          }}
+        >
+          <div
+            style={{
+              position: "relative",
+              width: 48,
+              height: 48
+            }}
+          >
+            <img
+              src={activeItem.avatar}
+              alt={activeItem.artist}
+              style={{
+                width: "100%",
+                height: "100%",
+                objectFit: "cover",
+                borderRadius: "50%",
+                border: "1.5px solid rgba(255,255,255,0.82)",
+                boxShadow: "0 10px 24px rgba(0,0,0,0.28)"
+              }}
+            />
+            <div
+              style={{
+                position: "absolute",
+                left: "50%",
+                bottom: -4,
+                transform: "translateX(-50%)",
+                width: 18,
+                height: 18,
+                borderRadius: "50%",
+                background: "#ff2d55",
+                border: "2px solid #000",
+                display: "grid",
+                placeItems: "center",
+                fontSize: 12,
+                fontWeight: 800,
+                lineHeight: 1,
+                color: "#fff"
+              }}
+            >
+              +
+            </div>
+          </div>
+        </div>
+
+        <RightRailAction value={activeItem.likes} label="Like">
+          <HeartIcon />
+        </RightRailAction>
+
+        <RightRailAction value={activeItem.comments} label="Comment">
+          <CommentIcon />
+        </RightRailAction>
+
+        <RightRailAction value={activeItem.saves} label="Save">
+          <SaveIcon />
+        </RightRailAction>
+
+        <RightRailAction value={activeItem.shares} label="Share">
+          <ShareIcon />
+        </RightRailAction>
+
+        <MusicDiscIcon artwork={activeItem.artwork} />
+      </div>
+
+      <div style={bottomNavStyles}>
+        {[
+          { label: "Home", active: true, badge: null },
+          { label: "Discover", active: false, badge: null },
+          { label: "Upload", active: false, badge: null },
+          { label: "Inbox", active: false, badge: 2 },
+          { label: "Profile", active: false, badge: null }
+        ].map((item) => (
+          <div
+            key={item.label}
+            style={{
+              position: "relative",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 3,
+              color: item.active ? "#ffffff" : "rgba(255,255,255,0.74)"
+            }}
+          >
+            <div
+              style={{
+                position: "relative",
+                width: 22,
+                height: 22,
+                display: "grid",
+                placeItems: "center"
+              }}
+            >
+              <div
+                style={{
+                  width: 19,
+                  height: 19,
+                  borderRadius: item.label === "Upload" ? 6 : 5,
+                  border: "1.8px solid currentColor",
+                  background:
+                    item.label === "Upload" ? "rgba(255,255,255,0.08)" : "transparent"
+                }}
+              />
+
+              {typeof item.badge === "number" && (
+                <div
+                  style={{
+                    position: "absolute",
+                    top: -9,
+                    right: -8,
+                    minWidth: 16,
+                    height: 16,
+                    padding: "0 4px",
+                    borderRadius: 999,
+                    background: "#ff2d55",
+                    color: "#ffffff",
+                    fontSize: 10,
+                    fontWeight: 800,
+                    lineHeight: "16px",
+                    textAlign: "center",
+                    boxShadow: "0 4px 10px rgba(0,0,0,0.32)"
+                  }}
+                >
+                  {item.badge}
+                </div>
+              )}
+            </div>
+
+            <div
+              style={{
+                fontSize: 10,
+                lineHeight: 1,
+                fontWeight: item.active ? 700 : 500
+              }}
+            >
+              {item.label}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {DEV_LAYOUT_MODE && (
+        <>
+          <div
+            style={{
+              position: "fixed",
+              left: 10,
+              top: 58,
+              zIndex: 60,
+              width: 182,
+              padding: "10px 11px",
+              borderRadius: 14,
+              background: "rgba(9,9,12,0.76)",
+              border: "1px solid rgba(255,255,255,0.12)",
+              backdropFilter: "blur(12px)",
+              WebkitBackdropFilter: "blur(12px)",
+              boxShadow: "0 14px 28px rgba(0,0,0,0.28)"
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 8,
+                marginBottom: 8
+              }}
+            >
+              <div
+                style={{
+                  fontSize: 11,
+                  fontWeight: 800,
+                  color: "#fbbf24",
+                  letterSpacing: "0.08em"
+                }}
+              >
+                LAYOUT CONTROL
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setShowDevCode((prev) => !prev)}
+                style={{
+                  appearance: "none",
+                  border: "1px solid rgba(255,255,255,0.12)",
+                  background: "rgba(255,255,255,0.06)",
+                  color: "#ffffff",
+                  borderRadius: 999,
+                  height: 24,
+                  padding: "0 10px",
+                  fontSize: 9.6,
+                  lineHeight: 1,
+                  fontWeight: 800,
+                  letterSpacing: "0.06em",
+                  cursor: "pointer"
+                }}
+              >
+                {showDevCode ? "HIDE CODE" : "SHOW CODE"}
+              </button>
+            </div>
+
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: 6,
+                fontSize: 12,
+                color: "#ffffff"
+              }}
+            >
+              <div>
+                <span style={{ opacity: 0.72 }}>rightRailTop</span>
+                <br />
+                <span style={{ fontWeight: 700 }}>{layoutValues.rightRailTop}</span>
+              </div>
+
+              <div>
+                <span style={{ opacity: 0.72 }}>contentOverlayBottom</span>
+                <br />
+                <span style={{ fontWeight: 700 }}>
+                  {layoutValues.contentOverlayBottom}px
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {showDevCode && (
+            <div
+              style={{
+                position: "fixed",
+                left: 10,
+                right: 10,
+                top: 190,
+                zIndex: 60,
+                padding: "10px 11px",
+                borderRadius: 14,
+                background: "rgba(9,9,12,0.76)",
+                border: "1px solid rgba(255,255,255,0.12)",
+                backdropFilter: "blur(12px)",
+                WebkitBackdropFilter: "blur(12px)",
+                boxShadow: "0 14px 28px rgba(0,0,0,0.28)"
+              }}
+            >
+              <div
+                style={{
+                  fontSize: 11,
+                  fontWeight: 800,
+                  color: "#fbbf24",
+                  letterSpacing: "0.08em",
+                  marginBottom: 8
+                }}
+              >
+                READY-TO-PASTE VALUES
+              </div>
+
+              <pre
+                style={{
+                  margin: 0,
+                  whiteSpace: "pre-wrap",
+                  wordBreak: "break-word",
+                  fontSize: 12,
+                  lineHeight: 1.45,
+                  color: "#ffffff",
+                  fontFamily:
+                    'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace'
+                }}
+              >
+                {uiCodeBlock}
+              </pre>
+            </div>
+          )}
+        </>
+      )}
+
+      {isLoading && (
+        <div
+          style={{
+            position: "fixed",
+            right: 12,
+            top: 14,
+            zIndex: 50,
+            padding: "6px 10px",
+            borderRadius: 999,
+            background: "rgba(0,0,0,0.34)",
+            border: "1px solid rgba(255,255,255,0.12)",
+            fontSize: 11,
+            fontWeight: 700,
+            color: "#ffffff"
+          }}
+        >
+          Loading feed...
+        </div>
+      )}
+
+      <style>{`
+        * {
+          box-sizing: border-box;
+        }
+
+        html, body, #root {
+          margin: 0;
+          width: 100%;
+          height: 100%;
+          background: #000;
+        }
+
+        body {
+          overflow: hidden;
+        }
+
+        div::-webkit-scrollbar {
+          display: none;
+        }
+      `}</style>
+    </div>
+  );
+}
