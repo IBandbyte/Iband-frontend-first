@@ -5,12 +5,23 @@ import {
   fetchSmartFeed
 } from "./services/api";
 
+const DEV_LAYOUT_MODE = true;
+
 const IBAND_LOGO_SRC = "/iband-logo.png";
 const FEED_FONT_STACK =
   '"TikTok Sans", Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
 
+const DEFAULT_LAYOUT_VALUES = {
+  rightRailTop: 146,
+  contentOverlayBottom: 56
+};
+
 function svgDataUri(svg) {
   return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+}
+
+function clamp(value, min, max) {
+  return Math.min(Math.max(value, min), max);
 }
 
 function createArtistAvatarDataUri(name, index = 0) {
@@ -198,8 +209,8 @@ function normalisePersonalisedFeed(data) {
   const items = Array.isArray(data?.feed)
     ? data.feed
     : Array.isArray(data?.profiles?.[0]?.feed)
-    ? data.profiles[0].feed
-    : [];
+      ? data.profiles[0].feed
+      : [];
 
   return items.map((item, index) => {
     const artist = getString(item.artist, "Demo Artist Nigeria");
@@ -236,8 +247,8 @@ function normalisePredictiveFeed(data) {
   const items = Array.isArray(data?.feed)
     ? data.feed
     : Array.isArray(data?.predictions)
-    ? data.predictions
-    : [];
+      ? data.predictions
+      : [];
 
   return items.map((item, index) => {
     const artist = getString(item.artist || item.recommendedArtist, "Demo Artist Brazil");
@@ -513,7 +524,6 @@ function IconProfile() {
   );
 }
 
-// ===== IconHeart — iBand Gradient Upgrade =====
 function IconHeart({ active = true }) {
   return (
     <svg viewBox="0 0 24 24" style={styles.rightIconSvg} aria-hidden="true">
@@ -532,14 +542,9 @@ function IconHeart({ active = true }) {
   );
 }
 
-
-
-// ===== IconComment — iBand Icon Set v2 (TikTok-style) =====
 function IconComment({ active = false }) {
   return (
     <svg viewBox="0 0 24 24" style={styles.rightIconSvg} aria-hidden="true">
-      
-      {/* Main bubble (outline) */}
       <path
         d="M5 6.5C5 5.1 6.1 4 7.5 4h9C17.9 4 19 5.1 19 6.5v6c0 1.4-1.1 2.5-2.5 2.5h-4.6l-3.4 2.5c-.6.4-1.5 0-1.5-.8v-1.7H7.5C6.1 15 5 13.9 5 12.5v-6Z"
         fill="none"
@@ -548,20 +553,17 @@ function IconComment({ active = false }) {
         strokeLinecap="round"
         strokeLinejoin="round"
       />
-
-      {/* Filled state (on press) */}
-      {active && (
+      {active ? (
         <path
           d="M5 6.5C5 5.1 6.1 4 7.5 4h9C17.9 4 19 5.1 19 6.5v6c0 1.4-1.1 2.5-2.5 2.5h-4.6l-3.4 2.5c-.6.4-1.5 0-1.5-.8v-1.7H7.5C6.1 15 5 13.9 5 12.5v-6Z"
           fill="currentColor"
           opacity="0.14"
         />
-      )}
-
+      ) : null}
     </svg>
   );
 }
-// ===== IconBookmark — iBand Icon Set v2 (TikTok-style) =====
+
 function IconBookmark({ active = false }) {
   return (
     <svg viewBox="0 0 24 24" style={styles.rightIconSvg} aria-hidden="true">
@@ -573,18 +575,17 @@ function IconBookmark({ active = false }) {
         strokeLinecap="round"
         strokeLinejoin="round"
       />
-      {active && (
+      {active ? (
         <path
           d="M7 4.5h10A1.5 1.5 0 0 1 18.5 6v13.6c0 .7-.8 1.1-1.4.8L12 17l-5.1 3.4c-.6.4-1.4-.1-1.4-.8V6A1.5 1.5 0 0 1 7 4.5Z"
           fill="currentColor"
           opacity="0.14"
         />
-      )}
+      ) : null}
     </svg>
   );
 }
 
-// ===== IconShare — TikTok-style precision pass =====
 function IconShare({ active = false }) {
   return (
     <svg viewBox="0 0 24 24" style={styles.rightIconSvg} aria-hidden="true">
@@ -603,13 +604,13 @@ function IconShare({ active = false }) {
         strokeWidth="2.5"
         strokeLinecap="round"
       />
-      {active && (
+      {active ? (
         <path
           d="M7 17.2L17.4 12 7 6.8V17.2Z"
           fill="currentColor"
           opacity="0.14"
         />
-      )}
+      ) : null}
     </svg>
   );
 }
@@ -655,7 +656,14 @@ function IbandBrandBlock() {
   );
 }
 
-function FeedCard({ item, isActive, currentIndex, totalItems }) {
+function FeedCard({
+  item,
+  isActive,
+  currentIndex,
+  totalItems,
+  layoutValues,
+  onDragStart
+}) {
   const [avatarFailed, setAvatarFailed] = useState(false);
   const [artFailed, setArtFailed] = useState(false);
 
@@ -676,8 +684,7 @@ function FeedCard({ item, isActive, currentIndex, totalItems }) {
       <div
         style={{
           ...styles.posterLayer,
-          backgroundImage: `url("${posterUrl}")`,
-          
+          backgroundImage: `url("${posterUrl}")`
         }}
       />
 
@@ -685,7 +692,24 @@ function FeedCard({ item, isActive, currentIndex, totalItems }) {
       <div style={styles.posterBottomFade} />
       <div style={styles.posterMidFade} />
 
-      <div style={styles.rightRail}>
+      <div
+        style={{
+          ...styles.rightRail,
+          top: `${layoutValues.rightRailTop}px`
+        }}
+      >
+        {DEV_LAYOUT_MODE ? (
+          <button
+            type="button"
+            aria-label="Drag right rail"
+            style={styles.devRailHandle}
+            onMouseDown={(event) => onDragStart("rightRail", event)}
+            onTouchStart={(event) => onDragStart("rightRail", event)}
+          >
+            DRAG
+          </button>
+        ) : null}
+
         <div style={styles.avatarRailBlock}>
           <div style={styles.avatarWrap}>
             <img
@@ -742,7 +766,24 @@ function FeedCard({ item, isActive, currentIndex, totalItems }) {
         </button>
       </div>
 
-      <div style={styles.contentOverlay}>
+      <div
+        style={{
+          ...styles.contentOverlay,
+          bottom: `calc(${layoutValues.contentOverlayBottom}px + env(safe-area-inset-bottom))`
+        }}
+      >
+        {DEV_LAYOUT_MODE ? (
+          <button
+            type="button"
+            aria-label="Drag content overlay"
+            style={styles.devOverlayHandle}
+            onMouseDown={(event) => onDragStart("contentOverlay", event)}
+            onTouchStart={(event) => onDragStart("contentOverlay", event)}
+          >
+            DRAG OVERLAY
+          </button>
+        ) : null}
+
         <div style={styles.artistTitleRow}>
           <span style={styles.artistNameText}>{heading.artistLine}</span>
           <span style={styles.artistVerified}>✓</span>
@@ -786,13 +827,22 @@ export default function Feed() {
   const [loading, setLoading] = useState(true);
   const [activeIndex, setActiveIndex] = useState(0);
   const [activeTopTab, setActiveTopTab] = useState("for-you");
-const scrollRef = useRef(null);
-const cardRefs = useRef([]);
-const topTabsScrollRef = useRef(null);
-const touchStartYRef = useRef(0);
-const touchEndYRef = useRef(0);
-const isDirectionalSnappingRef = useRef(false);
+  const [layoutValues, setLayoutValues] = useState(DEFAULT_LAYOUT_VALUES);
+  const [dragState, setDragState] = useState({
+    active: false,
+    target: null,
+    startClientY: 0,
+    startValue: 0
+  });
+
+  const scrollRef = useRef(null);
+  const cardRefs = useRef([]);
+  const topTabsScrollRef = useRef(null);
+  const touchStartYRef = useRef(0);
+  const touchEndYRef = useRef(0);
+  const isDirectionalSnappingRef = useRef(false);
   const hasInitialTopTabsPositionedRef = useRef(false);
+
   useEffect(() => {
     let isMounted = true;
 
@@ -846,17 +896,19 @@ const isDirectionalSnappingRef = useRef(false);
       }),
     [smartFeed, personalisedFeed, predictiveFeed]
   );
-useEffect(() => {
-  const scroller = topTabsScrollRef.current;
-  if (!scroller || hasInitialTopTabsPositionedRef.current) return;
 
-  const id = window.requestAnimationFrame(() => {
-    scroller.scrollLeft = 118;
-    hasInitialTopTabsPositionedRef.current = true;
-  });
+  useEffect(() => {
+    const scroller = topTabsScrollRef.current;
+    if (!scroller || hasInitialTopTabsPositionedRef.current) return;
 
-  return () => window.cancelAnimationFrame(id);
-}, []);
+    const id = window.requestAnimationFrame(() => {
+      scroller.scrollLeft = 118;
+      hasInitialTopTabsPositionedRef.current = true;
+    });
+
+    return () => window.cancelAnimationFrame(id);
+  }, []);
+
   useEffect(() => {
     if (!scrollRef.current || !unifiedFeed.length) return;
 
@@ -886,101 +938,207 @@ useEffect(() => {
 
     return () => observer.disconnect();
   }, [unifiedFeed]);
-  
 
-useEffect(() => {
-  const scroller = scrollRef.current;
-  if (!scroller || !cardRefs.current.length) return;
+  useEffect(() => {
+    const scroller = scrollRef.current;
+    if (!scroller || !cardRefs.current.length) return;
 
-  function getNearestIndex() {
-    const currentScrollTop = scroller.scrollTop;
+    function getNearestIndex() {
+      const currentScrollTop = scroller.scrollTop;
 
-    let nearestIndex = 0;
-    let nearestDistance = Infinity;
+      let nearestIndex = 0;
+      let nearestDistance = Infinity;
 
-    cardRefs.current.forEach((node, index) => {
-      if (!node) return;
-      const distance = Math.abs(node.offsetTop - currentScrollTop);
-      if (distance < nearestDistance) {
-        nearestDistance = distance;
-        nearestIndex = index;
+      cardRefs.current.forEach((node, index) => {
+        if (!node) return;
+        const distance = Math.abs(node.offsetTop - currentScrollTop);
+        if (distance < nearestDistance) {
+          nearestDistance = distance;
+          nearestIndex = index;
+        }
+      });
+
+      return nearestIndex;
+    }
+
+    function snapToIndex(index) {
+      const clampedIndex = Math.max(0, Math.min(index, cardRefs.current.length - 1));
+      const targetNode = cardRefs.current[clampedIndex];
+      if (!targetNode) return;
+
+      isDirectionalSnappingRef.current = true;
+
+      scroller.scrollTo({
+        top: targetNode.offsetTop,
+        behavior: "auto"
+      });
+
+      window.setTimeout(() => {
+        isDirectionalSnappingRef.current = false;
+      }, 120);
+    }
+
+    function handleTouchStart(event) {
+      touchStartYRef.current = event.touches[0]?.clientY || 0;
+      touchEndYRef.current = touchStartYRef.current;
+    }
+
+    function handleTouchMove(event) {
+      touchEndYRef.current = event.touches[0]?.clientY || touchEndYRef.current;
+    }
+
+    function handleTouchEnd() {
+      if (isDirectionalSnappingRef.current || dragState.active) return;
+
+      const deltaY = touchStartYRef.current - touchEndYRef.current;
+      const absDeltaY = Math.abs(deltaY);
+      const currentIndex = getNearestIndex();
+
+      if (absDeltaY < 18) {
+        snapToIndex(currentIndex);
+        return;
       }
-    });
 
-    return nearestIndex;
-  }
-
-  function snapToIndex(index) {
-    const clampedIndex = Math.max(0, Math.min(index, cardRefs.current.length - 1));
-    const targetNode = cardRefs.current[clampedIndex];
-    if (!targetNode) return;
-
-    isDirectionalSnappingRef.current = true;
-
-    scroller.scrollTo({
-      top: targetNode.offsetTop,
-      behavior: "auto"
-    });
-
-    window.setTimeout(() => {
-      isDirectionalSnappingRef.current = false;
-    }, 120);
-  }
-
-  function handleTouchStart(event) {
-    touchStartYRef.current = event.touches[0]?.clientY || 0;
-    touchEndYRef.current = touchStartYRef.current;
-  }
-
-  function handleTouchMove(event) {
-    touchEndYRef.current = event.touches[0]?.clientY || touchEndYRef.current;
-  }
-
-  function handleTouchEnd() {
-    if (isDirectionalSnappingRef.current) return;
-
-    const deltaY = touchStartYRef.current - touchEndYRef.current;
-    const absDeltaY = Math.abs(deltaY);
-    const currentIndex = getNearestIndex();
-
-    if (absDeltaY < 18) {
-      snapToIndex(currentIndex);
-      return;
+      if (deltaY > 0) {
+        snapToIndex(currentIndex + 1);
+      } else {
+        snapToIndex(currentIndex - 1);
+      }
     }
 
-    if (deltaY > 0) {
-      snapToIndex(currentIndex + 1);
-    } else {
-      snapToIndex(currentIndex - 1);
+    scroller.addEventListener("touchstart", handleTouchStart, { passive: true });
+    scroller.addEventListener("touchmove", handleTouchMove, { passive: true });
+    scroller.addEventListener("touchend", handleTouchEnd, { passive: true });
+
+    return () => {
+      scroller.removeEventListener("touchstart", handleTouchStart);
+      scroller.removeEventListener("touchmove", handleTouchMove);
+      scroller.removeEventListener("touchend", handleTouchEnd);
+    };
+  }, [unifiedFeed, dragState.active]);
+
+  useEffect(() => {
+    if (!DEV_LAYOUT_MODE || !dragState.active || !dragState.target) return undefined;
+
+    function getClientY(event) {
+      if (event.touches?.[0]?.clientY != null) return event.touches[0].clientY;
+      if (event.changedTouches?.[0]?.clientY != null) return event.changedTouches[0].clientY;
+      if (typeof event.clientY === "number") return event.clientY;
+      return dragState.startClientY;
+    }
+
+    function handleMove(event) {
+      const nextClientY = getClientY(event);
+      const deltaY = nextClientY - dragState.startClientY;
+
+      if (dragState.target === "rightRail") {
+        setLayoutValues((prev) => ({
+          ...prev,
+          rightRailTop: clamp(Math.round(dragState.startValue + deltaY), 72, 420)
+        }));
+      }
+
+      if (dragState.target === "contentOverlay") {
+        setLayoutValues((prev) => ({
+          ...prev,
+          contentOverlayBottom: clamp(Math.round(dragState.startValue - deltaY), 0, 220)
+        }));
+      }
+    }
+
+    function handleEnd() {
+      setDragState({
+        active: false,
+        target: null,
+        startClientY: 0,
+        startValue: 0
+      });
+    }
+
+    window.addEventListener("mousemove", handleMove);
+    window.addEventListener("mouseup", handleEnd);
+    window.addEventListener("touchmove", handleMove, { passive: true });
+    window.addEventListener("touchend", handleEnd);
+    window.addEventListener("touchcancel", handleEnd);
+
+    return () => {
+      window.removeEventListener("mousemove", handleMove);
+      window.removeEventListener("mouseup", handleEnd);
+      window.removeEventListener("touchmove", handleMove);
+      window.removeEventListener("touchend", handleEnd);
+      window.removeEventListener("touchcancel", handleEnd);
+    };
+  }, [dragState]);
+
+  function startLayoutDrag(target, event) {
+    if (!DEV_LAYOUT_MODE) return;
+
+    event.stopPropagation();
+
+    const clientY =
+      event.touches?.[0]?.clientY ??
+      event.changedTouches?.[0]?.clientY ??
+      event.clientY ??
+      0;
+
+    if (target === "rightRail") {
+      setDragState({
+        active: true,
+        target,
+        startClientY: clientY,
+        startValue: layoutValues.rightRailTop
+      });
+    }
+
+    if (target === "contentOverlay") {
+      setDragState({
+        active: true,
+        target,
+        startClientY: clientY,
+        startValue: layoutValues.contentOverlayBottom
+      });
     }
   }
 
-  scroller.addEventListener("touchstart", handleTouchStart, { passive: true });
-  scroller.addEventListener("touchmove", handleTouchMove, { passive: true });
-  scroller.addEventListener("touchend", handleTouchEnd, { passive: true });
-
-  return () => {
-    scroller.removeEventListener("touchstart", handleTouchStart);
-    scroller.removeEventListener("touchmove", handleTouchMove);
-    scroller.removeEventListener("touchend", handleTouchEnd);
-  };
-}, [unifiedFeed]);
   const topTabs = [
-  { key: "stem", label: "STEM" },
-  { key: "explore", label: "Explore" },
-  { key: "country", label: "Oxfordshire" },
-  { key: "following", label: "Following" },
-  { key: "friends", label: "Friends" },
-  { key: "for-you", label: "For You" }
-];
+    { key: "stem", label: "STEM" },
+    { key: "explore", label: "Explore" },
+    { key: "country", label: "Oxfordshire" },
+    { key: "following", label: "Following" },
+    { key: "friends", label: "Friends" },
+    { key: "for-you", label: "For You" }
+  ];
+
+  const layoutCodeOutput = `rightRail: {
+  position: "absolute",
+  right: 8,
+  top: "${layoutValues.rightRailTop}px",
+  zIndex: 9,
+  width: 76,
+  display: "flex",
+  flexDirection: "column",
+  alignItems: "center",
+  justifyContent: "flex-start",
+  gap: 10
+},
+
+contentOverlay: {
+  position: "absolute",
+  left: "max(16px, calc(env(safe-area-inset-left) + 10px))",
+  right: "112px",
+  bottom: "calc(${layoutValues.contentOverlayBottom}px + env(safe-area-inset-bottom))",
+  zIndex: 8,
+  maxWidth: "min(68vw, 490px)"
+}`;
 
   return (
     <div style={styles.page}>
       <div style={styles.fixedTopOverlay}>
         <div style={styles.topNavRow}>
           <button type="button" aria-label="Live" style={styles.topLiveFixedButton}>
-  <IconLive />
-</button>
+            <IconLive />
+          </button>
+
           <div ref={topTabsScrollRef} style={styles.topNavTabsScroller}>
             <div style={styles.topNavTabs}>
               {topTabs.map((tab) => {
@@ -1015,8 +1173,6 @@ useEffect(() => {
             </div>
           </div>
 
-          
-
           <button type="button" aria-label="Search" style={styles.topSearchButton}>
             <IconSearch />
           </button>
@@ -1027,7 +1183,37 @@ useEffect(() => {
         </div>
       </div>
 
-      <div ref={scrollRef} style={styles.scroller}>
+      {DEV_LAYOUT_MODE ? (
+        <>
+          <div style={styles.devInfoPanel}>
+            <div style={styles.devPanelTitle}>LAYOUT CONTROL MODE</div>
+            <div style={styles.devValueRow}>
+              <span style={styles.devValueLabel}>rightRailTop</span>
+              <span style={styles.devValueText}>{layoutValues.rightRailTop}px</span>
+            </div>
+            <div style={styles.devValueRow}>
+              <span style={styles.devValueLabel}>contentOverlayBottom</span>
+              <span style={styles.devValueText}>{layoutValues.contentOverlayBottom}px</span>
+            </div>
+            <div style={styles.devHintText}>
+              Drag the right-rail handle or overlay handle.
+            </div>
+          </div>
+
+          <div style={styles.devCodePanel}>
+            <div style={styles.devPanelTitle}>READY TO PASTE</div>
+            <pre style={styles.devCodeText}>{layoutCodeOutput}</pre>
+          </div>
+        </>
+      ) : null}
+
+      <div
+        ref={scrollRef}
+        style={{
+          ...styles.scroller,
+          ...(dragState.active ? styles.scrollerWhileDragging : {})
+        }}
+      >
         {loading && !unifiedFeed.length ? (
           <div style={styles.loadingState}>Loading iBand feed…</div>
         ) : (
@@ -1045,6 +1231,8 @@ useEffect(() => {
                 isActive={index === activeIndex}
                 currentIndex={index}
                 totalItems={unifiedFeed.length}
+                layoutValues={layoutValues}
+                onDragStart={startLayoutDrag}
               />
             </div>
           ))
@@ -1099,28 +1287,31 @@ const styles = {
     fontFamily: FEED_FONT_STACK
   },
   scroller: {
-  position: "relative",
-  width: "100%",
-  height: "100dvh",
-  overflowY: "auto",
-  overflowX: "hidden",
-  scrollSnapType: "y mandatory",
-  scrollBehavior: "auto",
-  overscrollBehaviorY: "none",
-  WebkitOverflowScrolling: "touch",
-  touchAction: "pan-y",
-  background: "#000000"
-},
+    position: "relative",
+    width: "100%",
+    height: "100dvh",
+    overflowY: "auto",
+    overflowX: "hidden",
+    scrollSnapType: "y mandatory",
+    scrollBehavior: "auto",
+    overscrollBehaviorY: "none",
+    WebkitOverflowScrolling: "touch",
+    touchAction: "pan-y",
+    background: "#000000"
+  },
+  scrollerWhileDragging: {
+    overscrollBehaviorY: "contain"
+  },
   slideWrap: {
-  position: "relative",
-  width: "100%",
-  height: "100dvh",
-  minHeight: "100dvh",
-  scrollSnapAlign: "start",
-  scrollSnapStop: "always",
-  overscrollBehavior: "none",
-  touchAction: "pan-y",
-},
+    position: "relative",
+    width: "100%",
+    height: "100dvh",
+    minHeight: "100dvh",
+    scrollSnapAlign: "start",
+    scrollSnapStop: "always",
+    overscrollBehavior: "none",
+    touchAction: "pan-y"
+  },
   slide: {
     position: "relative",
     width: "100%",
@@ -1173,45 +1364,45 @@ const styles = {
     pointerEvents: "auto"
   },
   topNavRow: {
-  height: 56,
-  display: "flex",
-  alignItems: "center",
-  position: "relative",
-  paddingLeft: "max(14px, calc(env(safe-area-inset-left) + 8px))",
-  paddingRight: "max(14px, calc(env(safe-area-inset-right) + 8px))"
-},
-topLiveFixedButton: {
-  position: "absolute",
-  left: "max(14px, calc(env(safe-area-inset-left) + 8px))",
-  top: "50%",
-  transform: "translateY(-50%)",
-  width: 44,
-  height: 44,
-  borderRadius: 22,
-  border: "none",
-  background: "transparent",
-  color: "#ffffff",
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  zIndex: 2,
-  cursor: "pointer"
-},
+    height: 56,
+    display: "flex",
+    alignItems: "center",
+    position: "relative",
+    paddingLeft: "max(14px, calc(env(safe-area-inset-left) + 8px))",
+    paddingRight: "max(14px, calc(env(safe-area-inset-right) + 8px))"
+  },
+  topLiveFixedButton: {
+    position: "absolute",
+    left: "max(14px, calc(env(safe-area-inset-left) + 8px))",
+    top: "50%",
+    transform: "translateY(-50%)",
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    border: "none",
+    background: "transparent",
+    color: "#ffffff",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 2,
+    cursor: "pointer"
+  },
   topNavTabsScroller: {
-  flex: 1,
-  minWidth: 0,
-  overflowX: "auto",
-  overflowY: "hidden",
-  WebkitOverflowScrolling: "touch",
-  scrollbarWidth: "none",
-  marginLeft: 0,
-  paddingLeft: 62,
-  paddingRight: 44,
-  WebkitMaskImage:
-    "linear-gradient(to right, rgba(0,0,0,0) 0px, rgba(0,0,0,1) 22px, rgba(0,0,0,1) calc(100% - 18px), rgba(0,0,0,0) 100%)",
-  maskImage:
-    "linear-gradient(to right, rgba(0,0,0,0) 0px, rgba(0,0,0,1) 22px, rgba(0,0,0,1) calc(100% - 18px), rgba(0,0,0,0) 100%)"
-},
+    flex: 1,
+    minWidth: 0,
+    overflowX: "auto",
+    overflowY: "hidden",
+    WebkitOverflowScrolling: "touch",
+    scrollbarWidth: "none",
+    marginLeft: 0,
+    paddingLeft: 62,
+    paddingRight: 44,
+    WebkitMaskImage:
+      "linear-gradient(to right, rgba(0,0,0,0) 0px, rgba(0,0,0,1) 22px, rgba(0,0,0,1) calc(100% - 18px), rgba(0,0,0,0) 100%)",
+    maskImage:
+      "linear-gradient(to right, rgba(0,0,0,0) 0px, rgba(0,0,0,1) 22px, rgba(0,0,0,1) calc(100% - 18px), rgba(0,0,0,0) 100%)"
+  },
   topNavTabs: {
     display: "flex",
     alignItems: "center",
@@ -1310,7 +1501,6 @@ topLiveFixedButton: {
     borderRadius: 999,
     background: "#ffffff"
   },
-    
   topSearchButton: {
     width: 34,
     height: 34,
@@ -1351,17 +1541,17 @@ topLiveFixedButton: {
     backdropFilter: "blur(14px)"
   },
   rightRail: {
-  position: "absolute",
-  right: 8,
-  top: "146px",
-  zIndex: 9,
-  width: 76,
-  display: "flex",
-  flexDirection: "column",
-  alignItems: "center",
-  justifyContent: "flex-start",
-  gap: 10
-},
+    position: "absolute",
+    right: 8,
+    top: "146px",
+    zIndex: 9,
+    width: 76,
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "flex-start",
+    gap: 10
+  },
   avatarRailBlock: {
     display: "flex",
     flexDirection: "column",
@@ -1374,104 +1564,103 @@ topLiveFixedButton: {
     height: 60
   },
   avatarImage: {
-  width: 56,
-  height: 56,
-  borderRadius: "50%",
-  objectFit: "cover",
-  display: "block",
-  border: "3px solid rgba(255,255,255,0.96)",
-  boxShadow: "0 14px 28px rgba(0,0,0,0.34)"
-},
+    width: 56,
+    height: 56,
+    borderRadius: "50%",
+    objectFit: "cover",
+    display: "block",
+    border: "3px solid rgba(255,255,255,0.96)",
+    boxShadow: "0 14px 28px rgba(0,0,0,0.34)"
+  },
   followPlusButton: {
-  position: "absolute",
-  right: -2,
-  bottom: 1,
-  width: 22,
-  height: 22,
-  borderRadius: 11,
-  border: "2px solid #ffffff",
-  background: "#ff3d6e",
-  color: "#ffffff",
-  fontSize: 14,
-  fontWeight: 900,
-  lineHeight: 1,
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  cursor: "pointer",
-  boxShadow: "0 8px 18px rgba(0,0,0,0.26)"
-},
+    position: "absolute",
+    right: -2,
+    bottom: 1,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    border: "2px solid #ffffff",
+    background: "#ff3d6e",
+    color: "#ffffff",
+    fontSize: 14,
+    fontWeight: 900,
+    lineHeight: 1,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    cursor: "pointer",
+    boxShadow: "0 8px 18px rgba(0,0,0,0.26)"
+  },
   rightActionBlock: {
-  display: "flex",
-  flexDirection: "column",
-  alignItems: "center",
-  gap: 5
-},
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    gap: 5
+  },
   rightActionButton: {
-  appearance: "none",
-  width: 58,
-  height: 58,
-  borderRadius: 16,
-  border: "none",
-  background: "transparent",
-  color: "#ffffff",
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  boxShadow: "none",
-  cursor: "pointer",
-  padding: 0
-},
-  
+    appearance: "none",
+    width: 58,
+    height: 58,
+    borderRadius: 16,
+    border: "none",
+    background: "transparent",
+    color: "#ffffff",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    boxShadow: "none",
+    cursor: "pointer",
+    padding: 0
+  },
   rightIconSvg: {
-  width: 30,
-  height: 30,
-  display: "block",
-  color: "#ffffff"
-},
+    width: 30,
+    height: 30,
+    display: "block",
+    color: "#ffffff"
+  },
   rightActionCount: {
-  fontSize: 10.5,
-  lineHeight: 1,
-  fontWeight: 700,
-  color: "rgba(255,255,255,0.92)",
-  marginTop: -1
-},
+    fontSize: 10.5,
+    lineHeight: 1,
+    fontWeight: 700,
+    color: "rgba(255,255,255,0.92)",
+    marginTop: -1
+  },
   soundDiscButton: {
-  appearance: "none",
-  width: 50,
-  height: 50,
-  minWidth: 50,
-  minHeight: 50,
-  maxWidth: 50,
-  maxHeight: 50,
-  flexShrink: 0,
-  alignSelf: "center",
-  aspectRatio: "1 / 1",
-  borderRadius: 999,
-  border: "2px solid rgba(255,255,255,0.96)",
-  padding: 0,
-  overflow: "hidden",
-  background: "transparent",
-  cursor: "pointer",
-  boxShadow: "0 10px 24px rgba(0,0,0,0.24)",
-  marginTop: 2
-},
+    appearance: "none",
+    width: 50,
+    height: 50,
+    minWidth: 50,
+    minHeight: 50,
+    maxWidth: 50,
+    maxHeight: 50,
+    flexShrink: 0,
+    alignSelf: "center",
+    aspectRatio: "1 / 1",
+    borderRadius: 999,
+    border: "2px solid rgba(255,255,255,0.96)",
+    padding: 0,
+    overflow: "hidden",
+    background: "transparent",
+    cursor: "pointer",
+    boxShadow: "0 10px 24px rgba(0,0,0,0.24)",
+    marginTop: 2
+  },
   soundDiscImage: {
-  width: "100%",
-  height: "100%",
-  borderRadius: "50%",
-  objectFit: "cover",
-  display: "block",
-  background: "#000000"
-},
+    width: "100%",
+    height: "100%",
+    borderRadius: "50%",
+    objectFit: "cover",
+    display: "block",
+    background: "#000000"
+  },
   contentOverlay: {
-  position: "absolute",
-  left: "max(16px, calc(env(safe-area-inset-left) + 10px))",
-  right: "112px",
-  bottom: "calc(56px + env(safe-area-inset-bottom))",
-  zIndex: 8,
-  maxWidth: "min(68vw, 490px)"
-},
+    position: "absolute",
+    left: "max(16px, calc(env(safe-area-inset-left) + 10px))",
+    right: "112px",
+    bottom: "calc(56px + env(safe-area-inset-bottom))",
+    zIndex: 8,
+    maxWidth: "min(68vw, 490px)"
+  },
   artistTitleRow: {
     display: "flex",
     alignItems: "center",
@@ -1586,105 +1775,105 @@ topLiveFixedButton: {
     textOverflow: "ellipsis"
   },
   bottomNav: {
-  position: "fixed",
-  left: 0,
-  right: 0,
-  bottom: 0,
-  zIndex: 35,
-  height: "calc(50px + env(safe-area-inset-bottom))",
-  paddingBottom: "env(safe-area-inset-bottom)",
-  background:
-    "linear-gradient(180deg, rgba(0,0,0,0.04) 0%, rgba(2,6,18,0.90) 18%, rgba(2,6,18,0.99) 100%)",
-  borderTop: "1px solid rgba(255,255,255,0.06)",
-  backdropFilter: "blur(16px)"
-},
+    position: "fixed",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 35,
+    height: "calc(50px + env(safe-area-inset-bottom))",
+    paddingBottom: "env(safe-area-inset-bottom)",
+    background:
+      "linear-gradient(180deg, rgba(0,0,0,0.04) 0%, rgba(2,6,18,0.90) 18%, rgba(2,6,18,0.99) 100%)",
+    borderTop: "1px solid rgba(255,255,255,0.06)",
+    backdropFilter: "blur(16px)"
+  },
   bottomNavInner: {
-  height: 50,
-  display: "grid",
-  gridTemplateColumns: "1fr 1fr 1fr 1fr 1fr",
-  alignItems: "center",
-  padding: "0 8px"
-},
+    height: 50,
+    display: "grid",
+    gridTemplateColumns: "1fr 1fr 1fr 1fr 1fr",
+    alignItems: "center",
+    padding: "0 8px"
+  },
   bottomNavButton: {
-  appearance: "none",
-  border: "none",
-  background: "transparent",
-  color: "#ffffff",
-  display: "flex",
-  flexDirection: "column",
-  alignItems: "center",
-  justifyContent: "center",
-  gap: 1,
-  cursor: "pointer",
-  minWidth: 0
-},
+    appearance: "none",
+    border: "none",
+    background: "transparent",
+    color: "#ffffff",
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 1,
+    cursor: "pointer",
+    minWidth: 0
+  },
   bottomIconSvg: {
-  width: 17,
-  height: 17,
-  display: "block",
-  color: "#ffffff"
-},
+    width: 17,
+    height: 17,
+    display: "block",
+    color: "#ffffff"
+  },
   bottomNavLabel: {
-  fontSize: 7.8,
-  lineHeight: 1,
-  fontWeight: 600,
-  color: "rgba(255,255,255,0.84)"
-},
+    fontSize: 7.8,
+    lineHeight: 1,
+    fontWeight: 600,
+    color: "rgba(255,255,255,0.84)"
+  },
   bottomNavLabelActive: {
-  fontSize: 7.8,
-  lineHeight: 1,
-  fontWeight: 700,
-  color: "#ffffff"
-},
+    fontSize: 7.8,
+    lineHeight: 1,
+    fontWeight: 700,
+    color: "#ffffff"
+  },
   createButton: {
-  appearance: "none",
-  border: "none",
-  background: "transparent",
-  position: "relative",
-  width: 72,
-  height: 40,
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  cursor: "pointer",
-  padding: 0,
-  justifySelf: "center"
-},
+    appearance: "none",
+    border: "none",
+    background: "transparent",
+    position: "relative",
+    width: 72,
+    height: 40,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    cursor: "pointer",
+    padding: 0,
+    justifySelf: "center"
+  },
   createButtonBlue: {
-  position: "absolute",
-  left: 11,
-  top: "50%",
-  transform: "translateY(-50%)",
-  width: 44,
-  height: 36,
-  borderRadius: 11,
-  background: "#7dd3fc"
-},
+    position: "absolute",
+    left: 11,
+    top: "50%",
+    transform: "translateY(-50%)",
+    width: 44,
+    height: 36,
+    borderRadius: 11,
+    background: "#7dd3fc"
+  },
   createButtonRed: {
-  position: "absolute",
-  right: 11,
-  top: "50%",
-  transform: "translateY(-50%)",
-  width: 44,
-  height: 36,
-  borderRadius: 11,
-  background: "#fb7185"
-},
+    position: "absolute",
+    right: 11,
+    top: "50%",
+    transform: "translateY(-50%)",
+    width: 44,
+    height: 36,
+    borderRadius: 11,
+    background: "#fb7185"
+  },
   createButtonCenter: {
-  position: "relative",
-  zIndex: 1,
-  width: 44,
-  height: 36,
-  borderRadius: 11,
-  background: "#ffffff",
-  color: "#111111",
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  fontSize: 28,
-  lineHeight: 1,
-  fontWeight: 700
-},
+    position: "relative",
+    zIndex: 1,
+    width: 44,
+    height: 36,
+    borderRadius: 11,
+    background: "#ffffff",
+    color: "#111111",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontSize: 28,
+    lineHeight: 1,
+    fontWeight: 700
+  },
   inboxBadgeWrap: {
     position: "relative",
     display: "inline-flex"
@@ -1716,5 +1905,117 @@ topLiveFixedButton: {
     fontSize: 18,
     fontWeight: 700,
     fontFamily: FEED_FONT_STACK
+  },
+  devInfoPanel: {
+    position: "fixed",
+    top: "calc(env(safe-area-inset-top) + 10px)",
+    right: 10,
+    zIndex: 70,
+    width: 164,
+    padding: "10px 10px 11px",
+    borderRadius: 14,
+    background: "rgba(8,12,28,0.78)",
+    border: "1px solid rgba(255,255,255,0.14)",
+    boxShadow: "0 12px 26px rgba(0,0,0,0.24)",
+    backdropFilter: "blur(14px)",
+    WebkitBackdropFilter: "blur(14px)"
+  },
+  devCodePanel: {
+    position: "fixed",
+    left: 10,
+    right: 10,
+    top: "calc(env(safe-area-inset-top) + 112px)",
+    zIndex: 70,
+    padding: "10px 10px 12px",
+    borderRadius: 14,
+    background: "rgba(8,12,28,0.78)",
+    border: "1px solid rgba(255,255,255,0.14)",
+    boxShadow: "0 12px 26px rgba(0,0,0,0.24)",
+    backdropFilter: "blur(14px)",
+    WebkitBackdropFilter: "blur(14px)"
+  },
+  devPanelTitle: {
+    fontSize: 10.5,
+    lineHeight: 1.1,
+    fontWeight: 900,
+    letterSpacing: "0.08em",
+    color: "#fbbf24",
+    marginBottom: 8
+  },
+  devValueRow: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 8,
+    marginBottom: 6
+  },
+  devValueLabel: {
+    fontSize: 11,
+    lineHeight: 1.1,
+    fontWeight: 600,
+    color: "rgba(255,255,255,0.74)"
+  },
+  devValueText: {
+    fontSize: 11.5,
+    lineHeight: 1.1,
+    fontWeight: 800,
+    color: "#ffffff"
+  },
+  devHintText: {
+    marginTop: 4,
+    fontSize: 10.5,
+    lineHeight: 1.25,
+    fontWeight: 500,
+    color: "rgba(255,255,255,0.72)"
+  },
+  devCodeText: {
+    margin: 0,
+    whiteSpace: "pre-wrap",
+    wordBreak: "break-word",
+    fontSize: 10.7,
+    lineHeight: 1.42,
+    color: "#ffffff",
+    fontFamily:
+      'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace'
+  },
+  devRailHandle: {
+    appearance: "none",
+    border: "1px solid rgba(255,255,255,0.14)",
+    background: "rgba(8,12,28,0.78)",
+    color: "#fbbf24",
+    width: 54,
+    height: 22,
+    borderRadius: 999,
+    fontSize: 9.5,
+    fontWeight: 900,
+    letterSpacing: "0.08em",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    cursor: "grab",
+    boxShadow: "0 10px 20px rgba(0,0,0,0.18)",
+    backdropFilter: "blur(12px)",
+    WebkitBackdropFilter: "blur(12px)"
+  },
+  devOverlayHandle: {
+    appearance: "none",
+    border: "1px solid rgba(255,255,255,0.14)",
+    background: "rgba(8,12,28,0.78)",
+    color: "#fbbf24",
+    minWidth: 96,
+    height: 24,
+    padding: "0 10px",
+    borderRadius: 999,
+    fontSize: 9.5,
+    fontWeight: 900,
+    letterSpacing: "0.08em",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    cursor: "grab",
+    boxShadow: "0 10px 20px rgba(0,0,0,0.18)",
+    backdropFilter: "blur(12px)",
+    WebkitBackdropFilter: "blur(12px)",
+    marginBottom: 10
   }
 };
