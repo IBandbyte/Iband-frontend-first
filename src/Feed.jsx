@@ -1206,8 +1206,12 @@ topLiveFixedButton: {
   scrollbarWidth: "none",
   marginLeft: 0,
   paddingLeft: 62,
-  paddingRight: 44
-  },
+  paddingRight: 44,
+  WebkitMaskImage:
+    "linear-gradient(to right, rgba(0,0,0,0) 0px, rgba(0,0,0,1) 22px, rgba(0,0,0,1) calc(100% - 18px), rgba(0,0,0,0) 100%)",
+  maskImage:
+    "linear-gradient(to right, rgba(0,0,0,0) 0px, rgba(0,0,0,1) 22px, rgba(0,0,0,1) calc(100% - 18px), rgba(0,0,0,0) 100%)"
+},
   topNavTabs: {
     display: "flex",
     alignItems: "center",
@@ -1464,7 +1468,7 @@ topLiveFixedButton: {
   position: "absolute",
   left: "max(16px, calc(env(safe-area-inset-left) + 10px))",
   right: "112px",
-  bottom: "calc(60px + env(safe-area-inset-bottom))",
+  bottom: "calc(56px + env(safe-area-inset-bottom))",
   zIndex: 8,
   maxWidth: "min(68vw, 490px)"
 },
@@ -1541,7 +1545,7 @@ topLiveFixedButton: {
     color: "rgba(255,255,255,0.78)"
   },
   searchShell: {
-    marginTop: 14,
+    marginTop: 16,
     width: "calc(100% - 48px)",
     height: 48,
     borderRadius: 24,
@@ -1587,7 +1591,7 @@ topLiveFixedButton: {
   right: 0,
   bottom: 0,
   zIndex: 35,
-  height: "calc(52px + env(safe-area-inset-bottom))",
+  height: "calc(50px + env(safe-area-inset-bottom))",
   paddingBottom: "env(safe-area-inset-bottom)",
   background:
     "linear-gradient(180deg, rgba(0,0,0,0.04) 0%, rgba(2,6,18,0.90) 18%, rgba(2,6,18,0.99) 100%)",
@@ -1595,7 +1599,7 @@ topLiveFixedButton: {
   backdropFilter: "blur(16px)"
 },
   bottomNavInner: {
-  height: 52,
+  height: 50,
   display: "grid",
   gridTemplateColumns: "1fr 1fr 1fr 1fr 1fr",
   alignItems: "center",
@@ -1610,24 +1614,24 @@ topLiveFixedButton: {
   flexDirection: "column",
   alignItems: "center",
   justifyContent: "center",
-  gap: 2,
+  gap: 1,
   cursor: "pointer",
   minWidth: 0
 },
   bottomIconSvg: {
-  width: 18,
-  height: 18,
+  width: 17,
+  height: 17,
   display: "block",
   color: "#ffffff"
 },
   bottomNavLabel: {
-  fontSize: 8,
+  fontSize: 7.8,
   lineHeight: 1,
   fontWeight: 600,
   color: "rgba(255,255,255,0.84)"
 },
   bottomNavLabelActive: {
-  fontSize: 8,
+  fontSize: 7.8,
   lineHeight: 1,
   fontWeight: 700,
   color: "#ffffff"
