@@ -11,15 +11,15 @@ const FEED_FONT_STACK =
   '"TikTok Sans", Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
 
 const DEFAULT_LAYOUT = {
-  rightRailTop: "51.2%",
-  rightRailGap: 4,
-  contentOverlayBottom: 102,
-  searchDockBottom: 56,
+  rightRailTop: "47.25%",
+  rightRailGap: 6,
+  contentOverlayBottom: 86,
+  searchDockBottom: 45,
   bottomNavHeight: 42,
-  rightRailScale: 1.15,
-  contentOverlayScale: 1,
+  rightRailScale: 1.2,
+  contentOverlayScale: 0.95,
   bottomNavScale: 1.05,
-  searchDockWidth: 80
+  searchDockWidth: 75
 };
 
 function clamp(value, min, max) {
