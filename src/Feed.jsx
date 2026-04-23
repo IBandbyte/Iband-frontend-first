@@ -5,21 +5,21 @@ import {
   fetchPredictiveFeed
 } from "./services/api";
 
-const DEV_LAYOUT_MODE = true;
+const DEV_LAYOUT_MODE = false;
 const IBAND_LOGO_SRC = "/iband-logo.png";
 const FEED_FONT_STACK =
   '"TikTok Sans", Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
 
 const DEFAULT_LAYOUT = {
-  rightRailTop: "47.25%",
-  rightRailGap: 6,
-  contentOverlayBottom: 86,
-  searchDockBottom: 45,
+  rightRailTop: "51.2%",
+  rightRailGap: 4,
+  contentOverlayBottom: 102,
+  searchDockBottom: 56,
   bottomNavHeight: 42,
-  rightRailScale: 1.2,
-  contentOverlayScale: 0.95,
+  rightRailScale: 1.15,
+  contentOverlayScale: 1,
   bottomNavScale: 1.05,
-  searchDockWidth: 75
+  searchDockWidth: 80
 };
 
 function clamp(value, min, max) {
@@ -500,8 +500,8 @@ function RightRailAction({
   onPress,
   children
 }) {
-  const bubbleSize = 40 * scale;
-  const labelSize = 8.6 * Math.min(scale, 1.1);
+  const bubbleSize = 38 * scale;
+  const labelSize = 8.2 * Math.min(scale, 1.05);
 
   return (
     <button
@@ -515,8 +515,8 @@ function RightRailAction({
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
-        gap: 2,
-        width: 48 * scale,
+        gap: 1.5,
+        width: "auto",
         padding: 0,
         cursor: "pointer"
       }}
@@ -528,20 +528,21 @@ function RightRailAction({
           borderRadius: "50%",
           display: "grid",
           placeItems: "center",
-          background: "rgba(0,0,0,0.16)"
+          background: "transparent"
         }}
       >
-        <div style={{ transform: `scale(${scale})`, transformOrigin: "center" }}>
+        <div style={{ transform: `scale(${scale})` }}>
           {children}
         </div>
       </div>
+
       <div
         style={{
           fontSize: labelSize,
           lineHeight: 1,
           color: "#fff",
           fontWeight: 600,
-          textShadow: "0 1px 3px rgba(0,0,0,0.45)"
+          textShadow: "0 1px 2px rgba(0,0,0,0.5)"
         }}
       >
         {formatCompactNumber(value)}
@@ -1283,8 +1284,8 @@ export default function Feed() {
           <div
   style={{
     position: "relative",
-    width: 40 * layoutValues.rightRailScale,
-    height: 40 * layoutValues.rightRailScale
+    width: 38 * layoutValues.rightRailScale,
+    height: 38 * layoutValues.rightRailScale
   }}
 >
             <img
@@ -1300,26 +1301,27 @@ export default function Feed() {
               }}
             />
             <div
-              style={{
-                position: "absolute",
-                left: "50%",
-                bottom: -4 * layoutValues.rightRailScale,
-                transform: "translateX(-50%)",
-                width: 16 * layoutValues.rightRailScale,
-                height: 16 * layoutValues.rightRailScale,
-                borderRadius: "50%",
-                background: "#ff2d55",
-                border: "2px solid #000",
-                display: "grid",
-                placeItems: "center",
-                fontSize: 10 * Math.min(layoutValues.rightRailScale, 1.3),
-                fontWeight: 800,
-                lineHeight: 1,
-                color: "#fff"
-              }}
-            >
-              +
-            </div>
+  style={{
+    position: "absolute",
+    left: "50%",
+    bottom: -2.5 * layoutValues.rightRailScale,
+    transform: "translateX(-50%)",
+    width: 14 * layoutValues.rightRailScale,
+    height: 14 * layoutValues.rightRailScale,
+    borderRadius: "50%",
+    background: "#ff2d55",
+    border: "1.25px solid #000",
+    display: "grid",
+    placeItems: "center",
+    fontSize: 8.5 * Math.min(layoutValues.rightRailScale, 1.05),
+    fontWeight: 800,
+    lineHeight: 1,
+    color: "#fff",
+    boxShadow: "0 2px 6px rgba(0,0,0,0.22)"
+  }}
+>
+  +
+</div>
           </div>
         </div>
 
@@ -1431,15 +1433,15 @@ export default function Feed() {
                     position: "absolute",
                     top: -7 * layoutValues.bottomNavScale,
                     right: -10 * layoutValues.bottomNavScale,
-                    minWidth: 16 * layoutValues.bottomNavScale,
-                    height: 16 * layoutValues.bottomNavScale,
+                    minWidth: 14 * layoutValues.bottomNavScale,
+                    height: 14 * layoutValues.bottomNavScale,
                     padding: `0 ${4 * layoutValues.bottomNavScale}px`,
                     borderRadius: 999,
                     background: "#ff2d55",
                     color: "#ffffff",
-                    fontSize: 10 * Math.min(layoutValues.bottomNavScale, 1.3),
+                    fontSize: 8.5 * Math.min(layoutValues.bottomNavScale, 1.3),
                     fontWeight: 800,
-                    lineHeight: `${16 * layoutValues.bottomNavScale}px`,
+                    lineHeight: `${14 * layoutValues.bottomNavScale}px`,
                     textAlign: "center",
                     boxShadow: "0 4px 10px rgba(0,0,0,0.32)"
                   }}
@@ -1603,8 +1605,8 @@ export default function Feed() {
               <Stepper
                 label="Right rail gap"
                 valueText={`${layoutValues.rightRailGap}px`}
-                onMinus={() => adjustNumber("rightRailGap", -2, 6, 34)}
-                onPlus={() => adjustNumber("rightRailGap", 2, 6, 34)}
+                onMinus={() => adjustNumber("rightRailGap", -1, 2, 34)}
+onPlus={() => adjustNumber("rightRailGap", 1, 2, 34)}
               />
 
               <Stepper
