@@ -5,7 +5,7 @@ import {
   fetchPredictiveFeed
 } from "./services/api";
 
-const DEV_LAYOUT_MODE = false;
+const DEV_LAYOUT_MODE = true;
 const IBAND_LOGO_SRC = "/iband-logo.png";
 const FEED_FONT_STACK =
   '"TikTok Sans", Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
