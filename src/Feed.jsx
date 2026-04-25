@@ -11,12 +11,17 @@ const FEED_FONT_STACK =
   '"TikTok Sans", Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
 
 const DEFAULT_LAYOUT = {
-  rightRailTop: "47.25%",
-  rightRailGap: 6,
+  rightRailTop: "48.14%",
+  rightRailGap: 2,
   contentOverlayBottom: 86,
   searchDockBottom: 45,
   bottomNavHeight: 42,
-  rightRailScale: 1.2,
+
+  rightRailScale: 1,
+  rightRailIconScale: 1.3,
+  rightRailAvatarScale: 1,
+  rightRailDiscScale: 1,
+
   contentOverlayScale: 0.95,
   bottomNavScale: 1.05,
   searchDockWidth: 75
@@ -942,7 +947,7 @@ export default function Feed() {
     position: "fixed",
     right: 8,
     top: layoutValues.rightRailTop,
-    transform: `translateY(-50%) scale(${layoutValues.rightRailScale})`,
+    transform: "translateY(-50%)",
     transformOrigin: "top right",
     zIndex: 37,
     display: "flex",
@@ -1274,7 +1279,7 @@ export default function Feed() {
 
         <div
           style={{
-            width: 46 * layoutValues.rightRailScale,
+            width: 46 * layoutValues.rightRailAvatarScale,
             display: "flex",
             flexDirection: "column",
             alignItems: "center",
@@ -1284,8 +1289,8 @@ export default function Feed() {
           <div
   style={{
     position: "relative",
-    width: 38 * layoutValues.rightRailScale,
-    height: 38 * layoutValues.rightRailScale
+    width: 38 * layoutValues.rightRailAvatarScale,
+height: 38 * layoutValues.rightRailAvatarScale
   }}
 >
             <img
@@ -1304,16 +1309,16 @@ export default function Feed() {
   style={{
     position: "absolute",
     left: "50%",
-    bottom: -2.5 * layoutValues.rightRailScale,
-    transform: "translateX(-50%)",
-    width: 14 * layoutValues.rightRailScale,
-    height: 14 * layoutValues.rightRailScale,
+    bottom: -2.5 * layoutValues.rightRailAvatarScale,
+transform: "translateX(-50%)",
+width: 14 * layoutValues.rightRailAvatarScale,
+height: 14 * layoutValues.rightRailAvatarScale,
     borderRadius: "50%",
     background: "#ff2d55",
     border: "1.25px solid #000",
     display: "grid",
     placeItems: "center",
-    fontSize: 8.5 * Math.min(layoutValues.rightRailScale, 1.05),
+    fontSize: 8.5 * Math.min(layoutValues.rightRailAvatarScale, 1.05),
     fontWeight: 800,
     lineHeight: 1,
     color: "#fff",
@@ -1328,7 +1333,7 @@ export default function Feed() {
         <RightRailAction
           value={displayLikes}
           label="Like"
-          scale={layoutValues.rightRailScale}
+          scale={layoutValues.rightRailIconScale}
           onPress={() => toggleLike(activeItem.id)}
         >
           <HeartIcon active={isActiveLiked} />
@@ -1337,7 +1342,7 @@ export default function Feed() {
         <RightRailAction
           value={activeItem.comments}
           label="Comment"
-          scale={layoutValues.rightRailScale}
+          scale={layoutValues.rightRailIconScale}
           onPress={() => {}}
         >
           <CommentIcon />
@@ -1346,7 +1351,7 @@ export default function Feed() {
         <RightRailAction
           value={activeItem.saves}
           label="Save"
-          scale={layoutValues.rightRailScale}
+          scale={layoutValues.rightRailIconScale}
           onPress={() => {}}
         >
           <SaveIcon />
@@ -1355,16 +1360,16 @@ export default function Feed() {
         <RightRailAction
           value={activeItem.shares}
           label="Share"
-          scale={layoutValues.rightRailScale}
+          scale={layoutValues.rightRailIconScale}
           onPress={() => {}}
         >
           <ShareIcon />
         </RightRailAction>
 
         <MusicDiscIcon
-          artwork={activeItem.artwork}
-          scale={layoutValues.rightRailScale}
-        />
+  artwork={activeItem.artwork}
+  scale={layoutValues.rightRailDiscScale}
+/>
       </div>
 
       <div
@@ -1595,12 +1600,26 @@ export default function Feed() {
             </div>
 
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-              <Stepper
-                label="Right rail size"
-                valueText={`${layoutValues.rightRailScale.toFixed(2)}x`}
-                onMinus={() => adjustScale("rightRailScale", -0.05, 0.7, 1.6)}
-                onPlus={() => adjustScale("rightRailScale", 0.05, 0.7, 1.6)}
-              />
+             <Stepper
+  label="Icon size"
+  valueText={`${layoutValues.rightRailIconScale.toFixed(2)}x`}
+  onMinus={() => adjustScale("rightRailIconScale", -0.05, 0.8, 1.6)}
+  onPlus={() => adjustScale("rightRailIconScale", 0.05, 0.8, 1.6)}
+/>
+
+<Stepper
+  label="Avatar size"
+  valueText={`${layoutValues.rightRailAvatarScale.toFixed(2)}x`}
+  onMinus={() => adjustScale("rightRailAvatarScale", -0.05, 0.7, 1.3)}
+  onPlus={() => adjustScale("rightRailAvatarScale", 0.05, 0.7, 1.3)}
+/>
+
+<Stepper
+  label="Disc size"
+  valueText={`${layoutValues.rightRailDiscScale.toFixed(2)}x`}
+  onMinus={() => adjustScale("rightRailDiscScale", -0.05, 0.7, 1.3)}
+  onPlus={() => adjustScale("rightRailDiscScale", 0.05, 0.7, 1.3)}
+/>
 
               <Stepper
                 label="Right rail gap"
