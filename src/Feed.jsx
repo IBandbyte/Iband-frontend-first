@@ -520,7 +520,7 @@ function RightRailAction({
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
-        gap: 1.5,
+        gap: 0.5,
         width: "auto",
         padding: 0,
         cursor: "pointer"
@@ -543,7 +543,7 @@ function RightRailAction({
 
       <div
         style={{
-          fontSize: labelSize,
+          fontSize: labelSize * 0.92,
           lineHeight: 1,
           color: "#fff",
           fontWeight: 600,
