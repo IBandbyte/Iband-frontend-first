@@ -1334,7 +1334,7 @@ height: 14 * layoutValues.rightRailAvatarScale,
         <RightRailAction
           value={displayLikes}
           label="Like"
-          scale={layoutValues.rightRailIconScale}
+          scale={layoutValues.rightRailIconScale * 1.15}
           onPress={() => toggleLike(activeItem.id)}
         >
           <HeartIcon active={isActiveLiked} />
@@ -1343,7 +1343,7 @@ height: 14 * layoutValues.rightRailAvatarScale,
         <RightRailAction
           value={activeItem.comments}
           label="Comment"
-          scale={layoutValues.rightRailIconScale}
+          scale={layoutValues.rightRailIconScale * 1.15}
           onPress={() => {}}
         >
           <CommentIcon />
@@ -1352,7 +1352,7 @@ height: 14 * layoutValues.rightRailAvatarScale,
         <RightRailAction
           value={activeItem.saves}
           label="Save"
-          scale={layoutValues.rightRailIconScale}
+          scale={layoutValues.rightRailIconScale * 1.15}
           onPress={() => {}}
         >
           <SaveIcon />
@@ -1361,7 +1361,7 @@ height: 14 * layoutValues.rightRailAvatarScale,
         <RightRailAction
           value={activeItem.shares}
           label="Share"
-          scale={layoutValues.rightRailIconScale}
+          scale={layoutValues.rightRailIconScale * 1.15}
           onPress={() => {}}
         >
           <ShareIcon />
