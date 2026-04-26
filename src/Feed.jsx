@@ -18,7 +18,7 @@ const DEFAULT_LAYOUT = {
   bottomNavHeight: 42,
 
   rightRailScale: 1,
-  rightRailIconScale: 1.3,
+  rightRailIconScale: 1.35,
   rightRailAvatarScale: 1,
   rightRailDiscScale: 1,
 
