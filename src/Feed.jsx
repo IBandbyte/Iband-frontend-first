@@ -545,7 +545,7 @@ function RightRailAction({
         style={{
          fontSize: labelSize * 1.2,
 lineHeight: 1,
-marginTop: -6,
+marginTop: -10,
 color: "#fff",
 fontWeight: 700,
 textShadow: "0 1px 2px rgba(0,0,0,0.5)"
