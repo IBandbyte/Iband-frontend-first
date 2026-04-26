@@ -1367,11 +1367,12 @@ height: 14 * layoutValues.rightRailAvatarScale,
           <ShareIcon />
         </RightRailAction>
 
-        <MusicDiscIcon
-  artwork={activeItem.artwork}
-  scale={layoutValues.rightRailDiscScale}
-  style={{ marginTop: 8 }}
-/>
+        <div style={{ marginTop: 20 }}>
+  <MusicDiscIcon
+    artwork={activeItem.artwork}
+    scale={layoutValues.rightRailDiscScale}
+  />
+</div>
       </div>
 
       <div
