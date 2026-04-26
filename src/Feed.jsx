@@ -520,7 +520,7 @@ function RightRailAction({
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
-        gap: 0.5,
+        gap: 0.1,
         width: "auto",
         padding: 0,
         cursor: "pointer"
