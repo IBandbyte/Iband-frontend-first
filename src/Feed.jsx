@@ -276,7 +276,7 @@ function formatCompactNumber(value) {
   }
 }
 
-function IconShell({ children, size = 24 }) {
+function IconShell({ children, size = 28 }) {
   return (
     <div
       style={{
@@ -505,7 +505,7 @@ function RightRailAction({
   onPress,
   children
 }) {
-  const bubbleSize = 38 * scale;
+  const bubbleSize = 42 * scale;
   const labelSize = 8.2 * Math.min(scale, 1.05);
 
   return (
@@ -543,11 +543,12 @@ function RightRailAction({
 
       <div
         style={{
-          fontSize: labelSize * 0.92,
-          lineHeight: 1,
-          color: "#fff",
-          fontWeight: 600,
-          textShadow: "0 1px 2px rgba(0,0,0,0.5)"
+         fontSize: labelSize * 1.2,
+lineHeight: 1,
+marginTop: -4,
+color: "#fff",
+fontWeight: 700,
+textShadow: "0 1px 2px rgba(0,0,0,0.5)"
         }}
       >
         {formatCompactNumber(value)}
@@ -1369,6 +1370,7 @@ height: 14 * layoutValues.rightRailAvatarScale,
         <MusicDiscIcon
   artwork={activeItem.artwork}
   scale={layoutValues.rightRailDiscScale}
+  style={{ marginTop: 8 }}
 />
       </div>
 
