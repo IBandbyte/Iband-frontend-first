@@ -352,8 +352,8 @@ function ShareIcon() {
         strokeLinejoin="round"
         aria-hidden="true"
       >
-        <path d="M21 4L9.5 15.5" />
-<path d="M21 4l-5.8 16.5-4.6-7.2-7.1-4.1L21 4z" />
+        <path d="M22 2L11 13" />
+<path d="M22 2L15 22L11 13L2 9L22 2Z" />
       </svg>
     </IconShell>
   );
