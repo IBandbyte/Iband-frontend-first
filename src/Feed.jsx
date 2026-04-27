@@ -543,12 +543,12 @@ function RightRailAction({
 
       <div
         style={{
-         fontSize: labelSize * 1.2,
+         fontSize: labelSize * 1.15,
 lineHeight: 1,
-marginTop: -13,
+marginTop: -8,
 color: "#fff",
 fontWeight: 700,
-textShadow: "0 1px 2px rgba(0,0,0,0.5)"
+textShadow: "0 0.5px 1px rgba(0,0,0,0.4)"
         }}
       >
         {formatCompactNumber(value)}
