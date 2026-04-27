@@ -297,8 +297,8 @@ function HeartIcon({ active = false }) {
     <IconShell>
       <svg
         viewBox="0 0 24 24"
-        width="22"
-        height="22"
+        width="25"
+        height="25"
         fill={active ? "#ff2d55" : "#ffffff"}
         aria-hidden="true"
       >
@@ -352,8 +352,8 @@ function ShareIcon() {
         strokeLinejoin="round"
         aria-hidden="true"
       >
-        <path d="M22 3L11 14" />
-        <path d="M22 3l-7 18-4-8-8-4 19-6z" />
+        <path d="M21 4L9.5 15.5" />
+<path d="M21 4l-5.8 16.5-4.6-7.2-7.1-4.1L21 4z" />
       </svg>
     </IconShell>
   );
@@ -1319,7 +1319,7 @@ height: 21 * layoutValues.rightRailAvatarScale,
     border: "none",
     display: "grid",
     placeItems: "center",
-    fontSize: 13 * Math.min(layoutValues.rightRailAvatarScale, 1.05),
+    fontSize: 19 * Math.min(layoutValues.rightRailAvatarScale, 1.05),
     fontWeight: 800,
     lineHeight: 1,
     color: "#fff",
