@@ -10,8 +10,12 @@ Captain’s Protocol — iBand Right Rail Icon System (V2 Neon Foundation)
 */
 
 const neonGlow = {
-  filter:
-    "drop-shadow(0 0 3px rgba(236,72,153,0.72)) drop-shadow(0 0 5px rgba(249,115,22,0.34))",
+  filter: `
+    drop-shadow(0 0 1px rgba(255,255,255,0.9))
+    drop-shadow(0 0 2px rgba(236,72,153,0.8))
+    drop-shadow(0 0 4px rgba(236,72,153,0.6))
+    drop-shadow(0 0 6px rgba(249,115,22,0.5))
+  `,
   overflow: "visible"
 };
 
