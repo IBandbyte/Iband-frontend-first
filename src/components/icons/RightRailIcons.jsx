@@ -1,200 +1,156 @@
 import React from "react";
 
 /*
-Captain’s Protocol — iBand Right Rail Icon System (V2 Neon Foundation)
-
-- Neon gradient stroke system
-- Subtle glow
-- Clean SVGs only
-- Ready for future pulse + momentum colours
+====================================
+ ICON WRAPPER
+====================================
 */
 
-const neonGlow = {
-  filter: `
-    drop-shadow(0 0 0.5px #ffffff)
-    drop-shadow(0 0 2px rgba(236,72,153,0.9))
-    drop-shadow(0 0 3px rgba(249,115,22,0.7))
-  `,
-  overflow: "visible"
-};
-
-function IconWrapper({ children, size = 28, gradientId }) {
+function IconWrapper({ size = 28, children }) {
   return (
     <svg
       width={size}
       height={size}
       viewBox="0 0 48 48"
       fill="none"
-      aria-hidden="true"
-      style={neonGlow}
+      xmlns="http://www.w3.org/2000/svg"
     >
       <defs>
-        <linearGradient id={gradientId} x1="6" y1="6" x2="42" y2="42">
-          <stop offset="0%" stopColor="#8b5cf6" />
-          <stop offset="45%" stopColor="#ec4899" />
-          <stop offset="100%" stopColor="#f97316" />
+        <linearGradient id="iband-gradient" x1="0" y1="0" x2="48" y2="48">
+          <stop offset="0%" stopColor="#ff2dfc" />
+          <stop offset="100%" stopColor="#ff7a18" />
         </linearGradient>
       </defs>
+
       {children}
     </svg>
   );
 }
 
-function neonStroke(gradientId, width = 3) {
+/*
+====================================
+ NEON STROKE (FIXED)
+====================================
+*/
+
+function neonStroke(width = 2.4) {
   return {
-  stroke: `url(#${gradientId})`,
-  strokeWidth: width,
-  strokeLinecap: "round",
-  strokeLinejoin: "round",
-  vectorEffect: "non-scaling-stroke"
-};
+    stroke: "url(#iband-gradient)",
+    strokeWidth: width,
+    strokeLinecap: "round",
+    strokeLinejoin: "round",
+    vectorEffect: "non-scaling-stroke"
+  };
+}
 
-/* =========================
-   LIKE — Guitar Heart Bubble
-========================= */
+/*
+====================================
+ LIKE ICON
+====================================
+*/
+
 export function LikeIcon({ size = 28 }) {
-  const gradientId = "iband-like-gradient";
-
   return (
-    <IconWrapper size={size} gradientId={gradientId}>
+    <IconWrapper size={size}>
+      {/* Bubble */}
       <path
-        {...neonStroke(gradientId, 2.4)}
-        d="M24 39.5s-14.5-8.8-14.5-20.2c0-4.9 3.6-8.8 8.4-8.8 2.7 0 4.9 1.2 6.1 3.2 1.2-2 3.4-3.2 6.1-3.2 4.8 0 8.4 3.9 8.4 8.8C38.5 30.7 24 39.5 24 39.5z"
+        {...neonStroke(2.4)}
+        d="M6 6h36a6 6 0 0 1 6 6v16a6 6 0 0 1-6 6H18l-8 6v-6H6a6 6 0 0 1-6-6V12a6 6 0 0 1 6-6z"
       />
+
+      {/* Heart */}
       <path
-        {...neonStroke(gradientId, 2.5)}
-        d="M28.5 16.5c2.4 3.8 1.5 7.7-2.7 11.7"
-      />
-      <circle
-        cx="28.7"
-        cy="16.2"
-        r="1.7"
-        fill={`url(#${gradientId})`}
+        {...neonStroke(2.2)}
+        d="M24 30s-6-4.35-9-7.5A5.5 5.5 0 0 1 24 16a5.5 5.5 0 0 1 9 6.5c-3 3.15-9 7.5-9 7.5z"
       />
     </IconWrapper>
   );
 }
 
-/* =========================
-   COMMENT — Bubble + Lines + Music Note
-========================= */
+/*
+====================================
+ COMMENT ICON
+====================================
+*/
+
 export function CommentIcon({ size = 28 }) {
-  const gradientId = "iband-comment-gradient";
-
   return (
-    <IconWrapper size={size} gradientId={gradientId}>
+    <IconWrapper size={size}>
       <path
-        {...neonStroke(gradientId, 3)}
-        d="M9 11h30c1.7 0 3 1.3 3 3v17c0 1.7-1.3 3-3 3H20l-7 6v-6H9c-1.7 0-3-1.3-3-3V14c0-1.7 1.3-3 3-3z"
+        {...neonStroke(2.4)}
+        d="M6 6h36a6 6 0 0 1 6 6v16a6 6 0 0 1-6 6H18l-8 6v-6H6a6 6 0 0 1-6-6V12a6 6 0 0 1 6-6z"
       />
-      <path {...neonStroke(gradientId, 2.4)} d="M14 18h14" />
-      <path {...neonStroke(gradientId, 2.4)} d="M14 24h11" />
-      <path {...neonStroke(gradientId, 2.4)} d="M32 18v8.5" />
-      <circle
-        cx="29.8"
-        cy="27.8"
-        r="2.2"
-        fill={`url(#${gradientId})`}
-      />
+
+      <line {...neonStroke(2.2)} x1="14" y1="16" x2="34" y2="16" />
+      <line {...neonStroke(2.2)} x1="14" y1="22" x2="30" y2="22" />
+      <line {...neonStroke(2.2)} x1="14" y1="28" x2="26" y2="28" />
     </IconWrapper>
   );
 }
 
-/* =========================
-   SAVE — Bookmark Bubble
-========================= */
+/*
+====================================
+ SAVE ICON
+====================================
+*/
+
 export function SaveIcon({ size = 28 }) {
-  const gradientId = "iband-save-gradient";
-
   return (
-    <IconWrapper size={size} gradientId={gradientId}>
+    <IconWrapper size={size}>
       <path
-        {...neonStroke(gradientId, 3)}
-        d="M12 8h24c1.2 0 2 0.8 2 2v29L24 31l-14 8V10c0-1.2 0.8-2 2-2z"
-      />
-      <path
-        {...neonStroke(gradientId, 2.4)}
-        d="M17 15h14"
+        {...neonStroke(2.4)}
+        d="M10 6h28a4 4 0 0 1 4 4v32l-18-10L6 42V10a4 4 0 0 1 4-4z"
       />
     </IconWrapper>
   );
 }
 
-/* =========================
-   SHARE — Flow Arrow Bubble
-========================= */
+/*
+====================================
+ SHARE ICON
+====================================
+*/
+
 export function ShareIcon({ size = 28 }) {
-  const gradientId = "iband-share-gradient";
-
   return (
-    <IconWrapper size={size} gradientId={gradientId}>
+    <IconWrapper size={size}>
       <path
-        {...neonStroke(gradientId, 3)}
-        d="M15 31c8.5-1.2 14.7-6 18.5-14"
-      />
-      <path
-        {...neonStroke(gradientId, 3)}
-        d="M28 14h8v8"
-      />
-      <path
-        {...neonStroke(gradientId, 2.2)}
-        d="M35 12l3-3"
-      />
-      <path
-        {...neonStroke(gradientId, 2.2)}
-        d="M39 16h4"
+        {...neonStroke(2.4)}
+        d="M8 26l32-18-10 32-6-10-10-4z"
       />
     </IconWrapper>
   );
 }
 
-/* =========================
-   BOOST — Headphones + Battery Core
-========================= */
-export function BoostIcon({ size = 28 }) {
-  const gradientId = "iband-boost-gradient";
+/*
+====================================
+ BOOST ICON
+====================================
+*/
 
+export function BoostIcon({ size = 28 }) {
   return (
-    <IconWrapper size={size} gradientId={gradientId}>
+    <IconWrapper size={size}>
+      {/* Headphones */}
       <path
-        {...neonStroke(gradientId, 3)}
-        d="M12 26v-5.5C12 13.6 17.4 8 24 8s12 5.6 12 12.5V26"
+        {...neonStroke(2.4)}
+        d="M10 26v6a4 4 0 0 0 4 4h4v-10h-8zM38 26v6a4 4 0 0 1-4 4h-4v-10h8z"
       />
-      <rect
-        x="8.5"
-        y="24"
-        width="7"
-        height="11"
-        rx="2.5"
-        {...neonStroke(gradientId, 2.7)}
+
+      <path
+        {...neonStroke(2.4)}
+        d="M10 26a14 14 0 0 1 28 0"
       />
-      <rect
-        x="32.5"
-        y="24"
-        width="7"
-        height="11"
-        rx="2.5"
-        {...neonStroke(gradientId, 2.7)}
-      />
+
+      {/* Battery core */}
       <rect
         x="18"
-        y="22.5"
+        y="20"
         width="12"
-        height="7"
-        rx="2"
-        {...neonStroke(gradientId, 2.5)}
+        height="6"
+        fill="url(#iband-gradient)"
+        rx="1.5"
       />
-      <path {...neonStroke(gradientId, 2.2)} d="M21 25.8v1.6" />
-      <path {...neonStroke(gradientId, 2.2)} d="M24 25.2v2.2" />
-      <path {...neonStroke(gradientId, 2.2)} d="M27 24.7v2.7" />
     </IconWrapper>
   );
 }
-
-export const RightRailIcons = {
-  Like: LikeIcon,
-  Comment: CommentIcon,
-  Save: SaveIcon,
-  Share: ShareIcon,
-  Boost: BoostIcon
-};
