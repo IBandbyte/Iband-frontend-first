@@ -4,6 +4,13 @@ import {
   fetchPersonalisedFeed,
   fetchPredictiveFeed
 } from "./services/api";
+import {
+  LikeIcon,
+  CommentIcon,
+  SaveIcon,
+  ShareIcon,
+  BoostIcon
+} from "./components/icons/RightRailIcons";
 
 const DEV_LAYOUT_MODE = true;
 const IBAND_LOGO_SRC = "/iband-logo.png";
@@ -203,6 +210,7 @@ function normaliseItem(raw, source, index) {
     comments: Number(raw?.comments || raw?.commentCount || 72 + index * 3),
     saves: Number(raw?.saves || raw?.saveCount || 31 + index * 2),
     shares: Number(raw?.shares || raw?.shareCount || 19 + index),
+    boosts: Number(raw?.boosts || raw?.boostCount || 8 + index),
     audioLabel: raw?.audioLabel || raw?.trackTitle || raw?.song || artist,
     action: raw?.action || "play_now"
   };
@@ -274,89 +282,6 @@ function formatCompactNumber(value) {
   } catch {
     return String(value || 0);
   }
-}
-
-function IconShell({ children, size = 28 }) {
-  return (
-    <div
-      style={{
-        width: size,
-        height: size,
-        display: "grid",
-        placeItems: "center",
-        color: "#ffffff"
-      }}
-    >
-      {children}
-    </div>
-  );
-}
-
-function HeartIcon({ active = false }) {
-  return (
-    <IconShell>
-      <svg
-        viewBox="0 0 24 24"
-        width="25"
-        height="25"
-        fill={active ? "#ff2d55" : "#ffffff"}
-        aria-hidden="true"
-      >
-        <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5A4.5 4.5 0 0 1 6.5 4C8.24 4 9.91 4.81 11 6.08 12.09 4.81 13.76 4 15.5 4A4.5 4.5 0 0 1 20 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
-      </svg>
-    </IconShell>
-  );
-}
-
-function CommentIcon() {
-  return (
-    <IconShell>
-      <svg
-        viewBox="0 0 24 24"
-        width="22"
-        height="22"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        aria-hidden="true"
-      >
-        <path d="M21 15.2a3.8 3.8 0 0 1-3.8 3.8H9.4L4 22V6.8A3.8 3.8 0 0 1 7.8 3h9.4A3.8 3.8 0 0 1 21 6.8v8.4z" />
-      </svg>
-    </IconShell>
-  );
-}
-
-function SaveIcon() {
-  return (
-    <IconShell>
-      <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true">
-        <path d="M6 3h12a1 1 0 0 1 1 1v17l-7-4-7 4V4a1 1 0 0 1 1-1z" />
-      </svg>
-    </IconShell>
-  );
-}
-
-function ShareIcon() {
-  return (
-    <IconShell>
-      <svg
-        viewBox="0 0 24 24"
-        width="22"
-        height="22"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2.15"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        aria-hidden="true"
-      >
-        <path d="M22 2L11 13" />
-<path d="M22 2L15 22L11 13L2 9L22 2Z" />
-      </svg>
-    </IconShell>
-  );
 }
 
 function NavHomeIcon({ scale = 1 }) {
@@ -502,6 +427,7 @@ function RightRailAction({
   value,
   label,
   scale = 1,
+  iconColor = "#ffffff",
   onPress,
   children
 }) {
@@ -523,7 +449,8 @@ function RightRailAction({
         gap: 0.1,
         width: "auto",
         padding: 0,
-        cursor: "pointer"
+        cursor: "pointer",
+        color: iconColor
       }}
     >
       <div
@@ -543,12 +470,12 @@ function RightRailAction({
 
       <div
         style={{
-         fontSize: labelSize * 1.15,
-lineHeight: 1,
-marginTop: -8,
-color: "#fff",
-fontWeight: 700,
-textShadow: "0 0.5px 1px rgba(0,0,0,0.4)"
+          fontSize: labelSize * 1.15,
+          lineHeight: 1,
+          marginTop: -8,
+          color: "#fff",
+          fontWeight: 700,
+          textShadow: "0 0.5px 1px rgba(0,0,0,0.4)"
         }}
       >
         {formatCompactNumber(value)}
@@ -635,9 +562,11 @@ export default function Feed() {
   });
 
   const [likedMap, setLikedMap] = useState({});
+  const [boostedMap, setBoostedMap] = useState({});
 
   const activeItem = items[activeIndex] || items[0] || createDemoFeed()[0];
   const isActiveLiked = Boolean(likedMap[activeItem?.id]);
+  const isActiveBoosted = Boolean(boostedMap[activeItem?.id]);
 
   useEffect(() => {
     let cancelled = false;
@@ -858,25 +787,39 @@ export default function Feed() {
     }));
   }, []);
 
+  const toggleBoost = useCallback((itemId) => {
+    setBoostedMap((prev) => ({
+      ...prev,
+      [itemId]: !prev[itemId]
+    }));
+  }, []);
+
   const displayLikes = useMemo(() => {
     return activeItem ? activeItem.likes + (isActiveLiked ? 1 : 0) : 0;
   }, [activeItem, isActiveLiked]);
 
+  const displayBoosts = useMemo(() => {
+    return activeItem ? activeItem.boosts + (isActiveBoosted ? 1 : 0) : 0;
+  }, [activeItem, isActiveBoosted]);
+
   const uiCodeBlock = useMemo(() => {
-  return [
-    "const layoutTweaks = {",
-    `  rightRailTop: "${layoutValues.rightRailTop}",`,
-    `  rightRailGap: ${layoutValues.rightRailGap},`,
-    `  contentOverlayBottom: ${layoutValues.contentOverlayBottom},`,
-    `  searchDockBottom: ${layoutValues.searchDockBottom},`,
-    `  bottomNavHeight: ${layoutValues.bottomNavHeight},`,
-    `  rightRailScale: ${layoutValues.rightRailScale},`,
-    `  contentOverlayScale: ${layoutValues.contentOverlayScale},`,
-    `  bottomNavScale: ${layoutValues.bottomNavScale},`,
-    `  searchDockWidth: ${layoutValues.searchDockWidth}`,
-    "};"
-  ].join("\n");
-}, [layoutValues]);
+    return [
+      "const layoutTweaks = {",
+      `  rightRailTop: "${layoutValues.rightRailTop}",`,
+      `  rightRailGap: ${layoutValues.rightRailGap},`,
+      `  contentOverlayBottom: ${layoutValues.contentOverlayBottom},`,
+      `  searchDockBottom: ${layoutValues.searchDockBottom},`,
+      `  bottomNavHeight: ${layoutValues.bottomNavHeight},`,
+      `  rightRailScale: ${layoutValues.rightRailScale},`,
+      `  rightRailIconScale: ${layoutValues.rightRailIconScale},`,
+      `  rightRailAvatarScale: ${layoutValues.rightRailAvatarScale},`,
+      `  rightRailDiscScale: ${layoutValues.rightRailDiscScale},`,
+      `  contentOverlayScale: ${layoutValues.contentOverlayScale},`,
+      `  bottomNavScale: ${layoutValues.bottomNavScale},`,
+      `  searchDockWidth: ${layoutValues.searchDockWidth}`,
+      "};"
+    ].join("\n");
+  }, [layoutValues]);
 
   const shellStyles = useMemo(() => ({
     position: "relative",
@@ -913,15 +856,15 @@ export default function Feed() {
   }), []);
 
   const contentOverlayStyles = useMemo(() => ({
-  position: "fixed",
-  left: 12,
-  right: 92,
-  bottom: layoutValues.contentOverlayBottom,
-  zIndex: 35,
-  pointerEvents: DEV_LAYOUT_MODE ? "auto" : "none",
-  transform: `scale(${layoutValues.contentOverlayScale})`,
-  transformOrigin: "bottom left"
-}), [layoutValues.contentOverlayBottom, layoutValues.contentOverlayScale]);
+    position: "fixed",
+    left: 12,
+    right: 92,
+    bottom: layoutValues.contentOverlayBottom,
+    zIndex: 35,
+    pointerEvents: DEV_LAYOUT_MODE ? "auto" : "none",
+    transform: `scale(${layoutValues.contentOverlayScale})`,
+    transformOrigin: "bottom left"
+  }), [layoutValues.contentOverlayBottom, layoutValues.contentOverlayScale]);
 
   const searchDockStyles = useMemo(() => ({
     position: "fixed",
@@ -955,7 +898,7 @@ export default function Feed() {
     flexDirection: "column",
     alignItems: "center",
     gap: layoutValues.rightRailGap
-  }), [layoutValues.rightRailGap, layoutValues.rightRailScale, layoutValues.rightRailTop]);
+  }), [layoutValues.rightRailGap, layoutValues.rightRailTop]);
 
   const bottomNavStyles = useMemo(() => ({
     position: "fixed",
@@ -977,6 +920,7 @@ export default function Feed() {
   }), [layoutValues.bottomNavHeight, layoutValues.bottomNavScale]);
 
   const bottomNavLabelSize = 10 * layoutValues.bottomNavScale;
+  const actionScale = layoutValues.rightRailIconScale * 1.15;
 
   return (
     <div style={shellStyles}>
@@ -1045,47 +989,47 @@ export default function Feed() {
         })}
       </div>
 
-     <div
-  style={contentOverlayStyles}
-  onTouchStart={(event) => beginDrag("contentOverlay", event)}
-  onMouseDown={(event) => beginDrag("contentOverlay", event)}
->
+      <div
+        style={contentOverlayStyles}
+        onTouchStart={(event) => beginDrag("contentOverlay", event)}
+        onMouseDown={(event) => beginDrag("contentOverlay", event)}
+      >
         <div
-  style={{
-    display: "inline-flex",
-    alignItems: "center",
-    gap: 8,
-    marginBottom: 10,
-    padding: "5px 9px",
-    borderRadius: 999,
-    background: "rgba(0,0,0,0.32)",
-    border: "1px solid rgba(255,255,255,0.12)",
-    pointerEvents: "auto",
-    cursor: DEV_LAYOUT_MODE ? "grab" : "default"
-  }}
->
-  <span
-    style={{
-      fontSize: 10,
-      fontWeight: 800,
-      letterSpacing: "0.08em",
-      color: "#ffffff"
-    }}
-  >
-    {activeItem.badge}
-  </span>
-  {DEV_LAYOUT_MODE && (
-    <span
-      style={{
-        fontSize: 10,
-        color: "#fbbf24",
-        fontWeight: 700
-      }}
-    >
-      DRAG OVERLAY
-    </span>
-  )}
-</div>
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 8,
+            marginBottom: 10,
+            padding: "5px 9px",
+            borderRadius: 999,
+            background: "rgba(0,0,0,0.32)",
+            border: "1px solid rgba(255,255,255,0.12)",
+            pointerEvents: "auto",
+            cursor: DEV_LAYOUT_MODE ? "grab" : "default"
+          }}
+        >
+          <span
+            style={{
+              fontSize: 10,
+              fontWeight: 800,
+              letterSpacing: "0.08em",
+              color: "#ffffff"
+            }}
+          >
+            {activeItem.badge}
+          </span>
+          {DEV_LAYOUT_MODE && (
+            <span
+              style={{
+                fontSize: 10,
+                color: "#fbbf24",
+                fontWeight: 700
+              }}
+            >
+              DRAG OVERLAY
+            </span>
+          )}
+        </div>
 
         <div
           style={{
@@ -1176,32 +1120,32 @@ export default function Feed() {
           </div>
 
           <div
-  style={{
-    display: "inline-flex",
-    alignItems: "center",
-    maxWidth: "100%",
-    width: "fit-content",
-    padding: "6px 10px",
-    borderRadius: 12,
-    background: "rgba(0,0,0,0.30)",
-    border: "1px solid rgba(255,255,255,0.10)"
-  }}
->
-  <div
-    style={{
-      fontSize: 10.5,
-      lineHeight: 1.22,
-      color: "#ffffff",
-      whiteSpace: "normal",
-      wordBreak: "break-word",
-      maxWidth: 320
-    }}
-  >
-    <span style={{ fontWeight: 800 }}>WHY YOU ARE SEEING THIS</span>
-    <span style={{ opacity: 0.88 }}> · </span>
-    <span style={{ fontWeight: 600 }}>{activeItem.reason}</span>
-  </div>
-</div>
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              maxWidth: "100%",
+              width: "fit-content",
+              padding: "6px 10px",
+              borderRadius: 12,
+              background: "rgba(0,0,0,0.30)",
+              border: "1px solid rgba(255,255,255,0.10)"
+            }}
+          >
+            <div
+              style={{
+                fontSize: 10.5,
+                lineHeight: 1.22,
+                color: "#ffffff",
+                whiteSpace: "normal",
+                wordBreak: "break-word",
+                maxWidth: 320
+              }}
+            >
+              <span style={{ fontWeight: 800 }}>WHY YOU ARE SEEING THIS</span>
+              <span style={{ opacity: 0.88 }}> · </span>
+              <span style={{ fontWeight: 600 }}>{activeItem.reason}</span>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -1288,12 +1232,12 @@ export default function Feed() {
           }}
         >
           <div
-  style={{
-    position: "relative",
-    width: 38 * layoutValues.rightRailAvatarScale,
-height: 38 * layoutValues.rightRailAvatarScale
-  }}
->
+            style={{
+              position: "relative",
+              width: 38 * layoutValues.rightRailAvatarScale,
+              height: 38 * layoutValues.rightRailAvatarScale
+            }}
+          >
             <img
               src={activeItem.avatar}
               alt={activeItem.artist}
@@ -1307,43 +1251,44 @@ height: 38 * layoutValues.rightRailAvatarScale
               }}
             />
             <div
-  style={{
-    position: "absolute",
-    left: "50%",
-    bottom: -4 * layoutValues.rightRailAvatarScale,
-transform: "translateX(-50%)",
-width: 21 * layoutValues.rightRailAvatarScale,
-height: 21 * layoutValues.rightRailAvatarScale,
-    borderRadius: "50%",
-    background: "#ff2d55",
-    border: "none",
-    display: "grid",
-    placeItems: "center",
-    fontSize: 19 * Math.min(layoutValues.rightRailAvatarScale, 1.05),
-    fontWeight: 800,
-    lineHeight: 1,
-    color: "#fff",
-    boxShadow: "0 2px 6px rgba(0,0,0,0.22)"
-  }}
->
-  +
-</div>
+              style={{
+                position: "absolute",
+                left: "50%",
+                bottom: -4 * layoutValues.rightRailAvatarScale,
+                transform: "translateX(-50%)",
+                width: 21 * layoutValues.rightRailAvatarScale,
+                height: 21 * layoutValues.rightRailAvatarScale,
+                borderRadius: "50%",
+                background: "#ff2d55",
+                border: "none",
+                display: "grid",
+                placeItems: "center",
+                fontSize: 19 * Math.min(layoutValues.rightRailAvatarScale, 1.05),
+                fontWeight: 800,
+                lineHeight: 1,
+                color: "#fff",
+                boxShadow: "0 2px 6px rgba(0,0,0,0.22)"
+              }}
+            >
+              +
+            </div>
           </div>
         </div>
 
         <RightRailAction
           value={displayLikes}
           label="Like"
-          scale={layoutValues.rightRailIconScale * 1.15}
+          scale={actionScale}
+          iconColor={isActiveLiked ? "#ff2d55" : "#ffffff"}
           onPress={() => toggleLike(activeItem.id)}
         >
-          <HeartIcon active={isActiveLiked} />
+          <LikeIcon />
         </RightRailAction>
 
         <RightRailAction
           value={activeItem.comments}
           label="Comment"
-          scale={layoutValues.rightRailIconScale * 1.15}
+          scale={actionScale}
           onPress={() => {}}
         >
           <CommentIcon />
@@ -1352,7 +1297,7 @@ height: 21 * layoutValues.rightRailAvatarScale,
         <RightRailAction
           value={activeItem.saves}
           label="Save"
-          scale={layoutValues.rightRailIconScale * 1.15}
+          scale={actionScale}
           onPress={() => {}}
         >
           <SaveIcon />
@@ -1361,18 +1306,28 @@ height: 21 * layoutValues.rightRailAvatarScale,
         <RightRailAction
           value={activeItem.shares}
           label="Share"
-          scale={layoutValues.rightRailIconScale * 1.15}
+          scale={actionScale}
           onPress={() => {}}
         >
           <ShareIcon />
         </RightRailAction>
 
+        <RightRailAction
+          value={displayBoosts}
+          label="Boost"
+          scale={actionScale * 1.06}
+          iconColor={isActiveBoosted ? "#fbbf24" : "#ffffff"}
+          onPress={() => toggleBoost(activeItem.id)}
+        >
+          <BoostIcon />
+        </RightRailAction>
+
         <div style={{ marginTop: 20 }}>
-  <MusicDiscIcon
-    artwork={activeItem.artwork}
-    scale={layoutValues.rightRailDiscScale}
-  />
-</div>
+          <MusicDiscIcon
+            artwork={activeItem.artwork}
+            scale={layoutValues.rightRailDiscScale}
+          />
+        </div>
       </div>
 
       <div
@@ -1603,32 +1558,32 @@ height: 21 * layoutValues.rightRailAvatarScale,
             </div>
 
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-             <Stepper
-  label="Icon size"
-  valueText={`${layoutValues.rightRailIconScale.toFixed(2)}x`}
-  onMinus={() => adjustScale("rightRailIconScale", -0.05, 0.8, 1.6)}
-  onPlus={() => adjustScale("rightRailIconScale", 0.05, 0.8, 1.6)}
-/>
+              <Stepper
+                label="Icon size"
+                valueText={`${layoutValues.rightRailIconScale.toFixed(2)}x`}
+                onMinus={() => adjustScale("rightRailIconScale", -0.05, 0.8, 1.6)}
+                onPlus={() => adjustScale("rightRailIconScale", 0.05, 0.8, 1.6)}
+              />
 
-<Stepper
-  label="Avatar size"
-  valueText={`${layoutValues.rightRailAvatarScale.toFixed(2)}x`}
-  onMinus={() => adjustScale("rightRailAvatarScale", -0.05, 0.7, 1.3)}
-  onPlus={() => adjustScale("rightRailAvatarScale", 0.05, 0.7, 1.3)}
-/>
+              <Stepper
+                label="Avatar size"
+                valueText={`${layoutValues.rightRailAvatarScale.toFixed(2)}x`}
+                onMinus={() => adjustScale("rightRailAvatarScale", -0.05, 0.7, 1.3)}
+                onPlus={() => adjustScale("rightRailAvatarScale", 0.05, 0.7, 1.3)}
+              />
 
-<Stepper
-  label="Disc size"
-  valueText={`${layoutValues.rightRailDiscScale.toFixed(2)}x`}
-  onMinus={() => adjustScale("rightRailDiscScale", -0.05, 0.7, 1.3)}
-  onPlus={() => adjustScale("rightRailDiscScale", 0.05, 0.7, 1.3)}
-/>
+              <Stepper
+                label="Disc size"
+                valueText={`${layoutValues.rightRailDiscScale.toFixed(2)}x`}
+                onMinus={() => adjustScale("rightRailDiscScale", -0.05, 0.7, 1.3)}
+                onPlus={() => adjustScale("rightRailDiscScale", 0.05, 0.7, 1.3)}
+              />
 
               <Stepper
                 label="Right rail gap"
                 valueText={`${layoutValues.rightRailGap}px`}
                 onMinus={() => adjustNumber("rightRailGap", -1, 2, 34)}
-onPlus={() => adjustNumber("rightRailGap", 1, 2, 34)}
+                onPlus={() => adjustNumber("rightRailGap", 1, 2, 34)}
               />
 
               <Stepper
