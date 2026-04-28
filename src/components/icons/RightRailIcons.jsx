@@ -11,10 +11,9 @@ Captain’s Protocol — iBand Right Rail Icon System (V2 Neon Foundation)
 
 const neonGlow = {
   filter: `
-    drop-shadow(0 0 1px rgba(255,255,255,0.9))
-    drop-shadow(0 0 2px rgba(236,72,153,0.8))
-    drop-shadow(0 0 4px rgba(236,72,153,0.6))
-    drop-shadow(0 0 6px rgba(249,115,22,0.5))
+    drop-shadow(0 0 0.5px #ffffff)
+    drop-shadow(0 0 2px rgba(236,72,153,0.9))
+    drop-shadow(0 0 3px rgba(249,115,22,0.7))
   `,
   overflow: "visible"
 };
@@ -43,13 +42,12 @@ function IconWrapper({ children, size = 28, gradientId }) {
 
 function neonStroke(gradientId, width = 3) {
   return {
-    stroke: `url(#${gradientId})`,
-    strokeWidth: width,
-    strokeLinecap: "round",
-    strokeLinejoin: "round",
-    vectorEffect: "non-scaling-stroke"
-  };
-}
+  stroke: `url(#${gradientId})`,
+  strokeWidth: width,
+  strokeLinecap: "round",
+  strokeLinejoin: "round",
+  vectorEffect: "non-scaling-stroke"
+};
 
 /* =========================
    LIKE — Guitar Heart Bubble
@@ -60,7 +58,7 @@ export function LikeIcon({ size = 28 }) {
   return (
     <IconWrapper size={size} gradientId={gradientId}>
       <path
-        {...neonStroke(gradientId, 3.2)}
+        {...neonStroke(gradientId, 2.4)}
         d="M24 39.5s-14.5-8.8-14.5-20.2c0-4.9 3.6-8.8 8.4-8.8 2.7 0 4.9 1.2 6.1 3.2 1.2-2 3.4-3.2 6.1-3.2 4.8 0 8.4 3.9 8.4 8.8C38.5 30.7 24 39.5 24 39.5z"
       />
       <path
