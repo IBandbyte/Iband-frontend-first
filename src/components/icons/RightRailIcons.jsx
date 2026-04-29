@@ -3,11 +3,12 @@ import React, { useId } from "react";
 /*
 ====================================
  iBand Right Rail Icons
- One-by-One Reverse Engineering Pass
-
-Current pass:
-- LikeIcon = guitar-heart bubble detail pass
-- Other icons remain stable until individually refined
+ LikeIcon Shape Rebuild Pass
+====================================
+Current focus:
+- Rebuild LikeIcon from scratch
+- Target: large guitar-heart first, bubble second
+- Other icons remain stable until their own pass
 ====================================
 */
 
@@ -32,23 +33,23 @@ function IconWrapper({ size = 28, label = "iband-icon", children }) {
       style={{ overflow: "visible", display: "block" }}
     >
       <defs>
-        <linearGradient id={gradientId} x1="4" y1="5" x2="44" y2="43">
-          <stop offset="0%" stopColor="#a855f7" />
-          <stop offset="30%" stopColor="#ff38d6" />
-          <stop offset="68%" stopColor="#ff3f7f" />
+        <linearGradient id={gradientId} x1="5" y1="6" x2="43" y2="42">
+          <stop offset="0%" stopColor="#c084fc" />
+          <stop offset="38%" stopColor="#ff2dfc" />
+          <stop offset="68%" stopColor="#ff477e" />
           <stop offset="100%" stopColor="#ff8a18" />
         </linearGradient>
 
         <filter
           id={glowId}
-          x="-70%"
-          y="-70%"
-          width="240%"
-          height="240%"
+          x="-65%"
+          y="-65%"
+          width="230%"
+          height="230%"
           colorInterpolationFilters="sRGB"
         >
-          <feGaussianBlur stdDeviation="0.9" result="softGlow" />
-          <feGaussianBlur stdDeviation="1.7" result="wideGlow" />
+          <feGaussianBlur stdDeviation="0.7" result="softGlow" />
+          <feGaussianBlur stdDeviation="1.35" result="wideGlow" />
           <feMerge>
             <feMergeNode in="wideGlow" />
             <feMergeNode in="softGlow" />
@@ -73,9 +74,9 @@ function neonStroke(gradientId, width = 1.8, opacity = 1) {
   };
 }
 
-function coreStroke(width = 0.45, opacity = 0.78) {
+function coreStroke(width = 0.42, opacity = 0.72) {
   return {
-    stroke: "rgba(255,255,255,0.88)",
+    stroke: "rgba(255,255,255,0.82)",
     strokeWidth: width,
     strokeLinecap: "round",
     strokeLinejoin: "round",
@@ -104,7 +105,8 @@ function NeonCircle({ gradientId, cx, cy, r, width = 1.7, core = true }) {
 
 /*
 ====================================
- LIKE — Guitar Heart Bubble Detail Pass
+ LIKE — Shape Rebuild
+Big guitar-heart first, bubble second
 ====================================
 */
 export function LikeIcon({ size = 28 }) {
@@ -112,63 +114,64 @@ export function LikeIcon({ size = 28 }) {
     <IconWrapper size={size} label="iband-like">
       {({ gradientId }) => (
         <>
-          {/* Rounded speech bubble outer shell */}
+          {/* Soft speech bubble wrap — secondary */}
           <NeonPath
             gradientId={gradientId}
-            width={1.7}
-            d="M10.6 11.8h24.7c2.7 0 4.7 2.1 4.7 4.7v12.2c0 2.6-2 4.7-4.7 4.7h-9.1l-8.8 6.5v-6.5h-6.8c-2.6 0-4.7-2.1-4.7-4.7V16.5c0-2.6 2.1-4.7 4.7-4.7z"
+            width={1.45}
+            opacity={0.92}
+            d="M11.2 12.1h23.4c2.8 0 5.1 2.2 5.1 5v11.1c0 2.8-2.3 5-5.1 5h-7.2l-9.6 6.9v-6.9h-6.6c-2.8 0-5.1-2.2-5.1-5V17.1c0-2.8 2.3-5 5.1-5z"
           />
 
-          {/* Heart body */}
+          {/* Large heart — primary silhouette */}
+          <NeonPath
+            gradientId={gradientId}
+            width={1.95}
+            d="M23.7 32.8s-8.9-5.4-11.5-10.1c-2.5-4.5 2.4-8.8 6.5-5.9 2 1.4 3.2 3.3 5 5.7 1.8-2.4 3-4.3 5-5.7 4.1-2.9 9 1.4 6.5 5.9-2.6 4.7-11.5 10.1-11.5 10.1z"
+          />
+
+          {/* Guitar neck — long readable diagonal */}
           <NeonPath
             gradientId={gradientId}
             width={1.75}
-            d="M23.2 30.5s-7.1-4.6-9.3-8.4c-2.1-3.6 1.9-7.4 5.4-5.1 1.7 1.1 2.7 2.8 3.9 4.5 1.2-1.7 2.3-3.4 4-4.5 3.5-2.3 7.5 1.5 5.4 5.1-2.2 3.8-9.4 8.4-9.4 8.4z"
+            d="M27.1 21.4L38.8 9.9"
           />
 
-          {/* Guitar neck crossing heart */}
-          <NeonPath
-            gradientId={gradientId}
-            width={1.55}
-            d="M27.4 18.1l8.1-7.5"
-          />
-
-          {/* Guitar body/inner curve */}
+          {/* Guitar body curve inside heart */}
           <NeonPath
             gradientId={gradientId}
             width={1.35}
-            d="M27.9 18.3c2.2 4.3 1 8.4-3.5 12.1"
             opacity={0.95}
+            d="M27.1 21.4c1.8 4.8 0 8-4.8 10.4"
           />
 
-          {/* Long guitar line through right heart edge */}
-          <NeonPath
-            gradientId={gradientId}
-            width={1.35}
-            d="M31.5 14.6l5.2 14"
-            opacity={0.95}
-          />
-
-          {/* Guitar headstock */}
+          {/* Guitar lower string / body line */}
           <NeonPath
             gradientId={gradientId}
             width={1.25}
-            d="M35 10.8h3.4c1.3 0 2.2 1 2.2 2.1 0 1.2-.9 2.2-2.2 2.2h-2.1"
+            opacity={0.9}
+            d="M31.1 17.4c1.8 4.7 3.2 8.4 4.8 12.4"
+          />
+
+          {/* Headstock shape */}
+          <NeonPath
+            gradientId={gradientId}
+            width={1.4}
+            d="M36.5 10.1h3.1c1.2 0 2.2 1 2.2 2.1 0 1.2-1 2.2-2.2 2.2h-2.2"
           />
 
           {/* Tuning dots */}
-          <circle cx="33.5" cy="9.8" r="0.85" fill={`url(#${gradientId})`} />
-          <circle cx="36.2" cy="8.9" r="0.85" fill={`url(#${gradientId})`} />
-          <circle cx="38.8" cy="9.6" r="0.85" fill={`url(#${gradientId})`} />
-          <circle cx="41" cy="11.2" r="0.85" fill={`url(#${gradientId})`} />
+          <circle cx="34.2" cy="9.9" r="0.9" fill={`url(#${gradientId})`} />
+          <circle cx="36.7" cy="8.6" r="0.9" fill={`url(#${gradientId})`} />
+          <circle cx="39.3" cy="8.8" r="0.9" fill={`url(#${gradientId})`} />
+          <circle cx="41.4" cy="10.4" r="0.9" fill={`url(#${gradientId})`} />
 
-          {/* Heart highlight */}
+          {/* Heart shine highlight */}
           <NeonPath
             gradientId={gradientId}
-            width={1.15}
-            d="M16.3 18.8c1.7-1.4 3.7-1.3 5.2.3"
-            opacity={0.8}
+            width={1.05}
+            opacity={0.78}
             core={false}
+            d="M16.4 19.1c1.5-1.3 3.3-1.2 4.7.2"
           />
         </>
       )}
