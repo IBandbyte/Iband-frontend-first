@@ -1,40 +1,22 @@
 import { useState } from "react";
 
 export default function IconWorkshop() {
-  const [size, setSize] = useState(56);
-  const [stroke, setStroke] = useState(2.4);
-  const [glow, setGlow] = useState(1.6);
-  const [radius, setRadius] = useState(18);
-  const [tail, setTail] = useState(12);
+  const [size, setSize] = useState(220);
+  const [glow, setGlow] = useState(6);
+  const [stroke, setStroke] = useState(12);
 
   return (
     <div style={styles.container}>
-      <h2 style={styles.title}>iBand Icon Workshop — Engineering Mode</h2>
+      <h2 style={styles.title}>iBand Icon Workshop — Like Replica Test</h2>
 
       <div style={styles.panel}>
-        <Control label="Size" value={size} min={24} max={120} step={1} onChange={setSize} />
-        <Control label="Stroke" value={stroke} min={1} max={5} step={0.1} onChange={setStroke} />
-        <Control label="Glow" value={glow} min={0} max={4} step={0.1} onChange={setGlow} />
-        <Control label="Corner Radius" value={radius} min={8} max={30} step={1} onChange={setRadius} />
-        <Control label="Tail Size" value={tail} min={6} max={20} step={1} onChange={setTail} />
+        <Control label="Size" value={size} min={40} max={360} step={1} onChange={setSize} />
+        <Control label="Stroke" value={stroke} min={4} max={20} step={0.5} onChange={setStroke} />
+        <Control label="Glow" value={glow} min={0} max={14} step={0.5} onChange={setGlow} />
       </div>
 
-      <div style={styles.grid}>
-        <Preview title="Like (Guitar Heart)">
-          <LikeIcon size={size} stroke={stroke} glow={glow} radius={radius} tail={tail} />
-        </Preview>
-
-        <Preview title="Comment">
-          <CommentIcon size={size} stroke={stroke} glow={glow} radius={radius} tail={tail} />
-        </Preview>
-
-        <Preview title="Save">
-          <SaveIcon size={size} stroke={stroke} glow={glow} radius={radius} />
-        </Preview>
-
-        <Preview title="Share">
-          <ShareIcon size={size} stroke={stroke} glow={glow} />
-        </Preview>
+      <div style={styles.preview}>
+        <LikeIcon size={size} stroke={stroke} glow={glow} />
       </div>
     </div>
   );
@@ -56,26 +38,19 @@ function Control({ label, value, min, max, step, onChange }) {
   );
 }
 
-function Preview({ title, children }) {
+function LikeIcon({ size = 220, stroke = 12, glow = 6 }) {
   return (
-    <div style={styles.preview}>
-      <div>{title}</div>
-      {children}
-    </div>
-  );
-}
-
-function BaseSVG({ size, stroke, glow, children }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 100 100" fill="none">
+    <svg width={size} height={size} viewBox="0 0 512 512" fill="none" style={{ display: "block" }}>
       <defs>
-        <linearGradient id="grad" x1="0" y1="0" x2="100" y2="100">
-          <stop offset="0%" stopColor="#ff00cc" />
-          <stop offset="100%" stopColor="#ff8800" />
+        <linearGradient id="ibandLikeGrad" x1="0" y1="0" x2="512" y2="512">
+          <stop offset="0%" stopColor="#a855f7" />
+          <stop offset="38%" stopColor="#ff2dfc" />
+          <stop offset="68%" stopColor="#ff4d7a" />
+          <stop offset="100%" stopColor="#ff9f1c" />
         </linearGradient>
 
-        <filter id="glow">
-          <feGaussianBlur stdDeviation={glow * 2} result="blur" />
+        <filter id="ibandLikeGlow" x="-50%" y="-50%" width="200%" height="200%">
+          <feGaussianBlur stdDeviation={glow} result="blur" />
           <feMerge>
             <feMergeNode in="blur" />
             <feMergeNode in="SourceGraphic" />
@@ -83,117 +58,32 @@ function BaseSVG({ size, stroke, glow, children }) {
         </filter>
       </defs>
 
-      {children({ stroke })}
+      <g filter="url(#ibandLikeGlow)" stroke="url(#ibandLikeGrad)" strokeWidth={stroke} strokeLinecap="round" strokeLinejoin="round">
+        <path d="M420 90H190C90 90 60 140 60 210v110c0 50 35 80 80 85l-10 70 80-60h180c70 0 110-40 110-100V150c0-40-25-60-80-60z" />
+        <path d="M170 290C110 190 200 140 255 210C310 140 400 190 340 290C310 340 280 370 255 390C230 370 200 340 170 290z" />
+        <path d="M200 210C220 180 250 180 270 205" strokeWidth={stroke * 0.65} opacity="0.75" />
+        <path d="M280 260L400 90" strokeWidth={stroke * 0.85} />
+        <path d="M280 260C300 310 280 340 240 360" strokeWidth={stroke * 0.75} />
+        <path d="M320 210C340 260 360 300 380 350" strokeWidth={stroke * 0.7} />
+        <path d="M380 100H420C440 100 450 120 440 135C430 150 410 145 395 135" strokeWidth={stroke * 0.75} />
+        <circle cx="360" cy="90" r="6" fill="url(#ibandLikeGrad)" stroke="none" />
+        <circle cx="380" cy="80" r="6" fill="url(#ibandLikeGrad)" stroke="none" />
+        <circle cx="400" cy="82" r="6" fill="url(#ibandLikeGrad)" stroke="none" />
+        <circle cx="420" cy="95" r="6" fill="url(#ibandLikeGrad)" stroke="none" />
+      </g>
+
+      <g stroke="rgba(255,255,255,0.78)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" opacity="0.75">
+        <path d="M420 90H190C90 90 60 140 60 210v110c0 50 35 80 80 85l-10 70 80-60h180c70 0 110-40 110-100V150c0-40-25-60-80-60z" />
+        <path d="M170 290C110 190 200 140 255 210C310 140 400 190 340 290C310 340 280 370 255 390C230 370 200 340 170 290z" />
+        <path d="M280 260L400 90" />
+      </g>
     </svg>
-  );
-}
-
-function LikeIcon({ size, stroke, glow, radius, tail }) {
-  return (
-    <BaseSVG size={size} stroke={stroke} glow={glow}>
-      {({ stroke }) => (
-        <>
-          <rect
-            x="10"
-            y="15"
-            width="80"
-            height="55"
-            rx={radius}
-            stroke="url(#grad)"
-            strokeWidth={stroke}
-            filter="url(#glow)"
-          />
-
-          <path
-            d={`M40 70 L50 ${70 + tail} L55 70`}
-            stroke="url(#grad)"
-            strokeWidth={stroke}
-            filter="url(#glow)"
-          />
-
-          <path
-            d="M50 55
-               C50 55, 32 42, 32 32
-               A9 9 0 0 1 50 32
-               A9 9 0 0 1 68 32
-               C68 42, 50 55, 50 55"
-            stroke="url(#grad)"
-            strokeWidth={stroke * 0.8}
-            fill="none"
-            filter="url(#glow)"
-          />
-        </>
-      )}
-    </BaseSVG>
-  );
-}
-
-function CommentIcon({ size, stroke, glow, radius, tail }) {
-  return (
-    <BaseSVG size={size} stroke={stroke} glow={glow}>
-      {({ stroke }) => (
-        <>
-          <rect
-            x="10"
-            y="15"
-            width="80"
-            height="55"
-            rx={radius}
-            stroke="url(#grad)"
-            strokeWidth={stroke}
-            filter="url(#glow)"
-          />
-
-          <path
-            d={`M40 70 L50 ${70 + tail} L55 70`}
-            stroke="url(#grad)"
-            strokeWidth={stroke}
-            filter="url(#glow)"
-          />
-
-          <line x1="25" y1="35" x2="65" y2="35" stroke="url(#grad)" strokeWidth={stroke} />
-          <line x1="25" y1="45" x2="60" y2="45" stroke="url(#grad)" strokeWidth={stroke} />
-        </>
-      )}
-    </BaseSVG>
-  );
-}
-
-function SaveIcon({ size, stroke, glow }) {
-  return (
-    <BaseSVG size={size} stroke={stroke} glow={glow}>
-      {({ stroke }) => (
-        <path
-          d="M30 15 H70 V75 L50 60 L30 75 Z"
-          stroke="url(#grad)"
-          strokeWidth={stroke}
-          fill="none"
-          filter="url(#glow)"
-        />
-      )}
-    </BaseSVG>
-  );
-}
-
-function ShareIcon({ size, stroke, glow }) {
-  return (
-    <BaseSVG size={size} stroke={stroke} glow={glow}>
-      {({ stroke }) => (
-        <path
-          d="M30 60 C40 40, 60 40, 70 25 M70 25 L60 25 M70 25 L70 35"
-          stroke="url(#grad)"
-          strokeWidth={stroke}
-          fill="none"
-          filter="url(#glow)"
-        />
-      )}
-    </BaseSVG>
   );
 }
 
 const styles = {
   container: {
-    background: "#0a0a0a",
+    background: "#05030a",
     color: "#fff",
     minHeight: "100vh",
     padding: 20,
@@ -210,17 +100,17 @@ const styles = {
   },
   control: {
     display: "flex",
-    flexDirection: "column"
-  },
-  grid: {
-    display: "grid",
-    gridTemplateColumns: "repeat(2, 1fr)",
-    gap: 20
+    flexDirection: "column",
+    gap: 6
   },
   preview: {
+    minHeight: 420,
     border: "1px solid #222",
-    borderRadius: 12,
-    padding: 20,
-    textAlign: "center"
+    borderRadius: 18,
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+    background: "#000",
+    overflow: "hidden"
   }
 };
