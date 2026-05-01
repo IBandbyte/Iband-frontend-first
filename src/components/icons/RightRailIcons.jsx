@@ -1,19 +1,5 @@
 import React, { useId } from "react";
 
-/*
-====================================
- iBand Right Rail Icons
- LikeIcon Micro Pass
-====================================
-- Target: locked neon speech-bubble / heart / guitar reference
-- Heart enlarged slightly
-- Guitar neck angled closer to 1 o’clock
-- Headstock slimmer and funkier
-- Bubble rounder and softer
-- No unwanted extra guitar-body line
-====================================
-*/
-
 function safeId(value) {
   return String(value).replace(/[^a-zA-Z0-9_-]/g, "");
 }
@@ -105,14 +91,9 @@ function NeonCircle({ gradientId, cx, cy, r, width = 1.6, core = true }) {
   );
 }
 
-/*
-====================================
- LIKE — Micro Pass
-====================================
-*/
 export function LikeIcon({ size = 28 }) {
   return (
-    <IconWrapper size={size} label="iband-like-micro">
+    <IconWrapper size={size} label="iband-like-final-micro">
       {({ gradientId }) => (
         <>
           <NeonPath
@@ -123,8 +104,8 @@ export function LikeIcon({ size = 28 }) {
 
           <NeonPath
             gradientId={gradientId}
-            width={1.78}
-            d="M13.65 26.55c-5.55-10.95 4.55-16.9 10.95-8.75 6.4-8.15 16.7-2.2 10.85 8.75-3.18 5.45-7.18 9.35-10.85 12.35-3.65-3-7.7-6.9-10.95-12.35z"
+            width={1.82}
+            d="M12.9 27.2c-5.8-11.35 4.65-17.35 11.7-8.75 6.8-8.6 17.25-2.45 11.2 8.75-3.25 5.65-7.35 9.65-11.2 12.75-3.8-3.1-8.15-7.1-11.7-12.75z"
           />
 
           <NeonPath
@@ -138,20 +119,13 @@ export function LikeIcon({ size = 28 }) {
           <NeonPath
             gradientId={gradientId}
             width={1.46}
-            d="M28.15 24.85 40.45 7.05"
+            d="M27.6 25.2Q31 20 34 15T40.2 7.6"
           />
 
           <NeonPath
             gradientId={gradientId}
             width={1.18}
-            d="M38.85 7.9c1.35-2.25 5.25-1.65 5.45 1.05.16 2.15-2.25 2.7-3.8 1.55-.42.95-1.28 1.9-2.72 2.02"
-          />
-
-          <NeonPath
-            gradientId={gradientId}
-            width={1.08}
-            opacity={0.94}
-            d="M28 24.85c1.42 4.05-.75 6.95-4.45 9.08"
+            d="M38.9 8.2c1.1-2.4 5.2-1.4 5.1 1.1-.1 1.9-2.3 2.6-3.6 1.6-.6 1-1.4 1.7-2.8 1.9"
           />
 
           <circle cx="37.9" cy="6.28" r="0.7" fill={`url(#${gradientId})`} />
@@ -164,11 +138,6 @@ export function LikeIcon({ size = 28 }) {
   );
 }
 
-/*
-====================================
- COMMENT
-====================================
-*/
 export function CommentIcon({ size = 28 }) {
   return (
     <IconWrapper size={size} label="iband-comment">
@@ -192,11 +161,6 @@ export function CommentIcon({ size = 28 }) {
   );
 }
 
-/*
-====================================
- SAVE
-====================================
-*/
 export function SaveIcon({ size = 28 }) {
   return (
     <IconWrapper size={size} label="iband-save">
@@ -218,11 +182,6 @@ export function SaveIcon({ size = 28 }) {
   );
 }
 
-/*
-====================================
- SHARE
-====================================
-*/
 export function ShareIcon({ size = 28 }) {
   return (
     <IconWrapper size={size} label="iband-share">
@@ -251,11 +210,6 @@ export function ShareIcon({ size = 28 }) {
   );
 }
 
-/*
-====================================
- BOOST
-====================================
-*/
 export function BoostIcon({ size = 28 }) {
   return (
     <IconWrapper size={size} label="iband-boost">
@@ -286,11 +240,6 @@ export function BoostIcon({ size = 28 }) {
   );
 }
 
-/*
-====================================
- INFO
-====================================
-*/
 export function InfoIcon({ size = 28 }) {
   return (
     <IconWrapper size={size} label="iband-info">
