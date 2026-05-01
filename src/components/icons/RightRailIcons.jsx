@@ -21,29 +21,27 @@ function IconWrapper({ size = 28, label = "iband-icon", children }) {
       style={{ overflow: "visible", display: "block" }}
     >
       <defs>
-        <linearGradient id={gradientId} x1="3" y1="4" x2="45" y2="44">
-          <stop offset="0%" stopColor="#a855f7" />
-          <stop offset="32%" stopColor="#ff2dfc" />
-          <stop offset="64%" stopColor="#ff3f72" />
-          <stop offset="100%" stopColor="#ff9f1c" />
-        </linearGradient>
+        <linearGradient id={gradientId} x1="0" y1="0" x2="48" y2="48">
+  <stop offset="0%" stopColor="#ff2dfc" />
+  <stop offset="55%" stopColor="#ff3f72" />
+  <stop offset="100%" stopColor="#ff8a18" />
+</linearGradient>
 
-        <filter
-          id={glowId}
-          x="-85%"
-          y="-85%"
-          width="270%"
-          height="270%"
-          colorInterpolationFilters="sRGB"
-        >
-          <feGaussianBlur stdDeviation="0.72" result="softGlow" />
-          <feGaussianBlur stdDeviation="1.45" result="wideGlow" />
-          <feMerge>
-            <feMergeNode in="wideGlow" />
-            <feMergeNode in="softGlow" />
-            <feMergeNode in="SourceGraphic" />
-          </feMerge>
-        </filter>
+       <filter
+  id={glowId}
+  x="-120%"
+  y="-120%"
+  width="340%"
+  height="340%"
+>
+  <feGaussianBlur stdDeviation="0.55" result="innerGlow" />
+  <feGaussianBlur stdDeviation="1.1" result="outerGlow" />
+  <feMerge>
+    <feMergeNode in="outerGlow" />
+    <feMergeNode in="innerGlow" />
+    <feMergeNode in="SourceGraphic" />
+  </feMerge>
+</filter>
       </defs>
 
       <g filter={`url(#${glowId})`}>{children({ gradientId })}</g>
@@ -51,25 +49,24 @@ function IconWrapper({ size = 28, label = "iband-icon", children }) {
   );
 }
 
-function neonStroke(gradientId, width = 1.75, opacity = 1) {
+function neonStroke(gradientId, width = 2.2) {
   return {
     stroke: `url(#${gradientId})`,
     strokeWidth: width,
     strokeLinecap: "round",
     strokeLinejoin: "round",
-    vectorEffect: "non-scaling-stroke",
-    opacity
+    vectorEffect: "non-scaling-stroke"
   };
 }
 
-function coreStroke(width = 0.34, opacity = 0.82) {
+function coreStroke(width = 0.65) {
   return {
-    stroke: "rgba(255,255,255,0.86)",
+    stroke: "#ffffff",
     strokeWidth: width,
     strokeLinecap: "round",
     strokeLinejoin: "round",
-    vectorEffect: "non-scaling-stroke",
-    opacity
+    opacity: 0.9,
+    vectorEffect: "non-scaling-stroke"
   };
 }
 
