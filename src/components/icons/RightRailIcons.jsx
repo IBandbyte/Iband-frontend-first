@@ -21,27 +21,24 @@ function IconWrapper({ size = 28, label = "iband-icon", children }) {
       style={{ overflow: "visible", display: "block" }}
     >
       <defs>
-        <linearGradient id={gradientId} x1="0" y1="0" x2="48" y2="48">
-  <stop offset="0%" stopColor="#ff2dfc" />
-  <stop offset="55%" stopColor="#ff3f72" />
-  <stop offset="100%" stopColor="#ff8a18" />
-</linearGradient>
+        <linearGradient id={gradientId} x1="3" y1="5" x2="45" y2="43">
+          <stop offset="0%" stopColor="#bf5cff" />
+          <stop offset="32%" stopColor="#ff23e6" />
+          <stop offset="62%" stopColor="#ff386f" />
+          <stop offset="100%" stopColor="#ff9b18" />
+        </linearGradient>
 
-       <filter
-  id={glowId}
-  x="-120%"
-  y="-120%"
-  width="340%"
-  height="340%"
->
-  <feGaussianBlur stdDeviation="0.55" result="innerGlow" />
-  <feGaussianBlur stdDeviation="1.1" result="outerGlow" />
-  <feMerge>
-    <feMergeNode in="outerGlow" />
-    <feMergeNode in="innerGlow" />
-    <feMergeNode in="SourceGraphic" />
-  </feMerge>
-</filter>
+        <filter id={glowId} x="-120%" y="-120%" width="340%" height="340%" colorInterpolationFilters="sRGB">
+          <feGaussianBlur stdDeviation="0.45" result="tightGlow" />
+          <feGaussianBlur stdDeviation="1.05" result="softGlow" />
+          <feGaussianBlur stdDeviation="1.85" result="wideGlow" />
+          <feMerge>
+            <feMergeNode in="wideGlow" />
+            <feMergeNode in="softGlow" />
+            <feMergeNode in="tightGlow" />
+            <feMergeNode in="SourceGraphic" />
+          </feMerge>
+        </filter>
       </defs>
 
       <g filter={`url(#${glowId})`}>{children({ gradientId })}</g>
@@ -49,28 +46,29 @@ function IconWrapper({ size = 28, label = "iband-icon", children }) {
   );
 }
 
-function neonStroke(gradientId, width = 2.2) {
+function neonStroke(gradientId, width = 2.25, opacity = 1) {
   return {
     stroke: `url(#${gradientId})`,
     strokeWidth: width,
     strokeLinecap: "round",
     strokeLinejoin: "round",
-    vectorEffect: "non-scaling-stroke"
+    vectorEffect: "non-scaling-stroke",
+    opacity
   };
 }
 
-function coreStroke(width = 0.65) {
+function coreStroke(width = 0.55, opacity = 0.92) {
   return {
     stroke: "#ffffff",
     strokeWidth: width,
     strokeLinecap: "round",
     strokeLinejoin: "round",
-    opacity: 0.9,
-    vectorEffect: "non-scaling-stroke"
+    vectorEffect: "non-scaling-stroke",
+    opacity
   };
 }
 
-function NeonPath({ gradientId, d, width = 1.75, opacity = 1, core = true }) {
+function NeonPath({ gradientId, d, width = 2.25, opacity = 1, core = true }) {
   return (
     <>
       <path {...neonStroke(gradientId, width, opacity)} d={d} fill="none" />
@@ -79,7 +77,7 @@ function NeonPath({ gradientId, d, width = 1.75, opacity = 1, core = true }) {
   );
 }
 
-function NeonCircle({ gradientId, cx, cy, r, width = 1.6, core = true }) {
+function NeonCircle({ gradientId, cx, cy, r, width = 2.1, core = true }) {
   return (
     <>
       <circle {...neonStroke(gradientId, width)} cx={cx} cy={cy} r={r} fill="none" />
@@ -88,47 +86,48 @@ function NeonCircle({ gradientId, cx, cy, r, width = 1.6, core = true }) {
   );
 }
 
+function Bubble({ gradientId }) {
+  return (
+    <NeonPath
+      gradientId={gradientId}
+      width={2.15}
+      d="M9.6 9.7h28.8c2.9 0 5.2 2.3 5.2 5.2v14.7c0 2.9-2.3 5.2-5.2 5.2H19.6l-8.7 6.2 1.15-6.2H9.6c-2.9 0-5.2-2.3-5.2-5.2V14.9c0-2.9 2.3-5.2 5.2-5.2z"
+    />
+  );
+}
+
 export function LikeIcon({ size = 28 }) {
   return (
-    <IconWrapper size={size} label="iband-like-final-micro">
+    <IconWrapper size={size} label="iband-like-v2">
       {({ gradientId }) => (
         <>
+          <Bubble gradientId={gradientId} />
           <NeonPath
             gradientId={gradientId}
-            width={1.72}
-            d="M39.2 6.25c4.25.18 6.35 2.75 6.35 6.55v15.45c0 6.55-4.25 9.9-11.05 9.9H18.65l-8.95 6.15 1.38-7.95C7.1 35.18 4.05 31.9 4.05 27.15V17.55C4.05 10.15 9.15 6.25 16.85 6.25h22.35"
+            width={2.15}
+            d="M13.7 26.4c-5.3-10.7 4.6-16.4 10.6-8.2 6.2-8.2 16-2.5 10.6 8.2-3 5.45-6.8 9.1-10.6 12.2-3.75-3.1-7.55-6.75-10.6-12.2z"
           />
-
           <NeonPath
             gradientId={gradientId}
-            width={1.82}
-            d="M12.9 27.2c-5.8-11.35 4.65-17.35 11.7-8.75 6.8-8.6 17.25-2.45 11.2 8.75-3.25 5.65-7.35 9.65-11.2 12.75-3.8-3.1-8.15-7.1-11.7-12.75z"
-          />
-
-          <NeonPath
-            gradientId={gradientId}
-            width={1.02}
-            opacity={0.72}
+            width={1.25}
+            opacity={0.78}
             core={false}
-            d="M15.1 18.15c1.72-3.55 5.45-4.95 8.25-3.08"
+            d="M15.9 18.1c1.6-2.9 4.75-4.15 7.15-2.75"
           />
-
           <NeonPath
             gradientId={gradientId}
-            width={1.46}
-            d="M27.6 25.2Q31 20 34 15T40.2 7.6"
+            width={1.8}
+            d="M28.05 25.05Q32.2 18.6 35.1 14.1T40.3 6.9"
           />
-
           <NeonPath
             gradientId={gradientId}
-            width={1.18}
-            d="M38.9 8.2c1.1-2.4 5.2-1.4 5.1 1.1-.1 1.9-2.3 2.6-3.6 1.6-.6 1-1.4 1.7-2.8 1.9"
+            width={1.45}
+            d="M38.55 8.1c1.45-2.4 5.35-1.7 5.45 1.05.1 2.1-2.35 2.55-3.85 1.45-.55 1.05-1.45 1.85-2.95 1.95"
           />
-
-          <circle cx="37.9" cy="6.28" r="0.7" fill={`url(#${gradientId})`} />
-          <circle cx="39.88" cy="5.08" r="0.7" fill={`url(#${gradientId})`} />
-          <circle cx="41.92" cy="5.05" r="0.7" fill={`url(#${gradientId})`} />
-          <circle cx="43.72" cy="6.12" r="0.7" fill={`url(#${gradientId})`} />
+          <circle cx="37.3" cy="6.5" r="0.72" fill={`url(#${gradientId})`} />
+          <circle cx="39.3" cy="5.25" r="0.72" fill={`url(#${gradientId})`} />
+          <circle cx="41.35" cy="5.25" r="0.72" fill={`url(#${gradientId})`} />
+          <circle cx="43.15" cy="6.35" r="0.72" fill={`url(#${gradientId})`} />
         </>
       )}
     </IconWrapper>
@@ -137,21 +136,17 @@ export function LikeIcon({ size = 28 }) {
 
 export function CommentIcon({ size = 28 }) {
   return (
-    <IconWrapper size={size} label="iband-comment">
+    <IconWrapper size={size} label="iband-comment-v2">
       {({ gradientId }) => (
         <>
-          <NeonPath
-            gradientId={gradientId}
-            width={1.7}
-            d="M8.8 10.2h30.4c2 0 3.6 1.6 3.6 3.6v15.8c0 2-1.6 3.6-3.6 3.6H19.7l-8.1 5.8v-5.8H8.8c-2 0-3.6-1.6-3.6-3.6V13.8c0-2 1.6-3.6 3.6-3.6z"
-          />
-          <NeonPath gradientId={gradientId} width={1.35} d="M13.9 17.4h14.6" />
-          <NeonPath gradientId={gradientId} width={1.35} d="M13.9 22.8h11.3" />
-          <NeonPath gradientId={gradientId} width={1.35} d="M13.9 28.1h8" />
-          <NeonPath gradientId={gradientId} width={1.45} d="M32.3 16.8v10.4" />
-          <NeonPath gradientId={gradientId} width={1.35} d="M32.3 16.8l5.2 1.9v3.2" />
-          <circle cx="29.8" cy="28.1" r="1.95" fill={`url(#${gradientId})`} />
-          <circle cx="35.1" cy="25.1" r="1.95" fill={`url(#${gradientId})`} />
+          <Bubble gradientId={gradientId} />
+          <NeonPath gradientId={gradientId} width={1.55} d="M12.8 17.6h13.6" />
+          <NeonPath gradientId={gradientId} width={1.55} d="M12.8 23h10.4" />
+          <NeonPath gradientId={gradientId} width={1.55} d="M12.8 28.2h7.4" />
+          <NeonPath gradientId={gradientId} width={1.8} d="M31.8 16.2v11.4" />
+          <NeonPath gradientId={gradientId} width={1.65} d="M31.8 16.2l6.1 2.2v4.1" />
+          <NeonCircle gradientId={gradientId} cx="29.1" cy="28.3" r="2.05" width={1.45} core={false} />
+          <NeonCircle gradientId={gradientId} cx="35.1" cy="25.3" r="2.05" width={1.45} core={false} />
         </>
       )}
     </IconWrapper>
@@ -160,18 +155,14 @@ export function CommentIcon({ size = 28 }) {
 
 export function SaveIcon({ size = 28 }) {
   return (
-    <IconWrapper size={size} label="iband-save">
+    <IconWrapper size={size} label="iband-save-v2">
       {({ gradientId }) => (
         <>
+          <Bubble gradientId={gradientId} />
           <NeonPath
             gradientId={gradientId}
-            width={1.7}
-            d="M9.2 10.1h29.6c2 0 3.6 1.6 3.6 3.6v15.9c0 2-1.6 3.6-3.6 3.6H19.4l-8 5.7v-5.7H9.2c-2 0-3.6-1.6-3.6-3.6V13.7c0-2 1.6-3.6 3.6-3.6z"
-          />
-          <NeonPath
-            gradientId={gradientId}
-            width={1.75}
-            d="M18.3 15.9h12.8c1 0 1.8.8 1.8 1.8v14.5l-8.3-4.7-8.1 4.7V17.7c0-1 .8-1.8 1.8-1.8z"
+            width={2.05}
+            d="M17.6 15.5h13.8c1 0 1.8.8 1.8 1.8v15.1l-8.7-5.05-8.7 5.05V17.3c0-1 .8-1.8 1.8-1.8z"
           />
         </>
       )}
@@ -181,26 +172,23 @@ export function SaveIcon({ size = 28 }) {
 
 export function ShareIcon({ size = 28 }) {
   return (
-    <IconWrapper size={size} label="iband-share">
+    <IconWrapper size={size} label="iband-share-v2">
       {({ gradientId }) => (
         <>
+          <Bubble gradientId={gradientId} />
           <NeonPath
             gradientId={gradientId}
-            width={1.7}
-            d="M8.8 10.2h30.4c2 0 3.6 1.6 3.6 3.6v15.8c0 2-1.6 3.6-3.6 3.6H19.7l-8.1 5.8v-5.8H8.8c-2 0-3.6-1.6-3.6-3.6V13.8c0-2 1.6-3.6 3.6-3.6z"
+            width={2.25}
+            d="M13.4 29.9C18.8 21.4 26.7 17 36.7 16.2"
           />
           <NeonPath
             gradientId={gradientId}
-            width={1.85}
-            d="M13.7 29.5c6.8-8.7 14-11.7 22.6-12.5"
+            width={2.25}
+            d="M31.2 10.9l7.25 5.45-5.55 7.25"
           />
-          <NeonPath
-            gradientId={gradientId}
-            width={1.85}
-            d="M30.7 11.5l6.7 5.6-5.6 6.6"
-          />
-          <NeonPath gradientId={gradientId} width={1.15} d="M37.7 12.2h2.9" />
-          <NeonPath gradientId={gradientId} width={1.15} d="M39.5 14.9h3.5" />
+          <NeonPath gradientId={gradientId} width={1.35} d="M37.9 10.6l2.5-1.9" />
+          <NeonPath gradientId={gradientId} width={1.35} d="M40.4 13.6h3.2" />
+          <NeonPath gradientId={gradientId} width={1.35} d="M39.2 16.7l3.1 1.5" />
         </>
       )}
     </IconWrapper>
@@ -209,28 +197,28 @@ export function ShareIcon({ size = 28 }) {
 
 export function BoostIcon({ size = 28 }) {
   return (
-    <IconWrapper size={size} label="iband-boost">
+    <IconWrapper size={size} label="iband-boost-v2">
       {({ gradientId }) => (
         <>
           <NeonPath
             gradientId={gradientId}
-            width={1.8}
-            d="M12.2 27.4v-5.1C12.2 15.2 17.4 9 24 9s11.8 6.2 11.8 13.3v5.1"
+            width={2.05}
+            d="M11.8 27.5v-4.4C11.8 15.4 17.1 9.1 24 9.1s12.2 6.3 12.2 14v4.4"
           />
           <NeonPath
             gradientId={gradientId}
-            width={1.75}
-            d="M8.7 25.8c0-1.3 1-2.3 2.3-2.3h3.2c1.3 0 2.3 1 2.3 2.3v8c0 1.3-1 2.3-2.3 2.3H11c-1.3 0-2.3-1-2.3-2.3v-8z"
+            width={2}
+            d="M8.5 25.3c0-1.35 1.05-2.4 2.4-2.4h3.6c1.35 0 2.4 1.05 2.4 2.4v8.9c0 1.35-1.05 2.4-2.4 2.4h-3.6c-1.35 0-2.4-1.05-2.4-2.4v-8.9z"
           />
           <NeonPath
             gradientId={gradientId}
-            width={1.75}
-            d="M31.5 25.8c0-1.3 1-2.3 2.3-2.3H37c1.3 0 2.3 1 2.3 2.3v8c0 1.3-1 2.3-2.3 2.3h-3.2c-1.3 0-2.3-1-2.3-2.3v-8z"
+            width={2}
+            d="M31.1 25.3c0-1.35 1.05-2.4 2.4-2.4h3.6c1.35 0 2.4 1.05 2.4 2.4v8.9c0 1.35-1.05 2.4-2.4 2.4h-3.6c-1.35 0-2.4-1.05-2.4-2.4v-8.9z"
           />
-          <rect x="18.1" y="23.2" width="11.8" height="7.2" rx="1.7" {...neonStroke(gradientId, 1.45)} />
-          <path {...neonStroke(gradientId, 1.05)} d="M21.1 25.7v2.3" />
-          <path {...neonStroke(gradientId, 1.05)} d="M23.9 25.3v2.7" />
-          <path {...neonStroke(gradientId, 1.05)} d="M26.7 25.1v2.9" />
+          <rect x="18.2" y="23.4" width="11.6" height="7.2" rx="1.8" {...neonStroke(gradientId, 1.65)} />
+          <path {...neonStroke(gradientId, 1.05)} d="M21.1 25.7v2.6" />
+          <path {...neonStroke(gradientId, 1.05)} d="M23.9 25.4v2.9" />
+          <path {...neonStroke(gradientId, 1.05)} d="M26.7 25.2v3.1" />
         </>
       )}
     </IconWrapper>
@@ -239,12 +227,12 @@ export function BoostIcon({ size = 28 }) {
 
 export function InfoIcon({ size = 28 }) {
   return (
-    <IconWrapper size={size} label="iband-info">
+    <IconWrapper size={size} label="iband-info-v2">
       {({ gradientId }) => (
         <>
-          <NeonCircle gradientId={gradientId} cx="24" cy="24" r="16.6" width={1.75} />
-          <NeonPath gradientId={gradientId} width={1.9} d="M24 22.3v9.5" />
-          <circle cx="24" cy="16.7" r="1.65" fill={`url(#${gradientId})`} />
+          <NeonCircle gradientId={gradientId} cx="24" cy="24" r="16.8" width={2.05} />
+          <NeonPath gradientId={gradientId} width={2.15} d="M24 22.1v10" />
+          <circle cx="24" cy="16.4" r="1.75" fill={`url(#${gradientId})`} />
         </>
       )}
     </IconWrapper>
