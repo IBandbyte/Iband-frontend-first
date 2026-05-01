@@ -3,13 +3,14 @@ import React, { useId } from "react";
 /*
 ====================================
  iBand Right Rail Icons
- LikeIcon Final Neon Pass
+ LikeIcon Micro Pass
 ====================================
-- Final LikeIcon direction based on locked neon reference
-- Crisp gradient neon tubing
-- White inner core
-- Controlled glow
-- No unwanted extra guitar body line
+- Target: locked neon speech-bubble / heart / guitar reference
+- Heart enlarged slightly
+- Guitar neck angled closer to 1 o’clock
+- Headstock slimmer and funkier
+- Bubble rounder and softer
+- No unwanted extra guitar-body line
 ====================================
 */
 
@@ -36,8 +37,8 @@ function IconWrapper({ size = 28, label = "iband-icon", children }) {
       <defs>
         <linearGradient id={gradientId} x1="3" y1="4" x2="45" y2="44">
           <stop offset="0%" stopColor="#a855f7" />
-          <stop offset="34%" stopColor="#ff2dfc" />
-          <stop offset="67%" stopColor="#ff3f72" />
+          <stop offset="32%" stopColor="#ff2dfc" />
+          <stop offset="64%" stopColor="#ff3f72" />
           <stop offset="100%" stopColor="#ff9f1c" />
         </linearGradient>
 
@@ -49,8 +50,8 @@ function IconWrapper({ size = 28, label = "iband-icon", children }) {
           height="270%"
           colorInterpolationFilters="sRGB"
         >
-          <feGaussianBlur stdDeviation="0.75" result="softGlow" />
-          <feGaussianBlur stdDeviation="1.55" result="wideGlow" />
+          <feGaussianBlur stdDeviation="0.72" result="softGlow" />
+          <feGaussianBlur stdDeviation="1.45" result="wideGlow" />
           <feMerge>
             <feMergeNode in="wideGlow" />
             <feMergeNode in="softGlow" />
@@ -106,57 +107,57 @@ function NeonCircle({ gradientId, cx, cy, r, width = 1.6, core = true }) {
 
 /*
 ====================================
- LIKE — Final Neon Guitar Heart Bubble
+ LIKE — Micro Pass
 ====================================
 */
 export function LikeIcon({ size = 28 }) {
   return (
-    <IconWrapper size={size} label="iband-like-final">
+    <IconWrapper size={size} label="iband-like-micro">
       {({ gradientId }) => (
         <>
           <NeonPath
             gradientId={gradientId}
             width={1.72}
-            d="M38.9 6.4c4.1.2 6.4 2.8 6.4 6.6v15.4c0 6.4-4.1 9.7-10.8 9.7H18.8l-8.8 6 1.35-7.75C7.25 35.2 4.2 31.95 4.2 27.25V17.55C4.2 10.25 9.25 6.4 16.9 6.4h22"
+            d="M39.2 6.25c4.25.18 6.35 2.75 6.35 6.55v15.45c0 6.55-4.25 9.9-11.05 9.9H18.65l-8.95 6.15 1.38-7.95C7.1 35.18 4.05 31.9 4.05 27.15V17.55C4.05 10.15 9.15 6.25 16.85 6.25h22.35"
           />
 
           <NeonPath
             gradientId={gradientId}
-            width={1.72}
-            d="M14.3 26.5c-5.4-10.55 4.3-16.25 10.35-8.5 6.05-7.75 15.95-2.05 10.3 8.5-3.05 5.2-6.85 9-10.3 11.85-3.45-2.85-7.25-6.65-10.35-11.85z"
+            width={1.78}
+            d="M13.65 26.55c-5.55-10.95 4.55-16.9 10.95-8.75 6.4-8.15 16.7-2.2 10.85 8.75-3.18 5.45-7.18 9.35-10.85 12.35-3.65-3-7.7-6.9-10.95-12.35z"
           />
 
           <NeonPath
             gradientId={gradientId}
-            width={1.04}
+            width={1.02}
             opacity={0.72}
             core={false}
-            d="M15.45 18.15c1.7-3.55 5.35-4.95 8.1-3.05"
+            d="M15.1 18.15c1.72-3.55 5.45-4.95 8.25-3.08"
           />
 
           <NeonPath
             gradientId={gradientId}
-            width={1.48}
-            d="M27.9 24.9 39.7 7.45"
+            width={1.46}
+            d="M28.15 24.85 40.45 7.05"
           />
 
           <NeonPath
             gradientId={gradientId}
-            width={1.24}
-            d="M38.1 8.2c1.55-2.55 5.8-1.7 5.9 1.25.08 2.25-2.65 2.55-4.05 1.25-.5 1.05-1.4 1.95-2.8 1.95"
+            width={1.18}
+            d="M38.85 7.9c1.35-2.25 5.25-1.65 5.45 1.05.16 2.15-2.25 2.7-3.8 1.55-.42.95-1.28 1.9-2.72 2.02"
           />
 
           <NeonPath
             gradientId={gradientId}
-            width={1.12}
-            opacity={0.92}
-            d="M27.85 24.75c1.45 4.15-.8 7.05-4.55 9.25"
+            width={1.08}
+            opacity={0.94}
+            d="M28 24.85c1.42 4.05-.75 6.95-4.45 9.08"
           />
 
-          <circle cx="37.25" cy="6.6" r="0.74" fill={`url(#${gradientId})`} />
-          <circle cx="39.2" cy="5.45" r="0.74" fill={`url(#${gradientId})`} />
-          <circle cx="41.25" cy="5.4" r="0.74" fill={`url(#${gradientId})`} />
-          <circle cx="43.05" cy="6.45" r="0.74" fill={`url(#${gradientId})`} />
+          <circle cx="37.9" cy="6.28" r="0.7" fill={`url(#${gradientId})`} />
+          <circle cx="39.88" cy="5.08" r="0.7" fill={`url(#${gradientId})`} />
+          <circle cx="41.92" cy="5.05" r="0.7" fill={`url(#${gradientId})`} />
+          <circle cx="43.72" cy="6.12" r="0.7" fill={`url(#${gradientId})`} />
         </>
       )}
     </IconWrapper>
