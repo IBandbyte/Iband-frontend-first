@@ -13,7 +13,7 @@ import {
 } from "./components/icons/RightRailIcons";
 
 const DEV_LAYOUT_MODE = true;
-const IBAND_LOGO_SRC = "/iband-logo.png";
+const IBAND_LOGO_SRC = "/ibandlogo.png";
 const FEED_FONT_STACK =
   '"TikTok Sans", Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
 
@@ -1282,7 +1282,7 @@ export default function Feed() {
           iconColor={isActiveLiked ? "#ff2d55" : "#ffffff"}
           onPress={() => toggleLike(activeItem.id)}
         >
-          <LikeIcon />
+         <img src="/like.png" style={{ width: 26, height: 26 }} />
         </RightRailAction>
 
         <RightRailAction
@@ -1291,7 +1291,7 @@ export default function Feed() {
           scale={actionScale}
           onPress={() => {}}
         >
-          <CommentIcon />
+          <img src="/comment.png" style={{ width: 26, height: 26 }} />
         </RightRailAction>
 
         <RightRailAction
@@ -1300,7 +1300,7 @@ export default function Feed() {
           scale={actionScale}
           onPress={() => {}}
         >
-          <SaveIcon />
+          <img src="/save.png" style={{ width: 26, height: 26 }} />
         </RightRailAction>
 
         <RightRailAction
@@ -1309,7 +1309,7 @@ export default function Feed() {
           scale={actionScale}
           onPress={() => {}}
         >
-          <ShareIcon />
+          <img src="/share.png" style={{ width: 26, height: 26 }} />
         </RightRailAction>
 
         <RightRailAction
@@ -1319,7 +1319,7 @@ export default function Feed() {
           iconColor={isActiveBoosted ? "#fbbf24" : "#ffffff"}
           onPress={() => toggleBoost(activeItem.id)}
         >
-          <BoostIcon />
+          <img src="/boost.png" style={{ width: 28, height: 28 }} />
         </RightRailAction>
 
         <div style={{ marginTop: 20 }}>
