@@ -4,13 +4,7 @@ import {
   fetchPersonalisedFeed,
   fetchPredictiveFeed
 } from "./services/api";
-import {
-  LikeIcon,
-  CommentIcon,
-  SaveIcon,
-  ShareIcon,
-  BoostIcon
-} from "./components/icons/RightRailIcons";
+
 
 const DEV_LAYOUT_MODE = true;
 const IBAND_LOGO_SRC = "/ibandlogo.png";
@@ -562,11 +556,13 @@ export default function Feed() {
   });
 
   const [likedMap, setLikedMap] = useState({});
-  const [boostedMap, setBoostedMap] = useState({});
+const [boostedMap, setBoostedMap] = useState({});
+const [savedMap, setSavedMap] = useState({});
 
-  const activeItem = items[activeIndex] || items[0] || createDemoFeed()[0];
-  const isActiveLiked = Boolean(likedMap[activeItem?.id]);
-  const isActiveBoosted = Boolean(boostedMap[activeItem?.id]);
+const activeItem = items[activeIndex] || items[0] || createDemoFeed()[0];
+const isActiveLiked = Boolean(likedMap[activeItem?.id]);
+const isActiveBoosted = Boolean(boostedMap[activeItem?.id]);
+const isActiveSaved = Boolean(savedMap[activeItem?.id]);
 
   useEffect(() => {
     let cancelled = false;
@@ -781,18 +777,25 @@ export default function Feed() {
   }, []);
 
   const toggleLike = useCallback((itemId) => {
-    setLikedMap((prev) => ({
-      ...prev,
-      [itemId]: !prev[itemId]
-    }));
-  }, []);
+  setLikedMap((prev) => ({
+    ...prev,
+    [itemId]: !prev[itemId]
+  }));
+}, []);
 
-  const toggleBoost = useCallback((itemId) => {
-    setBoostedMap((prev) => ({
-      ...prev,
-      [itemId]: !prev[itemId]
-    }));
-  }, []);
+const toggleBoost = useCallback((itemId) => {
+  setBoostedMap((prev) => ({
+    ...prev,
+    [itemId]: !prev[itemId]
+  }));
+}, []);
+
+const toggleSave = useCallback((itemId) => {
+  setSavedMap((prev) => ({
+    ...prev,
+    [itemId]: !prev[itemId]
+  }));
+}, []);
 
   const displayLikes = useMemo(() => {
     return activeItem ? activeItem.likes + (isActiveLiked ? 1 : 0) : 0;
@@ -936,11 +939,13 @@ export default function Feed() {
             src={IBAND_LOGO_SRC}
             alt="iBand"
             style={{
-              width: 38,
-              height: 38,
-              objectFit: "contain",
-              filter: "drop-shadow(0 4px 12px rgba(0,0,0,0.45))"
-            }}
+  height: 30,
+  width: "auto",
+  maxWidth: 150,
+  objectFit: "contain",
+  display: "block",
+  filter: "drop-shadow(0 4px 10px rgba(0,0,0,0.4))"
+}}
           />
         </div>
       </div>
@@ -1275,52 +1280,67 @@ export default function Feed() {
           </div>
         </div>
 
-        <RightRailAction
-          value={displayLikes}
-          label="Like"
-          scale={actionScale}
-          iconColor={isActiveLiked ? "#ff2d55" : "#ffffff"}
-          onPress={() => toggleLike(activeItem.id)}
-        >
-         <img src="/like.png" style={{ width: 26, height: 26 }} />
-        </RightRailAction>
+       <RightRailAction
+  value={displayLikes}
+  label="Like"
+  scale={actionScale}
+  iconColor={isActiveLiked ? "#ff2d55" : "#ffffff"}
+  onPress={() => toggleLike(activeItem.id)}
+>
+  <img
+    src={isActiveLiked ? "/likered.png" : "/likewhite.png"}
+    style={{ width: 28, height: 28, objectFit: "contain" }}
+  />
+</RightRailAction>
 
-        <RightRailAction
-          value={activeItem.comments}
-          label="Comment"
-          scale={actionScale}
-          onPress={() => {}}
-        >
-          <img src="/comment.png" style={{ width: 26, height: 26 }} />
-        </RightRailAction>
+<RightRailAction
+  value={activeItem.comments}
+  label="Comment"
+  scale={actionScale}
+  onPress={() => {}}
+>
+  <img
+    src="/commentwhite.png"
+    style={{ width: 28, height: 28, objectFit: "contain" }}
+  />
+</RightRailAction>
 
-        <RightRailAction
-          value={activeItem.saves}
-          label="Save"
-          scale={actionScale}
-          onPress={() => {}}
-        >
-          <img src="/save.png" style={{ width: 26, height: 26 }} />
-        </RightRailAction>
+<RightRailAction
+  value={activeItem.saves}
+  label="Save"
+  scale={actionScale}
+  onPress={() => toggleSave(activeItem.id)}
+>
+  <img
+    src={isActiveSaved ? "/savepurple.png" : "/savewhite.png"}
+    style={{ width: 28, height: 28, objectFit: "contain" }}
+  />
+</RightRailAction>
 
-        <RightRailAction
-          value={activeItem.shares}
-          label="Share"
-          scale={actionScale}
-          onPress={() => {}}
-        >
-          <img src="/share.png" style={{ width: 26, height: 26 }} />
-        </RightRailAction>
+<RightRailAction
+  value={activeItem.shares}
+  label="Share"
+  scale={actionScale}
+  onPress={() => {}}
+>
+  <img
+    src="/sharewhite.png"
+    style={{ width: 28, height: 28, objectFit: "contain" }}
+  />
+</RightRailAction>
 
-        <RightRailAction
-          value={displayBoosts}
-          label="Boost"
-          scale={actionScale * 1.06}
-          iconColor={isActiveBoosted ? "#fbbf24" : "#ffffff"}
-          onPress={() => toggleBoost(activeItem.id)}
-        >
-          <img src="/boost.png" style={{ width: 28, height: 28 }} />
-        </RightRailAction>
+<RightRailAction
+  value={displayBoosts}
+  label="Boost"
+  scale={actionScale * 1.06}
+  iconColor={isActiveBoosted ? "#fbbf24" : "#ffffff"}
+  onPress={() => toggleBoost(activeItem.id)}
+>
+  <img
+    src={isActiveBoosted ? "/boostgold.png" : "/boostwhite.png"}
+    style={{ width: 30, height: 30, objectFit: "contain" }}
+  />
+</RightRailAction>
 
         <div style={{ marginTop: 20 }}>
           <MusicDiscIcon
