@@ -5,11 +5,22 @@ import {
   fetchPredictiveFeed
 } from "./services/api";
 
-
 const DEV_LAYOUT_MODE = true;
 const IBAND_LOGO_SRC = "/ibandlogo.png";
 const FEED_FONT_STACK =
   '"TikTok Sans", Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+
+const RIGHT_RAIL_ICONS = {
+  likeWhite: "/likewhite.PNG",
+  likeRed: "/likered.PNG",
+  commentWhite: "/commentwhite.PNG",
+  shareWhite: "/sharewhite.PNG",
+  saveWhite: "/savewhite.PNG",
+  savePurple: "/savepurple.PNG",
+  boostWhite: "/boostwhite.PNG",
+  boostGold: "/boostgold.PNG",
+  infoWhite: "/infowhite.PNG"
+};
 
 const DEFAULT_LAYOUT = {
   rightRailTop: "48.14%",
@@ -280,17 +291,7 @@ function formatCompactNumber(value) {
 
 function NavHomeIcon({ scale = 1 }) {
   return (
-    <svg
-      viewBox="0 0 24 24"
-      width={22 * scale}
-      height={22 * scale}
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
+    <svg viewBox="0 0 24 24" width={22 * scale} height={22 * scale} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <path d="M3 10.5L12 3l9 7.5" />
       <path d="M5.5 9.5V20h13V9.5" />
     </svg>
@@ -299,17 +300,7 @@ function NavHomeIcon({ scale = 1 }) {
 
 function NavShopIcon({ scale = 1 }) {
   return (
-    <svg
-      viewBox="0 0 24 24"
-      width={22 * scale}
-      height={22 * scale}
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
+    <svg viewBox="0 0 24 24" width={22 * scale} height={22 * scale} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <path d="M4 8h16l-1.3 12H5.3L4 8z" />
       <path d="M9 8V6a3 3 0 0 1 6 0v2" />
     </svg>
@@ -318,17 +309,7 @@ function NavShopIcon({ scale = 1 }) {
 
 function NavUploadIcon({ scale = 1 }) {
   return (
-    <svg
-      viewBox="0 0 24 24"
-      width={22 * scale}
-      height={22 * scale}
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
+    <svg viewBox="0 0 24 24" width={22 * scale} height={22 * scale} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <rect x="3.5" y="3.5" width="17" height="17" rx="4.5" />
       <path d="M12 16V8" />
       <path d="M8.8 11.2L12 8l3.2 3.2" />
@@ -338,17 +319,7 @@ function NavUploadIcon({ scale = 1 }) {
 
 function NavInboxIcon({ scale = 1 }) {
   return (
-    <svg
-      viewBox="0 0 24 24"
-      width={22 * scale}
-      height={22 * scale}
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
+    <svg viewBox="0 0 24 24" width={22 * scale} height={22 * scale} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <path d="M4 5h16v14H4z" />
       <path d="M4 13h4l2 3h4l2-3h4" />
     </svg>
@@ -357,20 +328,29 @@ function NavInboxIcon({ scale = 1 }) {
 
 function NavProfileIcon({ scale = 1 }) {
   return (
-    <svg
-      viewBox="0 0 24 24"
-      width={22 * scale}
-      height={22 * scale}
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
+    <svg viewBox="0 0 24 24" width={22 * scale} height={22 * scale} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <circle cx="12" cy="8" r="3.5" />
       <path d="M5 20a7 7 0 0 1 14 0" />
     </svg>
+  );
+}
+
+function RightRailIconImage({ src, alt = "", size = 38, scale = 1 }) {
+  return (
+    <img
+      src={src}
+      alt={alt}
+      draggable="false"
+      style={{
+        width: size * scale,
+        height: size * scale,
+        objectFit: "contain",
+        display: "block",
+        userSelect: "none",
+        WebkitUserSelect: "none",
+        filter: "drop-shadow(0 8px 14px rgba(0,0,0,0.34))"
+      }}
+    />
   );
 }
 
@@ -391,16 +371,7 @@ function MusicDiscIcon({ artwork, scale = 1 }) {
         position: "relative"
       }}
     >
-      <img
-        src={artwork}
-        alt=""
-        style={{
-          width: "100%",
-          height: "100%",
-          objectFit: "cover",
-          display: "block"
-        }}
-      />
+      <img src={artwork} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
       <div
         style={{
           position: "absolute",
@@ -417,16 +388,10 @@ function MusicDiscIcon({ artwork, scale = 1 }) {
   );
 }
 
-function RightRailAction({
-  value,
-  label,
-  scale = 1,
-  iconColor = "#ffffff",
-  onPress,
-  children
-}) {
+function RightRailAction({ value, label, scale = 1, onPress, children }) {
   const bubbleSize = 42 * scale;
   const labelSize = 8.2 * Math.min(scale, 1.05);
+  const hasValue = value !== null && value !== undefined && value !== "";
 
   return (
     <button
@@ -444,7 +409,7 @@ function RightRailAction({
         width: "auto",
         padding: 0,
         cursor: "pointer",
-        color: iconColor
+        color: "#ffffff"
       }}
     >
       <div
@@ -457,58 +422,35 @@ function RightRailAction({
           background: "transparent"
         }}
       >
-        <div style={{ transform: `scale(${scale})` }}>
-          {children}
-        </div>
+        {children}
       </div>
 
-      <div
-        style={{
-          fontSize: labelSize * 1.15,
-          lineHeight: 1,
-          marginTop: -8,
-          color: "#fff",
-          fontWeight: 700,
-          textShadow: "0 0.5px 1px rgba(0,0,0,0.4)"
-        }}
-      >
-        {formatCompactNumber(value)}
-      </div>
+      {hasValue && (
+        <div
+          style={{
+            fontSize: labelSize * 1.15,
+            lineHeight: 1,
+            marginTop: -8,
+            color: "#fff",
+            fontWeight: 700,
+            textShadow: "0 0.5px 1px rgba(0,0,0,0.4)"
+          }}
+        >
+          {formatCompactNumber(value)}
+        </div>
+      )}
     </button>
   );
 }
 
 function Stepper({ label, valueText, onMinus, onPlus }) {
   return (
-    <div
-      style={{
-        display: "grid",
-        gridTemplateColumns: "1fr auto auto auto",
-        alignItems: "center",
-        gap: 6
-      }}
-    >
-      <div
-        style={{
-          fontSize: 10.5,
-          lineHeight: 1.15,
-          color: "rgba(255,255,255,0.76)",
-          fontWeight: 600
-        }}
-      >
+    <div style={{ display: "grid", gridTemplateColumns: "1fr auto auto auto", alignItems: "center", gap: 6 }}>
+      <div style={{ fontSize: 10.5, lineHeight: 1.15, color: "rgba(255,255,255,0.76)", fontWeight: 600 }}>
         {label}
       </div>
 
-      <div
-        style={{
-          minWidth: 48,
-          textAlign: "right",
-          fontSize: 10.8,
-          lineHeight: 1,
-          color: "#ffffff",
-          fontWeight: 800
-        }}
-      >
+      <div style={{ minWidth: 48, textAlign: "right", fontSize: 10.8, lineHeight: 1, color: "#ffffff", fontWeight: 800 }}>
         {valueText}
       </div>
 
@@ -550,19 +492,16 @@ export default function Feed() {
   const [showDevCode, setShowDevCode] = useState(true);
 
   const [layoutValues, setLayoutValues] = useState(DEFAULT_LAYOUT);
-  const [dragState, setDragState] = useState({
-    active: false,
-    target: null
-  });
+  const [dragState, setDragState] = useState({ active: false, target: null });
 
   const [likedMap, setLikedMap] = useState({});
-const [boostedMap, setBoostedMap] = useState({});
-const [savedMap, setSavedMap] = useState({});
+  const [boostedMap, setBoostedMap] = useState({});
+  const [savedMap, setSavedMap] = useState({});
 
-const activeItem = items[activeIndex] || items[0] || createDemoFeed()[0];
-const isActiveLiked = Boolean(likedMap[activeItem?.id]);
-const isActiveBoosted = Boolean(boostedMap[activeItem?.id]);
-const isActiveSaved = Boolean(savedMap[activeItem?.id]);
+  const activeItem = items[activeIndex] || items[0] || createDemoFeed()[0];
+  const isActiveLiked = Boolean(likedMap[activeItem?.id]);
+  const isActiveBoosted = Boolean(boostedMap[activeItem?.id]);
+  const isActiveSaved = Boolean(savedMap[activeItem?.id]);
 
   useEffect(() => {
     let cancelled = false;
@@ -590,11 +529,7 @@ const isActiveSaved = Boolean(savedMap[activeItem?.id]);
             ? normalisePredictiveFeed(results[2].value)
             : [];
 
-        const merged = [
-          ...smartData,
-          ...personalisedData,
-          ...predictiveData
-        ].filter(Boolean);
+        const merged = [...smartData, ...personalisedData, ...predictiveData].filter(Boolean);
 
         if (!cancelled) {
           setItems(merged.length ? merged : createDemoFeed());
@@ -663,11 +598,7 @@ const isActiveSaved = Boolean(savedMap[activeItem?.id]);
 
     if (dragState.target === "rightRail") {
       const deltaPercent = (deltaY / viewportHeight) * 100;
-      const nextPercent = clamp(
-        (dragState.startRightRailTop || 44) + deltaPercent,
-        16,
-        82
-      );
+      const nextPercent = clamp((dragState.startRightRailTop || 44) + deltaPercent, 16, 82);
 
       setLayoutValues((prev) => ({
         ...prev,
@@ -676,11 +607,7 @@ const isActiveSaved = Boolean(savedMap[activeItem?.id]);
     }
 
     if (dragState.target === "contentOverlay") {
-      const nextBottom = clamp(
-        (dragState.startContentOverlayBottom || 142) - deltaY,
-        86,
-        320
-      );
+      const nextBottom = clamp((dragState.startContentOverlayBottom || 142) - deltaY, 86, 320);
 
       setLayoutValues((prev) => ({
         ...prev,
@@ -689,11 +616,7 @@ const isActiveSaved = Boolean(savedMap[activeItem?.id]);
     }
 
     if (dragState.target === "searchDock") {
-      const nextBottom = clamp(
-        (dragState.startSearchDockBottom || 64) - deltaY,
-        8,
-        220
-      );
+      const nextBottom = clamp((dragState.startSearchDockBottom || 64) - deltaY, 8, 220);
 
       setLayoutValues((prev) => ({
         ...prev,
@@ -702,11 +625,7 @@ const isActiveSaved = Boolean(savedMap[activeItem?.id]);
     }
 
     if (dragState.target === "bottomNav") {
-      const nextHeight = clamp(
-        (dragState.startBottomNavHeight || 50) - deltaY,
-        42,
-        88
-      );
+      const nextHeight = clamp((dragState.startBottomNavHeight || 50) - deltaY, 42, 88);
 
       setLayoutValues((prev) => ({
         ...prev,
@@ -717,28 +636,16 @@ const isActiveSaved = Boolean(savedMap[activeItem?.id]);
 
   const endDrag = useCallback(() => {
     if (!DEV_LAYOUT_MODE) return;
-
-    setDragState({
-      active: false,
-      target: null
-    });
+    setDragState({ active: false, target: null });
   }, []);
 
   useEffect(() => {
     if (!DEV_LAYOUT_MODE) return undefined;
 
-    const onTouchMove = (event) => {
-      updateDrag(event);
-    };
-    const onMouseMove = (event) => {
-      updateDrag(event);
-    };
-    const onTouchEnd = () => {
-      endDrag();
-    };
-    const onMouseUp = () => {
-      endDrag();
-    };
+    const onTouchMove = (event) => updateDrag(event);
+    const onMouseMove = (event) => updateDrag(event);
+    const onTouchEnd = () => endDrag();
+    const onMouseUp = () => endDrag();
 
     window.addEventListener("touchmove", onTouchMove, { passive: false });
     window.addEventListener("mousemove", onMouseMove);
@@ -777,25 +684,25 @@ const isActiveSaved = Boolean(savedMap[activeItem?.id]);
   }, []);
 
   const toggleLike = useCallback((itemId) => {
-  setLikedMap((prev) => ({
-    ...prev,
-    [itemId]: !prev[itemId]
-  }));
-}, []);
+    setLikedMap((prev) => ({
+      ...prev,
+      [itemId]: !prev[itemId]
+    }));
+  }, []);
 
-const toggleBoost = useCallback((itemId) => {
-  setBoostedMap((prev) => ({
-    ...prev,
-    [itemId]: !prev[itemId]
-  }));
-}, []);
+  const toggleBoost = useCallback((itemId) => {
+    setBoostedMap((prev) => ({
+      ...prev,
+      [itemId]: !prev[itemId]
+    }));
+  }, []);
 
-const toggleSave = useCallback((itemId) => {
-  setSavedMap((prev) => ({
-    ...prev,
-    [itemId]: !prev[itemId]
-  }));
-}, []);
+  const toggleSave = useCallback((itemId) => {
+    setSavedMap((prev) => ({
+      ...prev,
+      [itemId]: !prev[itemId]
+    }));
+  }, []);
 
   const displayLikes = useMemo(() => {
     return activeItem ? activeItem.likes + (isActiveLiked ? 1 : 0) : 0;
@@ -928,24 +835,18 @@ const toggleSave = useCallback((itemId) => {
   return (
     <div style={shellStyles}>
       <div style={topBarStyles}>
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "flex-start"
-          }}
-        >
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-start" }}>
           <img
             src={IBAND_LOGO_SRC}
             alt="iBand"
             style={{
-  height: 30,
-  width: "auto",
-  maxWidth: 150,
-  objectFit: "contain",
-  display: "block",
-  filter: "drop-shadow(0 4px 10px rgba(0,0,0,0.4))"
-}}
+              height: 30,
+              width: "auto",
+              maxWidth: 150,
+              objectFit: "contain",
+              display: "block",
+              filter: "drop-shadow(0 4px 10px rgba(0,0,0,0.4))"
+            }}
           />
         </div>
       </div>
@@ -1013,44 +914,18 @@ const toggleSave = useCallback((itemId) => {
             cursor: DEV_LAYOUT_MODE ? "grab" : "default"
           }}
         >
-          <span
-            style={{
-              fontSize: 10,
-              fontWeight: 800,
-              letterSpacing: "0.08em",
-              color: "#ffffff"
-            }}
-          >
+          <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: "0.08em", color: "#ffffff" }}>
             {activeItem.badge}
           </span>
           {DEV_LAYOUT_MODE && (
-            <span
-              style={{
-                fontSize: 10,
-                color: "#fbbf24",
-                fontWeight: 700
-              }}
-            >
+            <span style={{ fontSize: 10, color: "#fbbf24", fontWeight: 700 }}>
               DRAG OVERLAY
             </span>
           )}
         </div>
 
-        <div
-          style={{
-            maxWidth: "100%",
-            display: "flex",
-            flexDirection: "column",
-            gap: 6
-          }}
-        >
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 10
-            }}
-          >
+        <div style={{ maxWidth: "100%", display: "flex", flexDirection: "column", gap: 6 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <img
               src={activeItem.avatar}
               alt={activeItem.artist}
@@ -1064,14 +939,7 @@ const toggleSave = useCallback((itemId) => {
               }}
             />
 
-            <div
-              style={{
-                minWidth: 0,
-                display: "flex",
-                flexDirection: "column",
-                gap: 2
-              }}
-            >
+            <div style={{ minWidth: 0, display: "flex", flexDirection: "column", gap: 2 }}>
               <div
                 style={{
                   fontSize: 16,
@@ -1114,13 +982,7 @@ const toggleSave = useCallback((itemId) => {
             {activeItem.title}
           </div>
 
-          <div
-            style={{
-              fontSize: 12,
-              lineHeight: 1.25,
-              color: "rgba(255,255,255,0.90)"
-            }}
-          >
+          <div style={{ fontSize: 12, lineHeight: 1.25, color: "rgba(255,255,255,0.90)" }}>
             {activeItem.subtitle}
           </div>
 
@@ -1160,17 +1022,7 @@ const toggleSave = useCallback((itemId) => {
         onTouchStart={(event) => beginDrag("searchDock", event)}
         onMouseDown={(event) => beginDrag("searchDock", event)}
       >
-        <svg
-          viewBox="0 0 24 24"
-          width="18"
-          height="18"
-          fill="none"
-          stroke="rgba(255,255,255,0.82)"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          aria-hidden="true"
-        >
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="rgba(255,255,255,0.82)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
           <circle cx="11" cy="11" r="7" />
           <path d="M20 20l-3.5-3.5" />
         </svg>
@@ -1190,15 +1042,7 @@ const toggleSave = useCallback((itemId) => {
         </div>
 
         {DEV_LAYOUT_MODE && (
-          <div
-            style={{
-              fontSize: 10,
-              fontWeight: 800,
-              color: "#fbbf24",
-              letterSpacing: "0.05em",
-              flexShrink: 0
-            }}
-          >
+          <div style={{ fontSize: 10, fontWeight: 800, color: "#fbbf24", letterSpacing: "0.05em", flexShrink: 0 }}>
             DRAG
           </div>
         )}
@@ -1227,15 +1071,7 @@ const toggleSave = useCallback((itemId) => {
           </div>
         )}
 
-        <div
-          style={{
-            width: 46 * layoutValues.rightRailAvatarScale,
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            gap: 6
-          }}
-        >
+        <div style={{ width: 46 * layoutValues.rightRailAvatarScale, display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
           <div
             style={{
               position: "relative",
@@ -1280,73 +1116,32 @@ const toggleSave = useCallback((itemId) => {
           </div>
         </div>
 
-       <RightRailAction
-  value={displayLikes}
-  label="Like"
-  scale={actionScale}
-  iconColor={isActiveLiked ? "#ff2d55" : "#ffffff"}
-  onPress={() => toggleLike(activeItem.id)}
->
-  <img
-    src={isActiveLiked ? "/likered.png" : "/likewhite.png"}
-    style={{ width: 28, height: 28, objectFit: "contain" }}
-  />
-</RightRailAction>
+        <RightRailAction value={displayLikes} label="Like" scale={actionScale} onPress={() => toggleLike(activeItem.id)}>
+          <RightRailIconImage src={isActiveLiked ? RIGHT_RAIL_ICONS.likeRed : RIGHT_RAIL_ICONS.likeWhite} size={31} scale={actionScale} />
+        </RightRailAction>
 
-<RightRailAction
-  value={activeItem.comments}
-  label="Comment"
-  scale={actionScale}
-  onPress={() => {}}
->
-  <img
-    src="/commentwhite.png"
-    style={{ width: 28, height: 28, objectFit: "contain" }}
-  />
-</RightRailAction>
+        <RightRailAction value={activeItem.comments} label="Comment" scale={actionScale} onPress={() => {}}>
+          <RightRailIconImage src={RIGHT_RAIL_ICONS.commentWhite} size={30} scale={actionScale} />
+        </RightRailAction>
 
-<RightRailAction
-  value={activeItem.saves}
-  label="Save"
-  scale={actionScale}
-  onPress={() => toggleSave(activeItem.id)}
->
-  <img
-    src={isActiveSaved ? "/savepurple.png" : "/savewhite.png"}
-    style={{ width: 28, height: 28, objectFit: "contain" }}
-  />
-</RightRailAction>
+        <RightRailAction value={activeItem.saves} label="Save" scale={actionScale} onPress={() => toggleSave(activeItem.id)}>
+          <RightRailIconImage src={isActiveSaved ? RIGHT_RAIL_ICONS.savePurple : RIGHT_RAIL_ICONS.saveWhite} size={30} scale={actionScale} />
+        </RightRailAction>
 
-<RightRailAction
-  value={activeItem.shares}
-  label="Share"
-  scale={actionScale}
-  onPress={() => {}}
->
-  <img
-    src="/sharewhite.png"
-    style={{ width: 28, height: 28, objectFit: "contain" }}
-  />
-</RightRailAction>
+        <RightRailAction value={activeItem.shares} label="Share" scale={actionScale} onPress={() => {}}>
+          <RightRailIconImage src={RIGHT_RAIL_ICONS.shareWhite} size={31} scale={actionScale} />
+        </RightRailAction>
 
-<RightRailAction
-  value={displayBoosts}
-  label="Boost"
-  scale={actionScale * 1.06}
-  iconColor={isActiveBoosted ? "#fbbf24" : "#ffffff"}
-  onPress={() => toggleBoost(activeItem.id)}
->
-  <img
-    src={isActiveBoosted ? "/boostgold.png" : "/boostwhite.png"}
-    style={{ width: 30, height: 30, objectFit: "contain" }}
-  />
-</RightRailAction>
+        <RightRailAction value={displayBoosts} label="Boost" scale={actionScale * 1.02} onPress={() => toggleBoost(activeItem.id)}>
+          <RightRailIconImage src={isActiveBoosted ? RIGHT_RAIL_ICONS.boostGold : RIGHT_RAIL_ICONS.boostWhite} size={32} scale={actionScale * 1.02} />
+        </RightRailAction>
 
-        <div style={{ marginTop: 20 }}>
-          <MusicDiscIcon
-            artwork={activeItem.artwork}
-            scale={layoutValues.rightRailDiscScale}
-          />
+        <RightRailAction value="" label="Info" scale={actionScale * 1.02} onPress={() => {}}>
+          <RightRailIconImage src={RIGHT_RAIL_ICONS.infoWhite} size={35} scale={actionScale * 1.02} />
+        </RightRailAction>
+
+        <div style={{ marginTop: 16 }}>
+          <MusicDiscIcon artwork={activeItem.artwork} scale={layoutValues.rightRailDiscScale} />
         </div>
       </div>
 
@@ -1356,36 +1151,11 @@ const toggleSave = useCallback((itemId) => {
         onMouseDown={(event) => beginDrag("bottomNav", event)}
       >
         {[
-          {
-            label: "Home",
-            active: true,
-            badge: null,
-            icon: <NavHomeIcon scale={layoutValues.bottomNavScale} />
-          },
-          {
-            label: "Shop",
-            active: false,
-            badge: null,
-            icon: <NavShopIcon scale={layoutValues.bottomNavScale} />
-          },
-          {
-            label: "Upload",
-            active: false,
-            badge: null,
-            icon: <NavUploadIcon scale={layoutValues.bottomNavScale} />
-          },
-          {
-            label: "Inbox",
-            active: false,
-            badge: 2,
-            icon: <NavInboxIcon scale={layoutValues.bottomNavScale} />
-          },
-          {
-            label: "Profile",
-            active: false,
-            badge: null,
-            icon: <NavProfileIcon scale={layoutValues.bottomNavScale} />
-          }
+          { label: "Home", active: true, badge: null, icon: <NavHomeIcon scale={layoutValues.bottomNavScale} /> },
+          { label: "Shop", active: false, badge: null, icon: <NavShopIcon scale={layoutValues.bottomNavScale} /> },
+          { label: "Upload", active: false, badge: null, icon: <NavUploadIcon scale={layoutValues.bottomNavScale} /> },
+          { label: "Inbox", active: false, badge: 2, icon: <NavInboxIcon scale={layoutValues.bottomNavScale} /> },
+          { label: "Profile", active: false, badge: null, icon: <NavProfileIcon scale={layoutValues.bottomNavScale} /> }
         ].map((item) => (
           <div
             key={item.label}
@@ -1434,13 +1204,7 @@ const toggleSave = useCallback((itemId) => {
               )}
             </div>
 
-            <div
-              style={{
-                fontSize: bottomNavLabelSize,
-                lineHeight: 1,
-                fontWeight: item.active ? 700 : 500
-              }}
-            >
+            <div style={{ fontSize: bottomNavLabelSize, lineHeight: 1, fontWeight: item.active ? 700 : 500 }}>
               {item.label}
             </div>
           </div>
@@ -1488,23 +1252,8 @@ const toggleSave = useCallback((itemId) => {
               boxShadow: "0 14px 28px rgba(0,0,0,0.28)"
             }}
           >
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                gap: 8,
-                marginBottom: 8
-              }}
-            >
-              <div
-                style={{
-                  fontSize: 11,
-                  fontWeight: 800,
-                  color: "#fbbf24",
-                  letterSpacing: "0.08em"
-                }}
-              >
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 8 }}>
+              <div style={{ fontSize: 11, fontWeight: 800, color: "#fbbf24", letterSpacing: "0.08em" }}>
                 LAYOUT CONTROL
               </div>
 
@@ -1530,102 +1279,22 @@ const toggleSave = useCallback((itemId) => {
               </button>
             </div>
 
-            <div
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                gap: 6,
-                fontSize: 12,
-                color: "#ffffff",
-                marginBottom: 10
-              }}
-            >
-              <div>
-                <span style={{ opacity: 0.72 }}>rightRailTop</span>
-                <br />
-                <span style={{ fontWeight: 700 }}>{layoutValues.rightRailTop}</span>
-              </div>
-
-              <div>
-                <span style={{ opacity: 0.72 }}>rightRailGap</span>
-                <br />
-                <span style={{ fontWeight: 700 }}>{layoutValues.rightRailGap}px</span>
-              </div>
-
-              <div>
-                <span style={{ opacity: 0.72 }}>contentOverlayBottom</span>
-                <br />
-                <span style={{ fontWeight: 700 }}>
-                  {layoutValues.contentOverlayBottom}px
-                </span>
-              </div>
-
-              <div>
-                <span style={{ opacity: 0.72 }}>searchDockBottom</span>
-                <br />
-                <span style={{ fontWeight: 700 }}>
-                  {layoutValues.searchDockBottom}px
-                </span>
-              </div>
-
-              <div>
-                <span style={{ opacity: 0.72 }}>bottomNavHeight</span>
-                <br />
-                <span style={{ fontWeight: 700 }}>
-                  {layoutValues.bottomNavHeight}px
-                </span>
-              </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 12, color: "#ffffff", marginBottom: 10 }}>
+              <div><span style={{ opacity: 0.72 }}>rightRailTop</span><br /><span style={{ fontWeight: 700 }}>{layoutValues.rightRailTop}</span></div>
+              <div><span style={{ opacity: 0.72 }}>rightRailGap</span><br /><span style={{ fontWeight: 700 }}>{layoutValues.rightRailGap}px</span></div>
+              <div><span style={{ opacity: 0.72 }}>contentOverlayBottom</span><br /><span style={{ fontWeight: 700 }}>{layoutValues.contentOverlayBottom}px</span></div>
+              <div><span style={{ opacity: 0.72 }}>searchDockBottom</span><br /><span style={{ fontWeight: 700 }}>{layoutValues.searchDockBottom}px</span></div>
+              <div><span style={{ opacity: 0.72 }}>bottomNavHeight</span><br /><span style={{ fontWeight: 700 }}>{layoutValues.bottomNavHeight}px</span></div>
             </div>
 
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-              <Stepper
-                label="Icon size"
-                valueText={`${layoutValues.rightRailIconScale.toFixed(2)}x`}
-                onMinus={() => adjustScale("rightRailIconScale", -0.05, 0.8, 1.6)}
-                onPlus={() => adjustScale("rightRailIconScale", 0.05, 0.8, 1.6)}
-              />
-
-              <Stepper
-                label="Avatar size"
-                valueText={`${layoutValues.rightRailAvatarScale.toFixed(2)}x`}
-                onMinus={() => adjustScale("rightRailAvatarScale", -0.05, 0.7, 1.3)}
-                onPlus={() => adjustScale("rightRailAvatarScale", 0.05, 0.7, 1.3)}
-              />
-
-              <Stepper
-                label="Disc size"
-                valueText={`${layoutValues.rightRailDiscScale.toFixed(2)}x`}
-                onMinus={() => adjustScale("rightRailDiscScale", -0.05, 0.7, 1.3)}
-                onPlus={() => adjustScale("rightRailDiscScale", 0.05, 0.7, 1.3)}
-              />
-
-              <Stepper
-                label="Right rail gap"
-                valueText={`${layoutValues.rightRailGap}px`}
-                onMinus={() => adjustNumber("rightRailGap", -1, 2, 34)}
-                onPlus={() => adjustNumber("rightRailGap", 1, 2, 34)}
-              />
-
-              <Stepper
-                label="Overlay size"
-                valueText={`${layoutValues.contentOverlayScale.toFixed(2)}x`}
-                onMinus={() => adjustScale("contentOverlayScale", -0.05, 0.7, 1.4)}
-                onPlus={() => adjustScale("contentOverlayScale", 0.05, 0.7, 1.4)}
-              />
-
-              <Stepper
-                label="Search width"
-                valueText={`${layoutValues.searchDockWidth}%`}
-                onMinus={() => adjustPercentNumber("searchDockWidth", -5, 60, 100)}
-                onPlus={() => adjustPercentNumber("searchDockWidth", 5, 60, 100)}
-              />
-
-              <Stepper
-                label="Nav size"
-                valueText={`${layoutValues.bottomNavScale.toFixed(2)}x`}
-                onMinus={() => adjustScale("bottomNavScale", -0.05, 0.8, 1.4)}
-                onPlus={() => adjustScale("bottomNavScale", 0.05, 0.8, 1.4)}
-              />
+              <Stepper label="Icon size" valueText={`${layoutValues.rightRailIconScale.toFixed(2)}x`} onMinus={() => adjustScale("rightRailIconScale", -0.05, 0.8, 1.6)} onPlus={() => adjustScale("rightRailIconScale", 0.05, 0.8, 1.6)} />
+              <Stepper label="Avatar size" valueText={`${layoutValues.rightRailAvatarScale.toFixed(2)}x`} onMinus={() => adjustScale("rightRailAvatarScale", -0.05, 0.7, 1.3)} onPlus={() => adjustScale("rightRailAvatarScale", 0.05, 0.7, 1.3)} />
+              <Stepper label="Disc size" valueText={`${layoutValues.rightRailDiscScale.toFixed(2)}x`} onMinus={() => adjustScale("rightRailDiscScale", -0.05, 0.7, 1.3)} onPlus={() => adjustScale("rightRailDiscScale", 0.05, 0.7, 1.3)} />
+              <Stepper label="Right rail gap" valueText={`${layoutValues.rightRailGap}px`} onMinus={() => adjustNumber("rightRailGap", -1, 2, 34)} onPlus={() => adjustNumber("rightRailGap", 1, 2, 34)} />
+              <Stepper label="Overlay size" valueText={`${layoutValues.contentOverlayScale.toFixed(2)}x`} onMinus={() => adjustScale("contentOverlayScale", -0.05, 0.7, 1.4)} onPlus={() => adjustScale("contentOverlayScale", 0.05, 0.7, 1.4)} />
+              <Stepper label="Search width" valueText={`${layoutValues.searchDockWidth}%`} onMinus={() => adjustPercentNumber("searchDockWidth", -5, 60, 100)} onPlus={() => adjustPercentNumber("searchDockWidth", 5, 60, 100)} />
+              <Stepper label="Nav size" valueText={`${layoutValues.bottomNavScale.toFixed(2)}x`} onMinus={() => adjustScale("bottomNavScale", -0.05, 0.8, 1.4)} onPlus={() => adjustScale("bottomNavScale", 0.05, 0.8, 1.4)} />
             </div>
           </div>
 
@@ -1648,15 +1317,7 @@ const toggleSave = useCallback((itemId) => {
                 overflow: "auto"
               }}
             >
-              <div
-                style={{
-                  fontSize: 11,
-                  fontWeight: 800,
-                  color: "#fbbf24",
-                  letterSpacing: "0.08em",
-                  marginBottom: 8
-                }}
-              >
+              <div style={{ fontSize: 11, fontWeight: 800, color: "#fbbf24", letterSpacing: "0.08em", marginBottom: 8 }}>
                 READY-TO-PASTE VALUES
               </div>
 
