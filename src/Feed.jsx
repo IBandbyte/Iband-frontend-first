@@ -6,20 +6,31 @@ import {
 } from "./services/api";
 
 const DEV_LAYOUT_MODE = true;
-const IBAND_LOGO_SRC = "/ibandlogo.png";
-const FEED_FONT_STACK =
-  '"TikTok Sans", Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+const IBAND_LOGO_SRC = "/circularlogo.PNG";
 
 const RIGHT_RAIL_ICONS = {
-  likeWhite: "/likewhite.PNG",
+  likeWhite: "/likechrome.PNG",
   likeRed: "/likered.PNG",
-  commentWhite: "/commentwhite.PNG",
-  shareWhite: "/sharewhite.PNG",
-  saveWhite: "/savewhite.PNG",
+
+  commentWhite: "/commentchrome.PNG",
+
+  shareWhite: "/sharechrome.PNG",
+
+  saveWhite: "/savechrome.PNG",
   savePurple: "/savepurple.PNG",
-  boostWhite: "/boostwhite.PNG",
+
+  boostWhite: "/boostchrome.PNG",
   boostGold: "/boostgold.PNG",
-  infoWhite: "/infowhite.PNG"
+
+  infoWhite: "/boostchrome.PNG"
+};
+
+const BOTTOM_NAV_ICONS = {
+  home: "/homechrome.PNG",
+  shop: "/shopchrome.PNG",
+  upload: "/uploadplus.PNG",
+  inbox: "/inboxchrome.PNG",
+  profile: "/profilechrome.PNG"
 };
 
 const DEFAULT_LAYOUT = {
@@ -348,7 +359,8 @@ function RightRailIconImage({ src, alt = "", size = 38, scale = 1 }) {
         display: "block",
         userSelect: "none",
         WebkitUserSelect: "none",
-        filter: "drop-shadow(0 8px 14px rgba(0,0,0,0.34))"
+        filter:
+  "drop-shadow(0 6px 10px rgba(0,0,0,0.42)) drop-shadow(0 0 10px rgba(255,255,255,0.10))"
       }}
     />
   );
@@ -821,10 +833,16 @@ export default function Feed() {
     gridTemplateColumns: "repeat(5, 1fr)",
     alignItems: "center",
     padding: "0 12px env(safe-area-inset-right) env(safe-area-inset-bottom)",
-    background: "rgba(7,7,9,0.92)",
-    borderTop: "1px solid rgba(255,255,255,0.08)",
-    backdropFilter: "blur(14px)",
-    WebkitBackdropFilter: "blur(14px)",
+    background:
+  "linear-gradient(to top, rgba(8,8,11,0.96), rgba(8,8,11,0.88))",
+
+borderTop: "1px solid rgba(255,255,255,0.06)",
+
+backdropFilter: "blur(18px)",
+WebkitBackdropFilter: "blur(18px)",
+
+boxShadow:
+  "0 -8px 30px rgba(0,0,0,0.34)",
     transform: `scale(${layoutValues.bottomNavScale})`,
     transformOrigin: "bottom center"
   }), [layoutValues.bottomNavHeight, layoutValues.bottomNavScale]);
@@ -837,17 +855,28 @@ export default function Feed() {
       <div style={topBarStyles}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-start" }}>
           <img
-            src={IBAND_LOGO_SRC}
-            alt="iBand"
-            style={{
-              height: 30,
-              width: "auto",
-              maxWidth: 150,
-              objectFit: "contain",
-              display: "block",
-              filter: "drop-shadow(0 4px 10px rgba(0,0,0,0.4))"
-            }}
-          />
+            <img
+  src={IBAND_LOGO_SRC}
+  alt="iBand"
+  draggable="false"
+  style={{
+    height: 42,
+    width: 42,
+    borderRadius: "50%",
+    objectFit: "cover",
+    display: "block",
+
+    border: "1px solid rgba(255,255,255,0.14)",
+
+    background: "rgba(255,255,255,0.04)",
+
+    boxShadow:
+      "0 0 18px rgba(124,58,237,0.28), 0 0 34px rgba(234,88,12,0.16)",
+
+    filter:
+      "drop-shadow(0 6px 14px rgba(0,0,0,0.44))"
+  }}
+/>
         </div>
       </div>
 
@@ -1151,12 +1180,12 @@ export default function Feed() {
         onMouseDown={(event) => beginDrag("bottomNav", event)}
       >
         {[
-          { label: "Home", active: true, badge: null, icon: <NavHomeIcon scale={layoutValues.bottomNavScale} /> },
-          { label: "Shop", active: false, badge: null, icon: <NavShopIcon scale={layoutValues.bottomNavScale} /> },
-          { label: "Upload", active: false, badge: null, icon: <NavUploadIcon scale={layoutValues.bottomNavScale} /> },
-          { label: "Inbox", active: false, badge: 2, icon: <NavInboxIcon scale={layoutValues.bottomNavScale} /> },
-          { label: "Profile", active: false, badge: null, icon: <NavProfileIcon scale={layoutValues.bottomNavScale} /> }
-        ].map((item) => (
+  { label: "Home", active: true, badge: null, iconSrc: BOTTOM_NAV_ICONS.home },
+  { label: "Shop", active: false, badge: null, iconSrc: BOTTOM_NAV_ICONS.shop },
+  { label: "Upload", active: false, badge: null, iconSrc: BOTTOM_NAV_ICONS.upload, hero: true },
+  { label: "Inbox", active: false, badge: 2, iconSrc: BOTTOM_NAV_ICONS.inbox },
+  { label: "Profile", active: false, badge: null, iconSrc: BOTTOM_NAV_ICONS.profile }
+].map((item) => (
           <div
             key={item.label}
             style={{
@@ -1178,7 +1207,20 @@ export default function Feed() {
                 placeItems: "center"
               }}
             >
-              {item.icon}
+              <img
+  src={item.iconSrc}
+  alt=""
+  draggable="false"
+  style={{
+    width: item.hero ? 34 * layoutValues.bottomNavScale : 28 * layoutValues.bottomNavScale,
+    height: item.hero ? 34 * layoutValues.bottomNavScale : 28 * layoutValues.bottomNavScale,
+    objectFit: "contain",
+    display: "block",
+    filter: item.active
+      ? "drop-shadow(0 0 10px rgba(255,255,255,0.28))"
+      : "drop-shadow(0 5px 10px rgba(0,0,0,0.36))"
+  }}
+/>
 
               {typeof item.badge === "number" && (
                 <div
