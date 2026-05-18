@@ -8,6 +8,9 @@ import {
 const DEV_LAYOUT_MODE = true;
 const IBAND_LOGO_SRC = "/circularlogo.PNG";
 
+const FEED_FONT_STACK =
+  '"TikTok Sans", Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+
 const RIGHT_RAIL_ICONS = {
   likeWhite: "/likechrome.PNG",
   likeRed: "/likered.PNG",
