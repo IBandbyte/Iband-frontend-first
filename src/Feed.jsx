@@ -854,30 +854,29 @@ boxShadow:
     <div style={shellStyles}>
       <div style={topBarStyles}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-start" }}>
-          <img
-            <img
-  src={IBAND_LOGO_SRC}
-  alt="iBand"
-  draggable="false"
-  style={{
-    height: 42,
-    width: 42,
-    borderRadius: "50%",
-    objectFit: "cover",
-    display: "block",
+  <img
+    src={IBAND_LOGO_SRC}
+    alt="iBand"
+    draggable="false"
+    style={{
+      height: 42,
+      width: 42,
+      borderRadius: "50%",
+      objectFit: "cover",
+      display: "block",
 
-    border: "1px solid rgba(255,255,255,0.14)",
+      border: "1px solid rgba(255,255,255,0.14)",
 
-    background: "rgba(255,255,255,0.04)",
+      background: "rgba(255,255,255,0.04)",
 
-    boxShadow:
-      "0 0 18px rgba(124,58,237,0.28), 0 0 34px rgba(234,88,12,0.16)",
+      boxShadow:
+        "0 0 18px rgba(124,58,237,0.28), 0 0 34px rgba(234,88,12,0.16)",
 
-    filter:
-      "drop-shadow(0 6px 14px rgba(0,0,0,0.44))"
-  }}
-/>
-        </div>
+      filter:
+        "drop-shadow(0 6px 14px rgba(0,0,0,0.44))"
+    }}
+  />
+</div>
       </div>
 
       <div ref={feedRef} onScroll={handleScroll} style={feedScrollStyles}>
