@@ -38,13 +38,13 @@ const BOTTOM_NAV_ICONS = {
 
 const DEFAULT_LAYOUT = {
   rightRailTop: "48.14%",
-  rightRailGap: 2,
-  contentOverlayBottom: 86,
+  rightRailGap: 8,
+  contentOverlayBottom: 112,
   searchDockBottom: 45,
   bottomNavHeight: 42,
 
   rightRailScale: 1,
-  rightRailIconScale: 1.35,
+  rightRailIconScale: 1.12,
   rightRailAvatarScale: 1,
   rightRailDiscScale: 1,
 
@@ -801,8 +801,8 @@ export default function Feed() {
     display: "flex",
     alignItems: "center",
     gap: 10,
-    padding: "11px 14px",
-    borderRadius: 18,
+    padding: "9px 14px",
+    borderRadius: 16,
     background: "rgba(13,13,16,0.66)",
     border: "1px solid rgba(255,255,255,0.10)",
     backdropFilter: "blur(14px)",
