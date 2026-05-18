@@ -1148,28 +1148,28 @@ boxShadow:
         </div>
 
         <RightRailAction value={displayLikes} label="Like" scale={actionScale} onPress={() => toggleLike(activeItem.id)}>
-          <RightRailIconImage src={isActiveLiked ? RIGHT_RAIL_ICONS.likeRed : RIGHT_RAIL_ICONS.likeWhite} size={31} scale={actionScale} />
-        </RightRailAction>
+  <RightRailIconImage src={isActiveLiked ? RIGHT_RAIL_ICONS.likeRed : RIGHT_RAIL_ICONS.likeWhite} size={36} scale={actionScale} />
+</RightRailAction>
 
-        <RightRailAction value={activeItem.comments} label="Comment" scale={actionScale} onPress={() => {}}>
-          <RightRailIconImage src={RIGHT_RAIL_ICONS.commentWhite} size={30} scale={actionScale} />
-        </RightRailAction>
+<RightRailAction value={activeItem.comments} label="Comment" scale={actionScale} onPress={() => {}}>
+  <RightRailIconImage src={RIGHT_RAIL_ICONS.commentWhite} size={35} scale={actionScale} />
+</RightRailAction>
 
-        <RightRailAction value={activeItem.saves} label="Save" scale={actionScale} onPress={() => toggleSave(activeItem.id)}>
-          <RightRailIconImage src={isActiveSaved ? RIGHT_RAIL_ICONS.savePurple : RIGHT_RAIL_ICONS.saveWhite} size={30} scale={actionScale} />
-        </RightRailAction>
+<RightRailAction value={activeItem.saves} label="Save" scale={actionScale} onPress={() => toggleSave(activeItem.id)}>
+  <RightRailIconImage src={isActiveSaved ? RIGHT_RAIL_ICONS.savePurple : RIGHT_RAIL_ICONS.saveWhite} size={35} scale={actionScale} />
+</RightRailAction>
 
-        <RightRailAction value={activeItem.shares} label="Share" scale={actionScale} onPress={() => {}}>
-          <RightRailIconImage src={RIGHT_RAIL_ICONS.shareWhite} size={31} scale={actionScale} />
-        </RightRailAction>
+<RightRailAction value={activeItem.shares} label="Share" scale={actionScale} onPress={() => {}}>
+  <RightRailIconImage src={RIGHT_RAIL_ICONS.shareWhite} size={36} scale={actionScale} />
+</RightRailAction>
 
-        <RightRailAction value={displayBoosts} label="Boost" scale={actionScale * 1.02} onPress={() => toggleBoost(activeItem.id)}>
-          <RightRailIconImage src={isActiveBoosted ? RIGHT_RAIL_ICONS.boostGold : RIGHT_RAIL_ICONS.boostWhite} size={32} scale={actionScale * 1.02} />
-        </RightRailAction>
+<RightRailAction value={displayBoosts} label="Boost" scale={actionScale} onPress={() => toggleBoost(activeItem.id)}>
+  <RightRailIconImage src={isActiveBoosted ? RIGHT_RAIL_ICONS.boostGold : RIGHT_RAIL_ICONS.boostWhite} size={31} scale={actionScale} />
+</RightRailAction>
 
-        <RightRailAction value="" label="Info" scale={actionScale * 1.02} onPress={() => {}}>
-          <RightRailIconImage src={RIGHT_RAIL_ICONS.infoWhite} size={35} scale={actionScale * 1.02} />
-        </RightRailAction>
+<RightRailAction value="" label="Info" scale={actionScale} onPress={() => {}}>
+  <RightRailIconImage src={RIGHT_RAIL_ICONS.infoWhite} size={31} scale={actionScale} />
+</RightRailAction>
 
         <div style={{ marginTop: 16 }}>
           <MusicDiscIcon artwork={activeItem.artwork} scale={layoutValues.rightRailDiscScale} />
