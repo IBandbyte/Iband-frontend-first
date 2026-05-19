@@ -356,15 +356,16 @@ function RightRailIconImage({ src, alt = "", size = 38, scale = 1 }) {
       alt={alt}
       draggable="false"
       style={{
-        width: size * scale,
-        height: size * scale,
-        objectFit: "contain",
-        display: "block",
-        userSelect: "none",
-        WebkitUserSelect: "none",
-        filter:
-  "drop-shadow(0 7px 14px rgba(0,0,0,0.52)) drop-shadow(0 0 14px rgba(255,255,255,0.18)) brightness(1.08) contrast(1.08)"
-      }}
+  width: size * scale,
+  height: size * scale,
+  objectFit: "contain",
+  display: "block",
+  userSelect: "none",
+  WebkitUserSelect: "none",
+  opacity: 1,
+  filter:
+    "drop-shadow(0 8px 16px rgba(0,0,0,0.68)) drop-shadow(0 0 18px rgba(255,255,255,0.34)) brightness(1.24) contrast(1.22) saturate(1.08)"
+}}
     />
   );
 }
