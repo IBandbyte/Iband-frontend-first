@@ -363,7 +363,7 @@ function RightRailIconImage({ src, alt = "", size = 38, scale = 1 }) {
         userSelect: "none",
         WebkitUserSelect: "none",
         filter:
-  "drop-shadow(0 6px 10px rgba(0,0,0,0.42)) drop-shadow(0 0 10px rgba(255,255,255,0.10))"
+  "drop-shadow(0 7px 14px rgba(0,0,0,0.52)) drop-shadow(0 0 14px rgba(255,255,255,0.18)) brightness(1.08) contrast(1.08)"
       }}
     />
   );
