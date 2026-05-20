@@ -435,7 +435,7 @@ function RightRailAction({ value, label, scale = 1, onPress, children }) {
           borderRadius: "50%",
           display: "grid",
           placeItems: "center",
-          background: "transparent"
+          background: "radial-gradient(circle, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.00) 72%)"
         }}
       >
         {children}
