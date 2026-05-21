@@ -25,7 +25,7 @@ const RIGHT_RAIL_ICONS = {
   boostWhite: "/boostchrome.PNG",
   boostGold: "/boostgold.PNG",
 
-  infoWhite: "/boostchrome.PNG"
+  infoWhite: "/infochrome.PNG"
 };
 
 const BOTTOM_NAV_ICONS = {
@@ -35,7 +35,14 @@ const BOTTOM_NAV_ICONS = {
   inbox: "/inboxchrome.PNG",
   profile: "/profilechrome.PNG"
 };
-
+const RIGHT_RAIL_ICON_SIZES = {
+  like: { width: 44, height: 44, overflow: true },
+  comment: { width: 38, height: 38 },
+  save: { width: 40, height: 34 },
+  share: { width: 38, height: 42 },
+  boost: { width: 38, height: 38 },
+  info: { width: 38, height: 38 }
+};
 const DEFAULT_LAYOUT = {
   rightRailTop: "48.14%",
   rightRailGap: 8,
@@ -349,17 +356,26 @@ function NavProfileIcon({ scale = 1 }) {
   );
 }
 
-function RightRailIconImage({ src, alt = "", size = 38, scale = 1 }) {
+function RightRailIconImage({
+  src,
+  alt = "",
+  size = 38,
+  scale = 1,
+  width,
+  height,
+  allowOverflow = false
+}) {
   return (
     <img
       src={src}
       alt={alt}
       draggable="false"
       style={{
-  width: size * scale,
-  height: size * scale,
-  objectFit: "contain",
-  display: "block",
+  width: (width ?? size) * scale,
+height: (height ?? size) * scale,
+objectFit: "contain",
+display: "block",
+overflow: allowOverflow ? "visible" : "hidden",
   userSelect: "none",
   WebkitUserSelect: "none",
   opacity: 1,
@@ -1148,28 +1164,65 @@ boxShadow:
           </div>
         </div>
 
-        <RightRailAction value={displayLikes} label="Like" scale={actionScale} onPress={() => toggleLike(activeItem.id)}>
-  <RightRailIconImage src={isActiveLiked ? RIGHT_RAIL_ICONS.likeRed : RIGHT_RAIL_ICONS.likeWhite} size={42} scale={actionScale} />
+        <RightRailAction value={displayLikes} label="Likes" scale={actionScale}>
+  <RightRailIconImage
+    src={isActiveLiked ? RIGHT_RAIL_ICONS.likeRed : RIGHT_RAIL_ICONS.likeWhite}
+    alt="Like"
+    width={RIGHT_RAIL_ICON_SIZES.like.width}
+    height={RIGHT_RAIL_ICON_SIZES.like.height}
+    allowOverflow={RIGHT_RAIL_ICON_SIZES.like.overflow}
+    scale={actionScale}
+  />
 </RightRailAction>
 
-<RightRailAction value={activeItem.comments} label="Comment" scale={actionScale} onPress={() => {}}>
-  <RightRailIconImage src={RIGHT_RAIL_ICONS.commentWhite} size={40} scale={actionScale} />
+<RightRailAction value={activeItem.comments} label="Comments" scale={actionScale}>
+  <RightRailIconImage
+    src={RIGHT_RAIL_ICONS.commentWhite}
+    alt="Comment"
+    width={RIGHT_RAIL_ICON_SIZES.comment.width}
+    height={RIGHT_RAIL_ICON_SIZES.comment.height}
+    scale={actionScale}
+  />
 </RightRailAction>
 
-<RightRailAction value={activeItem.saves} label="Save" scale={actionScale} onPress={() => toggleSave(activeItem.id)}>
-  <RightRailIconImage src={isActiveSaved ? RIGHT_RAIL_ICONS.savePurple : RIGHT_RAIL_ICONS.saveWhite} size={38} scale={actionScale} />
+<RightRailAction value={activeItem.saves} label="Saves" scale={actionScale}>
+  <RightRailIconImage
+    src={isActiveSaved ? RIGHT_RAIL_ICONS.savePurple : RIGHT_RAIL_ICONS.saveWhite}
+    alt="Save"
+    width={RIGHT_RAIL_ICON_SIZES.save.width}
+    height={RIGHT_RAIL_ICON_SIZES.save.height}
+    scale={actionScale}
+  />
 </RightRailAction>
 
-<RightRailAction value={activeItem.shares} label="Share" scale={actionScale} onPress={() => {}}>
-  <RightRailIconImage src={RIGHT_RAIL_ICONS.shareWhite} size={42} scale={actionScale} />
+<RightRailAction value={activeItem.shares} label="Shares" scale={actionScale}>
+  <RightRailIconImage
+    src={RIGHT_RAIL_ICONS.shareWhite}
+    alt="Share"
+    width={RIGHT_RAIL_ICON_SIZES.share.width}
+    height={RIGHT_RAIL_ICON_SIZES.share.height}
+    scale={actionScale}
+  />
 </RightRailAction>
 
-<RightRailAction value={displayBoosts} label="Boost" scale={actionScale} onPress={() => toggleBoost(activeItem.id)}>
-  <RightRailIconImage src={isActiveBoosted ? RIGHT_RAIL_ICONS.boostGold : RIGHT_RAIL_ICONS.boostWhite} size={33} scale={actionScale} />
+<RightRailAction value={displayBoosts} label="Boosts" scale={actionScale}>
+  <RightRailIconImage
+    src={isActiveBoosted ? RIGHT_RAIL_ICONS.boostGold : RIGHT_RAIL_ICONS.boostWhite}
+    alt="Boost"
+    width={RIGHT_RAIL_ICON_SIZES.boost.width}
+    height={RIGHT_RAIL_ICON_SIZES.boost.height}
+    scale={actionScale}
+  />
 </RightRailAction>
 
-<RightRailAction value="" label="Info" scale={actionScale} onPress={() => {}}>
-  <RightRailIconImage src={RIGHT_RAIL_ICONS.infoWhite} size={33} scale={actionScale} />
+<RightRailAction value="8" label="Info" scale={actionScale}>
+  <RightRailIconImage
+    src={RIGHT_RAIL_ICONS.infoWhite}
+    alt="Info"
+    width={RIGHT_RAIL_ICON_SIZES.info.width}
+    height={RIGHT_RAIL_ICON_SIZES.info.height}
+    scale={actionScale}
+  />
 </RightRailAction>
 
         <div style={{ marginTop: 16 }}>
