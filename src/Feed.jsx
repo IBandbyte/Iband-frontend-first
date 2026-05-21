@@ -43,6 +43,10 @@ const RIGHT_RAIL_ICON_SIZES = {
   boost: { width: 38, height: 38 },
   info: { width: 38, height: 38 }
 };
+const RIGHT_RAIL_DISC_SIZE = {
+  width: 48,
+  height: 48
+};
 const DEFAULT_LAYOUT = {
   rightRailTop: "48.14%",
   rightRailGap: 8,
@@ -386,8 +390,13 @@ overflow: allowOverflow ? "visible" : "hidden",
   );
 }
 
-function MusicDiscIcon({ artwork, scale = 1 }) {
-  const size = 38 * scale;
+function MusicDiscIcon({
+  artwork,
+  scale = 1,
+  width = RIGHT_RAIL_DISC_SIZE.width,
+  height = RIGHT_RAIL_DISC_SIZE.height
+}) {
+  const size = Math.max(width, height) * scale;
 
   return (
     <div
@@ -1226,7 +1235,12 @@ boxShadow:
 </RightRailAction>
 
         <div style={{ marginTop: 16 }}>
-          <MusicDiscIcon artwork={activeItem.artwork} scale={layoutValues.rightRailDiscScale} />
+          <MusicDiscIcon
+  artwork={IBAND_LOGO_SRC}
+  scale={layoutValues.rightRailDiscScale}
+  width={RIGHT_RAIL_DISC_SIZE.width}
+  height={RIGHT_RAIL_DISC_SIZE.height}
+/>
         </div>
       </div>
 
