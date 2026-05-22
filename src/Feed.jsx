@@ -36,16 +36,17 @@ const BOTTOM_NAV_ICONS = {
   profile: "/profilechrome.PNG"
 };
 const RIGHT_RAIL_ICON_SIZES = {
-  like: { width: 44, height: 44, overflow: true },
-  comment: { width: 38, height: 38 },
-  save: { width: 40, height: 34 },
-  share: { width: 38, height: 42 },
-  boost: { width: 38, height: 38 },
-  info: { width: 38, height: 38 }
+  like: { width: 48, height: 48, overflow: true },
+  comment: { width: 43, height: 43 },
+  save: { width: 42, height: 38 },
+  share: { width: 43, height: 45 },
+  boost: { width: 35, height: 35 },
+  info: { width: 43, height: 43 }
 };
+
 const RIGHT_RAIL_DISC_SIZE = {
-  width: 48,
-  height: 48
+  width: 42,
+  height: 42
 };
 const DEFAULT_LAYOUT = {
   rightRailTop: "48.14%",
@@ -1236,7 +1237,7 @@ boxShadow:
 
         <div style={{ marginTop: 16 }}>
           <MusicDiscIcon
-  artwork={IBAND_LOGO_SRC}
+  artwork={activeItem.artwork}
   scale={layoutValues.rightRailDiscScale}
   width={RIGHT_RAIL_DISC_SIZE.width}
   height={RIGHT_RAIL_DISC_SIZE.height}
