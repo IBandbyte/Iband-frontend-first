@@ -386,12 +386,11 @@ overflow: allowOverflow ? "visible" : "hidden",
   opacity: 1,
   
     filter: `
-  drop-shadow(0 10px 18px rgba(0,0,0,0.72))
-  drop-shadow(0 0 22px rgba(255,255,255,0.42))
-  drop-shadow(0 0 36px rgba(180,160,255,0.18))
-  brightness(1.42)
-  contrast(1.34)
-  saturate(1.18)
+  drop-shadow(0 8px 14px rgba(0,0,0,0.62))
+  drop-shadow(0 0 14px rgba(255,255,255,0.28))
+  brightness(1.32)
+  contrast(1.28)
+  saturate(1.12)
 `
 }}
     />
