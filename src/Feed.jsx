@@ -384,8 +384,15 @@ overflow: allowOverflow ? "visible" : "hidden",
   userSelect: "none",
   WebkitUserSelect: "none",
   opacity: 1,
-  filter:
-    "drop-shadow(0 8px 16px rgba(0,0,0,0.68)) drop-shadow(0 0 18px rgba(255,255,255,0.34)) brightness(1.24) contrast(1.22) saturate(1.08)"
+  
+    filter: `
+  drop-shadow(0 10px 18px rgba(0,0,0,0.72))
+  drop-shadow(0 0 22px rgba(255,255,255,0.42))
+  drop-shadow(0 0 36px rgba(180,160,255,0.18))
+  brightness(1.42)
+  contrast(1.34)
+  saturate(1.18)
+`
 }}
     />
   );
