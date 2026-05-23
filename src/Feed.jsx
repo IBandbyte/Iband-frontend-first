@@ -1197,7 +1197,7 @@ boxShadow:
     width={RIGHT_RAIL_ICON_SIZES.like.width}
     height={RIGHT_RAIL_ICON_SIZES.like.height}
     allowOverflow={RIGHT_RAIL_ICON_SIZES.like.overflow}
-    scale={layout.iconScale}
+    scale={actionScale}
     variant="bright"
   />
 </RightRailAction>
