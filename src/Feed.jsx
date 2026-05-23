@@ -1199,6 +1199,7 @@ boxShadow:
     allowOverflow={RIGHT_RAIL_ICON_SIZES.like.overflow}
     scale={actionScale}
     variant="bright"
+style={{ transform: "translateY(-2px)" }}
   />
 </RightRailAction>
 
