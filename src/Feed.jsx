@@ -391,9 +391,9 @@ overflow: allowOverflow ? "visible" : "hidden",
     ? `
         drop-shadow(0 8px 16px rgba(0,0,0,0.64))
         drop-shadow(0 0 18px rgba(255,255,255,0.34))
-        brightness(1.42)
-        contrast(1.34)
-        saturate(1.18)
+        brightness(1.28)
+        contrast(1.18)
+        saturate(1.08)
       `
     : `
         drop-shadow(0 8px 14px rgba(0,0,0,0.58))
@@ -488,7 +488,7 @@ function RightRailAction({ value, label, scale = 1, onPress, children }) {
           style={{
             fontSize: labelSize * 1.15,
             lineHeight: 1,
-            marginTop: -8,
+            marginTop: -2,
             color: "#fff",
             fontWeight: 700,
             textShadow: "0 0.5px 1px rgba(0,0,0,0.4)"
@@ -913,7 +913,7 @@ boxShadow:
 
       border: "1px solid rgba(255,255,255,0.14)",
 
-      background: "rgba(255,255,255,0.04)",
+      background: "transparent",
 
       boxShadow:
         "0 0 18px rgba(124,58,237,0.28), 0 0 34px rgba(234,88,12,0.16)",
