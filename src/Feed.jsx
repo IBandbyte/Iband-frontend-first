@@ -368,7 +368,8 @@ function RightRailIconImage({
   scale = 1,
   width,
   height,
-  allowOverflow = false
+  allowOverflow = false,
+  variant = "standard"
 }) {
   return (
     <img
@@ -385,13 +386,22 @@ overflow: allowOverflow ? "visible" : "hidden",
   WebkitUserSelect: "none",
   opacity: 1,
   
-    filter: `
-  drop-shadow(0 8px 14px rgba(0,0,0,0.62))
-  drop-shadow(0 0 14px rgba(255,255,255,0.28))
-  brightness(1.32)
-  contrast(1.28)
-  saturate(1.12)
-`
+    filter:
+  variant === "bright"
+    ? `
+        drop-shadow(0 8px 16px rgba(0,0,0,0.64))
+        drop-shadow(0 0 18px rgba(255,255,255,0.34))
+        brightness(1.42)
+        contrast(1.34)
+        saturate(1.18)
+      `
+    : `
+        drop-shadow(0 8px 14px rgba(0,0,0,0.58))
+        drop-shadow(0 0 12px rgba(255,255,255,0.22))
+        brightness(1.22)
+        contrast(1.18)
+        saturate(1.08)
+      `
 }}
     />
   );
@@ -1187,7 +1197,8 @@ boxShadow:
     width={RIGHT_RAIL_ICON_SIZES.like.width}
     height={RIGHT_RAIL_ICON_SIZES.like.height}
     allowOverflow={RIGHT_RAIL_ICON_SIZES.like.overflow}
-    scale={actionScale}
+    scale={layout.iconScale}
+    variant="bright"
   />
 </RightRailAction>
 
@@ -1198,6 +1209,7 @@ boxShadow:
     width={RIGHT_RAIL_ICON_SIZES.comment.width}
     height={RIGHT_RAIL_ICON_SIZES.comment.height}
     scale={actionScale}
+    variant="bright"
   />
 </RightRailAction>
 
@@ -1208,6 +1220,7 @@ boxShadow:
     width={RIGHT_RAIL_ICON_SIZES.save.width}
     height={RIGHT_RAIL_ICON_SIZES.save.height}
     scale={actionScale}
+    variant="standard"
   />
 </RightRailAction>
 
@@ -1218,6 +1231,7 @@ boxShadow:
     width={RIGHT_RAIL_ICON_SIZES.share.width}
     height={RIGHT_RAIL_ICON_SIZES.share.height}
     scale={actionScale}
+    variant="standard"
   />
 </RightRailAction>
 
@@ -1228,6 +1242,7 @@ boxShadow:
     width={RIGHT_RAIL_ICON_SIZES.boost.width}
     height={RIGHT_RAIL_ICON_SIZES.boost.height}
     scale={actionScale}
+    variant="standard"
   />
 </RightRailAction>
 
@@ -1238,6 +1253,7 @@ boxShadow:
     width={RIGHT_RAIL_ICON_SIZES.info.width}
     height={RIGHT_RAIL_ICON_SIZES.info.height}
     scale={actionScale}
+    variant="standard"
   />
 </RightRailAction>
 
