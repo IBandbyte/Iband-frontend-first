@@ -488,7 +488,7 @@ function RightRailAction({ value, label, scale = 1, onPress, children }) {
           style={{
             fontSize: labelSize * 1.15,
             lineHeight: 1,
-            marginTop: -2,
+            marginTop: 1,
             color: "#fff",
             fontWeight: 700,
             textShadow: "0 0.5px 1px rgba(0,0,0,0.4)"
