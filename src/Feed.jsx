@@ -369,7 +369,8 @@ function RightRailIconImage({
   width,
   height,
   allowOverflow = false,
-  variant = "standard"
+  variant = "standard",
+  offsetY = 0
 }) {
   return (
     <img
@@ -377,32 +378,32 @@ function RightRailIconImage({
       alt={alt}
       draggable="false"
       style={{
-  width: (width ?? size) * scale,
-height: (height ?? size) * scale,
-objectFit: "contain",
-display: "block",
-overflow: allowOverflow ? "visible" : "hidden",
-  userSelect: "none",
-  WebkitUserSelect: "none",
-  opacity: 1,
-  
-    filter:
-  variant === "bright"
-    ? `
-        drop-shadow(0 8px 16px rgba(0,0,0,0.64))
-        drop-shadow(0 0 18px rgba(255,255,255,0.34))
-        brightness(1.28)
-        contrast(1.18)
-        saturate(1.08)
-      `
-    : `
-        drop-shadow(0 8px 14px rgba(0,0,0,0.58))
-        drop-shadow(0 0 12px rgba(255,255,255,0.22))
-        brightness(1.22)
-        contrast(1.18)
-        saturate(1.08)
-      `
-}}
+        width: (width ?? size) * scale,
+        height: (height ?? size) * scale,
+        objectFit: "contain",
+        display: "block",
+        overflow: allowOverflow ? "visible" : "hidden",
+        userSelect: "none",
+        WebkitUserSelect: "none",
+        opacity: 1,
+        transform: `translateY(${offsetY}px)`,
+        filter:
+          variant === "bright"
+            ? `
+                drop-shadow(0 8px 16px rgba(0,0,0,0.64))
+                drop-shadow(0 0 18px rgba(255,255,255,0.34))
+                brightness(1.28)
+                contrast(1.18)
+                saturate(1.08)
+              `
+            : `
+                drop-shadow(0 8px 14px rgba(0,0,0,0.58))
+                drop-shadow(0 0 12px rgba(255,255,255,0.22))
+                brightness(1.22)
+                contrast(1.18)
+                saturate(1.08)
+              `
+      }}
     />
   );
 }
@@ -1199,7 +1200,7 @@ boxShadow:
     allowOverflow={RIGHT_RAIL_ICON_SIZES.like.overflow}
     scale={actionScale}
     variant="bright"
-style={{ transform: "translateY(-4px)" }}
+    offsetY={-2}
   />
 </RightRailAction>
 
@@ -1211,6 +1212,7 @@ style={{ transform: "translateY(-4px)" }}
     height={RIGHT_RAIL_ICON_SIZES.comment.height}
     scale={actionScale}
     variant="bright"
+    offsetY={2}
   />
 </RightRailAction>
 
@@ -1222,6 +1224,7 @@ style={{ transform: "translateY(-4px)" }}
     height={RIGHT_RAIL_ICON_SIZES.save.height}
     scale={actionScale}
     variant="standard"
+    offsetY={-1}
   />
 </RightRailAction>
 
@@ -1233,6 +1236,7 @@ style={{ transform: "translateY(-4px)" }}
     height={RIGHT_RAIL_ICON_SIZES.share.height}
     scale={actionScale}
     variant="standard"
+    offsetY={0}
   />
 </RightRailAction>
 
@@ -1244,6 +1248,7 @@ style={{ transform: "translateY(-4px)" }}
     height={RIGHT_RAIL_ICON_SIZES.boost.height}
     scale={actionScale}
     variant="standard"
+    offsetY={2}
   />
 </RightRailAction>
 
@@ -1255,6 +1260,7 @@ style={{ transform: "translateY(-4px)" }}
     height={RIGHT_RAIL_ICON_SIZES.info.height}
     scale={actionScale}
     variant="standard"
+    offsetY={-1}
   />
 </RightRailAction>
 
