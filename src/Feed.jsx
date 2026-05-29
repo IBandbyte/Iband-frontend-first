@@ -1199,7 +1199,7 @@ boxShadow:
           </div>
         </div>
 
-        <RightRailAction value={displayLikes} label="Likes" scale={actionScale}>
+        <RightRailAction value={displayLikes} label="Likes" scale={actionScale} counterOffsetY={3}>
   <RightRailIconImage
     src={isActiveLiked ? RIGHT_RAIL_ICONS.likeRed : RIGHT_RAIL_ICONS.likeWhite}
     alt="Like"
@@ -1212,7 +1212,7 @@ boxShadow:
   />
 </RightRailAction>
 
-<RightRailAction value={activeItem.comments} label="Comments" scale={actionScale}>
+<RightRailAction value={activeItem.comments} label="Comments" scale={actionScale} counterOffsetY={1}>
   <RightRailIconImage
     src={RIGHT_RAIL_ICONS.commentWhite}
     alt="Comment"
@@ -1224,7 +1224,7 @@ boxShadow:
   />
 </RightRailAction>
 
-<RightRailAction value={activeItem.saves} label="Saves" scale={actionScale}>
+<RightRailAction value={activeItem.saves} label="Saves" scale={actionScale} counterOffsetY={0}>
   <RightRailIconImage
     src={isActiveSaved ? RIGHT_RAIL_ICONS.savePurple : RIGHT_RAIL_ICONS.saveWhite}
     alt="Save"
@@ -1236,7 +1236,7 @@ boxShadow:
   />
 </RightRailAction>
 
-<RightRailAction value={activeItem.shares} label="Shares" scale={actionScale}>
+<RightRailAction value={activeItem.shares} label="Shares" scale={actionScale} counterOffsetY={0}>
   <RightRailIconImage
     src={RIGHT_RAIL_ICONS.shareWhite}
     alt="Share"
@@ -1248,7 +1248,7 @@ boxShadow:
   />
 </RightRailAction>
 
-<RightRailAction value={displayBoosts} label="Boosts" scale={actionScale}>
+<RightRailAction value={displayBoosts} label="Boosts" scale={actionScale} counterOffsetY={3}>
   <RightRailIconImage
     src={isActiveBoosted ? RIGHT_RAIL_ICONS.boostGold : RIGHT_RAIL_ICONS.boostWhite}
     alt="Boost"
@@ -1260,7 +1260,7 @@ boxShadow:
   />
 </RightRailAction>
 
-<RightRailAction value="8" label="Info" scale={actionScale}>
+<RightRailAction value="8" label="Info" scale={actionScale} counterOffsetY={2}>
   <RightRailIconImage
     src={RIGHT_RAIL_ICONS.infoWhite}
     alt="Info"
