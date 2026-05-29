@@ -447,7 +447,14 @@ function MusicDiscIcon({
   );
 }
 
-function RightRailAction({ value, label, scale = 1, onPress, children }) {
+function RightRailAction({
+  value,
+  label,
+  scale = 1,
+  onPress,
+  counterOffsetY = 0,
+  children
+}) {
   const bubbleSize = 42 * scale;
   const labelSize = 8.2 * Math.min(scale, 1.05);
   const hasValue = value !== null && value !== undefined && value !== "";
@@ -464,7 +471,7 @@ function RightRailAction({ value, label, scale = 1, onPress, children }) {
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
-        gap: 0.1,
+        gap: 0,
         width: "auto",
         padding: 0,
         cursor: "pointer",
@@ -489,7 +496,8 @@ function RightRailAction({ value, label, scale = 1, onPress, children }) {
           style={{
             fontSize: labelSize * 1.15,
             lineHeight: 1,
-            marginTop: 1,
+            marginTop: 3,
+            transform: `translateY(${counterOffsetY}px)`,
             color: "#fff",
             fontWeight: 700,
             textShadow: "0 0.5px 1px rgba(0,0,0,0.4)"
