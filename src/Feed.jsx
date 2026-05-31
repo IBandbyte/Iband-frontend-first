@@ -1203,7 +1203,7 @@ boxShadow:
   value={displayLikes}
   label="Likes"
   scale={actionScale}
-  counterOffsetY={6}
+  counterOffsetY={0}
 >
   <RightRailIconImage
     src={isActiveLiked ? RIGHT_RAIL_ICONS.likeRed : RIGHT_RAIL_ICONS.likeWhite}
@@ -1221,7 +1221,7 @@ boxShadow:
   value={activeItem.comments}
   label="Comments"
   scale={actionScale}
-  counterOffsetY={4}
+  counterOffsetY={2}
 >
   <RightRailIconImage
     src={RIGHT_RAIL_ICONS.commentWhite}
@@ -1238,7 +1238,7 @@ boxShadow:
   value={activeItem.saves}
   label="Saves"
   scale={actionScale}
-  counterOffsetY={1}
+  counterOffsetY={4}
 >
   <RightRailIconImage
     src={isActiveSaved ? RIGHT_RAIL_ICONS.savePurple : RIGHT_RAIL_ICONS.saveWhite}
@@ -1255,7 +1255,7 @@ boxShadow:
   value={activeItem.shares}
   label="Shares"
   scale={actionScale}
-  counterOffsetY={1}
+  counterOffsetY={3}
 >
   <RightRailIconImage
     src={RIGHT_RAIL_ICONS.shareWhite}
@@ -1272,7 +1272,7 @@ boxShadow:
   value={displayBoosts}
   label="Boosts"
   scale={actionScale}
-  counterOffsetY={6}
+  counterOffsetY={5}
 >
   <RightRailIconImage
     src={isActiveBoosted ? RIGHT_RAIL_ICONS.boostGold : RIGHT_RAIL_ICONS.boostWhite}
@@ -1289,7 +1289,7 @@ boxShadow:
   value="8"
   label="Info"
   scale={actionScale}
-  counterOffsetY={5}
+  counterOffsetY={4}
 >
   <RightRailIconImage
     src={RIGHT_RAIL_ICONS.infoWhite}
