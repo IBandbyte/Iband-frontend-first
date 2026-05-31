@@ -480,17 +480,23 @@ function RightRailAction({
       }}
     >
       <div
-        style={{
-          width: bubbleSize,
-          height: bubbleSize,
-          borderRadius: "50%",
-          display: "grid",
-          placeItems: "center",
-          background: "radial-gradient(circle, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.00) 72%)"
-        }}
-      >
-        {children}
-      </div>
+  style={{
+    width: bubbleSize,
+    height: bubbleSize,
+    minWidth: bubbleSize,
+    minHeight: bubbleSize,
+    maxWidth: bubbleSize,
+    maxHeight: bubbleSize,
+    borderRadius: "50%",
+    display: "grid",
+    placeItems: "center",
+    overflow: "visible",
+    flexShrink: 0,
+    background: "radial-gradient(circle, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.00) 72%)"
+  }}
+>
+  {children}
+</div>
 
       <div
         style={{
