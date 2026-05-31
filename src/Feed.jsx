@@ -453,11 +453,13 @@ function RightRailAction({
   scale = 1,
   onPress,
   counterOffsetY = 0,
+  spacerHeight = 14,
   children
 }) {
   const bubbleSize = 42 * scale;
   const labelSize = 8.2 * Math.min(scale, 1.05);
   const hasValue = value !== null && value !== undefined && value !== "";
+  const numberBoxHeight = 14;
 
   return (
     <button
@@ -491,21 +493,31 @@ function RightRailAction({
         {children}
       </div>
 
-      {hasValue && (
-        <div
-          style={{
-            fontSize: labelSize * 1.15,
-            lineHeight: 1,
-            marginTop: 3,
-            transform: `translateY(${counterOffsetY}px)`,
-            color: "#fff",
-            fontWeight: 700,
-            textShadow: "0 0.5px 1px rgba(0,0,0,0.4)"
-          }}
-        >
-          {formatCompactNumber(value)}
-        </div>
-      )}
+      <div
+        style={{
+          height: numberBoxHeight,
+          display: "grid",
+          placeItems: "start center",
+          transform: `translateY(${counterOffsetY}px)`
+        }}
+      >
+        {hasValue && (
+          <div
+            style={{
+              fontSize: labelSize * 1.15,
+              lineHeight: 1,
+              marginTop: 0,
+              color: "#fff",
+              fontWeight: 700,
+              textShadow: "0 0.5px 1px rgba(0,0,0,0.4)"
+            }}
+          >
+            {formatCompactNumber(value)}
+          </div>
+        )}
+      </div>
+
+      <div style={{ height: spacerHeight }} />
     </button>
   );
 }
@@ -1285,7 +1297,7 @@ boxShadow:
   />
 </RightRailAction>
 
-<div style={{ height: 8 }} />
+
 
 <RightRailAction
   value="8"
