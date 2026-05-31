@@ -452,14 +452,13 @@ function RightRailAction({
   label,
   scale = 1,
   onPress,
-  counterOffsetY = 0,
-  spacerHeight = 14,
+  spacerHeight = 18,
   children
 }) {
   const bubbleSize = 42 * scale;
   const labelSize = 8.2 * Math.min(scale, 1.05);
   const hasValue = value !== null && value !== undefined && value !== "";
-  const numberBoxHeight = 14;
+  const numberBoxHeight = 18;
 
   return (
     <button
@@ -497,8 +496,7 @@ function RightRailAction({
         style={{
           height: numberBoxHeight,
           display: "grid",
-          placeItems: "start center",
-          transform: `translateY(${counterOffsetY}px)`
+          placeItems: "center"
         }}
       >
         {hasValue && (
