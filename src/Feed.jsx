@@ -40,8 +40,8 @@ const RIGHT_RAIL_ICON_SIZES = {
   comment: { width: 43, height: 43 },
   save: { width: 42, height: 38 },
   share: { width: 43, height: 45 },
-  boost: { width: 50, height: 50, overflow: true }
-  info: { width: 43, height: 43 }
+  boost: { width: 50, height: 50, overflow: true },
+info: { width: 43, height: 43 }
 };
 
 const RIGHT_RAIL_DISC_SIZE = {
