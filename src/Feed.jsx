@@ -1199,11 +1199,11 @@ boxShadow:
           </div>
         </div>
 
-        <RightRailAction
+       <RightRailAction
   value={displayLikes}
   label="Likes"
   scale={actionScale}
-  counterOffsetY={0}
+  counterOffsetY={4}
 >
   <RightRailIconImage
     src={isActiveLiked ? RIGHT_RAIL_ICONS.likeRed : RIGHT_RAIL_ICONS.likeWhite}
@@ -1213,7 +1213,7 @@ boxShadow:
     allowOverflow={RIGHT_RAIL_ICON_SIZES.like.overflow}
     scale={actionScale}
     variant="bright"
-    offsetY={-2}
+    offsetY={0}
   />
 </RightRailAction>
 
@@ -1238,7 +1238,7 @@ boxShadow:
   value={activeItem.saves}
   label="Saves"
   scale={actionScale}
-  counterOffsetY={4}
+  counterOffsetY={0}
 >
   <RightRailIconImage
     src={isActiveSaved ? RIGHT_RAIL_ICONS.savePurple : RIGHT_RAIL_ICONS.saveWhite}
@@ -1247,7 +1247,7 @@ boxShadow:
     height={RIGHT_RAIL_ICON_SIZES.save.height}
     scale={actionScale}
     variant="standard"
-    offsetY={-1}
+    offsetY={0}
   />
 </RightRailAction>
 
@@ -1255,7 +1255,7 @@ boxShadow:
   value={activeItem.shares}
   label="Shares"
   scale={actionScale}
-  counterOffsetY={3}
+  counterOffsetY={2}
 >
   <RightRailIconImage
     src={RIGHT_RAIL_ICONS.shareWhite}
@@ -1264,7 +1264,7 @@ boxShadow:
     height={RIGHT_RAIL_ICON_SIZES.share.height}
     scale={actionScale}
     variant="standard"
-    offsetY={0}
+    offsetY={1}
   />
 </RightRailAction>
 
@@ -1272,7 +1272,7 @@ boxShadow:
   value={displayBoosts}
   label="Boosts"
   scale={actionScale}
-  counterOffsetY={5}
+  counterOffsetY={3}
 >
   <RightRailIconImage
     src={isActiveBoosted ? RIGHT_RAIL_ICONS.boostGold : RIGHT_RAIL_ICONS.boostWhite}
@@ -1281,7 +1281,7 @@ boxShadow:
     height={RIGHT_RAIL_ICON_SIZES.boost.height}
     scale={actionScale}
     variant="standard"
-    offsetY={2}
+    offsetY={3}
   />
 </RightRailAction>
 
@@ -1289,7 +1289,7 @@ boxShadow:
   value="8"
   label="Info"
   scale={actionScale}
-  counterOffsetY={4}
+  counterOffsetY={1}
 >
   <RightRailIconImage
     src={RIGHT_RAIL_ICONS.infoWhite}
@@ -1298,7 +1298,7 @@ boxShadow:
     height={RIGHT_RAIL_ICON_SIZES.info.height}
     scale={actionScale}
     variant="standard"
-    offsetY={-1}
+    offsetY={0}
   />
 </RightRailAction>
 
