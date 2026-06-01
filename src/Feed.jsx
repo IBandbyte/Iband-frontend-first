@@ -1222,7 +1222,7 @@ boxShadow:
   value={displayLikes}
   label="Likes"
   scale={actionScale}
-  numberTopGap={12}
+  numberTopGap={14}
 >
   <RightRailIconImage
     src={isActiveLiked ? RIGHT_RAIL_ICONS.likeRed : RIGHT_RAIL_ICONS.likeWhite}
