@@ -1222,7 +1222,7 @@ boxShadow:
   value={displayLikes}
   label="Likes"
   scale={actionScale}
-  numberTopGap={6}
+  numberTopGap={8}
 >
   <RightRailIconImage
     src={isActiveLiked ? RIGHT_RAIL_ICONS.likeRed : RIGHT_RAIL_ICONS.likeWhite}
@@ -1291,7 +1291,7 @@ boxShadow:
   value={displayBoosts}
   label="Boosts"
   scale={actionScale}
-  numberTopGap={8}
+  numberTopGap={12}
 >
   <RightRailIconImage
     src={isActiveBoosted ? RIGHT_RAIL_ICONS.boostGold : RIGHT_RAIL_ICONS.boostWhite}
