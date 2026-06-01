@@ -1479,23 +1479,23 @@ boxShadow:
             </div>
 
             <div style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 12, color: "#ffffff", marginBottom: 10 }}>
-              <div><span style={{ opacity: 0.72 }}>rightRailTop</span><br /><span style={{ fontWeight: 700 }}>{layoutValues.rightRailTop}</span></div>
-              <div><span style={{ opacity: 0.72 }}>rightRailGap</span><br /><span style={{ fontWeight: 700 }}>{layoutValues.rightRailGap}px</span></div>
-              <div><span style={{ opacity: 0.72 }}>contentOverlayBottom</span><br /><span style={{ fontWeight: 700 }}>{layoutValues.contentOverlayBottom}px</span></div>
-              <div><span style={{ opacity: 0.72 }}>searchDockBottom</span><br /><span style={{ fontWeight: 700 }}>{layoutValues.searchDockBottom}px</span></div>
-              <div><span style={{ opacity: 0.72 }}>bottomNavHeight</span><br /><span style={{ fontWeight: 700 }}>{layoutValues.bottomNavHeight}px</span></div>
-            </div>
+  <div><span style={{ opacity: 0.72 }}>rightRailTop</span><br /><span style={{ fontWeight: 700 }}>{layoutValues.rightRailTop}</span></div>
+  <div><span style={{ opacity: 0.72 }}>rightRailGap</span><br /><span style={{ fontWeight: 700 }}>{layoutValues.rightRailGap}px</span></div>
+  <div><span style={{ opacity: 0.72 }}>contentOverlayBottom</span><br /><span style={{ fontWeight: 700 }}>{layoutValues.contentOverlayBottom}px</span></div>
+  <div><span style={{ opacity: 0.72 }}>searchDockBottom</span><br /><span style={{ fontWeight: 700 }}>{layoutValues.searchDockBottom}px</span></div>
+  <div><span style={{ opacity: 0.72 }}>bottomNavHeight</span><br /><span style={{ fontWeight: 700 }}>{layoutValues.bottomNavHeight}px</span></div>
+</div>
 
-            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-              <Stepper label="Icon size" valueText={`${layoutValues.rightRailIconScale.toFixed(2)}x`} onMinus={() => adjustScale("rightRailIconScale", -0.05, 0.8, 1.6)} onPlus={() => adjustScale("rightRailIconScale", 0.05, 0.8, 1.6)} />
-              <Stepper label="Avatar size" valueText={`${layoutValues.rightRailAvatarScale.toFixed(2)}x`} onMinus={() => adjustScale("rightRailAvatarScale", -0.05, 0.7, 1.3)} onPlus={() => adjustScale("rightRailAvatarScale", 0.05, 0.7, 1.3)} />
-              <Stepper label="Disc size" valueText={`${layoutValues.rightRailDiscScale.toFixed(2)}x`} onMinus={() => adjustScale("rightRailDiscScale", -0.05, 0.7, 1.3)} onPlus={() => adjustScale("rightRailDiscScale", 0.05, 0.7, 1.3)} />
-              <Stepper label="Right rail gap" valueText={`${layoutValues.rightRailGap}px`} onMinus={() => adjustNumber("rightRailGap", -1, 2, 34)} onPlus={() => adjustNumber("rightRailGap", 1, 2, 34)} />
-              <Stepper label="Overlay size" valueText={`${layoutValues.contentOverlayScale.toFixed(2)}x`} onMinus={() => adjustScale("contentOverlayScale", -0.05, 0.7, 1.4)} onPlus={() => adjustScale("contentOverlayScale", 0.05, 0.7, 1.4)} />
-              <Stepper label="Search width" valueText={`${layoutValues.searchDockWidth}%`} onMinus={() => adjustPercentNumber("searchDockWidth", -5, 60, 100)} onPlus={() => adjustPercentNumber("searchDockWidth", 5, 60, 100)} />
-              <Stepper label="Nav size" valueText={`${layoutValues.bottomNavScale.toFixed(2)}x`} onMinus={() => adjustScale("bottomNavScale", -0.05, 0.8, 1.4)} onPlus={() => adjustScale("bottomNavScale", 0.05, 0.8, 1.4)} />
-            </div>
-          </div>
+<div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+  <Stepper label="Icon size" valueText={`${layoutValues.rightRailIconScale.toFixed(2)}x`} onMinus={() => adjustScale("rightRailIconScale", -0.05, 0.8, 1.6)} onPlus={() => adjustScale("rightRailIconScale", 0.05, 0.8, 1.6)} />
+  <Stepper label="Avatar size" valueText={`${layoutValues.rightRailAvatarScale.toFixed(2)}x`} onMinus={() => adjustScale("rightRailAvatarScale", -0.05, 0.7, 1.4)} onPlus={() => adjustScale("rightRailAvatarScale", 0.05, 0.7, 1.4)} />
+  <Stepper label="Disc size" valueText={`${layoutValues.rightRailDiscScale.toFixed(2)}x`} onMinus={() => adjustScale("rightRailDiscScale", -0.05, 0.7, 1.3)} onPlus={() => adjustScale("rightRailDiscScale", 0.05, 0.7, 1.3)} />
+  <Stepper label="Right rail gap" valueText={`${layoutValues.rightRailGap}px`} onMinus={() => adjustNumber("rightRailGap", -1, 2, 34)} onPlus={() => adjustNumber("rightRailGap", 1, 2, 34)} />
+  <Stepper label="Overlay size" valueText={`${layoutValues.contentOverlayScale.toFixed(2)}x`} onMinus={() => adjustScale("contentOverlayScale", -0.05, 0.7, 1.4)} onPlus={() => adjustScale("contentOverlayScale", 0.05, 0.7, 1.4)} />
+  <Stepper label="Search width" valueText={`${layoutValues.searchDockWidth}%`} onMinus={() => adjustPercentNumber("searchDockWidth", -5, 60, 100)} onPlus={() => adjustPercentNumber("searchDockWidth", 5, 60, 100)} />
+  <Stepper label="Nav size" valueText={`${layoutValues.bottomNavScale.toFixed(2)}x`} onMinus={() => adjustScale("bottomNavScale", -0.05, 0.8, 1.4)} onPlus={() => adjustScale("bottomNavScale", 0.05, 0.8, 1.4)} />
+</div>
+</div>
 
           {showDevCode && (
             <div
