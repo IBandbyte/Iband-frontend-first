@@ -1222,6 +1222,7 @@ boxShadow:
   value={displayLikes}
   label="Likes"
   scale={actionScale}
+  numberTopGap={6}
 >
   <RightRailIconImage
     src={isActiveLiked ? RIGHT_RAIL_ICONS.likeRed : RIGHT_RAIL_ICONS.likeWhite}
@@ -1239,6 +1240,7 @@ boxShadow:
   value={activeItem.comments}
   label="Comments"
   scale={actionScale}
+  numberTopGap={4}
 >
   <RightRailIconImage
     src={RIGHT_RAIL_ICONS.commentWhite}
@@ -1255,6 +1257,7 @@ boxShadow:
   value={activeItem.saves}
   label="Saves"
   scale={actionScale}
+  numberTopGap={2}
 >
   <RightRailIconImage
     src={isActiveSaved ? RIGHT_RAIL_ICONS.savePurple : RIGHT_RAIL_ICONS.saveWhite}
@@ -1271,6 +1274,7 @@ boxShadow:
   value={activeItem.shares}
   label="Shares"
   scale={actionScale}
+  numberTopGap={4}
 >
   <RightRailIconImage
     src={RIGHT_RAIL_ICONS.shareWhite}
@@ -1287,6 +1291,7 @@ boxShadow:
   value={displayBoosts}
   label="Boosts"
   scale={actionScale}
+  numberTopGap={8}
 >
   <RightRailIconImage
     src={isActiveBoosted ? RIGHT_RAIL_ICONS.boostGold : RIGHT_RAIL_ICONS.boostWhite}
@@ -1303,6 +1308,7 @@ boxShadow:
   value="8"
   label="Info"
   scale={actionScale}
+  numberTopGap={6}
 >
   <RightRailIconImage
     src={RIGHT_RAIL_ICONS.infoWhite}
