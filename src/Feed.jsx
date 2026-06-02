@@ -56,13 +56,14 @@ const DEFAULT_LAYOUT = {
   bottomNavHeight: 42,
 
   rightRailScale: 1,
-  rightRailIconScale: 1.12,
-  rightRailAvatarScale: 1,
+  rightRailIconScale: 1.22,
+  rightRailAvatarScale: 1.6,
   rightRailDiscScale: 1,
 
   contentOverlayScale: 0.95,
   bottomNavScale: 1.05,
-  searchDockWidth: 75
+  searchDockWidth: 75,
+  logoScale: 1
 };
 
 function clamp(value, min, max) {
