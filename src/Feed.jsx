@@ -50,7 +50,7 @@ const RIGHT_RAIL_DISC_SIZE = {
 };
 const DEFAULT_LAYOUT = {
   rightRailTop: "48.14%",
-  rightRailGap: 12,
+  rightRailGap: 8,
   contentOverlayBottom: 112,
   searchDockBottom: 45,
   bottomNavHeight: 42,
