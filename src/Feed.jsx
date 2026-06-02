@@ -934,8 +934,8 @@ boxShadow:
     alt="iBand"
     draggable="false"
     style={{
-      height: 42,
-      width: 42,
+      height: 42 * layoutValues.logoScale,
+      width: 42 * layoutValues.logoScale,
       borderRadius: "50%",
       objectFit: "cover",
       display: "block",
@@ -1531,11 +1531,18 @@ boxShadow:
   />
 
   <Stepper
-    label="Nav size"
-    valueText={`${layoutValues.bottomNavScale.toFixed(2)}x`}
-    onMinus={() => adjustScale("bottomNavScale", -0.05, 0.8, 1.4)}
-    onPlus={() => adjustScale("bottomNavScale", 0.05, 0.8, 1.4)}
-  />
+  label="Nav size"
+  valueText={`${layoutValues.bottomNavScale.toFixed(2)}x`}
+  onMinus={() => adjustScale("bottomNavScale", -0.05, 0.8, 1.4)}
+  onPlus={() => adjustScale("bottomNavScale", 0.05, 0.8, 1.4)}
+/>
+
+<Stepper
+  label="Logo size"
+  valueText={`${layoutValues.logoScale.toFixed(2)}x`}
+  onMinus={() => adjustScale("logoScale", -0.05, 0.5, 2)}
+  onPlus={() => adjustScale("logoScale", 0.05, 0.5, 2)}
+/>
 </div>
 </div>
 
