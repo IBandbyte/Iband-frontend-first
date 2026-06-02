@@ -1536,8 +1536,9 @@ boxShadow:
     onPlus={() => adjustScale("bottomNavScale", 0.05, 0.8, 1.4)}
   />
 </div>
+</div>
 
-          {showDevCode && (
+{showDevCode && (
             <div
               style={{
                 position: "fixed",
