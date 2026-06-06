@@ -49,11 +49,12 @@ const RIGHT_RAIL_DISC_SIZE = {
   height: 42
 };
 const DEFAULT_LAYOUT = {
-  rightRailTop: "48.14%",
-  rightRailGap: 8,
-  avatarToLikeGap: 0,
-  likeToCommentGap: 0,
-  boostToInfoGap: 0,
+  rightRailTop: "45.24%",
+  rightRailGap: -10,
+
+  avatarToLikeGap: 18,
+  likeToCommentGap: 4,
+  boostToInfoGap: 4,
   infoToDiscGap: 0,
 
   contentOverlayBottom: 112,
@@ -61,9 +62,9 @@ const DEFAULT_LAYOUT = {
   bottomNavHeight: 42,
 
   rightRailScale: 1,
-  rightRailIconScale: 1.22,
-  rightRailAvatarScale: 1.6,
-  rightRailDiscScale: 1,
+  rightRailIconScale: 1.02,
+  rightRailAvatarScale: 1.5,
+  rightRailDiscScale: 1.15,
 
   contentOverlayScale: 0.95,
   bottomNavScale: 1.05,
