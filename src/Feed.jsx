@@ -51,6 +51,9 @@ const RIGHT_RAIL_DISC_SIZE = {
 const DEFAULT_LAYOUT = {
   rightRailTop: "48.14%",
   rightRailGap: 8,
+  avatarToLikeGap: 0,
+  infoToDiscGap: 0,
+
   contentOverlayBottom: 112,
   searchDockBottom: 45,
   bottomNavHeight: 42,
@@ -800,23 +803,26 @@ export default function Feed() {
   }, [activeItem, isActiveBoosted]);
 
   const uiCodeBlock = useMemo(() => {
-    return [
-      "const layoutTweaks = {",
-      `  rightRailTop: "${layoutValues.rightRailTop}",`,
-      `  rightRailGap: ${layoutValues.rightRailGap},`,
-      `  contentOverlayBottom: ${layoutValues.contentOverlayBottom},`,
-      `  searchDockBottom: ${layoutValues.searchDockBottom},`,
-      `  bottomNavHeight: ${layoutValues.bottomNavHeight},`,
-      `  rightRailScale: ${layoutValues.rightRailScale},`,
-      `  rightRailIconScale: ${layoutValues.rightRailIconScale},`,
-      `  rightRailAvatarScale: ${layoutValues.rightRailAvatarScale},`,
-      `  rightRailDiscScale: ${layoutValues.rightRailDiscScale},`,
-      `  contentOverlayScale: ${layoutValues.contentOverlayScale},`,
-      `  bottomNavScale: ${layoutValues.bottomNavScale},`,
-      `  searchDockWidth: ${layoutValues.searchDockWidth}`,
-      "};"
-    ].join("\n");
-  }, [layoutValues]);
+  return [
+    "const layoutTweaks = {",
+    `  rightRailTop: "${layoutValues.rightRailTop}",`,
+    `  rightRailGap: ${layoutValues.rightRailGap},`,
+    `  avatarToLikeGap: ${layoutValues.avatarToLikeGap},`,
+    `  infoToDiscGap: ${layoutValues.infoToDiscGap},`,
+    `  contentOverlayBottom: ${layoutValues.contentOverlayBottom},`,
+    `  searchDockBottom: ${layoutValues.searchDockBottom},`,
+    `  bottomNavHeight: ${layoutValues.bottomNavHeight},`,
+    `  rightRailScale: ${layoutValues.rightRailScale},`,
+    `  rightRailIconScale: ${layoutValues.rightRailIconScale},`,
+    `  rightRailAvatarScale: ${layoutValues.rightRailAvatarScale},`,
+    `  rightRailDiscScale: ${layoutValues.rightRailDiscScale},`,
+    `  contentOverlayScale: ${layoutValues.contentOverlayScale},`,
+    `  bottomNavScale: ${layoutValues.bottomNavScale},`,
+    `  searchDockWidth: ${layoutValues.searchDockWidth},`,
+    `  logoScale: ${layoutValues.logoScale}`,
+    "};"
+  ].join("\n");
+}, [layoutValues]);
 
   const shellStyles = useMemo(() => ({
     position: "relative",
@@ -1219,7 +1225,7 @@ boxShadow:
           </div>
         </div>
 
-      <div style={{ marginTop: -6 }}>
+      <div style={{ marginTop: layoutValues.avatarToLikeGap }}>
   <RightRailAction
   value={displayLikes}
   label="Likes"
@@ -1324,7 +1330,7 @@ boxShadow:
   />
 </RightRailAction>
 
-        <div style={{ marginTop: 0 }}>
+        <div style={{ marginTop: layoutValues.infoToDiscGap }}>
           <MusicDiscIcon
   artwork={activeItem.artwork}
   scale={layoutValues.rightRailDiscScale}
@@ -1517,6 +1523,19 @@ boxShadow:
     onMinus={() => adjustNumber("rightRailGap", -1, 2, 34)}
     onPlus={() => adjustNumber("rightRailGap", 1, 2, 34)}
   />
+  <Stepper
+  label="Avatar → Like gap"
+  valueText={`${layoutValues.avatarToLikeGap}px`}
+  onMinus={() => adjustNumber("avatarToLikeGap", -1, -40, 40)}
+  onPlus={() => adjustNumber("avatarToLikeGap", 1, -40, 40)}
+/>
+
+<Stepper
+  label="Info → Disc gap"
+  valueText={`${layoutValues.infoToDiscGap}px`}
+  onMinus={() => adjustNumber("infoToDiscGap", -1, -40, 40)}
+  onPlus={() => adjustNumber("infoToDiscGap", 1, -40, 40)}
+/>
 
   <Stepper
     label="Overlay size"
