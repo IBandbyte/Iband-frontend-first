@@ -52,6 +52,8 @@ const DEFAULT_LAYOUT = {
   rightRailTop: "48.14%",
   rightRailGap: 8,
   avatarToLikeGap: 0,
+  likeToCommentGap: 0,
+  boostToInfoGap: 0,
   infoToDiscGap: 0,
 
   contentOverlayBottom: 112,
@@ -808,6 +810,8 @@ export default function Feed() {
     `  rightRailTop: "${layoutValues.rightRailTop}",`,
     `  rightRailGap: ${layoutValues.rightRailGap},`,
     `  avatarToLikeGap: ${layoutValues.avatarToLikeGap},`,
+    `  likeToCommentGap: ${layoutValues.likeToCommentGap},`,
+    `  boostToInfoGap: ${layoutValues.boostToInfoGap},`,
     `  infoToDiscGap: ${layoutValues.infoToDiscGap},`,
     `  contentOverlayBottom: ${layoutValues.contentOverlayBottom},`,
     `  searchDockBottom: ${layoutValues.searchDockBottom},`,
@@ -1251,22 +1255,24 @@ const actionScale = layoutValues.rightRailIconScale * 1.15;
   </RightRailAction>
 </div>
 
-<RightRailAction
-  value={activeItem.comments}
-  label="Comments"
-  scale={actionScale}
-  numberTopGap={4}
->
-  <RightRailIconImage
-    src={RIGHT_RAIL_ICONS.commentWhite}
-    alt="Comment"
-    width={RIGHT_RAIL_ICON_SIZES.comment.width}
-    height={RIGHT_RAIL_ICON_SIZES.comment.height}
+<div style={{ marginTop: layoutValues.likeToCommentGap }}>
+  <RightRailAction
+    value={activeItem.comments}
+    label="Comments"
     scale={actionScale}
-    variant="bright"
-    offsetY={2}
-  />
-</RightRailAction>
+    numberTopGap={4}
+  >
+    <RightRailIconImage
+      src={RIGHT_RAIL_ICONS.commentWhite}
+      alt="Comment"
+      width={RIGHT_RAIL_ICON_SIZES.comment.width}
+      height={RIGHT_RAIL_ICON_SIZES.comment.height}
+      scale={actionScale}
+      variant="bright"
+      offsetY={2}
+    />
+  </RightRailAction>
+</div>
 
 <RightRailAction
   value={activeItem.shares}
@@ -1302,22 +1308,24 @@ const actionScale = layoutValues.rightRailIconScale * 1.15;
   />
 </RightRailAction>
 
-<RightRailAction
-  value="8"
-  label="Info"
-  scale={actionScale}
-  numberTopGap={6}
->
-  <RightRailIconImage
-    src={RIGHT_RAIL_ICONS.infoWhite}
-    alt="Info"
-    width={RIGHT_RAIL_ICON_SIZES.info.width}
-    height={RIGHT_RAIL_ICON_SIZES.info.height}
+<div style={{ marginTop: layoutValues.boostToInfoGap }}>
+  <RightRailAction
+    value="8"
+    label="Info"
     scale={actionScale}
-    variant="standard"
-    offsetY={0}
-  />
-</RightRailAction>
+    numberTopGap={6}
+  >
+    <RightRailIconImage
+      src={RIGHT_RAIL_ICONS.infoWhite}
+      alt="Info"
+      width={RIGHT_RAIL_ICON_SIZES.info.width}
+      height={RIGHT_RAIL_ICON_SIZES.info.height}
+      scale={actionScale}
+      variant="standard"
+      offsetY={0}
+    />
+  </RightRailAction>
+</div>
 
         <div style={{ marginTop: layoutValues.infoToDiscGap }}>
           <MusicDiscIcon
@@ -1517,6 +1525,20 @@ const actionScale = layoutValues.rightRailIconScale * 1.15;
   valueText={`${layoutValues.avatarToLikeGap}px`}
   onMinus={() => adjustNumber("avatarToLikeGap", -1, -40, 40)}
   onPlus={() => adjustNumber("avatarToLikeGap", 1, -40, 40)}
+/>
+
+<Stepper
+  label="Like → Comment gap"
+  valueText={`${layoutValues.likeToCommentGap}px`}
+  onMinus={() => adjustNumber("likeToCommentGap", -1, -40, 40)}
+  onPlus={() => adjustNumber("likeToCommentGap", 1, -40, 40)}
+/>
+
+<Stepper
+  label="Boost → Info gap"
+  valueText={`${layoutValues.boostToInfoGap}px`}
+  onMinus={() => adjustNumber("boostToInfoGap", -1, -40, 40)}
+  onPlus={() => adjustNumber("boostToInfoGap", 1, -40, 40)}
 />
 
 <Stepper
