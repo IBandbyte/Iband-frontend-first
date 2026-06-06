@@ -1219,7 +1219,8 @@ boxShadow:
           </div>
         </div>
 
-      <RightRailAction
+      <div style={{ marginTop: -6 }}>
+  <RightRailAction
   value={displayLikes}
   label="Likes"
   scale={actionScale}
@@ -1253,6 +1254,7 @@ boxShadow:
     offsetY={2}
   />
 </RightRailAction>
+</div>
 
 <RightRailAction
   value={activeItem.saves}
