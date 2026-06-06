@@ -1322,7 +1322,7 @@ boxShadow:
   />
 </RightRailAction>
 
-        <div style={{ marginTop: 16 }}>
+        <div style={{ marginTop: 0 }}>
           <MusicDiscIcon
   artwork={activeItem.artwork}
   scale={layoutValues.rightRailDiscScale}
