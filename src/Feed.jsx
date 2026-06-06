@@ -928,8 +928,14 @@ boxShadow:
     transformOrigin: "bottom center"
   }), [layoutValues.bottomNavHeight, layoutValues.bottomNavScale]);
 
-  const bottomNavLabelSize = 10 * layoutValues.bottomNavScale;
-  const actionScale = layoutValues.rightRailIconScale * 1.15;
+  const rightRailCssGap = Math.max(layoutValues.rightRailGap, 0);
+const rightRailActionSpacerHeight = Math.max(
+  0,
+  18 + Math.min(layoutValues.rightRailGap, 0)
+);
+
+const bottomNavLabelSize = 10 * layoutValues.bottomNavScale;
+const actionScale = layoutValues.rightRailIconScale * 1.15;
 
   return (
     <div style={shellStyles}>
@@ -1227,22 +1233,23 @@ boxShadow:
 
       <div style={{ marginTop: layoutValues.avatarToLikeGap }}>
   <RightRailAction
-  value={displayLikes}
-  label="Likes"
-  scale={actionScale}
-  numberTopGap={14}
->
-  <RightRailIconImage
-    src={isActiveLiked ? RIGHT_RAIL_ICONS.likeRed : RIGHT_RAIL_ICONS.likeWhite}
-    alt="Like"
-    width={RIGHT_RAIL_ICON_SIZES.like.width}
-    height={RIGHT_RAIL_ICON_SIZES.like.height}
-    allowOverflow={RIGHT_RAIL_ICON_SIZES.like.overflow}
+    value={displayLikes}
+    label="Likes"
     scale={actionScale}
-    variant="bright"
-    offsetY={0}
-  />
-</RightRailAction>
+    numberTopGap={14}
+  >
+    <RightRailIconImage
+      src={isActiveLiked ? RIGHT_RAIL_ICONS.likeRed : RIGHT_RAIL_ICONS.likeWhite}
+      alt="Like"
+      width={RIGHT_RAIL_ICON_SIZES.like.width}
+      height={RIGHT_RAIL_ICON_SIZES.like.height}
+      allowOverflow={RIGHT_RAIL_ICON_SIZES.like.overflow}
+      scale={actionScale}
+      variant="bright"
+      offsetY={0}
+    />
+  </RightRailAction>
+</div>
 
 <RightRailAction
   value={activeItem.comments}
@@ -1258,24 +1265,6 @@ boxShadow:
     scale={actionScale}
     variant="bright"
     offsetY={2}
-  />
-</RightRailAction>
-</div>
-
-<RightRailAction
-  value={activeItem.saves}
-  label="Saves"
-  scale={actionScale}
-  numberTopGap={2}
->
-  <RightRailIconImage
-    src={isActiveSaved ? RIGHT_RAIL_ICONS.savePurple : RIGHT_RAIL_ICONS.saveWhite}
-    alt="Save"
-    width={RIGHT_RAIL_ICON_SIZES.save.width}
-    height={RIGHT_RAIL_ICON_SIZES.save.height}
-    scale={actionScale}
-    variant="standard"
-    offsetY={0}
   />
 </RightRailAction>
 
@@ -1518,11 +1507,11 @@ boxShadow:
   />
 
   <Stepper
-    label="Right rail gap"
-    valueText={`${layoutValues.rightRailGap}px`}
-    onMinus={() => adjustNumber("rightRailGap", -1, 2, 34)}
-    onPlus={() => adjustNumber("rightRailGap", 1, 2, 34)}
-  />
+  label="Right rail gap"
+  valueText={`${layoutValues.rightRailGap}px`}
+  onMinus={() => adjustNumber("rightRailGap", -1, -10, 34)}
+  onPlus={() => adjustNumber("rightRailGap", 1, -10, 34)}
+/>
   <Stepper
   label="Avatar → Like gap"
   valueText={`${layoutValues.avatarToLikeGap}px`}
