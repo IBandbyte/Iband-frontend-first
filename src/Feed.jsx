@@ -849,7 +849,7 @@ export default function Feed() {
     left: 0,
     right: 0,
     zIndex: 40,
-    padding: "12px 14px 8px",
+    padding: "20px 14px 8px",
     pointerEvents: "none",
     background:
       "linear-gradient(to bottom, rgba(0,0,0,0.40), rgba(0,0,0,0.08), rgba(0,0,0,0))"
@@ -962,7 +962,7 @@ const actionScale = layoutValues.rightRailIconScale * 1.15;
       display: "flex",
       alignItems: "center",
       justifyContent: "center",
-      gap: 18,
+      gap: 12,
       width: "100%",
       pointerEvents: "auto"
     }}
@@ -983,19 +983,37 @@ const actionScale = layoutValues.rightRailIconScale * 1.15;
             activeTopTab === tab
               ? "#ffffff"
               : "rgba(255,255,255,0.68)",
-          fontSize: 13,
+          fontSize: 12,
           fontWeight:
             activeTopTab === tab
               ? 800
               : 600,
           letterSpacing: "-0.01em",
           textShadow:
-            activeTopTab === tab
-              ? "0 0 12px rgba(255,255,255,0.25)"
-              : "none"
+  activeTopTab === tab
+    ? "0 0 12px rgba(255,255,255,0.25)"
+    : "none",
+
+position: "relative"
         }}
       >
-        {tab}
+        <>
+  {tab}
+
+  {activeTopTab === tab && (
+    <div
+      style={{
+        position: "absolute",
+        left: 0,
+        right: 0,
+        bottom: -6,
+        height: 2,
+        borderRadius: 999,
+        background: "#ffffff"
+      }}
+    />
+  )}
+</>
       </button>
     ))}
   </div>
