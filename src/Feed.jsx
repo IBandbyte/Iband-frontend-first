@@ -54,8 +54,8 @@ const DEFAULT_LAYOUT = {
 
   avatarToLikeGap: 20,
   likeToCommentGap: 4,
-  shareToBoostGap: 0,
-  boostToInfoGap: 4,
+  shareToBoostGap: -14,
+  boostToInfoGap: 5,
   infoToDiscGap: -2,
 
   rightRailIconScale: 1.02,
