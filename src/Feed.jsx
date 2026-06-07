@@ -811,7 +811,7 @@ export default function Feed() {
     "const layoutTweaks = {",
     `  rightRailTop: "${layoutValues.rightRailTop}",`,
     `  rightRailGap: ${layoutValues.rightRailGap},`,
-    `  `  avatarToLikeGap: ${layoutValues.avatarToLikeGap},`,
+    `  avatarToLikeGap: ${layoutValues.avatarToLikeGap},`,
 `  likeToCommentGap: ${layoutValues.likeToCommentGap},`,
 `  shareToBoostGap: ${layoutValues.shareToBoostGap},`,
 `  boostToInfoGap: ${layoutValues.boostToInfoGap},`,
