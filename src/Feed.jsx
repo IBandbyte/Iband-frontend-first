@@ -7,6 +7,7 @@ import {
 
 const DEV_LAYOUT_MODE = true;
 const IBAND_LOGO_SRC = "/circularlogo.PNG";
+const TOP_HEADER_TABS = ["Following", "For You", "Rising", "Live", "Explore"];
 
 const FEED_FONT_STACK =
   '"TikTok Sans", Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
@@ -584,6 +585,7 @@ export default function Feed() {
   const [activeIndex, setActiveIndex] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [showDevCode, setShowDevCode] = useState(true);
+  const [activeTopTab, setActiveTopTab] = useState("For You");
 
   const [layoutValues, setLayoutValues] = useState(DEFAULT_LAYOUT);
   const [dragState, setDragState] = useState({ active: false, target: null });
@@ -947,7 +949,64 @@ const actionScale = layoutValues.rightRailIconScale * 1.15;
   return (
     <div style={shellStyles}>
       <div style={topBarStyles}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-start" }}>
+        <div
+  style={{
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    gap: 10
+  }}
+>
+  <div
+    style={{
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 18,
+      width: "100%",
+      pointerEvents: "auto"
+    }}
+  >
+    {TOP_HEADER_TABS.map((tab) => (
+      <button
+        key={tab}
+        type="button"
+        onClick={() => setActiveTopTab(tab)}
+        style={{
+          appearance: "none",
+          border: "none",
+          background: "transparent",
+          padding: 0,
+          margin: 0,
+          cursor: "pointer",
+          color:
+            activeTopTab === tab
+              ? "#ffffff"
+              : "rgba(255,255,255,0.68)",
+          fontSize: 13,
+          fontWeight:
+            activeTopTab === tab
+              ? 800
+              : 600,
+          letterSpacing: "-0.01em",
+          textShadow:
+            activeTopTab === tab
+              ? "0 0 12px rgba(255,255,255,0.25)"
+              : "none"
+        }}
+      >
+        {tab}
+      </button>
+    ))}
+  </div>
+
+  <div
+    style={{
+      width: "100%",
+      display: "flex",
+      justifyContent: "flex-start"
+    }}
+  >
   <img
     src={IBAND_LOGO_SRC}
     alt="iBand"
@@ -968,8 +1027,9 @@ const actionScale = layoutValues.rightRailIconScale * 1.15;
 
       filter:
         "drop-shadow(0 6px 14px rgba(0,0,0,0.44))"
-    }}
+        }}
   />
+  </div>
 </div>
       </div>
 
