@@ -54,17 +54,18 @@ const DEFAULT_LAYOUT = {
 
   avatarToLikeGap: 20,
   likeToCommentGap: 4,
+  shareToBoostGap: 0,
   boostToInfoGap: 4,
   infoToDiscGap: -2,
+
+  rightRailIconScale: 1.02,
+  rightRailAvatarScale: 1.5,
+  rightRailDiscScale: 1.15,
 
   contentOverlayBottom: 112,
   searchDockBottom: 45,
   bottomNavHeight: 42,
   rightRailScale: 1,
-
-  rightRailIconScale: 1.02,
-  rightRailAvatarScale: 1.5,
-  rightRailDiscScale: 1.15,
 
   contentOverlayScale: 0.95,
   bottomNavScale: 1.05,
@@ -810,10 +811,11 @@ export default function Feed() {
     "const layoutTweaks = {",
     `  rightRailTop: "${layoutValues.rightRailTop}",`,
     `  rightRailGap: ${layoutValues.rightRailGap},`,
-    `  avatarToLikeGap: ${layoutValues.avatarToLikeGap},`,
-    `  likeToCommentGap: ${layoutValues.likeToCommentGap},`,
-    `  boostToInfoGap: ${layoutValues.boostToInfoGap},`,
-    `  infoToDiscGap: ${layoutValues.infoToDiscGap},`,
+    `  `  avatarToLikeGap: ${layoutValues.avatarToLikeGap},`,
+`  likeToCommentGap: ${layoutValues.likeToCommentGap},`,
+`  shareToBoostGap: ${layoutValues.shareToBoostGap},`,
+`  boostToInfoGap: ${layoutValues.boostToInfoGap},`,
+`  infoToDiscGap: ${layoutValues.infoToDiscGap},`,
     `  contentOverlayBottom: ${layoutValues.contentOverlayBottom},`,
     `  searchDockBottom: ${layoutValues.searchDockBottom},`,
     `  bottomNavHeight: ${layoutValues.bottomNavHeight},`,
@@ -1292,22 +1294,24 @@ const actionScale = layoutValues.rightRailIconScale * 1.15;
   />
 </RightRailAction>
 
-<RightRailAction
-  value={displayBoosts}
-  label="Boosts"
-  scale={actionScale}
-  numberTopGap={16}
->
-  <RightRailIconImage
-    src={isActiveBoosted ? RIGHT_RAIL_ICONS.boostGold : RIGHT_RAIL_ICONS.boostWhite}
-    alt="Boost"
-    width={RIGHT_RAIL_ICON_SIZES.boost.width}
-    height={RIGHT_RAIL_ICON_SIZES.boost.height}
+<div style={{ marginTop: layoutValues.shareToBoostGap }}>
+  <RightRailAction
+    value={displayBoosts}
+    label="Boosts"
     scale={actionScale}
-    variant="standard"
-    offsetY={3}
-  />
-</RightRailAction>
+    numberTopGap={16}
+  >
+    <RightRailIconImage
+      src={isActiveBoosted ? RIGHT_RAIL_ICONS.boostGold : RIGHT_RAIL_ICONS.boostWhite}
+      alt="Boost"
+      width={RIGHT_RAIL_ICON_SIZES.boost.width}
+      height={RIGHT_RAIL_ICON_SIZES.boost.height}
+      scale={actionScale}
+      variant="standard"
+      offsetY={3}
+    />
+  </RightRailAction>
+</div>
 
 <div style={{ marginTop: layoutValues.boostToInfoGap }}>
   <RightRailAction
@@ -1533,6 +1537,13 @@ const actionScale = layoutValues.rightRailIconScale * 1.15;
   valueText={`${layoutValues.likeToCommentGap}px`}
   onMinus={() => adjustNumber("likeToCommentGap", -1, -40, 40)}
   onPlus={() => adjustNumber("likeToCommentGap", 1, -40, 40)}
+/>
+
+<Stepper
+  label="Share → Boost gap"
+  valueText={`${layoutValues.shareToBoostGap}px`}
+  onMinus={() => adjustNumber("shareToBoostGap", -1, -40, 40)}
+  onPlus={() => adjustNumber("shareToBoostGap", 1, -40, 40)}
 />
 
 <Stepper
