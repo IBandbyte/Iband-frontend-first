@@ -7,7 +7,7 @@ import {
 
 const DEV_LAYOUT_MODE = true;
 const IBAND_LOGO_SRC = "/circularlogo.PNG";
-const TOP_HEADER_TABS = ["Following", "For You", "Rising", "Live", "Explore"];
+const TOP_HEADER_TABS = ["Following", "For You", "Rising", "Explore"];
 
 const FEED_FONT_STACK =
   '"TikTok Sans", Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
@@ -949,107 +949,125 @@ const actionScale = layoutValues.rightRailIconScale * 1.15;
   return (
     <div style={shellStyles}>
       <div style={topBarStyles}>
-        <div
-  style={{
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    gap: 10
-  }}
->
   <div
     style={{
       display: "flex",
+      flexDirection: "column",
       alignItems: "center",
-      justifyContent: "center",
-      gap: 12,
-      width: "100%",
-      pointerEvents: "auto"
+      gap: 10
     }}
   >
-    {TOP_HEADER_TABS.map((tab) => (
-      <button
-        key={tab}
-        type="button"
-        onClick={() => setActiveTopTab(tab)}
-        style={{
-          appearance: "none",
-          border: "none",
-          background: "transparent",
-          padding: 0,
-          margin: 0,
-          cursor: "pointer",
-          color:
-            activeTopTab === tab
-              ? "#ffffff"
-              : "rgba(255,255,255,0.68)",
-          fontSize: 12,
-          fontWeight:
-            activeTopTab === tab
-              ? 800
-              : 600,
-          letterSpacing: "-0.01em",
-          textShadow:
-  activeTopTab === tab
-    ? "0 0 12px rgba(255,255,255,0.25)"
-    : "none",
-
-position: "relative"
-        }}
-      >
-        <>
-  {tab}
-
-  {activeTopTab === tab && (
     <div
       style={{
-        position: "absolute",
-        left: 0,
-        right: 0,
-        bottom: -6,
-        height: 2,
-        borderRadius: 999,
-        background: "#ffffff"
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 12,
+        width: "100%",
+        pointerEvents: "auto"
       }}
-    />
-  )}
-</>
-      </button>
-    ))}
-  </div>
-
-  <div
-    style={{
-      width: "100%",
-      display: "flex",
-      justifyContent: "flex-start"
-    }}
-  >
-  <img
-    src={IBAND_LOGO_SRC}
-    alt="iBand"
-    draggable="false"
-    style={{
-      height: 42 * layoutValues.logoScale,
-      width: 42 * layoutValues.logoScale,
-      borderRadius: "50%",
-      objectFit: "cover",
-      display: "block",
-
-      border: "1px solid rgba(255,255,255,0.14)",
-
-      background: "transparent",
-
-      boxShadow:
-        "0 0 18px rgba(124,58,237,0.28), 0 0 34px rgba(234,88,12,0.16)",
-
-      filter:
-        "drop-shadow(0 6px 14px rgba(0,0,0,0.44))"
+    >
+      <button
+        type="button"
+        onClick={() => setActiveTopTab("Live")}
+        style={{
+          appearance: "none",
+          border: "1px solid rgba(255,255,255,0.18)",
+          background:
+            activeTopTab === "Live"
+              ? "rgba(255,255,255,0.18)"
+              : "rgba(0,0,0,0.28)",
+          color: "#ffffff",
+          borderRadius: 999,
+          padding: "5px 10px",
+          fontSize: 11,
+          fontWeight: 800,
+          letterSpacing: "0.04em",
+          cursor: "pointer",
+          backdropFilter: "blur(8px)",
+          WebkitBackdropFilter: "blur(8px)",
+          position: "relative"
         }}
-  />
+      >
+        LIVE
+      </button>
+
+      {TOP_HEADER_TABS.map((tab) => (
+        <button
+          key={tab}
+          type="button"
+          onClick={() => setActiveTopTab(tab)}
+          style={{
+            appearance: "none",
+            border: "none",
+            background: "transparent",
+            padding: 0,
+            margin: 0,
+            cursor: "pointer",
+            color:
+              activeTopTab === tab
+                ? "#ffffff"
+                : "rgba(255,255,255,0.68)",
+            fontSize: 12,
+            fontWeight:
+              activeTopTab === tab
+                ? 800
+                : 600,
+            letterSpacing: "-0.01em",
+            textShadow:
+              activeTopTab === tab
+                ? "0 0 12px rgba(255,255,255,0.25)"
+                : "none",
+            position: "relative"
+          }}
+        >
+          {tab}
+
+          {activeTopTab === tab && (
+            <div
+              style={{
+                position: "absolute",
+                left: 0,
+                right: 0,
+                bottom: -6,
+                height: 2,
+                borderRadius: 999,
+                background: "#ffffff"
+              }}
+            />
+          )}
+        </button>
+      ))}
+    </div>
+
+    <div
+      style={{
+        width: "100%",
+        display: "flex",
+        justifyContent: "flex-start"
+      }}
+    >
+      <img
+        src={IBAND_LOGO_SRC}
+        alt="iBand"
+        draggable="false"
+        style={{
+          height: 42 * layoutValues.logoScale,
+          width: 42 * layoutValues.logoScale,
+          borderRadius: "50%",
+          objectFit: "cover",
+          display: "block",
+          border: "1px solid rgba(255,255,255,0.14)",
+          background: "transparent",
+          boxShadow:
+            "0 0 18px rgba(124,58,237,0.28), 0 0 34px rgba(234,88,12,0.16)",
+          filter:
+            "drop-shadow(0 6px 14px rgba(0,0,0,0.44))"
+        }}
+      />
+    </div>
   </div>
 </div>
-      </div>
 
       <div ref={feedRef} onScroll={handleScroll} style={feedScrollStyles}>
         {items.map((item, index) => {
