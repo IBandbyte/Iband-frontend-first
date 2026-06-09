@@ -77,6 +77,18 @@ const DEFAULT_LAYOUT = {
   bottomNavHeight: 42,
   rightRailScale: 1,
 
+  hubX: 0,
+  hubY: 0,
+  hubScale: 1,
+
+  liveX: 0,
+  liveY: 0,
+  liveScale: 1,
+
+  aiX: 0,
+  aiY: 0,
+  aiScale: 1,
+
   contentOverlayScale: 0.95,
   bottomNavScale: 1.05,
   searchDockWidth: 75,
@@ -993,10 +1005,7 @@ const actionScale = layoutValues.rightRailIconScale * 1.15;
                 ? "#ffffff"
                 : "rgba(255,255,255,0.68)",
             fontSize: 12,
-            fontWeight:
-              activeTopTab === tab
-                ? 800
-                : 600,
+            fontWeight: activeTopTab === tab ? 800 : 600,
             letterSpacing: "-0.01em",
             textShadow:
               activeTopTab === tab
@@ -1046,7 +1055,9 @@ const actionScale = layoutValues.rightRailIconScale * 1.15;
           display: "flex",
           alignItems: "center",
           gap: 8,
-          color: "#ffffff"
+          color: "#ffffff",
+          transform: `translate(${layoutValues.hubX}px, ${layoutValues.hubY}px) scale(${layoutValues.hubScale})`,
+          transformOrigin: "left center"
         }}
       >
         <img
@@ -1063,8 +1074,7 @@ const actionScale = layoutValues.rightRailIconScale * 1.15;
             background: "transparent",
             boxShadow:
               "0 0 18px rgba(124,58,237,0.28), 0 0 34px rgba(234,88,12,0.16)",
-            filter:
-              "drop-shadow(0 6px 14px rgba(0,0,0,0.44))"
+            filter: "drop-shadow(0 6px 14px rgba(0,0,0,0.44))"
           }}
         />
 
@@ -1096,7 +1106,9 @@ const actionScale = layoutValues.rightRailIconScale * 1.15;
             background: "transparent",
             padding: 0,
             margin: 0,
-            cursor: "pointer"
+            cursor: "pointer",
+            transform: `translate(${layoutValues.liveX}px, ${layoutValues.liveY}px) scale(${layoutValues.liveScale})`,
+            transformOrigin: "center"
           }}
         >
           <img
@@ -1122,7 +1134,9 @@ const actionScale = layoutValues.rightRailIconScale * 1.15;
             background: "transparent",
             padding: 0,
             margin: 0,
-            cursor: "pointer"
+            cursor: "pointer",
+            transform: `translate(${layoutValues.aiX}px, ${layoutValues.aiY}px) scale(${layoutValues.aiScale})`,
+            transformOrigin: "center"
           }}
         >
           <img
@@ -1752,10 +1766,66 @@ const actionScale = layoutValues.rightRailIconScale * 1.15;
 />
 
 <Stepper
-  label="Logo size"
-  valueText={`${layoutValues.logoScale.toFixed(2)}x`}
-  onMinus={() => adjustScale("logoScale", -0.05, 0.5, 2)}
-  onPlus={() => adjustScale("logoScale", 0.05, 0.5, 2)}
+  label="Hub X"
+  valueText={`${layoutValues.hubX}px`}
+  onMinus={() => adjustNumber("hubX", -1, -120, 120)}
+  onPlus={() => adjustNumber("hubX", 1, -120, 120)}
+/>
+
+<Stepper
+  label="Hub Y"
+  valueText={`${layoutValues.hubY}px`}
+  onMinus={() => adjustNumber("hubY", -1, -80, 80)}
+  onPlus={() => adjustNumber("hubY", 1, -80, 80)}
+/>
+
+<Stepper
+  label="Hub size"
+  valueText={`${layoutValues.hubScale.toFixed(2)}x`}
+  onMinus={() => adjustScale("hubScale", -0.05, 0.5, 2)}
+  onPlus={() => adjustScale("hubScale", 0.05, 0.5, 2)}
+/>
+
+<Stepper
+  label="LIVE X"
+  valueText={`${layoutValues.liveX}px`}
+  onMinus={() => adjustNumber("liveX", -1, -120, 120)}
+  onPlus={() => adjustNumber("liveX", 1, -120, 120)}
+/>
+
+<Stepper
+  label="LIVE Y"
+  valueText={`${layoutValues.liveY}px`}
+  onMinus={() => adjustNumber("liveY", -1, -80, 80)}
+  onPlus={() => adjustNumber("liveY", 1, -80, 80)}
+/>
+
+<Stepper
+  label="LIVE size"
+  valueText={`${layoutValues.liveScale.toFixed(2)}x`}
+  onMinus={() => adjustScale("liveScale", -0.05, 0.5, 2)}
+  onPlus={() => adjustScale("liveScale", 0.05, 0.5, 2)}
+/>
+
+<Stepper
+  label="AI X"
+  valueText={`${layoutValues.aiX}px`}
+  onMinus={() => adjustNumber("aiX", -1, -120, 120)}
+  onPlus={() => adjustNumber("aiX", 1, -120, 120)}
+/>
+
+<Stepper
+  label="AI Y"
+  valueText={`${layoutValues.aiY}px`}
+  onMinus={() => adjustNumber("aiY", -1, -80, 80)}
+  onPlus={() => adjustNumber("aiY", 1, -80, 80)}
+/>
+
+<Stepper
+  label="AI size"
+  valueText={`${layoutValues.aiScale.toFixed(2)}x`}
+  onMinus={() => adjustScale("aiScale", -0.05, 0.5, 2)}
+  onPlus={() => adjustScale("aiScale", 0.05, 0.5, 2)}
 />
 </div>
 </div>
