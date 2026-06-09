@@ -7,7 +7,16 @@ import {
 
 const DEV_LAYOUT_MODE = true;
 const IBAND_LOGO_SRC = "/circularlogo.PNG";
-const TOP_HEADER_TABS = ["Following", "For You", "Rising", "Explore"];
+
+const CHROME_LIVE_ICON = "/chrome-live.PNG";
+const CHROME_AI_ICON = "/chrome-ai.PNG";
+
+const TOP_HEADER_TABS = [
+  "Following",
+  "For You",
+  "Rising",
+  "Explore"
+];
 
 const FEED_FONT_STACK =
   '"TikTok Sans", Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
@@ -959,39 +968,14 @@ const actionScale = layoutValues.rightRailIconScale * 1.15;
   >
     <div
       style={{
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        gap: 12,
         width: "100%",
-        pointerEvents: "auto"
+        display: "flex",
+        justifyContent: "center",
+        gap: 22,
+        pointerEvents: "auto",
+        marginBottom: 10
       }}
     >
-      <button
-        type="button"
-        onClick={() => setActiveTopTab("Live")}
-        style={{
-          appearance: "none",
-          border: "1px solid rgba(255,255,255,0.18)",
-          background:
-            activeTopTab === "Live"
-              ? "rgba(255,255,255,0.18)"
-              : "rgba(0,0,0,0.28)",
-          color: "#ffffff",
-          borderRadius: 999,
-          padding: "5px 10px",
-          fontSize: 11,
-          fontWeight: 800,
-          letterSpacing: "0.04em",
-          cursor: "pointer",
-          backdropFilter: "blur(8px)",
-          WebkitBackdropFilter: "blur(8px)",
-          position: "relative"
-        }}
-      >
-        LIVE
-      </button>
-
       {TOP_HEADER_TABS.map((tab) => (
         <button
           key={tab}
@@ -1044,27 +1028,117 @@ const actionScale = layoutValues.rightRailIconScale * 1.15;
       style={{
         width: "100%",
         display: "flex",
-        justifyContent: "flex-start"
+        justifyContent: "space-between",
+        alignItems: "center",
+        pointerEvents: "auto"
       }}
     >
-      <img
-        src={IBAND_LOGO_SRC}
-        alt="iBand"
-        draggable="false"
+      <button
+        type="button"
+        aria-label="Open iBand Hub"
         style={{
-          height: 42 * layoutValues.logoScale,
-          width: 42 * layoutValues.logoScale,
-          borderRadius: "50%",
-          objectFit: "cover",
-          display: "block",
-          border: "1px solid rgba(255,255,255,0.14)",
+          appearance: "none",
+          border: "none",
           background: "transparent",
-          boxShadow:
-            "0 0 18px rgba(124,58,237,0.28), 0 0 34px rgba(234,88,12,0.16)",
-          filter:
-            "drop-shadow(0 6px 14px rgba(0,0,0,0.44))"
+          padding: 0,
+          margin: 0,
+          cursor: "pointer",
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          color: "#ffffff"
         }}
-      />
+      >
+        <img
+          src={IBAND_LOGO_SRC}
+          alt="iBand"
+          draggable="false"
+          style={{
+            height: 38 * layoutValues.logoScale,
+            width: 38 * layoutValues.logoScale,
+            borderRadius: "50%",
+            objectFit: "cover",
+            display: "block",
+            border: "1px solid rgba(255,255,255,0.14)",
+            background: "transparent",
+            boxShadow:
+              "0 0 18px rgba(124,58,237,0.28), 0 0 34px rgba(234,88,12,0.16)",
+            filter:
+              "drop-shadow(0 6px 14px rgba(0,0,0,0.44))"
+          }}
+        />
+
+        <span
+          style={{
+            fontSize: 12,
+            fontWeight: 800,
+            letterSpacing: "-0.01em",
+            textShadow: "0 2px 10px rgba(0,0,0,0.38)"
+          }}
+        >
+          iBand
+        </span>
+      </button>
+
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 10
+        }}
+      >
+        <button
+          type="button"
+          aria-label="Open Live"
+          style={{
+            appearance: "none",
+            border: "none",
+            background: "transparent",
+            padding: 0,
+            margin: 0,
+            cursor: "pointer"
+          }}
+        >
+          <img
+            src={CHROME_LIVE_ICON}
+            alt="LIVE"
+            draggable="false"
+            style={{
+              width: 38,
+              height: 38,
+              objectFit: "contain",
+              display: "block",
+              filter: "drop-shadow(0 6px 14px rgba(0,0,0,0.44))"
+            }}
+          />
+        </button>
+
+        <button
+          type="button"
+          aria-label="Open AI"
+          style={{
+            appearance: "none",
+            border: "none",
+            background: "transparent",
+            padding: 0,
+            margin: 0,
+            cursor: "pointer"
+          }}
+        >
+          <img
+            src={CHROME_AI_ICON}
+            alt="AI"
+            draggable="false"
+            style={{
+              width: 38,
+              height: 38,
+              objectFit: "contain",
+              display: "block",
+              filter: "drop-shadow(0 6px 14px rgba(0,0,0,0.44))"
+            }}
+          />
+        </button>
+      </div>
     </div>
   </div>
 </div>
