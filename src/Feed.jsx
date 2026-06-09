@@ -1634,7 +1634,7 @@ const actionScale = layoutValues.rightRailIconScale * 1.15;
             style={{
               position: "fixed",
               left: 10,
-              top: 58,
+              top: 118,
               zIndex: 60,
               width: 208,
               padding: "10px 11px",
