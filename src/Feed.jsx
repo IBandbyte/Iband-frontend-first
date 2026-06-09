@@ -1056,22 +1056,23 @@ const actionScale = layoutValues.rightRailIconScale * 1.15;
           alignItems: "center",
           gap: 8,
           color: "#ffffff",
+          position: "relative",
           transform: `translate(${layoutValues.hubX}px, ${layoutValues.hubY}px) scale(${layoutValues.hubScale})`,
           transformOrigin: "left center"
         }}
       >
         <img
-          src={IBAND_LOGO_SRC}
+          src={`${IBAND_LOGO_SRC}?v=hub-header`}
           alt="iBand"
           draggable="false"
           style={{
-            height: 38 * layoutValues.logoScale,
-            width: 38 * layoutValues.logoScale,
+            height: 42 * layoutValues.logoScale,
+            width: 42 * layoutValues.logoScale,
             borderRadius: "50%",
             objectFit: "cover",
             display: "block",
             border: "1px solid rgba(255,255,255,0.14)",
-            background: "transparent",
+            background: "rgba(255,255,255,0.08)",
             boxShadow:
               "0 0 18px rgba(124,58,237,0.28), 0 0 34px rgba(234,88,12,0.16)",
             filter: "drop-shadow(0 6px 14px rgba(0,0,0,0.44))"
@@ -1088,6 +1089,27 @@ const actionScale = layoutValues.rightRailIconScale * 1.15;
         >
           iBand
         </span>
+
+        {DEV_LAYOUT_MODE && (
+          <span
+            style={{
+              position: "absolute",
+              left: 0,
+              top: 48,
+              padding: "3px 7px",
+              borderRadius: 999,
+              background: "rgba(0,0,0,0.72)",
+              border: "1px solid rgba(255,255,255,0.14)",
+              color: "#fbbf24",
+              fontSize: 9,
+              fontWeight: 900,
+              letterSpacing: "0.06em",
+              whiteSpace: "nowrap"
+            }}
+          >
+            DRAG HUB
+          </span>
+        )}
       </button>
 
       <div
