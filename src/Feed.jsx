@@ -6,7 +6,7 @@ import {
 } from "./services/api";
 
 const DEV_LAYOUT_MODE = true;
-const IBAND_LOGO_SRC = "/circularlogo.PNG?v=2";
+const IBAND_LOGO_SRC = "/chrome-live.PNG";
 
 const CHROME_LIVE_ICON = "/chrome-live.PNG";
 const CHROME_AI_ICON = "/chrome-ai.PNG";
