@@ -1655,19 +1655,21 @@ const actionScale = layoutValues.rightRailIconScale * 1.15;
         <>
           <div
             style={{
-              position: "fixed",
-              left: 10,
-              top: 118,
-              zIndex: 60,
-              width: 208,
-              padding: "10px 11px",
-              borderRadius: 14,
-              background: "rgba(9,9,12,0.76)",
-              border: "1px solid rgba(255,255,255,0.12)",
-              backdropFilter: "blur(12px)",
-              WebkitBackdropFilter: "blur(12px)",
-              boxShadow: "0 14px 28px rgba(0,0,0,0.28)"
-            }}
+  position: "fixed",
+  left: 10,
+  top: 58,
+  zIndex: 60,
+  width: 208,
+  maxHeight: "72vh",
+  overflowY: "auto",
+  padding: "10px 11px",
+  borderRadius: 14,
+  background: "rgba(9,9,12,0.76)",
+  border: "1px solid rgba(255,255,255,0.12)",
+  backdropFilter: "blur(12px)",
+  WebkitBackdropFilter: "blur(12px)",
+  boxShadow: "0 14px 28px rgba(0,0,0,0.28)"
+}}
           >
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 8 }}>
               <div style={{ fontSize: 11, fontWeight: 800, color: "#fbbf24", letterSpacing: "0.08em" }}>
