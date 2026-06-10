@@ -6,10 +6,11 @@ import {
 } from "./services/api";
 
 const DEV_LAYOUT_MODE = true;
-const IBAND_LOGO_SRC = "/circularlogo.PNG";
+const IBAND_LOGO_SRC = "/circularlogo.PNG?v=2";
 
 const CHROME_LIVE_ICON = "/chrome-live.PNG";
 const CHROME_AI_ICON = "/chrome-ai.PNG";
+console.log("Hub Logo:", IBAND_LOGO_SRC);
 
 const TOP_HEADER_TABS = [
   "Following",
