@@ -1063,7 +1063,7 @@ const actionScale = layoutValues.rightRailIconScale * 1.15;
         }}
       >
         <img
-          src="/circularlogo.PNG"
+          src="/circularlogo2.PNG"
           alt="iBand"
           draggable="false"
           style={{
