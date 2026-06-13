@@ -687,70 +687,96 @@ export default function Feed() {
   }, [activeIndex, items.length]);
 
   const beginDrag = useCallback((target, event) => {
-    if (!DEV_LAYOUT_MODE) return;
+  if (!DEV_LAYOUT_MODE) return;
 
-    event.preventDefault();
+  event.preventDefault();
 
-    const touch = event.touches?.[0];
-    const clientY = touch?.clientY ?? event.clientY ?? 0;
+  const touch = event.touches?.[0];
+  const clientX = touch?.clientX ?? event.clientX ?? 0;
+  const clientY = touch?.clientY ?? event.clientY ?? 0;
 
-    setDragState({
-      active: true,
-      target,
-      startY: clientY,
-      startRightRailTop: toPercentNumber(layoutValues.rightRailTop, 44),
-      startContentOverlayBottom: toPxNumber(layoutValues.contentOverlayBottom, 142),
-      startSearchDockBottom: toPxNumber(layoutValues.searchDockBottom, 64),
-      startBottomNavHeight: toPxNumber(layoutValues.bottomNavHeight, 50)
-    });
-  }, [layoutValues]);
+  setDragState({
+    active: true,
+    target,
+    startX: clientX,
+    startY: clientY,
+    startRightRailTop: toPercentNumber(layoutValues.rightRailTop, 44),
+    startContentOverlayBottom: toPxNumber(layoutValues.contentOverlayBottom, 142),
+    startSearchDockBottom: toPxNumber(layoutValues.searchDockBottom, 64),
+    startBottomNavHeight: toPxNumber(layoutValues.bottomNavHeight, 50),
+    startLiveX: toPxNumber(layoutValues.liveX, 0),
+    startLiveY: toPxNumber(layoutValues.liveY, 0),
+    startAiX: toPxNumber(layoutValues.aiX, 0),
+    startAiY: toPxNumber(layoutValues.aiY, 0)
+  });
+}, [layoutValues]);
 
   const updateDrag = useCallback((event) => {
-    if (!DEV_LAYOUT_MODE) return;
-    if (!dragState.active || !dragState.target) return;
+  if (!DEV_LAYOUT_MODE) return;
+  if (!dragState.active || !dragState.target) return;
 
-    const touch = event.touches?.[0];
-    const clientY = touch?.clientY ?? event.clientY ?? 0;
-    const deltaY = clientY - (dragState.startY || 0);
-    const viewportHeight = window.innerHeight || 844;
+  event.preventDefault();
 
-    if (dragState.target === "rightRail") {
-      const deltaPercent = (deltaY / viewportHeight) * 100;
-      const nextPercent = clamp((dragState.startRightRailTop || 44) + deltaPercent, 16, 82);
+  const touch = event.touches?.[0];
+  const clientX = touch?.clientX ?? event.clientX ?? 0;
+  const clientY = touch?.clientY ?? event.clientY ?? 0;
+  const deltaX = clientX - (dragState.startX || 0);
+  const deltaY = clientY - (dragState.startY || 0);
+  const viewportHeight = window.innerHeight || 844;
 
-      setLayoutValues((prev) => ({
-        ...prev,
-        rightRailTop: `${nextPercent.toFixed(2)}%`
-      }));
-    }
+  if (dragState.target === "rightRail") {
+    const deltaPercent = (deltaY / viewportHeight) * 100;
+    const nextPercent = clamp((dragState.startRightRailTop || 44) + deltaPercent, 16, 82);
 
-    if (dragState.target === "contentOverlay") {
-      const nextBottom = clamp((dragState.startContentOverlayBottom || 142) - deltaY, 86, 320);
+    setLayoutValues((prev) => ({
+      ...prev,
+      rightRailTop: `${nextPercent.toFixed(2)}%`
+    }));
+  }
 
-      setLayoutValues((prev) => ({
-        ...prev,
-        contentOverlayBottom: Math.round(nextBottom)
-      }));
-    }
+  if (dragState.target === "contentOverlay") {
+    const nextBottom = clamp((dragState.startContentOverlayBottom || 142) - deltaY, 86, 320);
 
-    if (dragState.target === "searchDock") {
-      const nextBottom = clamp((dragState.startSearchDockBottom || 64) - deltaY, 8, 220);
+    setLayoutValues((prev) => ({
+      ...prev,
+      contentOverlayBottom: Math.round(nextBottom)
+    }));
+  }
 
-      setLayoutValues((prev) => ({
-        ...prev,
-        searchDockBottom: Math.round(nextBottom)
-      }));
-    }
+  if (dragState.target === "searchDock") {
+    const nextBottom = clamp((dragState.startSearchDockBottom || 64) - deltaY, 8, 220);
 
-    if (dragState.target === "bottomNav") {
-      const nextHeight = clamp((dragState.startBottomNavHeight || 50) - deltaY, 42, 88);
+    setLayoutValues((prev) => ({
+      ...prev,
+      searchDockBottom: Math.round(nextBottom)
+    }));
+  }
 
-      setLayoutValues((prev) => ({
-        ...prev,
-        bottomNavHeight: Math.round(nextHeight)
-      }));
-    }
-  }, [dragState]);
+  if (dragState.target === "bottomNav") {
+    const nextHeight = clamp((dragState.startBottomNavHeight || 50) - deltaY, 42, 88);
+
+    setLayoutValues((prev) => ({
+      ...prev,
+      bottomNavHeight: Math.round(nextHeight)
+    }));
+  }
+
+  if (dragState.target === "liveHeader") {
+    setLayoutValues((prev) => ({
+      ...prev,
+      liveX: Math.round(clamp((dragState.startLiveX || 0) + deltaX, -160, 160)),
+      liveY: Math.round(clamp((dragState.startLiveY || 0) + deltaY, -120, 120))
+    }));
+  }
+
+  if (dragState.target === "aiHeader") {
+    setLayoutValues((prev) => ({
+      ...prev,
+      aiX: Math.round(clamp((dragState.startAiX || 0) + deltaX, -160, 160)),
+      aiY: Math.round(clamp((dragState.startAiY || 0) + deltaY, -120, 120))
+    }));
+  }
+}, [dragState]);
 
   const endDrag = useCallback(() => {
     if (!DEV_LAYOUT_MODE) return;
@@ -1132,6 +1158,8 @@ const actionScale = layoutValues.rightRailIconScale * 1.15;
         <button
           type="button"
           aria-label="Open Live"
+          onTouchStart={(event) => beginDrag("liveHeader", event)}
+onMouseDown={(event) => beginDrag("liveHeader", event)}
           style={{
             appearance: "none",
             border: "none",
@@ -1160,6 +1188,8 @@ const actionScale = layoutValues.rightRailIconScale * 1.15;
         <button
           type="button"
           aria-label="Open AI"
+          onTouchStart={(event) => beginDrag("aiHeader", event)}
+onMouseDown={(event) => beginDrag("aiHeader", event)}
           style={{
             appearance: "none",
             border: "none",
