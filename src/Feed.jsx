@@ -43,8 +43,8 @@ const BOTTOM_NAV_ICONS = {
   home: "/homechrome.PNG",
   shop: "/shopchrome.PNG",
   upload: "/uploadplus.PNG",
-  inbox: "/inboxchrome.PNG",
-  profile: "/profilechrome.PNG"
+  inbox: "/inboxchrome2.PNG",
+  profile: "/profilechrome2.PNG"
 };
 const RIGHT_RAIL_ICON_SIZES = {
   like: { width: 48, height: 48, overflow: true },
