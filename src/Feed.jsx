@@ -1616,7 +1616,7 @@ onMouseDown={(event) => beginDrag("aiHeader", event)}
   style={{
     position: "relative",
     width: item.hero
-      ? 52 * layoutValues.bottomNavScale
+      ? 60 * layoutValues.bottomNavScale
       : 31 * layoutValues.bottomNavScale,
     height: 28 * layoutValues.bottomNavScale,
     display: "grid",
@@ -1629,18 +1629,17 @@ onMouseDown={(event) => beginDrag("aiHeader", event)}
     draggable="false"
     style={{
       width:
-  item.hero
-    ? 54 * layoutValues.bottomNavScale
-    : 31 * layoutValues.bottomNavScale,
-
-height:
-  item.label === "Home"
-    ? 32 * layoutValues.bottomNavScale
-    : item.label === "Inbox"
-      ? 37 * layoutValues.bottomNavScale
-      : item.hero
-        ? 36 * layoutValues.bottomNavScale
-        : 31 * layoutValues.bottomNavScale,
+        item.hero
+          ? 54 * layoutValues.bottomNavScale
+          : 31 * layoutValues.bottomNavScale,
+      height:
+        item.label === "Home"
+          ? 32 * layoutValues.bottomNavScale
+          : item.label === "Inbox"
+            ? 40 * layoutValues.bottomNavScale
+            : item.hero
+              ? 36 * layoutValues.bottomNavScale
+              : 31 * layoutValues.bottomNavScale,
       objectFit: "contain",
       display: "block",
       transform:
