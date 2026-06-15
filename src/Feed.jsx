@@ -1621,13 +1621,23 @@ onMouseDown={(event) => beginDrag("aiHeader", event)}
                 placeItems: "center"
               }}
             >
-              <img
+            <img
   src={item.iconSrc}
   alt=""
   draggable="false"
   style={{
-    width: item.hero ? 34 * layoutValues.bottomNavScale : 28 * layoutValues.bottomNavScale,
-    height: item.hero ? 34 * layoutValues.bottomNavScale : 28 * layoutValues.bottomNavScale,
+    width:
+      item.label === "Inbox" || item.label === "Profile"
+        ? 34 * layoutValues.bottomNavScale
+        : item.hero
+          ? 30 * layoutValues.bottomNavScale
+          : 28 * layoutValues.bottomNavScale,
+    height:
+      item.label === "Inbox" || item.label === "Profile"
+        ? 34 * layoutValues.bottomNavScale
+        : item.hero
+          ? 30 * layoutValues.bottomNavScale
+          : 28 * layoutValues.bottomNavScale,
     objectFit: "contain",
     display: "block",
     filter: item.active
