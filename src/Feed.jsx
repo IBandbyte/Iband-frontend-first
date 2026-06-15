@@ -1608,7 +1608,7 @@ onMouseDown={(event) => beginDrag("aiHeader", event)}
               flexDirection: "column",
               alignItems: "center",
               justifyContent: "center",
-              gap: 3,
+              gap: 1,
               color: item.active ? "#ffffff" : "rgba(255,255,255,0.74)"
             }}
           >
@@ -1626,20 +1626,15 @@ onMouseDown={(event) => beginDrag("aiHeader", event)}
   alt=""
   draggable="false"
   style={{
-    width:
-      item.label === "Inbox" || item.label === "Profile"
-        ? 34 * layoutValues.bottomNavScale
-        : item.hero
-          ? 30 * layoutValues.bottomNavScale
-          : 28 * layoutValues.bottomNavScale,
-    height:
-      item.label === "Inbox" || item.label === "Profile"
-        ? 34 * layoutValues.bottomNavScale
-        : item.hero
-          ? 30 * layoutValues.bottomNavScale
-          : 28 * layoutValues.bottomNavScale,
+    width: item.hero
+      ? 38 * layoutValues.bottomNavScale
+      : 31 * layoutValues.bottomNavScale,
+    height: item.hero
+      ? 38 * layoutValues.bottomNavScale
+      : 31 * layoutValues.bottomNavScale,
     objectFit: "contain",
     display: "block",
+    transform: item.hero ? "translateY(-3px)" : "translateY(-1px)",
     filter: item.active
       ? "drop-shadow(0 0 10px rgba(255,255,255,0.28))"
       : "drop-shadow(0 5px 10px rgba(0,0,0,0.36))"
