@@ -1628,15 +1628,19 @@ onMouseDown={(event) => beginDrag("aiHeader", event)}
     alt=""
     draggable="false"
     style={{
-      width: item.hero
-        ? 50 * layoutValues.bottomNavScale
+      width:
+  item.hero
+    ? 54 * layoutValues.bottomNavScale
+    : 31 * layoutValues.bottomNavScale,
+
+height:
+  item.label === "Home"
+    ? 32 * layoutValues.bottomNavScale
+    : item.label === "Inbox"
+      ? 37 * layoutValues.bottomNavScale
+      : item.hero
+        ? 36 * layoutValues.bottomNavScale
         : 31 * layoutValues.bottomNavScale,
-      height:
-        item.label === "Inbox"
-          ? 34 * layoutValues.bottomNavScale
-          : item.hero
-            ? 34 * layoutValues.bottomNavScale
-            : 31 * layoutValues.bottomNavScale,
       objectFit: "contain",
       display: "block",
       transform:
