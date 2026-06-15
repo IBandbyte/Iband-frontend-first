@@ -1613,33 +1613,35 @@ onMouseDown={(event) => beginDrag("aiHeader", event)}
             }}
           >
             <div
-              style={{
-                position: "relative",
-                width: 24 * layoutValues.bottomNavScale,
-                height: 24 * layoutValues.bottomNavScale,
-                display: "grid",
-                placeItems: "center"
-              }}
-            >
-            <img
-  src={item.iconSrc}
-  alt=""
-  draggable="false"
   style={{
+    position: "relative",
     width: item.hero
-      ? 38 * layoutValues.bottomNavScale
+      ? 46 * layoutValues.bottomNavScale
       : 31 * layoutValues.bottomNavScale,
-    height: item.hero
-      ? 38 * layoutValues.bottomNavScale
-      : 31 * layoutValues.bottomNavScale,
-    objectFit: "contain",
-    display: "block",
-    transform: item.hero ? "translateY(-3px)" : "translateY(-1px)",
-    filter: item.active
-      ? "drop-shadow(0 0 10px rgba(255,255,255,0.28))"
-      : "drop-shadow(0 5px 10px rgba(0,0,0,0.36))"
+    height: 28 * layoutValues.bottomNavScale,
+    display: "grid",
+    placeItems: "center"
   }}
-/>
+>
+  <img
+    src={item.iconSrc}
+    alt=""
+    draggable="false"
+    style={{
+      width: item.hero
+        ? 44 * layoutValues.bottomNavScale
+        : 31 * layoutValues.bottomNavScale,
+      height: item.hero
+        ? 34 * layoutValues.bottomNavScale
+        : 31 * layoutValues.bottomNavScale,
+      objectFit: "contain",
+      display: "block",
+      transform: item.hero ? "translateY(-6px)" : "translateY(-4px)",
+      filter: item.active
+        ? "drop-shadow(0 0 10px rgba(255,255,255,0.28))"
+        : "drop-shadow(0 5px 10px rgba(0,0,0,0.36))"
+    }}
+  />
 
               {typeof item.badge === "number" && (
                 <div
