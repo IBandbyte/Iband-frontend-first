@@ -1617,8 +1617,8 @@ onMouseDown={(event) => beginDrag("aiHeader", event)}
       style={{
         position: "relative",
         width: item.label === "Upload"
-          ? 70 * layoutValues.bottomNavScale
-          : 31 * layoutValues.bottomNavScale,
+  ? 70 * layoutValues.bottomNavScale
+  : 38 * layoutValues.bottomNavScale,
         height: 30 * layoutValues.bottomNavScale,
         display: "grid",
         placeItems: "center"
@@ -1633,18 +1633,18 @@ onMouseDown={(event) => beginDrag("aiHeader", event)}
       item.label === "Upload"
         ? 62 * layoutValues.bottomNavScale
         : item.label === "Inbox"
-          ? 38 * layoutValues.bottomNavScale
+          ? 36 * layoutValues.bottomNavScale
           : 34 * layoutValues.bottomNavScale,
 
     height:
-      item.label === "Inbox"
-        ? 39 * layoutValues.bottomNavScale
-        : item.label === "Upload"
-          ? 42 * layoutValues.bottomNavScale
-          : item.label === "Home"
-            ? 37 * layoutValues.bottomNavScale
-            : item.label === "Shop"
-              ? 37 * layoutValues.bottomNavScale
+      item.label === "Upload"
+        ? 42 * layoutValues.bottomNavScale
+        : item.label === "Home"
+          ? 38 * layoutValues.bottomNavScale
+          : item.label === "Shop"
+            ? 38 * layoutValues.bottomNavScale
+            : item.label === "Inbox"
+              ? 39 * layoutValues.bottomNavScale
               : 34 * layoutValues.bottomNavScale,
 
     objectFit: "contain",
@@ -1656,10 +1656,12 @@ onMouseDown={(event) => beginDrag("aiHeader", event)}
         : item.label === "Inbox"
           ? "translateY(-2px)"
           : item.label === "Home"
-            ? "translateY(1px)"
-            : item.label === "Profile"
-              ? "translateY(2px)"
-              : "translateY(1px)",
+            ? "translateY(0px)"
+            : item.label === "Shop"
+              ? "translateY(0px)"
+              : item.label === "Profile"
+                ? "translateY(2px)"
+                : "translateY(0px)",
 
     filter: item.active
       ? "drop-shadow(0 0 10px rgba(255,255,255,0.28))"
