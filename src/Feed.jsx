@@ -75,7 +75,7 @@ const DEFAULT_LAYOUT = {
 
   contentOverlayBottom: 112,
   searchDockBottom: 45,
-  bottomNavHeight: 42,
+  bottomNavHeight: 54,
   rightRailScale: 1,
 
   hubX: 40,
