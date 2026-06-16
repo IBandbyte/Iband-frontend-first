@@ -1594,95 +1594,98 @@ onMouseDown={(event) => beginDrag("aiHeader", event)}
         onMouseDown={(event) => beginDrag("bottomNav", event)}
       >
         {[
+  {[
   { label: "Home", active: true, badge: null, iconSrc: BOTTOM_NAV_ICONS.home },
   { label: "Shop", active: false, badge: null, iconSrc: BOTTOM_NAV_ICONS.shop },
   { label: "Upload", active: false, badge: null, iconSrc: BOTTOM_NAV_ICONS.upload, hero: true },
   { label: "Inbox", active: false, badge: 2, iconSrc: BOTTOM_NAV_ICONS.inbox },
   { label: "Profile", active: false, badge: null, iconSrc: BOTTOM_NAV_ICONS.profile }
 ].map((item) => (
-          <div
-            key={item.label}
-            style={{
-              position: "relative",
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: 1,
-              color: item.active ? "#ffffff" : "rgba(255,255,255,0.74)"
-            }}
-          >
-            <div
-  style={{
-    position: "relative",
-    width: item.hero
-      ? 68 * layoutValues.bottomNavScale
-      : 31 * layoutValues.bottomNavScale,
-    height: 28 * layoutValues.bottomNavScale,
-    display: "grid",
-    placeItems: "center"
-  }}
->
-  <img
-    src={item.iconSrc}
-    alt=""
-    draggable="false"
+  <div
+    key={item.label}
     style={{
-      width:
-        item.hero
-          ? 62 * layoutValues.bottomNavScale
-          : 31 * layoutValues.bottomNavScale,
-      height:
-        item.label === "Home"
-          ? 32 * layoutValues.bottomNavScale
-          : item.label === "Inbox"
-            ? 44 * layoutValues.bottomNavScale
-            : item.hero
-              ? 36 * layoutValues.bottomNavScale
-              : 31 * layoutValues.bottomNavScale,
-      objectFit: "contain",
-      display: "block",
-      transform:
-        item.label === "Inbox"
-          ? "translateY(-5px)"
-          : item.hero
-            ? "translateY(-6px)"
-            : "translateY(-4px)",
-      filter: item.active
-        ? "drop-shadow(0 0 10px rgba(255,255,255,0.28))"
-        : "drop-shadow(0 5px 10px rgba(0,0,0,0.36))"
+      position: "relative",
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 6,
+      color: item.active ? "#ffffff" : "rgba(255,255,255,0.74)"
     }}
-  />
+  >
+    <div
+      style={{
+        position: "relative",
+        width: item.label === "Upload"
+          ? 70 * layoutValues.bottomNavScale
+          : 31 * layoutValues.bottomNavScale,
+        height: 30 * layoutValues.bottomNavScale,
+        display: "grid",
+        placeItems: "center"
+      }}
+    >
+      <img
+        src={item.iconSrc}
+        alt=""
+        draggable="false"
+        style={{
+          width:
+            item.label === "Upload"
+              ? 42 * layoutValues.bottomNavScale
+              : 31 * layoutValues.bottomNavScale,
+          height:
+            item.label === "Inbox"
+              ? 35 * layoutValues.bottomNavScale
+              : item.label === "Upload"
+                ? 42 * layoutValues.bottomNavScale
+                : item.label === "Home"
+                  ? 32 * layoutValues.bottomNavScale
+                  : 31 * layoutValues.bottomNavScale,
+          objectFit: "contain",
+          display: "block",
+          transform:
+            item.label === "Inbox"
+              ? "translateY(-5px)"
+              : item.label === "Upload"
+                ? "translateY(-3px)"
+                : item.label === "Home"
+                  ? "translateY(1px)"
+                  : "translateY(-1px)",
+          filter: item.active
+            ? "drop-shadow(0 0 10px rgba(255,255,255,0.28))"
+            : "drop-shadow(0 5px 10px rgba(0,0,0,0.36))"
+        }}
+      />
 
-              {typeof item.badge === "number" && (
-                <div
-                  style={{
-                    position: "absolute",
-                    top: -7 * layoutValues.bottomNavScale,
-                    right: -10 * layoutValues.bottomNavScale,
-                    minWidth: 14 * layoutValues.bottomNavScale,
-                    height: 14 * layoutValues.bottomNavScale,
-                    padding: `0 ${4 * layoutValues.bottomNavScale}px`,
-                    borderRadius: 999,
-                    background: "#ff2d55",
-                    color: "#ffffff",
-                    fontSize: 8.5 * Math.min(layoutValues.bottomNavScale, 1.3),
-                    fontWeight: 800,
-                    lineHeight: `${14 * layoutValues.bottomNavScale}px`,
-                    textAlign: "center",
-                    boxShadow: "0 4px 10px rgba(0,0,0,0.32)"
-                  }}
-                >
-                  {item.badge}
-                </div>
-              )}
-            </div>
+      {typeof item.badge === "number" && (
+        <div
+          style={{
+            position: "absolute",
+            top: -7 * layoutValues.bottomNavScale,
+            right: -10 * layoutValues.bottomNavScale,
+            minWidth: 14 * layoutValues.bottomNavScale,
+            height: 14 * layoutValues.bottomNavScale,
+            padding: `0 ${4 * layoutValues.bottomNavScale}px`,
+            borderRadius: 999,
+            background: "#ff2d55",
+            color: "#ffffff",
+            fontSize: 8.5 * Math.min(layoutValues.bottomNavScale, 1.3),
+            fontWeight: 800,
+            lineHeight: `${14 * layoutValues.bottomNavScale}px`,
+            textAlign: "center",
+            boxShadow: "0 4px 10px rgba(0,0,0,0.32)"
+          }}
+        >
+          {item.badge}
+        </div>
+      )}
+    </div>
 
-            <div style={{ fontSize: bottomNavLabelSize, lineHeight: 1, fontWeight: item.active ? 700 : 500 }}>
-              {item.label}
-            </div>
-          </div>
-        ))}
+    <div style={{ fontSize: bottomNavLabelSize, lineHeight: 1, fontWeight: item.active ? 700 : 500 }}>
+      {item.label}
+    </div>
+  </div>
+))}
 
         {DEV_LAYOUT_MODE && (
           <div
