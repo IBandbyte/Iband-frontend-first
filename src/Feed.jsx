@@ -42,8 +42,8 @@ const RIGHT_RAIL_ICONS = {
 const BOTTOM_NAV_ICONS = {
   home: "/homechrome.PNG",
   shop: "/shopchrome.PNG",
-  upload: "/uploadplus.PNG",
-  inbox: "/inboxchrome2.PNG",
+  upload: "/uploadplus2.PNG",
+  inbox: "/inboxchrome3.PNG",
   profile: "/profilechrome2.PNG"
 };
 const RIGHT_RAIL_ICON_SIZES = {
