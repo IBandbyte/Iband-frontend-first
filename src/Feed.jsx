@@ -1658,7 +1658,7 @@ onMouseDown={(event) => beginDrag("aiHeader", event)}
 
     transform:
       item.label === "Upload"
-        ? "translateY(-5px)"
+        ? "translateY(-6px)"
         : item.label === "Inbox"
           ? "translateY(-2px)"
           : item.label === "Home"
