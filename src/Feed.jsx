@@ -421,15 +421,17 @@ function RightRailIconImage({
         filter:
           variant === "bright"
             ? `
-                drop-shadow(0 8px 16px rgba(0,0,0,0.64))
-                drop-shadow(0 0 18px rgba(255,255,255,0.34))
+    drop-shadow(0 8px 14px rgba(0,0,0,0.58))
+    drop-shadow(0 0 8px rgba(255,255,255,0.16))
+  `
                 brightness(1.28)
                 contrast(1.18)
                 saturate(1.08)
               `
             : `
-                drop-shadow(0 8px 14px rgba(0,0,0,0.58))
-                drop-shadow(0 0 12px rgba(255,255,255,0.22))
+    drop-shadow(0 8px 14px rgba(0,0,0,0.58))
+    drop-shadow(0 0 8px rgba(255,255,255,0.16))
+  `
                 brightness(1.22)
                 contrast(1.18)
                 saturate(1.08)
@@ -1809,8 +1811,8 @@ onMouseDown={(event) => beginDrag("aiHeader", event)}
   <Stepper
   label="Right rail gap"
   valueText={`${layoutValues.rightRailGap}px`}
-  onMinus={() => adjustNumber("rightRailGap", -1, -10, 34)}
-  onPlus={() => adjustNumber("rightRailGap", 1, -10, 34)}
+  onMinus={() => adjustNumber("rightRailGap", -1, -40, 34)}
+onPlus={() => adjustNumber("rightRailGap", 1, -40, 34)}
 />
   <Stepper
   label="Avatar → Like gap"
