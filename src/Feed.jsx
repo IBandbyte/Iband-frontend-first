@@ -1625,37 +1625,47 @@ onMouseDown={(event) => beginDrag("aiHeader", event)}
       }}
     >
       <img
-        src={item.iconSrc}
-        alt=""
-        draggable="false"
-        style={{
-          width:
-            item.label === "Upload"
-              ? 42 * layoutValues.bottomNavScale
+  src={item.iconSrc}
+  alt=""
+  draggable="false"
+  style={{
+    width:
+      item.label === "Upload"
+        ? 62 * layoutValues.bottomNavScale
+        : item.label === "Profile"
+          ? 34 * layoutValues.bottomNavScale
+          : 31 * layoutValues.bottomNavScale,
+
+    height:
+      item.label === "Inbox"
+        ? 37 * layoutValues.bottomNavScale
+        : item.label === "Upload"
+          ? 44 * layoutValues.bottomNavScale
+          : item.label === "Home"
+            ? 32 * layoutValues.bottomNavScale
+            : item.label === "Profile"
+              ? 34 * layoutValues.bottomNavScale
               : 31 * layoutValues.bottomNavScale,
-          height:
-            item.label === "Inbox"
-              ? 35 * layoutValues.bottomNavScale
-              : item.label === "Upload"
-                ? 42 * layoutValues.bottomNavScale
-                : item.label === "Home"
-                  ? 32 * layoutValues.bottomNavScale
-                  : 31 * layoutValues.bottomNavScale,
-          objectFit: "contain",
-          display: "block",
-          transform:
-  item.label === "Inbox"
-    ? "translateY(-3px)"
-    : item.label === "Upload"
-      ? "translateY(-1px)"
-      : item.label === "Home"
-        ? "translateY(1px)"
-        : "translateY(-1px)",
-          filter: item.active
-            ? "drop-shadow(0 0 10px rgba(255,255,255,0.28))"
-            : "drop-shadow(0 5px 10px rgba(0,0,0,0.36))"
-        }}
-      />
+
+    objectFit: "contain",
+    display: "block",
+
+    transform:
+      item.label === "Inbox"
+        ? "translateY(-1px)"
+        : item.label === "Upload"
+          ? "translateY(-1px)"
+          : item.label === "Home"
+            ? "translateY(1px)"
+            : item.label === "Profile"
+              ? "translateY(-1px)"
+              : "translateY(-1px)",
+
+    filter: item.active
+      ? "drop-shadow(0 0 10px rgba(255,255,255,0.28))"
+      : "drop-shadow(0 5px 10px rgba(0,0,0,0.36))"
+  }}
+/>
 
       {typeof item.badge === "number" && (
         <div
