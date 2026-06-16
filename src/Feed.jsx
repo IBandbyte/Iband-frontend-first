@@ -1593,7 +1593,7 @@ onMouseDown={(event) => beginDrag("aiHeader", event)}
         onTouchStart={(event) => beginDrag("bottomNav", event)}
         onMouseDown={(event) => beginDrag("bottomNav", event)}
       >
-        {[
+        
   {[
   { label: "Home", active: true, badge: null, iconSrc: BOTTOM_NAV_ICONS.home },
   { label: "Shop", active: false, badge: null, iconSrc: BOTTOM_NAV_ICONS.shop },
