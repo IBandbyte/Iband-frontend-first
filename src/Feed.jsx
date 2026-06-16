@@ -1651,15 +1651,15 @@ onMouseDown={(event) => beginDrag("aiHeader", event)}
     display: "block",
 
     transform:
-      item.label === "Inbox"
-        ? "translateY(-1px)"
-        : item.label === "Upload"
+  item.label === "Upload"
+    ? "translateY(-6px)"
+    : item.label === "Inbox"
+      ? "translateY(-2px)"
+      : item.label === "Home"
+        ? "translateY(1px)"
+        : item.label === "Profile"
           ? "translateY(-1px)"
-          : item.label === "Home"
-            ? "translateY(1px)"
-            : item.label === "Profile"
-              ? "translateY(-1px)"
-              : "translateY(-1px)",
+          : "translateY(-1px)",
 
     filter: item.active
       ? "drop-shadow(0 0 10px rgba(255,255,255,0.28))"
