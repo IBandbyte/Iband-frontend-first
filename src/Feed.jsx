@@ -61,7 +61,7 @@ const RIGHT_RAIL_DISC_SIZE = {
 };
 const DEFAULT_LAYOUT = {
   rightRailTop: "45.24%",
-  rightRailGap: -10,
+  rightRailGap: -15,
 
   avatarToLikeGap: 20,
   likeToCommentGap: 4,
@@ -524,7 +524,7 @@ function RightRailAction({
           placeItems: "center",
           overflow: "visible",
           flexShrink: 0,
-          background: "radial-gradient(circle, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.00) 72%)"
+          background: "transparent"
         }}
       >
         {children}
