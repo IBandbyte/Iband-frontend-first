@@ -78,8 +78,8 @@ const DEFAULT_LAYOUT = {
   bottomNavHeight: 54,
   rightRailScale: 1,
 
-  hubX: 40,
-  hubY: 10,
+  hubX: 21,
+  hubY: 4,
   hubScale: 1.5,
 
   liveX: -80,
