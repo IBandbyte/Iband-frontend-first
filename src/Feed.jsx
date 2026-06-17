@@ -418,24 +418,10 @@ function RightRailIconImage({
         WebkitUserSelect: "none",
         opacity: 1,
         transform: `translateY(${offsetY}px)`,
-        filter:
-          variant === "bright"
-            ? `
-    drop-shadow(0 8px 14px rgba(0,0,0,0.58))
-    drop-shadow(0 0 8px rgba(255,255,255,0.16))
-  `
-                brightness(1.28)
-                contrast(1.18)
-                saturate(1.08)
-              `
-            : `
-    drop-shadow(0 8px 14px rgba(0,0,0,0.58))
-    drop-shadow(0 0 8px rgba(255,255,255,0.16))
-  `
-                brightness(1.22)
-                contrast(1.18)
-                saturate(1.08)
-              `
+        filter: `
+          drop-shadow(0 8px 14px rgba(0,0,0,0.58))
+          drop-shadow(0 0 8px rgba(255,255,255,0.16))
+        `
       }}
     />
   );
