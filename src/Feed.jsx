@@ -472,13 +472,13 @@ function RightRailAction({
   scale = 1,
   onPress,
   numberTopGap = 4,
-  spacerHeight = 18,
+  spacerHeight = 8,
   children
 }) {
   const bubbleSize = 42 * scale;
   const labelSize = 8.2 * Math.min(scale, 1.05);
   const hasValue = value !== null && value !== undefined && value !== "";
-  const numberBoxHeight = 18;
+  const numberBoxHeight = 14;
 
   return (
     <button
@@ -493,10 +493,14 @@ function RightRailAction({
         flexDirection: "column",
         alignItems: "center",
         gap: 0,
-        width: "auto",
+        width: bubbleSize,
+        minWidth: bubbleSize,
+        maxWidth: bubbleSize,
         padding: 0,
+        margin: 0,
         cursor: "pointer",
-        color: "#ffffff"
+        color: "#ffffff",
+        overflow: "visible"
       }}
     >
       <div
@@ -524,7 +528,8 @@ function RightRailAction({
         style={{
           height: numberBoxHeight,
           display: "grid",
-          placeItems: "center"
+          placeItems: "center",
+          background: "transparent"
         }}
       >
         {hasValue && (
@@ -532,7 +537,7 @@ function RightRailAction({
             style={{
               fontSize: labelSize * 1.15,
               lineHeight: 1,
-              marginTop: 0,
+              margin: 0,
               color: "#fff",
               fontWeight: 700,
               textShadow: "0 0.5px 1px rgba(0,0,0,0.4)"
