@@ -82,8 +82,8 @@ const DEFAULT_LAYOUT = {
   hubY: 10,
   hubScale: 1.5,
 
-  liveX: -84,
-liveY: -14,
+  liveX: -80,
+liveY: -15,
 liveScale: 0.90,
 
 aiX: -70,
