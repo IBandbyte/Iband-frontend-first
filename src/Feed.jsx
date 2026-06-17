@@ -697,8 +697,10 @@ export default function Feed() {
     startContentOverlayBottom: toPxNumber(layoutValues.contentOverlayBottom, 142),
     startSearchDockBottom: toPxNumber(layoutValues.searchDockBottom, 64),
     startBottomNavHeight: toPxNumber(layoutValues.bottomNavHeight, 50),
-    startLiveX: toPxNumber(layoutValues.liveX, 0),
-    startLiveY: toPxNumber(layoutValues.liveY, 0),
+startHubX: toPxNumber(layoutValues.hubX, 0),
+startHubY: toPxNumber(layoutValues.hubY, 0),
+startLiveX: toPxNumber(layoutValues.liveX, 0),
+startLiveY: toPxNumber(layoutValues.liveY, 0),
     startAiX: toPxNumber(layoutValues.aiX, 0),
     startAiY: toPxNumber(layoutValues.aiY, 0)
   });
@@ -754,6 +756,13 @@ export default function Feed() {
     }));
   }
 
+  if (dragState.target === "hubHeader") {
+  setLayoutValues((prev) => ({
+    ...prev,
+    hubX: Math.round(clamp((dragState.startHubX || 0) + deltaX, -160, 160)),
+    hubY: Math.round(clamp((dragState.startHubY || 0) + deltaY, -120, 120))
+  }));
+}
   if (dragState.target === "liveHeader") {
     setLayoutValues((prev) => ({
       ...prev,
@@ -1074,7 +1083,9 @@ const actionScale = layoutValues.rightRailIconScale * 1.15;
       <button
   type="button"
   aria-label="Open iBand Hub"
-  style={{
+onTouchStart={(event) => beginDrag("hubHeader", event)}
+onMouseDown={(event) => beginDrag("hubHeader", event)}
+style={{
     appearance: "none",
     border: "none",
     background: "transparent",
@@ -1717,7 +1728,7 @@ onMouseDown={(event) => beginDrag("aiHeader", event)}
             style={{
   position: "fixed",
   left: 10,
-  top: 118,
+  top: 148,
   zIndex: 60,
   width: 208,
   maxHeight: "72vh",
