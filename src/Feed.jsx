@@ -67,11 +67,11 @@ const DEFAULT_LAYOUT = {
   likeToCommentGap: 4,
   shareToBoostGap: -14,
   boostToInfoGap: 5,
-  infoToDiscGap: -2,
+  infoToDiscGap: -4,
 
   rightRailIconScale: 1.02,
   rightRailAvatarScale: 1.5,
-  rightRailDiscScale: 1.15,
+  rightRailDiscScale: 1.10,
 
   contentOverlayBottom: 112,
   searchDockBottom: 45,
