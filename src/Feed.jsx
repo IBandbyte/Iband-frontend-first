@@ -60,7 +60,7 @@ const RIGHT_RAIL_DISC_SIZE = {
   height: 42
 };
 const DEFAULT_LAYOUT = {
-  rightRailTop: "49.87%",
+  rightRailTop: "50.01%",
   rightRailGap: -15,
 
   avatarToLikeGap: 20,
@@ -73,9 +73,9 @@ const DEFAULT_LAYOUT = {
   rightRailAvatarScale: 1.5,
   rightRailDiscScale: 1.10,
 
-  contentOverlayBottom: 104,
-  searchDockBottom: 67,
-  bottomNavHeight: 62,
+  contentOverlayBottom: 99,
+  searchDockBottom: 59,
+  bottomNavHeight: 51,
   rightRailScale: 1,
 
   hubX: 21,
