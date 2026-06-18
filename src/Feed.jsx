@@ -1728,7 +1728,7 @@ onMouseDown={(event) => beginDrag("aiHeader", event)}
             style={{
   position: "fixed",
   left: 10,
-  top: 148,
+  top: 240,
   zIndex: 60,
   width: 208,
   maxHeight: "72vh",
