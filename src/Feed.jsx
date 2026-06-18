@@ -1728,10 +1728,10 @@ onMouseDown={(event) => beginDrag("aiHeader", event)}
             style={{
   position: "fixed",
   left: 10,
-  top: 240,
+  top: 5,
   zIndex: 60,
   width: 208,
-  maxHeight: "72vh",
+  maxHeight: "22vh",
   overflowY: "auto",
   padding: "10px 11px",
   borderRadius: 14,
