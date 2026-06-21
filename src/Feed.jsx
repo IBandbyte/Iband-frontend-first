@@ -5,7 +5,7 @@ import {
   fetchPredictiveFeed
 } from "./services/api";
 
-const DEV_LAYOUT_MODE = true;
+const DEV_LAYOUT_MODE = false;
 const IBAND_LOGO_SRC = "/circularlogo.PNG";
 
 const CHROME_LIVE_ICON = "/chrome-live.PNG";
