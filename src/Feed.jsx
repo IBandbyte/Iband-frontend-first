@@ -40,7 +40,7 @@ const RIGHT_RAIL_ICONS = {
 };
 
 const BOTTOM_NAV_ICONS = {
-  home: "/homechrome2.PNG",
+  home: "/homechrome5.PNG",
   shop: "/shopchrome.PNG",
   upload: "/uploadplus2.PNG",
   inbox: "/inboxchrome3.PNG",
