@@ -1663,8 +1663,7 @@ onMouseDown={(event) => beginDrag("aiHeader", event)}
                 : "translateY(0px)",
 
     filter:
-  "drop-shadow(0 0 14px rgba(255,255,255,0.32)) " +
-  "drop-shadow(0 0 6px rgba(255,255,255,0.22)) " +
+  "drop-shadow(0 0 10px rgba(255,255,255,0.24)) " +
   "drop-shadow(0 5px 10px rgba(0,0,0,0.36))"
   }}
 />
