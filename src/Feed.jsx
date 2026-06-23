@@ -1623,44 +1623,44 @@ onMouseDown={(event) => beginDrag("aiHeader", event)}
   draggable="false"
   style={{
     width:
-      item.label === "Upload"
-        ? 62 * layoutValues.bottomNavScale
-        : item.label === "Inbox"
-          ? 36 * layoutValues.bottomNavScale
-          : item.label === "Home"
-            ? 33 * layoutValues.bottomNavScale
-            : item.label === "Shop"
-              ? 37 * layoutValues.bottomNavScale
-              : 32 * layoutValues.bottomNavScale,
+  item.label === "Upload"
+    ? 62 * layoutValues.bottomNavScale
+    : item.label === "Inbox"
+      ? 36 * layoutValues.bottomNavScale
+      : item.label === "Home"
+        ? 33 * layoutValues.bottomNavScale
+        : item.label === "Shop"
+          ? 39 * layoutValues.bottomNavScale
+          : 33 * layoutValues.bottomNavScale,
 
     height:
-      item.label === "Upload"
-        ? 42 * layoutValues.bottomNavScale
-        : item.label === "Home"
-          ? 31 * layoutValues.bottomNavScale
-          : item.label === "Shop"
-            ? 37 * layoutValues.bottomNavScale
-            : item.label === "Inbox"
-              ? 40 * layoutValues.bottomNavScale
-              : item.label === "Profile"
-                ? 35 * layoutValues.bottomNavScale
-                : 34 * layoutValues.bottomNavScale,
+  item.label === "Upload"
+    ? 42 * layoutValues.bottomNavScale
+    : item.label === "Home"
+      ? 30 * layoutValues.bottomNavScale
+      : item.label === "Shop"
+        ? 36 * layoutValues.bottomNavScale
+        : item.label === "Inbox"
+          ? 40 * layoutValues.bottomNavScale
+          : item.label === "Profile"
+            ? 35 * layoutValues.bottomNavScale
+            : 34 * layoutValues.bottomNavScale,
 
     objectFit: "contain",
     display: "block",
 
     transform:
-      item.label === "Upload"
-        ? "translateY(-6px)"
-        : item.label === "Inbox"
+  item.label === "Upload"
+    ? "translateY(-6px)"
+    : item.label === "Inbox"
+      ? "translateY(-1px)"
+      : item.label === "Home"
+        ? "translateY(0px)"
+        : item.label === "Shop"
           ? "translateY(-1px)"
-          : item.label === "Home"
-            ? "translateY(0px)"
-            : item.label === "Shop"
-              ? "translateY(-1px)"
-              : item.label === "Profile"
-                ? "translateY(0px)"
-                : "translateY(0px)",
+          : item.label === "Profile"
+            ? "translateY(1px)"
+            : "translateY(0px)",
 
     filter:
   "drop-shadow(0 0 10px rgba(255,255,255,0.24)) " +
