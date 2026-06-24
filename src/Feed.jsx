@@ -1641,7 +1641,7 @@ height:
       : item.label === "Shop"
         ? 36 * layoutValues.bottomNavScale
         : item.label === "Inbox"
-          ? 40 * layoutValues.bottomNavScale
+          ? 42 * layoutValues.bottomNavScale
           : item.label === "Profile"
             ? 35 * layoutValues.bottomNavScale
             : 34 * layoutValues.bottomNavScale,
