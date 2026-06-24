@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+by import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   fetchSmartFeed,
   fetchPersonalisedFeed,
@@ -1641,7 +1641,7 @@ height:
       : item.label === "Shop"
         ? 36 * layoutValues.bottomNavScale
         : item.label === "Inbox"
-          ? 45 * layoutValues.bottomNavScale
+          ? 48 * layoutValues.bottomNavScale
           : item.label === "Profile"
             ? 36 * layoutValues.bottomNavScale
             : 34 * layoutValues.bottomNavScale,
