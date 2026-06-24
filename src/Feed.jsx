@@ -1631,7 +1631,9 @@ onMouseDown={(event) => beginDrag("aiHeader", event)}
         ? 33 * layoutValues.bottomNavScale
         : item.label === "Shop"
           ? 41 * layoutValues.bottomNavScale
-          : 33 * layoutValues.bottomNavScale,
+          : item.label === "Profile"
+            ? 33 * layoutValues.bottomNavScale
+            : 32 * layoutValues.bottomNavScale,
 
 height:
   item.label === "Upload"
@@ -1662,7 +1664,7 @@ transform:
             ? "translateY(1px)"
             : "translateY(0px)",
 
-    filter:
+filter:
   "drop-shadow(0 0 10px rgba(255,255,255,0.24)) " +
   "drop-shadow(0 5px 10px rgba(0,0,0,0.36))"
   }}
