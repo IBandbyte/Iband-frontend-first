@@ -40,11 +40,11 @@ const RIGHT_RAIL_ICONS = {
 };
 
 const BOTTOM_NAV_ICONS = {
-  home: "/homechrome2.PNG",
-  shop: "/shopchrome.PNG",
-  upload: "/uploadplus2.PNG",
-  inbox: "/inboxchrome3.PNG",
-  profile: "/profilechrome2.PNG"
+  Home: "/homechrome.PNG",
+  Shop: "/shopchrome.PNG",
+  Upload: "/uploadchrome.PNG",
+  Inbox: "/inboxchrome4.PNG",
+  Profile: "/profilechrome.PNG",
 };
 const RIGHT_RAIL_ICON_SIZES = {
   like: { width: 48, height: 48, overflow: true },
