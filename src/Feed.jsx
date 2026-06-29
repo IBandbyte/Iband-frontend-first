@@ -1626,7 +1626,7 @@ onMouseDown={(event) => beginDrag("aiHeader", event)}
   item.label === "Upload"
     ? 62 * layoutValues.bottomNavScale
     : item.label === "Inbox"
-      ? 36 * layoutValues.bottomNavScale
+      ? 38 * layoutValues.bottomNavScale
       : item.label === "Home"
         ? 33 * layoutValues.bottomNavScale
         : item.label === "Shop"
@@ -1643,9 +1643,9 @@ height:
       : item.label === "Shop"
         ? 36 * layoutValues.bottomNavScale
         : item.label === "Inbox"
-          ? 48 * layoutValues.bottomNavScale
+          ? 53 * layoutValues.bottomNavScale
           : item.label === "Profile"
-            ? 39 * layoutValues.bottomNavScale
+            ? 41 * layoutValues.bottomNavScale
             : 34 * layoutValues.bottomNavScale,
 
 objectFit: "contain",
@@ -1655,13 +1655,13 @@ transform:
   item.label === "Upload"
     ? "translateY(-6px)"
     : item.label === "Inbox"
-      ? "translateY(-5px)"
+      ? "translateY(-7px)"
       : item.label === "Home"
         ? "translateY(2px)"
         : item.label === "Shop"
           ? "translateY(-1px)"
           : item.label === "Profile"
-            ? "translateY(1px)"
+            ? "translateY(-1px)"
             : "translateY(0px)",
 
 filter:
