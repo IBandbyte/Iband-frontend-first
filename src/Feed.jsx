@@ -1626,11 +1626,11 @@ onMouseDown={(event) => beginDrag("aiHeader", event)}
   item.label === "Upload"
     ? 62 * layoutValues.bottomNavScale
     : item.label === "Inbox"
-      ? 38 * layoutValues.bottomNavScale
+      ? 36 * layoutValues.bottomNavScale
       : item.label === "Home"
         ? 33 * layoutValues.bottomNavScale
         : item.label === "Shop"
-          ? 41 * layoutValues.bottomNavScale
+          ? 43 * layoutValues.bottomNavScale
           : item.label === "Profile"
             ? 35 * layoutValues.bottomNavScale
             : 32 * layoutValues.bottomNavScale,
@@ -1653,15 +1653,15 @@ display: "block",
 
 transform:
   item.label === "Upload"
-    ? "translateY(-6px)"
+    ? "translateY(-7px)"
     : item.label === "Inbox"
-      ? "translateY(-7px)"
+      ? "translateY(-9px)"
       : item.label === "Home"
         ? "translateY(2px)"
         : item.label === "Shop"
           ? "translateY(-1px)"
           : item.label === "Profile"
-            ? "translateY(-1px)"
+            ? "translateY(-3px)"
             : "translateY(0px)",
 
 filter:
