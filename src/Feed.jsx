@@ -1636,33 +1636,33 @@ onMouseDown={(event) => beginDrag("aiHeader", event)}
                   : 32 * layoutValues.bottomNavScale,
 
       height:
-        item.label === "Upload"
-          ? 42 * layoutValues.bottomNavScale
-          : item.label === "Home"
-            ? 30 * layoutValues.bottomNavScale
-            : item.label === "Shop"
-              ? 36 * layoutValues.bottomNavScale
-              : item.label === "Inbox"
-                ? 74 * layoutValues.bottomNavScale
-                : item.label === "Profile"
-                  ? 39 * layoutValues.bottomNavScale
-                  : 34 * layoutValues.bottomNavScale,
+  item.label === "Upload"
+    ? 42 * layoutValues.bottomNavScale
+    : item.label === "Home"
+      ? 30 * layoutValues.bottomNavScale
+      : item.label === "Shop"
+        ? 36 * layoutValues.bottomNavScale
+        : item.label === "Inbox"
+          ? 77 * layoutValues.bottomNavScale
+          : item.label === "Profile"
+            ? 39 * layoutValues.bottomNavScale
+            : 34 * layoutValues.bottomNavScale,
 
       objectFit: "contain",
       display: "block",
 
       transform:
-        item.label === "Upload"
-          ? "translateY(-7px)"
-          : item.label === "Inbox"
-            ? "translateY(-13px)"
-            : item.label === "Home"
-              ? "translateY(2px)"
-              : item.label === "Shop"
-                ? "translate(-7px, 0px)"
-                : item.label === "Profile"
-                  ? "translateY(-2px)"
-                  : "translateY(0px)",
+  item.label === "Upload"
+    ? "translateY(-7px)"
+    : item.label === "Inbox"
+      ? "translateY(-16px)"
+      : item.label === "Home"
+        ? "translateY(2px)"
+        : item.label === "Shop"
+          ? "translate(-7px, 0px)"
+          : item.label === "Profile"
+            ? "translateY(-2px)"
+            : "translateY(0px)",
 
       filter:
         "drop-shadow(0 0 10px rgba(255,255,255,0.24)) " +
