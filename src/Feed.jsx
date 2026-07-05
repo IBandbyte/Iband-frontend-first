@@ -1655,7 +1655,7 @@ transform:
   item.label === "Upload"
     ? "translateY(-7px)"
     : item.label === "Inbox"
-      ? "translateY(-15px)"
+      ? "translateY(-13px)"
       : item.label === "Home"
         ? "translateY(2px)"
         : item.label === "Shop"
