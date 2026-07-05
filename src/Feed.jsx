@@ -1643,7 +1643,7 @@ height:
       : item.label === "Shop"
         ? 36 * layoutValues.bottomNavScale
         : item.label === "Inbox"
-          ? 60 * layoutValues.bottomNavScale
+          ? 62 * layoutValues.bottomNavScale
           : item.label === "Profile"
             ? 39 * layoutValues.bottomNavScale
             : 34 * layoutValues.bottomNavScale,
@@ -1655,7 +1655,7 @@ transform:
   item.label === "Upload"
     ? "translateY(-7px)"
     : item.label === "Inbox"
-      ? "translateY(-10px)"
+      ? "translateY(-11px)"
       : item.label === "Home"
         ? "translateY(2px)"
         : item.label === "Shop"
