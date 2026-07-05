@@ -1624,7 +1624,7 @@ onMouseDown={(event) => beginDrag("aiHeader", event)}
   style={{
     width:
   item.label === "Upload"
-    ? 66 * layoutValues.bottomNavScale
+    ? 70 * layoutValues.bottomNavScale
     : item.label === "Inbox"
       ? 33 * layoutValues.bottomNavScale
       : item.label === "Home"
