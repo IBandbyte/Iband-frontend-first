@@ -1609,21 +1609,10 @@ onMouseDown={(event) => beginDrag("aiHeader", event)}
     <div
   style={{
     position: "relative",
-
-    width:
-      item.label === "Upload"
-        ? 70 * layoutValues.bottomNavScale
-        : item.label === "Shop"
-          ? 50 * layoutValues.bottomNavScale
-          : 38 * layoutValues.bottomNavScale,
-
-    height:
-      item.label === "Upload"
-        ? 42 * layoutValues.bottomNavScale
-        : item.label === "Inbox"
-          ? 42 * layoutValues.bottomNavScale
-          : 30 * layoutValues.bottomNavScale,
-
+    width: item.label === "Upload"
+      ? 70 * layoutValues.bottomNavScale
+      : 38 * layoutValues.bottomNavScale,
+    height: 30 * layoutValues.bottomNavScale,
     display: "grid",
     placeItems: "center"
   }}
@@ -1654,7 +1643,7 @@ onMouseDown={(event) => beginDrag("aiHeader", event)}
             : item.label === "Shop"
               ? 36 * layoutValues.bottomNavScale
               : item.label === "Inbox"
-                ? 50 * layoutValues.bottomNavScale
+                ? 74 * layoutValues.bottomNavScale
                 : item.label === "Profile"
                   ? 39 * layoutValues.bottomNavScale
                   : 34 * layoutValues.bottomNavScale,
@@ -1666,7 +1655,7 @@ onMouseDown={(event) => beginDrag("aiHeader", event)}
         item.label === "Upload"
           ? "translateY(-7px)"
           : item.label === "Inbox"
-            ? "translateY(-5px)"
+            ? "translateY(-13px)"
             : item.label === "Home"
               ? "translateY(2px)"
               : item.label === "Shop"
