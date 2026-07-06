@@ -1643,7 +1643,7 @@ onMouseDown={(event) => beginDrag("aiHeader", event)}
       : item.label === "Shop"
         ? 36 * layoutValues.bottomNavScale
         : item.label === "Inbox"
-          ? 95 * layoutValues.bottomNavScale
+          ? 78 * layoutValues.bottomNavScale
           : item.label === "Profile"
             ? 39 * layoutValues.bottomNavScale
             : 34 * layoutValues.bottomNavScale,
@@ -1655,7 +1655,7 @@ display: "block",
   item.label === "Upload"
     ? "translateY(-7px)"
     : item.label === "Inbox"
-      ? "translateY(-28px)"
+      ? "translateY(-15px)"
       : item.label === "Home"
         ? "translateY(2px)"
         : item.label === "Shop"
