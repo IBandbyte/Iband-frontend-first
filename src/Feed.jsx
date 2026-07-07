@@ -1659,7 +1659,7 @@ onMouseDown={(event) => beginDrag("aiHeader", event)}
       : item.label === "Home"
         ? "translateY(2px)"
         : item.label === "Shop"
-          ? "translate(-7px, 0px)"
+          ? "translate(-6px, 0px)"
           : item.label === "Profile"
             ? "translateY(-2px)"
             : "translateY(0px)",
