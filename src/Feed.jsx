@@ -1622,52 +1622,52 @@ onMouseDown={(event) => beginDrag("aiHeader", event)}
     alt=""
     draggable="false"
     style={{
-      width:
-        item.label === "Upload"
-          ? 62 * layoutValues.bottomNavScale
-          : item.label === "Inbox"
-            ? 33 * layoutValues.bottomNavScale
-            : item.label === "Home"
+  width:
+    item.label === "Upload"
+      ? 62 * layoutValues.bottomNavScale
+      : item.label === "Inbox"
+        ? 33 * layoutValues.bottomNavScale
+        : item.label === "Home"
+          ? 33 * layoutValues.bottomNavScale
+          : item.label === "Shop"
+            ? 50 * layoutValues.bottomNavScale
+            : item.label === "Profile"
               ? 33 * layoutValues.bottomNavScale
-              : item.label === "Shop"
-                ? 50 * layoutValues.bottomNavScale
-                : item.label === "Profile"
-                  ? 33 * layoutValues.bottomNavScale
-                  : 32 * layoutValues.bottomNavScale,
+              : 32 * layoutValues.bottomNavScale,
 
-      height:
-  item.label === "Upload"
-    ? 42 * layoutValues.bottomNavScale
-    : item.label === "Home"
-      ? 30 * layoutValues.bottomNavScale
-      : item.label === "Shop"
-        ? 36 * layoutValues.bottomNavScale
-        : item.label === "Inbox"
-          ? 78 * layoutValues.bottomNavScale
-          : item.label === "Profile"
-            ? 39 * layoutValues.bottomNavScale
-            : 34 * layoutValues.bottomNavScale,
-
-      objectFit: item.label === "Inbox" ? "fill" : "contain",
-display: "block",
-
-      transform:
-  item.label === "Upload"
-    ? "translateY(-7px)"
-    : item.label === "Inbox"
-      ? "translateY(-15px)"
+  height:
+    item.label === "Upload"
+      ? 42 * layoutValues.bottomNavScale
       : item.label === "Home"
-        ? "translateY(2px)"
+        ? 30 * layoutValues.bottomNavScale
         : item.label === "Shop"
-          ? "translate(-7px, 0px)"
-          : item.label === "Profile"
-            ? "translateY(-2px)"
-            : "translateY(0px)",
+          ? 36 * layoutValues.bottomNavScale
+          : item.label === "Inbox"
+            ? 78 * layoutValues.bottomNavScale
+            : item.label === "Profile"
+              ? 39 * layoutValues.bottomNavScale
+              : 34 * layoutValues.bottomNavScale,
 
-      filter:
-        "drop-shadow(0 0 10px rgba(255,255,255,0.24)) " +
-        "drop-shadow(0 5px 10px rgba(0,0,0,0.36))"
-    }}
+  objectFit: item.label === "Inbox" ? "fill" : "contain",
+  display: "block",
+
+  transform:
+    item.label === "Upload"
+      ? "translateY(-7px)"
+      : item.label === "Inbox"
+        ? "translateY(-15px)"
+        : item.label === "Home"
+          ? "translateY(2px)"
+          : item.label === "Shop"
+            ? "translate(-7px, 0px)"
+            : item.label === "Profile"
+              ? "translateY(-2px)"
+              : "translateY(0px)",
+
+  filter:
+    "drop-shadow(0 0 10px rgba(255,255,255,0.24)) " +
+    "drop-shadow(0 5px 10px rgba(0,0,0,0.36))"
+}}
   />
 
   {typeof item.badge === "number" && (
