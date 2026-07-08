@@ -1603,7 +1603,7 @@ onMouseDown={(event) => beginDrag("aiHeader", event)}
       alignItems: "center",
       justifyContent: "center",
       gap: 6,
-      color: item.active ? "#ffffff" : "rgba(255,255,255,0.74)"
+      color: "#ffffff"
     }}
   >
     <div
@@ -1665,8 +1665,12 @@ onMouseDown={(event) => beginDrag("aiHeader", event)}
             : "translateY(0px)",
 
   filter:
-    "drop-shadow(0 0 10px rgba(255,255,255,0.24)) " +
-    "drop-shadow(0 5px 10px rgba(0,0,0,0.36))"
+  item.label === "Shop"
+    ? "brightness(1.18) contrast(1.08) saturate(1.04) " +
+      "drop-shadow(0 0 14px rgba(255,255,255,0.38)) " +
+      "drop-shadow(0 6px 12px rgba(0,0,0,0.34))"
+    : "drop-shadow(0 0 10px rgba(255,255,255,0.24)) " +
+      "drop-shadow(0 5px 10px rgba(0,0,0,0.36))"
 }}
   />
 
