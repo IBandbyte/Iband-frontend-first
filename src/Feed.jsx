@@ -1666,7 +1666,7 @@ onMouseDown={(event) => beginDrag("aiHeader", event)}
 
   filter:
   item.label === "Shop"
-    ? "brightness(1.18) contrast(1.08) saturate(1.04) " +
+    ? "brightness(1.22) contrast(1.10) saturate(1.04) " +
       "drop-shadow(0 0 14px rgba(255,255,255,0.38)) " +
       "drop-shadow(0 6px 12px rgba(0,0,0,0.34))"
     : "drop-shadow(0 0 10px rgba(255,255,255,0.24)) " +
