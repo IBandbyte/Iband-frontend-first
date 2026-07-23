@@ -511,36 +511,7 @@ const styles = {
 
   
 
-  generateButton: {
-    width: "100%",
-    minHeight: "52px",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: "9px",
-    marginTop: "18px",
-    padding: "13px 18px",
-    border: "none",
-    borderRadius: "17px",
-    background:
-      "linear-gradient(135deg, #604dff 0%, #8c4dff 52%, #d74dff 100%)",
-    boxShadow: "0 13px 28px rgba(96, 77, 255, 0.26)",
-    color: "#ffffff",
-    fontSize: "15px",
-    fontWeight: "900",
-    cursor: "pointer",
-  },
-
-  generateButtonDisabled: {
-    background: "#d6d8de",
-    boxShadow: "none",
-    color: "#8d929c",
-    cursor: "not-allowed",
-  },
-
-  generateIcon: {
-    fontSize: "18px",
-  },
+  
 
   statusBadge: {
     flexShrink: "0",
