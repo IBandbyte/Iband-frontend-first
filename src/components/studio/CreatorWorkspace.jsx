@@ -333,16 +333,14 @@ const CreatorWorkspace = ({
   
 {(generatedIdea || projectStatus === "generating") && (
   <PreviewPanel
-    generatedIdea={generatedIdea}
-    projectStatus={projectStatus}
-    selectedCreator={selectedCreator}
-    activeCreator={activeCreator}
-    idea={idea}
-    renderPreview={renderPreview}
-    onSave={handleSave}
-    onEdit={handleEdit}
-    onPublish={handlePublish}
-  />
+  creator={activeCreator}
+  generatedIdea={generatedIdea}
+  projectStatus={projectStatus}
+  renderPreview={renderPreview}
+  onSave={handleSave}
+  onEdit={handleEdit}
+  onPublish={handlePublish}
+/>
 )}
     </main>
   );
