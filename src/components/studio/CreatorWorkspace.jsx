@@ -1,5 +1,8 @@
 import React, { useMemo, useState } from "react";
 import AiMentor from "./AiMentor";
+import PromptBuilder from "./PromptBuilder";
+import GenerateButton from "./GenerateButton";
+import PreviewPanel from "./PreviewPanel";
 
 const CREATOR_OPTIONS = [
   {
@@ -294,172 +297,53 @@ const CreatorWorkspace = ({
         </div>
       </section>
 
-      {activeCreator && (
-        <section style={styles.section}>
-          <div style={styles.panel}>
-            <div style={styles.panelHeader}>
-              <div>
-                <p style={styles.sectionEyebrow}>Prompt Builder</p>
+        {activeCreator && (
+  <section style={styles.section}>
+    <PromptBuilder
+      creatorType={selectedCreator}
+      creatorLabel={activeCreator.label}
+      value={idea}
+      projectStatus={projectStatus}
+      onChange={(value) => {
+        setIdea(value);
 
-                <h2 style={styles.sectionTitle}>
-                  Tell the Mentor about your idea
-                </h2>
-              </div>
+        if (projectStatus !== "idle") {
+          setProjectStatus("editing");
+        }
+      }}
+      renderCreatorControls={() =>
+        typeof renderCreatorControls === "function"
+          ? renderCreatorControls({
+              selectedCreator,
+              idea,
+              setIdea,
+              projectStatus,
+            })
+          : null
+      }
+    />
 
-              <span style={styles.stepBadge}>Step 2</span>
-            </div>
-
-            <p style={styles.supportingText}>
-              Speak naturally. The Mentor will eventually turn your description
-              into the detailed instructions needed by the creative tools.
-            </p>
-
-            <label htmlFor="creator-idea" style={styles.label}>
-              What are we creating?
-            </label>
-
-            <textarea
-              id="creator-idea"
-              value={idea}
-              onChange={(event) => {
-                setIdea(event.target.value);
-
-                if (projectStatus !== "idle") {
-                  setProjectStatus("editing");
-                }
-              }}
-              placeholder={CREATOR_PLACEHOLDERS[selectedCreator]}
-              rows={7}
-              style={styles.textarea}
-            />
-
-            <div style={styles.promptFooter}>
-              <span style={styles.characterCount}>
-                {idea.length.toLocaleString()} characters
-              </span>
-
-              <span style={styles.promptReassurance}>
-                Your first description does not need to be perfect.
-              </span>
-            </div>
-
-            {typeof renderCreatorControls === "function" && (
-              <div style={styles.creatorControls}>
-                {renderCreatorControls({
-                  selectedCreator,
-                  idea,
-                  setIdea,
-                  projectStatus,
-                })}
-              </div>
-            )}
-
-            <button
-              type="button"
-              disabled={!canGenerate}
-              onClick={handleGenerate}
-              style={{
-                ...styles.generateButton,
-                ...(!canGenerate ? styles.generateButtonDisabled : {}),
-              }}
-            >
-              <span aria-hidden="true" style={styles.generateIcon}>
-                ✨
-              </span>
-
-              {projectStatus === "generating"
-                ? "Creating your first version..."
-                : "Generate"}
-            </button>
-          </div>
-        </section>
-      )}
-
-      {(generatedIdea || projectStatus === "generating") && (
-        <section style={styles.section}>
-          <div style={styles.panel}>
-            <div style={styles.panelHeader}>
-              <div>
-                <p style={styles.sectionEyebrow}>Preview</p>
-                <h2 style={styles.sectionTitle}>Your creation</h2>
-              </div>
-
-              <span style={styles.statusBadge}>
-                {projectStatus === "generating"
-                  ? "Creating"
-                  : projectStatus === "saved"
-                    ? "Saved"
-                    : projectStatus === "published"
-                      ? "Published"
-                      : "Ready"}
-              </span>
-            </div>
-
-            <div style={styles.previewArea}>
-              {projectStatus === "generating" ? (
-                <div style={styles.generatingState}>
-                  <div style={styles.generatingOrb}>✦</div>
-
-                  <p style={styles.generatingTitle}>
-                    Your idea is taking shape
-                  </p>
-
-                  <p style={styles.generatingText}>
-                    The Mentor is preparing the first version.
-                  </p>
-                </div>
-              ) : typeof renderPreview === "function" ? (
-                renderPreview({
-                  selectedCreator,
-                  idea,
-                  generatedIdea,
-                  projectStatus,
-                })
-              ) : (
-                <div style={styles.defaultPreview}>
-                  <span style={styles.previewIcon}>
-                    {activeCreator?.icon || "✨"}
-                  </span>
-
-                  <h3 style={styles.previewTitle}>
-                    {activeCreator?.label || "Creative"} project
-                  </h3>
-
-                  <p style={styles.previewText}>{generatedIdea}</p>
-                </div>
-              )}
-            </div>
-
-            {projectStatus !== "generating" && (
-              <div style={styles.actionGrid}>
-                <button
-                  type="button"
-                  onClick={handleSave}
-                  style={styles.secondaryAction}
-                >
-                  Save
-                </button>
-
-                <button
-                  type="button"
-                  onClick={handleEdit}
-                  style={styles.secondaryAction}
-                >
-                  Edit
-                </button>
-
-                <button
-                  type="button"
-                  onClick={handlePublish}
-                  style={styles.primaryAction}
-                >
-                  Publish
-                </button>
-              </div>
-            )}
-          </div>
-        </section>
-      )}
+    <GenerateButton
+      onClick={handleGenerate}
+      generating={projectStatus === "generating"}
+      disabled={!canGenerate}
+    />
+  </section>
+)}
+  
+{(generatedIdea || projectStatus === "generating") && (
+  <PreviewPanel
+    generatedIdea={generatedIdea}
+    projectStatus={projectStatus}
+    selectedCreator={selectedCreator}
+    activeCreator={activeCreator}
+    idea={idea}
+    renderPreview={renderPreview}
+    onSave={handleSave}
+    onEdit={handleEdit}
+    onPublish={handlePublish}
+  />
+)}
     </main>
   );
 };
