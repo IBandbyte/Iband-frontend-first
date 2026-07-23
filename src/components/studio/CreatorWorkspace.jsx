@@ -55,25 +55,6 @@ const CREATOR_OPTIONS = [
   },
 ];
 
-const CREATOR_PLACEHOLDERS = {
-  video:
-    "Describe the video, reel, cartoon, advert, music video or scene you would like to create...",
-  image:
-    "Describe the artwork, poster, cover, character or image you would like to create...",
-  music:
-    "Describe your song, sound, mood, lyrics or music idea...",
-  podcast:
-    "Describe the podcast episode, subject, guest or conversation...",
-  story:
-    "Describe the story, character, world, episode or scene...",
-  marketing:
-    "Describe the product, business, audience and campaign you need...",
-  social:
-    "Describe the post, platform, message or social campaign...",
-  other:
-    "Tell the Mentor what you would like to create in your own words...",
-};
-
 const CreatorWorkspace = ({
   creatorName = "Creator",
   initialCreator = "",
