@@ -477,21 +477,7 @@ const styles = {
     color: "#604dff",
   },
 
-  panel: {
-    padding: "18px",
-    border: "1px solid rgba(20, 24, 32, 0.08)",
-    borderRadius: "24px",
-    background: "#ffffff",
-    boxShadow: "0 12px 34px rgba(17, 24, 39, 0.06)",
-  },
-
-  panelHeader: {
-    display: "flex",
-    alignItems: "flex-start",
-    justifyContent: "space-between",
-    gap: "12px",
-  },
-
+  
   stepBadge: {
     flexShrink: "0",
     padding: "7px 10px",
@@ -509,118 +495,7 @@ const styles = {
     lineHeight: "1.5",
   },
 
-  
 
-  
-
-  statusBadge: {
-    flexShrink: "0",
-    padding: "7px 10px",
-    borderRadius: "999px",
-    background: "rgba(38, 175, 111, 0.11)",
-    color: "#19834f",
-    fontSize: "11px",
-    fontWeight: "800",
-  },
-
-  previewArea: {
-    minHeight: "230px",
-    display: "grid",
-    placeItems: "center",
-    marginTop: "16px",
-    padding: "20px",
-    border: "1px dashed rgba(20, 24, 32, 0.15)",
-    borderRadius: "20px",
-    background:
-      "linear-gradient(145deg, rgba(247, 248, 251, 1), rgba(240, 241, 246, 1))",
-    boxSizing: "border-box",
-  },
-
-  generatingState: {
-    maxWidth: "330px",
-    textAlign: "center",
-  },
-
-  generatingOrb: {
-    width: "58px",
-    height: "58px",
-    display: "grid",
-    placeItems: "center",
-    margin: "0 auto 13px",
-    borderRadius: "50%",
-    background:
-      "linear-gradient(135deg, rgba(96, 77, 255, 0.18), rgba(215, 77, 255, 0.18))",
-    color: "#604dff",
-    fontSize: "27px",
-  },
-
-  generatingTitle: {
-    margin: "0",
-    color: "#20232a",
-    fontSize: "17px",
-    fontWeight: "900",
-  },
-
-  generatingText: {
-    margin: "7px 0 0",
-    color: "#717783",
-    fontSize: "13px",
-  },
-
-  defaultPreview: {
-    maxWidth: "460px",
-    textAlign: "center",
-  },
-
-  previewIcon: {
-    display: "block",
-    marginBottom: "10px",
-    fontSize: "38px",
-  },
-
-  previewTitle: {
-    margin: "0",
-    color: "#20232a",
-    fontSize: "19px",
-  },
-
-  previewText: {
-    margin: "10px 0 0",
-    color: "#626976",
-    fontSize: "14px",
-    lineHeight: "1.6",
-    whiteSpace: "pre-wrap",
-  },
-
-  actionGrid: {
-    display: "grid",
-    gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
-    gap: "9px",
-    marginTop: "14px",
-  },
-
-  secondaryAction: {
-    minHeight: "46px",
-    padding: "11px",
-    border: "1px solid rgba(20, 24, 32, 0.12)",
-    borderRadius: "15px",
-    background: "#ffffff",
-    color: "#30343d",
-    fontSize: "13px",
-    fontWeight: "800",
-    cursor: "pointer",
-  },
-
-  primaryAction: {
-    minHeight: "46px",
-    padding: "11px",
-    border: "none",
-    borderRadius: "15px",
-    background: "#17191f",
-    color: "#ffffff",
-    fontSize: "13px",
-    fontWeight: "800",
-    cursor: "pointer",
   },
 };
 
