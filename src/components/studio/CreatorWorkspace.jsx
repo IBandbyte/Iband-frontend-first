@@ -509,53 +509,7 @@ const styles = {
     lineHeight: "1.5",
   },
 
-  label: {
-    display: "block",
-    marginBottom: "8px",
-    color: "#282c34",
-    fontSize: "13px",
-    fontWeight: "800",
-  },
-
-  textarea: {
-    width: "100%",
-    minHeight: "152px",
-    display: "block",
-    padding: "15px",
-    border: "1px solid rgba(20, 24, 32, 0.12)",
-    borderRadius: "17px",
-    outline: "none",
-    resize: "vertical",
-    background: "#f8f9fb",
-    color: "#17191f",
-    fontFamily: "inherit",
-    fontSize: "16px",
-    lineHeight: "1.55",
-    boxSizing: "border-box",
-  },
-
-  promptFooter: {
-    display: "flex",
-    flexWrap: "wrap",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: "6px 12px",
-    marginTop: "8px",
-  },
-
-  characterCount: {
-    color: "#9196a0",
-    fontSize: "11px",
-  },
-
-  promptReassurance: {
-    color: "#69707c",
-    fontSize: "11px",
-  },
-
-  creatorControls: {
-    marginTop: "16px",
-  },
+  
 
   generateButton: {
     width: "100%",
