@@ -12,7 +12,11 @@ const SUGGESTIONS = [
   "Help me with an idea"
 ];
 
-export default function AiMentor() {
+export default function AiMentor({
+  message,
+  selectedCreator,
+  projectStatus,
+}) {
   const [selectedSuggestion, setSelectedSuggestion] = useState(null);
 
   return (
