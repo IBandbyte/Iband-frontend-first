@@ -476,12 +476,6 @@ const styles = {
   creatorArrowActive: {
     color: "#604dff",
   },
-
-  
-  
-
-
-  },
 };
 
 export default CreatorWorkspace;
