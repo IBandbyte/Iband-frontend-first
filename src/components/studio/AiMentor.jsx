@@ -14,8 +14,6 @@ const SUGGESTIONS = [
 
 export default function AiMentor({
   message,
-  selectedCreator,
-  projectStatus,
 }) {
   const [selectedSuggestion, setSelectedSuggestion] = useState(null);
 
