@@ -478,22 +478,7 @@ const styles = {
   },
 
   
-  stepBadge: {
-    flexShrink: "0",
-    padding: "7px 10px",
-    borderRadius: "999px",
-    background: "#f1f2f5",
-    color: "#626976",
-    fontSize: "11px",
-    fontWeight: "800",
-  },
-
-  supportingText: {
-    margin: "11px 0 16px",
-    color: "#69707c",
-    fontSize: "14px",
-    lineHeight: "1.5",
-  },
+  
 
 
   },
