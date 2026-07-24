@@ -57,7 +57,7 @@ export default function AiMentor({
             marginBottom: 12
           }}
         >
-          Welcome back.
+          {message || "Welcome back."}
         </div>
 
         <div
