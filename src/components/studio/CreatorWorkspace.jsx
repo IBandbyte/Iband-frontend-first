@@ -219,8 +219,6 @@ const CreatorWorkspace = ({
       <section style={styles.section}>
         <AiMentor
           message={mentorMessage}
-          selectedCreator={selectedCreator}
-          projectStatus={projectStatus}
         />
       </section>
 
