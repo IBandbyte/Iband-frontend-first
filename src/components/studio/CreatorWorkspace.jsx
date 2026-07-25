@@ -83,14 +83,59 @@ const CreatorWorkspace = ({
     Boolean(selectedCreator) && Boolean(idea.trim()) && projectStatus !== "generating";
 
   const handleCreatorSelect = (creator) => {
-    setSelectedCreator(creator.id);
-    setGeneratedIdea("");
-    setProjectStatus("idle");
+  setSelectedCreator(creator.id);
+  setGeneratedIdea("");
+  setProjectStatus("idle");
 
-    setMentorMessage(
-      `Excellent choice. Tell me about the ${creator.label.toLowerCase()} you have in mind. You do not need to write a perfect prompt—just describe your idea naturally.`
-    );
-  };
+  switch (creator.id) {
+    case "video":
+      setMentorMessage(
+        "Let's create an amazing video. Tell me what happens in the opening scene."
+      );
+      break;
+
+    case "image":
+      setMentorMessage(
+        "Let's create a stunning image. Describe what you'd like people to see."
+      );
+      break;
+
+    case "music":
+      setMentorMessage(
+        "Let's write something unforgettable. Tell me the mood or emotion you want your music to create."
+      );
+      break;
+
+    case "podcast":
+      setMentorMessage(
+        "Let's build a great podcast. What's the topic, and who are you speaking to?"
+      );
+      break;
+
+    case "story":
+      setMentorMessage(
+        "Every great story starts with an idea. Tell me about yours."
+      );
+      break;
+
+    case "marketing":
+      setMentorMessage(
+        "Let's create a campaign that gets attention. What are you promoting?"
+      );
+      break;
+
+    case "social":
+      setMentorMessage(
+        "Let's create content people will want to share. What's your idea?"
+      );
+      break;
+
+    default:
+      setMentorMessage(
+        "Tell me your idea. We can shape it into something amazing together."
+      );
+  }
+};
 
   const handleGenerate = async () => {
     if (!canGenerate) {
