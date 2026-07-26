@@ -1,8 +1,41 @@
-import React from "react";
+import React, { useState } from "react";
 
 const FONT_STACK =
   '"TikTok Sans", Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
-
+const CREATION_MODES = [
+  {
+    id: "surprise",
+    icon: "✨",
+    title: "Surprise Me",
+    subtitle: "Create something amazing for me.",
+    mentor:
+      "Fantastic. Leave it with me and I'll surprise you with something completely original.",
+  },
+  {
+    id: "guide",
+    icon: "🤝",
+    title: "Guide Me",
+    subtitle: "I'll guide you one step at a time.",
+    mentor:
+      "Perfect. We'll build this together one question at a time. No pressure. I'll explain every step as we go.",
+  },
+  {
+    id: "together",
+    icon: "🎨",
+    title: "Let's Build Together",
+    subtitle: "We'll create side by side.",
+    mentor:
+      "Excellent. You bring the ideas, I'll bring suggestions, and together we'll create something amazing.",
+  },
+  {
+    id: "expert",
+    icon: "🚀",
+    title: "I'll Do It",
+    subtitle: "Stay nearby if I need help.",
+    mentor:
+      "Absolutely. You're in control. I'll stay quietly in the background until you need me.",
+  },
+];
 export default function MentorConversation({
   creator,
   message,
@@ -10,7 +43,10 @@ export default function MentorConversation({
   projectStatus,
 }) {
   if (!creator) return null;
-
+const [selectedMode, setSelectedMode] = useState("guide");
+const activeMode =
+  CREATION_MODES.find((mode) => mode.id === selectedMode) ||
+  CREATION_MODES[1];
   const questions = {
     video: "What's happening in the opening scene?",
     image: "What would you like people to see first?",
@@ -68,7 +104,76 @@ export default function MentorConversation({
       >
         {message}
       </p>
+<div
+  style={{
+    marginBottom: 22,
+  }}
+>
+  <div
+    style={{
+      fontSize: 12,
+      fontWeight: 800,
+      color: "#7b8190",
+      textTransform: "uppercase",
+      letterSpacing: "0.12em",
+      marginBottom: 10,
+    }}
+  >
+    Choose Your Creative Journey
+  </div>
 
+  <div
+    style={{
+      display: "grid",
+      gap: 10,
+    }}
+  >
+    {CREATION_MODES.map((mode) => {
+      const active = selectedMode === mode.id;
+
+      return (
+        <button
+          key={mode.id}
+          type="button"
+          onClick={() => setSelectedMode(mode.id)}
+          style={{
+            textAlign: "left",
+            padding: 14,
+            borderRadius: 14,
+            cursor: "pointer",
+            background: active
+              ? "rgba(96,77,255,0.08)"
+              : "#ffffff",
+            border: active
+              ? "2px solid #604dff"
+              : "1px solid rgba(17,24,39,0.08)",
+            transition: "all .2s ease",
+          }}
+        >
+          <div
+            style={{
+              fontWeight: 700,
+              fontSize: 16,
+              color: "#16181d",
+            }}
+          >
+            {mode.icon} {mode.title}
+          </div>
+
+          <div
+            style={{
+              marginTop: 4,
+              fontSize: 13,
+              color: "#6b7280",
+            }}
+          >
+            {mode.subtitle}
+          </div>
+        </button>
+      );
+    })}
+  </div>
+</div>
       <div
         style={{
           padding: 18,
@@ -157,9 +262,7 @@ export default function MentorConversation({
             lineHeight: 1.7,
           }}
         >
-          Great creations aren't built all at once.
-          <br />
-          They grow one question at a time.
+          {activeMode.mentor}
         </div>
       </div>
     </section>
