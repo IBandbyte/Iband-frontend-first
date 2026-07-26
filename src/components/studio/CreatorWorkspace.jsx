@@ -265,8 +265,9 @@ const [mentorMessage, setMentorMessage] = useState(
 
       <section style={styles.section}>
   <AiMentor
-    message={mentorMessage}
-  />
+  message={mentorMessage}
+  creatorJourney={creatorJourney}
+/>
 </section>
 
 <section style={styles.section}>
