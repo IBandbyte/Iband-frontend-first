@@ -9,60 +9,24 @@ export default function MentorConversation({
   idea,
   projectStatus,
 }) {
-  const getConversation = () => {
-    if (!creator) {
-      return {
-        title: "Let's begin.",
-        body:
-          "Choose what you'd like to create today. Once you've chosen a creative path, I'll guide you step by step.",
-      };
-    }
+  if (!creator) return null;
 
-    if (projectStatus === "generating") {
-      return {
-        title: "Creating...",
-        body:
-          "I'm building the first version now. This is only the beginning—we can keep improving it together.",
-      };
-    }
-
-    if (projectStatus === "generated") {
-      return {
-        title: "Your first version is ready.",
-        body:
-          "Take a look, make changes, experiment and keep refining it. Great creations evolve one step at a time.",
-      };
-    }
-
-    if (projectStatus === "saved") {
-      return {
-        title: "Safely saved.",
-        body:
-          "Your project is waiting whenever you're ready to continue.",
-      };
-    }
-
-    if (projectStatus === "published") {
-      return {
-        title: "Congratulations.",
-        body:
-          "You've turned an idea into something real. That's something to be proud of.",
-      };
-    }
-
-    return {
-      title: creator.label,
-      body: message,
-    };
+  const questions = {
+    video: "What's happening in the opening scene?",
+    image: "What would you like people to see first?",
+    music: "What feeling should your music create?",
+    podcast: "Who are you speaking to?",
+    story: "Who is your main character?",
+    marketing: "What are you promoting?",
+    social: "What do you want people to do after seeing your post?",
+    other: "Tell me your idea.",
   };
-
-  const conversation = getConversation();
 
   return (
     <section
       style={{
         marginTop: 18,
-        padding: 20,
+        padding: 22,
         borderRadius: 20,
         background: "#ffffff",
         border: "1px solid rgba(17,24,39,0.08)",
@@ -73,56 +37,88 @@ export default function MentorConversation({
         style={{
           fontSize: 12,
           fontWeight: 800,
-          letterSpacing: "0.12em",
-          textTransform: "uppercase",
           color: "#7b8190",
-          marginBottom: 10,
+          textTransform: "uppercase",
+          letterSpacing: "0.12em",
+          marginBottom: 8,
         }}
       >
-        Conversation
+        AI Mentor Conversation
       </div>
 
-      <h3
+      <h2
         style={{
-          margin: "0 0 10px",
-          fontSize: 24,
+          margin: 0,
+          fontSize: 28,
           color: "#16181d",
           lineHeight: 1.2,
         }}
       >
-        {conversation.title}
-      </h3>
+        {creator.icon} {creator.label}
+      </h2>
 
       <p
         style={{
-          margin: 0,
+          marginTop: 16,
+          marginBottom: 22,
           color: "#5f6673",
           lineHeight: 1.7,
           fontSize: 16,
         }}
       >
-        {conversation.body}
+        {message}
       </p>
+
+      <div
+        style={{
+          padding: 18,
+          borderRadius: 16,
+          background: "#f7f8fc",
+          border: "1px solid rgba(17,24,39,0.05)",
+        }}
+      >
+        <div
+          style={{
+            fontSize: 12,
+            fontWeight: 800,
+            color: "#7b8190",
+            marginBottom: 8,
+          }}
+        >
+          QUESTION 1
+        </div>
+
+        <div
+          style={{
+            fontSize: 20,
+            fontWeight: 700,
+            color: "#16181d",
+            lineHeight: 1.4,
+          }}
+        >
+          {questions[creator.id]}
+        </div>
+      </div>
 
       {idea.trim() && (
         <div
           style={{
             marginTop: 18,
-            padding: 14,
-            borderRadius: 14,
-            background: "#f5f7fb",
+            padding: 18,
+            borderRadius: 16,
+            background: "#fafafa",
             border: "1px solid rgba(17,24,39,0.05)",
           }}
         >
           <div
             style={{
               fontSize: 12,
-              fontWeight: 700,
+              fontWeight: 800,
               color: "#7b8190",
-              marginBottom: 6,
+              marginBottom: 8,
             }}
           >
-            YOUR IDEA
+            YOUR ANSWER
           </div>
 
           <div
@@ -135,6 +131,37 @@ export default function MentorConversation({
           </div>
         </div>
       )}
+
+      <div
+        style={{
+          marginTop: 22,
+          padding: 18,
+          borderRadius: 16,
+          background: "rgba(96,77,255,0.08)",
+          border: "1px solid rgba(96,77,255,0.20)",
+        }}
+      >
+        <div
+          style={{
+            fontWeight: 700,
+            marginBottom: 8,
+            color: "#4d3dd9",
+          }}
+        >
+          Mentor Insight
+        </div>
+
+        <div
+          style={{
+            color: "#4b5563",
+            lineHeight: 1.7,
+          }}
+        >
+          Great creations aren't built all at once.
+          <br />
+          They grow one question at a time.
+        </div>
+      </div>
     </section>
   );
 }
