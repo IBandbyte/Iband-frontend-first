@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from "react";
 import AiMentor from "./AiMentor";
+import MentorConversation from "./MentorConversation";
 import PromptBuilder from "./PromptBuilder";
 import GenerateButton from "./GenerateButton";
 import PreviewPanel from "./PreviewPanel";
@@ -262,10 +263,19 @@ const CreatorWorkspace = ({
       </section>
 
       <section style={styles.section}>
-        <AiMentor
-          message={mentorMessage}
-        />
-      </section>
+  <AiMentor
+    message={mentorMessage}
+  />
+</section>
+
+<section style={styles.section}>
+  <MentorConversation
+    creator={activeCreator}
+    message={mentorMessage}
+    idea={idea}
+    projectStatus={projectStatus}
+  />
+</section>
 
       <section style={styles.section}>
         <div style={styles.sectionHeadingRow}>
