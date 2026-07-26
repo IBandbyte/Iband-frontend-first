@@ -67,12 +67,13 @@ const CreatorWorkspace = ({
   renderPreview,
 }) => {
   const [selectedCreator, setSelectedCreator] = useState(initialCreator);
-  const [idea, setIdea] = useState("");
-  const [generatedIdea, setGeneratedIdea] = useState("");
-  const [projectStatus, setProjectStatus] = useState("idle");
-  const [mentorMessage, setMentorMessage] = useState(
-    "I've got your back. Choose what you would like to create, then tell me about your idea."
-  );
+const [idea, setIdea] = useState("");
+const [generatedIdea, setGeneratedIdea] = useState("");
+const [projectStatus, setProjectStatus] = useState("idle");
+const [creatorJourney, setCreatorJourney] = useState("guide");
+const [mentorMessage, setMentorMessage] = useState(
+  "I've got your back. Choose what you would like to create, then tell me about your idea."
+);
 
   const activeCreator = useMemo(
     () =>
