@@ -14,8 +14,22 @@ const SUGGESTIONS = [
 
 export default function AiMentor({
   message,
+  creatorJourney,
 }) {
   const [selectedSuggestion, setSelectedSuggestion] = useState(null);
+  const journeyMessages = {
+  surprise:
+    "Sit back and let your imagination wander. I'll surprise you with fresh ideas and creative directions.",
+  guide:
+    "We'll build this together one step at a time. I'll explain each stage and help you develop your idea.",
+  together:
+    "Let's brainstorm as a team. You bring the ideas, and I'll help shape and refine them.",
+  expert:
+    "You're in control. I'll stay nearby with suggestions whenever you want another perspective.",
+};
+
+const journeyMessage =
+  journeyMessages[creatorJourney] || journeyMessages.guide;
 
   return (
     <div
@@ -59,16 +73,14 @@ export default function AiMentor({
         </div>
 
         <div
-          style={{
-            fontSize: 16,
-            lineHeight: 1.6,
-            color: "rgba(255,255,255,0.85)"
-          }}
-        >
-          You're already a creator because you create.
-          <br />
-          What would you like to build today?
-        </div>
+  style={{
+    fontSize: 16,
+    lineHeight: 1.6,
+    color: "rgba(255,255,255,0.85)"
+  }}
+>
+  {journeyMessage}
+</div>
       </div>
 
       <div
