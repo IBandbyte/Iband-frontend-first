@@ -41,11 +41,13 @@ export default function MentorConversation({
   message,
   idea,
   projectStatus,
+  creatorJourney,
+  onJourneyChange,
 }) {
   if (!creator) return null;
 const [selectedMode, setSelectedMode] = useState("guide");
 const activeMode =
-  CREATION_MODES.find((mode) => mode.id === selectedMode) ||
+  CREATION_MODES.find((mode) => mode.id === creatorJourney) ||
   CREATION_MODES[1];
   const questions = {
     video: "What's happening in the opening scene?",
@@ -129,13 +131,13 @@ const activeMode =
     }}
   >
     {CREATION_MODES.map((mode) => {
-      const active = selectedMode === mode.id;
+      const active = creatorJourney === mode.id;
 
       return (
         <button
           key={mode.id}
           type="button"
-          onClick={() => setSelectedMode(mode.id)}
+          onClick={() => onJourneyChange(mode.id)}
           style={{
             textAlign: "left",
             padding: 14,
