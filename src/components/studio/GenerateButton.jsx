@@ -4,6 +4,7 @@ const GenerateButton = ({
   onClick,
   disabled = false,
   generating = false,
+  creatorJourney = "guide",
   label = "Generate",
   loadingLabel = "Creating your first version...",
   icon = "✨",
