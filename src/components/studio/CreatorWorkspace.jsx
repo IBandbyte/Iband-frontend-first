@@ -271,11 +271,13 @@ const [mentorMessage, setMentorMessage] = useState(
 
 <section style={styles.section}>
   <MentorConversation
-    creator={activeCreator}
-    message={mentorMessage}
-    idea={idea}
-    projectStatus={projectStatus}
-  />
+  creator={activeCreator}
+  message={mentorMessage}
+  idea={idea}
+  projectStatus={projectStatus}
+  creatorJourney={creatorJourney}
+  onJourneyChange={setCreatorJourney}
+/>
 </section>
 
       <section style={styles.section}>
