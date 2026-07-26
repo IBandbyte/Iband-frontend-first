@@ -65,6 +65,7 @@ const CREATOR_QUESTIONS = {
 const PromptBuilder = ({
   creatorType = "other",
   creatorLabel = "Creative",
+  creatorJourney = "guide",
   value = "",
   onChange,
   projectStatus = "idle",
@@ -76,6 +77,10 @@ const PromptBuilder = ({
 
   const guidanceQuestions =
     CREATOR_QUESTIONS[creatorType] || CREATOR_QUESTIONS.other;
+    const visibleQuestions =
+  creatorJourney === "expert"
+    ? guidanceQuestions.slice(0, 1)
+    : guidanceQuestions;
 
   const handleChange = (event) => {
     if (typeof onChange === "function") {
@@ -161,7 +166,7 @@ const PromptBuilder = ({
         </p>
 
         <div style={styles.guidanceList}>
-          {guidanceQuestions.map((question) => (
+          {visibleQuestions.map((question) => (
             <button
               key={question}
               type="button"
