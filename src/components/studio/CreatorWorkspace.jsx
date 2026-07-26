@@ -338,10 +338,11 @@ const [mentorMessage, setMentorMessage] = useState(
         {activeCreator && (
   <section style={styles.section}>
     <PromptBuilder
-      creatorType={selectedCreator}
-      creatorLabel={activeCreator.label}
-      value={idea}
-      projectStatus={projectStatus}
+  creatorType={selectedCreator}
+  creatorLabel={activeCreator.label}
+  creatorJourney={creatorJourney}
+  value={idea}
+  projectStatus={projectStatus}
       onChange={(value) => {
         setIdea(value);
 
