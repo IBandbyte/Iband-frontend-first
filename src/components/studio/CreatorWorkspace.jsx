@@ -375,6 +375,7 @@ const [mentorMessage, setMentorMessage] = useState(
   <PreviewPanel
   creator={activeCreator}
   generatedIdea={generatedIdea}
+  creatorJourney={creatorJourney}
   projectStatus={projectStatus}
   renderPreview={renderPreview}
   onSave={handleSave}
