@@ -36,6 +36,7 @@ const STATUS_CONFIG = {
 const PreviewPanel = ({
   creator,
   generatedIdea,
+  creatorJourney = "guide",
   projectStatus = "idle",
   renderPreview,
   onSave,
