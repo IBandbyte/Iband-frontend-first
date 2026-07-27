@@ -363,10 +363,11 @@ const [mentorMessage, setMentorMessage] = useState(
     />
 
     <GenerateButton
-      onClick={handleGenerate}
-      generating={projectStatus === "generating"}
-      disabled={!canGenerate}
-    />
+  creatorJourney={creatorJourney}
+  onClick={handleGenerate}
+  generating={projectStatus === "generating"}
+  disabled={...}
+/>
   </section>
 )}
   
