@@ -267,6 +267,9 @@ const [mentorMessage, setMentorMessage] = useState(
   <AiMentor
   message={mentorMessage}
   creatorJourney={creatorJourney}
+  mentorContext={{
+    creatorJourney,
+  }}
 />
 </section>
 
