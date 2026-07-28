@@ -15,6 +15,7 @@ const SUGGESTIONS = [
 export default function AiMentor({
   message,
   creatorJourney,
+  mentorContext = {},
 }) {
   const [selectedSuggestion, setSelectedSuggestion] = useState(null);
   const journeyMessages = {
@@ -30,6 +31,9 @@ export default function AiMentor({
 
 const journeyMessage =
   journeyMessages[creatorJourney] || journeyMessages.guide;
+  const getMentorMessage = () => {
+  return journeyMessage;
+};
 
   return (
     <div
@@ -79,7 +83,7 @@ const journeyMessage =
     color: "rgba(255,255,255,0.85)"
   }}
 >
-  {journeyMessage}
+  {getMentorMessage()}
 </div>
       </div>
 
