@@ -31,6 +31,9 @@ export default function AiMentor({
 
 const journeyMessage =
   journeyMessages[creatorJourney] || journeyMessages.guide;
+  const {
+  creatorJourney: currentJourney,
+} = mentorContext;
   const getMentorMessage = () => {
   return journeyMessage;
 };
