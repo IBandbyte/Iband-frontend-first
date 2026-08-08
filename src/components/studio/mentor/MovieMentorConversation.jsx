@@ -1050,10 +1050,14 @@ export default function MovieMentorConversation({
     );
   }
 
-    async function handleSend() {
+      async function handleSend() {
     const text = draft.trim();
 
-    if (!text) {
+    if (
+      !text ||
+      isThinking ||
+      isGenerating
+    ) {
       return;
     }
 
