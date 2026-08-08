@@ -1154,6 +1154,28 @@ export default function MovieMentorConversation({
           },
         });
       }
+        } catch (error) {
+      console.error(
+        "MovieMentorConversation response generation error:",
+        error
+      );
+
+      onSendMessage?.({
+        id: createId(
+          "mentor-error-message"
+        ),
+        role: "mentor",
+        type: MESSAGE_TYPES.TEXT,
+        behaviour:
+          MENTOR_BEHAVIOURS.CONTINUE,
+        text:
+          "I’m still with you. Something interrupted that response, so let’s keep our place and try again.",
+        createdAt:
+          createTimestamp(),
+        metadata: {
+          generationError: true,
+        },
+      });
     } finally {
       onThinkingChange?.(false);
     }
