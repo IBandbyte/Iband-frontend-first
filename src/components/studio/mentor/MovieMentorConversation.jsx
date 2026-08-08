@@ -987,8 +987,16 @@ export default function MovieMentorConversation({
   const [draft, setDraft] =
     useState("");
 
-  const [localStartPoint, setLocalStartPoint] =
+    const [localStartPoint, setLocalStartPoint] =
     useState(startPoint);
+
+  const responseGeneratorRef =
+    useRef(null);
+
+  if (!responseGeneratorRef.current) {
+    responseGeneratorRef.current =
+      createResponseGenerator();
+  }
 
   const messagesEndRef =
     useRef(null);
