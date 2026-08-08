@@ -8,6 +8,7 @@
  *
  * - AdaptiveMentorEngine
  * - ResponseComposer
+ * - CommunicationVoiceEngine
  * - CreatorMemory
  * - A future language-model or response-provider adapter
  *
@@ -15,6 +16,8 @@
  * - Accept a creator message and conversation context.
  * - Produce one unified Adaptive Mentor behaviour plan.
  * - Convert that plan into a response blueprint.
+ * - Produce a communication voice plan.
+ * - Apply communication intelligence to the provider request.
  * - Apply memory instructions at the correct point.
  * - Execute the blueprint through a supplied response provider.
  * - Validate and normalise the generated response.
@@ -34,6 +37,7 @@
  * - Protect the Creator.
  * - Present behaviour leads; memory informs.
  * - Intelligence and expression remain separate.
+ * - Communication performance must not alter meaning.
  * - Never fabricate successful memory storage.
  * - Never generate speech when silence is the correct response.
  * - A provider executes the blueprint; it does not redesign it.
@@ -42,13 +46,16 @@
 
 import createAdaptiveMentorEngine from "./AdaptiveMentorEngine";
 import createResponseComposer from "./ResponseComposer";
+import createCommunicationVoiceEngine from "./CommunicationVoiceEngine";
 
-const RESPONSE_GENERATOR_VERSION = "1.0.0";
+const RESPONSE_GENERATOR_VERSION = "1.1.0";
 
 const GENERATION_STATUSES = Object.freeze({
   IDLE: "idle",
   PLANNING: "planning",
   COMPOSING: "composing",
+  PLANNING_COMMUNICATION:
+    "planning-communication",
   APPLYING_MEMORY: "applying-memory",
   GENERATING: "generating",
   VALIDATING: "validating",
@@ -64,6 +71,7 @@ const GENERATION_STAGES = Object.freeze({
   INITIALISE: "initialise",
   PLAN_BEHAVIOUR: "plan-behaviour",
   COMPOSE_BLUEPRINT: "compose-blueprint",
+  PLAN_COMMUNICATION: "plan-communication",
   APPLY_MEMORY: "apply-memory",
   EXECUTE_BLUEPRINT: "execute-blueprint",
   VALIDATE_RESPONSE: "validate-response",
@@ -85,7 +93,8 @@ const OUTPUT_FORMATS = Object.freeze({
 
 const RESPONSE_SOURCES = Object.freeze({
   PROVIDER: "provider",
-  DETERMINISTIC_RENDERER: "deterministic-renderer",
+  DETERMINISTIC_RENDERER:
+    "deterministic-renderer",
   FALLBACK_RENDERER: "fallback-renderer",
   SILENCE: "silence",
 });
@@ -116,6 +125,7 @@ const DEFAULT_GENERATOR_OPTIONS = Object.freeze({
   includeDiagnostics: true,
   includeSpecialistPlans: false,
   includeBlueprint: true,
+  includeCommunicationPlan: true,
 
   trimOutput: true,
   rejectEmptyProviderOutput: true,
@@ -155,9 +165,24 @@ const DEFAULT_GENERATION_CONTEXT = Object.freeze({
   creatorExplicitlyAskedToStop: false,
   creatorExplicitlyAskedToCreate: false,
 
+  creatorExplicitlyAskedForHelp: false,
+  creatorExplicitlyAskedForExplanation: false,
+
+  creatorAppearsConfused: false,
+
+  creatorIsReturning: false,
+  elapsedSinceLastMessageMs: null,
+
+  relationshipStage: null,
+  interactionCount: 0,
+  knownDurationDays: 0,
+
   preferredResponseDepth: null,
   preferredGuidanceStyle: null,
   preferredMentorRole: null,
+  preferredCommunicationPace: null,
+  preferredVoiceProfile: null,
+  preferredChannel: null,
 
   recentCreatorMessages: [],
   recentMentorMessages: [],
@@ -176,10 +201,19 @@ const DEFAULT_GENERATION_CONTEXT = Object.freeze({
   establishedVocabulary: [],
   sharedMeanings: [],
   sharedRituals: [],
+  sharedJokes: [],
+
+  participants: [],
+  primaryCreatorId: null,
+  currentSpeakerId: null,
+  participationMode: null,
 
   humourAllowed: true,
   emojisAllowed: true,
   useCreatorName: false,
+
+  language: "en",
+  locale: "en-GB",
 
   currentTimestamp: null,
 });
@@ -260,36 +294,20 @@ function uniqueValues(values = []) {
 }
 
 /**
- * Reads a nested value safely.
+ * Determines whether a provider appears usable.
  */
-function getNestedValue(
-  value,
-  path,
-  fallback = null
-) {
-  const keys = path.split(".");
-  let currentValue = value;
-
-  for (const key of keys) {
-    if (
-      currentValue === null ||
-      currentValue === undefined ||
-      typeof currentValue !== "object"
-    ) {
-      return fallback;
-    }
-
-    currentValue = currentValue[key];
-  }
-
-  return currentValue ?? fallback;
-}
-
-/**
- * Returns true when a value appears in a collection.
- */
-function includesValue(value, values = []) {
-  return values.includes(value);
+function isResponseProvider(provider) {
+  return Boolean(
+    provider &&
+      typeof provider === "object" &&
+      (
+        typeof provider.generateResponse ===
+          "function" ||
+        typeof provider.generate === "function" ||
+        typeof provider.executeBlueprint ===
+          "function"
+      )
+  );
 }
 
 /**
@@ -335,6 +353,7 @@ function resolveGenerationContext(context = {}) {
     ...cloneValue(
       DEFAULT_GENERATION_CONTEXT
     ),
+
     ...cloneValue(context),
 
     currentTimestamp:
@@ -388,23 +407,6 @@ function assertNotAborted(abortSignal) {
 
     throw error;
   }
-}
-
-/**
- * Determines whether a provider appears usable.
- */
-function isResponseProvider(provider) {
-  return Boolean(
-    provider &&
-      typeof provider === "object" &&
-      (
-        typeof provider.generateResponse ===
-          "function" ||
-        typeof provider.generate === "function" ||
-        typeof provider.executeBlueprint ===
-          "function"
-      )
-  );
 }
 
 /**
@@ -479,6 +481,9 @@ function describeProvider(provider) {
 
 /**
  * Creates a normalised provider request.
+ *
+ * CommunicationVoiceEngine is applied after this base request
+ * is created.
  */
 function createProviderRequest({
   generationId,
@@ -907,7 +912,10 @@ function renderCreativeDirection({
       );
 
     case "compose-refinement-handoff":
-      return "The first version exists. Now we refine the highest-value part.";
+      return (
+        "The first version exists. " +
+        "Now we refine the highest-value part."
+      );
 
     case "compose-publishing-handoff":
       return "The creation is ready to move into publishing.";
@@ -973,9 +981,7 @@ function renderSessionRecap({
     );
 
   if (projectTitle) {
-    return (
-      `We’ve preserved today’s progress on ${projectTitle}.`
-    );
+    return `We’ve preserved today’s progress on ${projectTitle}.`;
   }
 
   return "We’ve preserved where we reached today.";
@@ -1214,8 +1220,10 @@ function validateGeneratedResponse({
       createValidationIssue({
         code:
           "TEXT_GENERATED_DURING_SILENCE",
+
         severity:
           VALIDATION_SEVERITIES.ERROR,
+
         message:
           "The blueprint requested silence, but text was generated.",
       })
@@ -1231,8 +1239,10 @@ function validateGeneratedResponse({
     issues.push(
       createValidationIssue({
         code: "EMPTY_RESPONSE",
+
         severity:
           VALIDATION_SEVERITIES.ERROR,
+
         message:
           "The provider returned no response text.",
       })
@@ -1246,10 +1256,13 @@ function validateGeneratedResponse({
     issues.push(
       createValidationIssue({
         code: "RESPONSE_TOO_LONG",
+
         severity:
           VALIDATION_SEVERITIES.ERROR,
+
         message:
           "The generated response exceeds the configured character limit.",
+
         metadata: {
           actualCharacters:
             cleanedText.length,
@@ -1276,10 +1289,13 @@ function validateGeneratedResponse({
     issues.push(
       createValidationIssue({
         code: "TOO_MANY_QUESTIONS",
+
         severity:
           VALIDATION_SEVERITIES.WARNING,
+
         message:
           "The generated response contains more questions than the blueprint allows.",
+
         metadata: {
           questionCount,
           maximumQuestions,
@@ -1302,10 +1318,13 @@ function validateGeneratedResponse({
       createValidationIssue({
         code:
           "FORBIDDEN_LANGUAGE_PATTERN",
+
         severity:
           VALIDATION_SEVERITIES.ERROR,
+
         message:
           "The generated response contains prohibited language.",
+
         metadata: {
           patterns: forbiddenPatterns,
         },
@@ -1324,10 +1343,13 @@ function validateGeneratedResponse({
 
     metrics: {
       characters: cleanedText.length,
+
       words: cleanedText
         ? cleanedText.split(/\s+/).length
         : 0,
+
       questions: questionCount,
+
       paragraphs: cleanedText
         ? cleanedText
             .split(/\n\s*\n/)
@@ -1419,6 +1441,7 @@ function createMemoryApplicationSummary(
 
   return {
     attempted: true,
+
     applied: cloneValue(applied),
     skipped: cloneValue(skipped),
     errors: cloneValue(errors),
@@ -1443,6 +1466,7 @@ function createCompletedResponse({
   context,
   adaptivePlan,
   blueprint,
+  communicationPlan,
   memoryApplication,
   provider,
   providerExecution,
@@ -1462,10 +1486,13 @@ function createCompletedResponse({
 
   return {
     id: generationId,
+
     generator: "response-generator",
+
     version: RESPONSE_GENERATOR_VERSION,
 
     status,
+
     source,
 
     input: {
@@ -1474,6 +1501,7 @@ function createCompletedResponse({
 
     response: {
       text: cleanString(text),
+
       structured:
         cloneValue(structured),
 
@@ -1559,17 +1587,57 @@ function createCompletedResponse({
         ? cloneValue(blueprint)
         : {
             id: blueprint?.id || null,
+
             action:
               blueprint?.action || null,
+
             length:
               blueprint?.length || null,
+
             style:
               cloneValue(
                 blueprint?.style || null
               ),
+
             blueprintSummary:
               blueprint
                 ?.blueprintSummary ||
+              null,
+          },
+
+    communicationPlan:
+      options.includeCommunicationPlan
+        ? cloneValue(
+            communicationPlan
+          )
+        : {
+            id:
+              communicationPlan?.id ||
+              null,
+
+            mode:
+              communicationPlan?.mode ||
+              null,
+
+            conversationPhase:
+              communicationPlan
+                ?.conversationPhase ||
+              null,
+
+            style:
+              cloneValue(
+                communicationPlan?.style ||
+                null
+              ),
+
+            primaryEffect:
+              communicationPlan
+                ?.primaryEffect ||
+              null,
+
+            summary:
+              communicationPlan
+                ?.summary ||
               null,
           },
 
@@ -1594,6 +1662,7 @@ function createCompletedResponse({
         : null,
 
     createdAt: startedAt,
+
     completedAt,
   };
 }
@@ -1610,13 +1679,16 @@ function createFailureResponse({
   startedAt,
   adaptivePlan = null,
   blueprint = null,
+  communicationPlan = null,
 }) {
   const isCancelled =
     error?.name === "AbortError";
 
   return {
     id: generationId,
+
     generator: "response-generator",
+
     version: RESPONSE_GENERATOR_VERSION,
 
     status: isCancelled
@@ -1637,7 +1709,9 @@ function createFailureResponse({
         : "I’m still with you. Something interrupted the response pipeline, so I’ve stopped rather than guessing.",
 
       structured: null,
+
       format: OUTPUT_FORMATS.TEXT,
+
       isSilent: isCancelled,
     },
 
@@ -1666,6 +1740,13 @@ function createFailureResponse({
         ? cloneValue(blueprint)
         : null,
 
+    communicationPlan:
+      communicationPlan
+        ? cloneValue(
+            communicationPlan
+          )
+        : null,
+
     diagnostics: {
       lifecycle:
         cloneValue(lifecycle),
@@ -1675,6 +1756,7 @@ function createFailureResponse({
     },
 
     createdAt: startedAt,
+
     completedAt: createTimestamp(),
   };
 }
@@ -1685,12 +1767,14 @@ function createFailureResponse({
 function createResponseGenerator({
   adaptiveMentorEngine = null,
   responseComposer = null,
+  communicationVoiceEngine = null,
   responseProvider = null,
   memory = null,
   defaultOptions = {},
   onLifecycleEvent = null,
 } = {}) {
-  let activeMemory = memory || null;
+  let activeMemory =
+    memory || null;
 
   let activeResponseProvider =
     responseProvider || null;
@@ -1709,6 +1793,10 @@ function createResponseGenerator({
   const resolvedResponseComposer =
     responseComposer ||
     createResponseComposer();
+
+  const resolvedCommunicationVoiceEngine =
+    communicationVoiceEngine ||
+    createCommunicationVoiceEngine();
 
   /**
    * Publishes lifecycle events to both internal history and
@@ -1792,6 +1880,8 @@ function createResponseGenerator({
     options = {},
     adaptivePlan = null,
     blueprint = null,
+    communicationPlan = null,
+    voiceProfile = null,
   } = {}) {
     const generationId =
       createGenerationId();
@@ -1806,6 +1896,7 @@ function createResponseGenerator({
         ...cloneValue(
           activeDefaultOptions
         ),
+
         ...cloneValue(options),
       });
 
@@ -1817,6 +1908,9 @@ function createResponseGenerator({
 
     let currentBlueprint =
       blueprint;
+
+    let currentCommunicationPlan =
+      communicationPlan;
 
     let memoryApplication =
       createMemoryApplicationSummary(
@@ -1873,6 +1967,7 @@ function createResponseGenerator({
           resolvedAdaptiveMentorEngine
             .planMentorBehaviour({
               message,
+
               context:
                 resolvedContext,
             });
@@ -1913,6 +2008,7 @@ function createResponseGenerator({
           resolvedResponseComposer
             .composeResponseBlueprint({
               message,
+
               adaptivePlan:
                 currentAdaptivePlan,
 
@@ -1937,6 +2033,10 @@ function createResponseGenerator({
             currentBlueprint
           );
 
+      /**
+       * Preserve intentional silence before building unnecessary
+       * communication or provider work.
+       */
       if (shouldRemainSilent) {
         publishLifecycleEvent(
           lifecycle,
@@ -1955,6 +2055,7 @@ function createResponseGenerator({
         const silentValidation = {
           valid: true,
           issues: [],
+
           metrics: {
             characters: 0,
             words: 0,
@@ -1966,31 +2067,103 @@ function createResponseGenerator({
         return createCompletedResponse({
           generationId,
           message,
+
           text: "",
           structured: null,
+
           source:
             RESPONSE_SOURCES.SILENCE,
+
           status:
             GENERATION_STATUSES.SILENT,
+
           context:
             resolvedContext,
+
           adaptivePlan:
             currentAdaptivePlan,
+
           blueprint:
             currentBlueprint,
+
+          communicationPlan:
+            currentCommunicationPlan,
+
           memoryApplication,
+
           provider:
             describeProvider(
               activeResponseProvider
             ),
+
           providerExecution: null,
+
           validation:
             silentValidation,
+
           lifecycle,
+
           options:
             resolvedOptions,
+
           startedAt,
         });
+      }
+
+      /**
+       * NEW v1.1:
+       *
+       * Build the communication-expression plan after behaviour
+       * and composition are known, but before the provider sees
+       * the request.
+       */
+      if (!currentCommunicationPlan) {
+        assertNotAborted(
+          resolvedOptions.abortSignal
+        );
+
+        publishLifecycleEvent(
+          lifecycle,
+          {
+            stage:
+              GENERATION_STAGES
+                .PLAN_COMMUNICATION,
+
+            status:
+              GENERATION_STATUSES
+                .PLANNING_COMMUNICATION,
+
+            message:
+              "Planning Mentor communication voice.",
+          }
+        );
+
+        currentCommunicationPlan =
+          resolvedCommunicationVoiceEngine
+            .planCommunication({
+              message,
+
+              context:
+                resolvedContext,
+
+              adaptivePlan:
+                currentAdaptivePlan,
+
+              responseBlueprint:
+                currentBlueprint,
+
+              voiceProfile,
+            });
+      }
+
+      if (
+        !currentCommunicationPlan ||
+        typeof currentCommunicationPlan !==
+          "object"
+      ) {
+        throw new TypeError(
+          "Communication Voice Engine did not return a valid plan."
+        );
       }
 
       if (
@@ -2066,20 +2239,61 @@ function createResponseGenerator({
       if (
         providerDescription.available
       ) {
-        const providerRequest =
+        /**
+         * First build the semantic provider request.
+         */
+        const baseProviderRequest =
           createProviderRequest({
             generationId,
             message,
+
             context:
               resolvedContext,
+
             adaptivePlan:
               currentAdaptivePlan,
+
             blueprint:
               currentBlueprint,
+
             options:
               resolvedOptions,
+
             memoryApplication,
           });
+
+        /**
+         * NEW v1.1:
+         *
+         * CommunicationVoiceEngine now becomes part of the live
+         * execution path.
+         *
+         * It enriches the provider request with:
+         *
+         * - relationship calibration
+         * - familiarity
+         * - pace
+         * - tone
+         * - depth
+         * - directness
+         * - humour policy
+         * - storytelling / analogy policy
+         * - spoken performance guidance
+         * - check-in behaviour
+         * - collaboration guidance
+         * - conversation landing guidance
+         *
+         * It does not rewrite the underlying meaning.
+         */
+        const providerRequest =
+          resolvedCommunicationVoiceEngine
+            .applyToProviderRequest({
+              providerRequest:
+                baseProviderRequest,
+
+              communicationPlan:
+                currentCommunicationPlan,
+            });
 
         try {
           providerExecution =
@@ -2146,10 +2360,13 @@ function createResponseGenerator({
           generatedText =
             renderBlueprintDeterministically({
               message,
+
               blueprint:
                 currentBlueprint,
+
               context:
                 resolvedContext,
+
               memoryApplication,
             });
 
@@ -2161,10 +2378,13 @@ function createResponseGenerator({
         generatedText =
           renderBlueprintDeterministically({
             message,
+
             blueprint:
               currentBlueprint,
+
             context:
               resolvedContext,
+
             memoryApplication,
           });
       }
@@ -2208,8 +2428,10 @@ function createResponseGenerator({
       generatedText =
         normaliseGeneratedText({
           text: generatedText,
+
           blueprint:
             currentBlueprint,
+
           options:
             resolvedOptions,
         });
@@ -2239,26 +2461,33 @@ function createResponseGenerator({
           .validateProviderOutput
           ? validateGeneratedResponse({
               text: generatedText,
+
               blueprint:
                 currentBlueprint,
+
               options:
                 resolvedOptions,
             })
           : {
               valid: true,
               issues: [],
+
               metrics: {
                 characters:
                   generatedText.length,
-                words: generatedText
-                  ? generatedText.split(
-                      /\s+/
-                    ).length
-                  : 0,
+
+                words:
+                  generatedText
+                    ? generatedText.split(
+                        /\s+/
+                      ).length
+                    : 0,
+
                 questions:
                   countQuestions(
                     generatedText
                   ),
+
                 paragraphs:
                   generatedText
                     ? generatedText
@@ -2299,18 +2528,23 @@ function createResponseGenerator({
         generatedText =
           renderBlueprintDeterministically({
             message,
+
             blueprint:
               currentBlueprint,
+
             context:
               resolvedContext,
+
             memoryApplication,
           });
 
         generatedText =
           normaliseGeneratedText({
             text: generatedText,
+
             blueprint:
               currentBlueprint,
+
             options:
               resolvedOptions,
           });
@@ -2322,8 +2556,10 @@ function createResponseGenerator({
         const fallbackValidation =
           validateGeneratedResponse({
             text: generatedText,
+
             blueprint:
               currentBlueprint,
+
             options:
               resolvedOptions,
           });
@@ -2361,7 +2597,8 @@ function createResponseGenerator({
           stage:
             GENERATION_STAGES.FINALISE,
 
-          status: finalStatus,
+          status:
+            finalStatus,
 
           message:
             "Mentor response generation completed.",
@@ -2371,25 +2608,43 @@ function createResponseGenerator({
       return createCompletedResponse({
         generationId,
         message,
+
         text: generatedText,
+
         structured:
           generatedStructured,
+
         source,
-        status: finalStatus,
+
+        status:
+          finalStatus,
+
         context:
           resolvedContext,
+
         adaptivePlan:
           currentAdaptivePlan,
+
         blueprint:
           currentBlueprint,
+
+        communicationPlan:
+          currentCommunicationPlan,
+
         memoryApplication,
+
         provider:
           providerDescription,
+
         providerExecution,
+
         validation,
+
         lifecycle,
+
         options:
           resolvedOptions,
+
         startedAt,
       });
     } catch (error) {
@@ -2422,27 +2677,41 @@ function createResponseGenerator({
       return createFailureResponse({
         generationId,
         message,
+
         context:
           resolvedContext,
+
         lifecycle,
+
         error,
+
         startedAt,
+
         adaptivePlan:
           currentAdaptivePlan,
+
         blueprint:
           currentBlueprint,
+
+        communicationPlan:
+          currentCommunicationPlan,
       });
     }
   }
 
   /**
-   * Creates the behaviour plan and blueprint without generating
-   * the final response. Useful for previews, debugging and tests.
+   * Creates the behaviour plan, blueprint and communication
+   * voice plan without generating the final response.
+   *
+   * Useful for previews, debugging and tests.
    */
   function previewResponsePlan({
     message = "",
     context = {},
     adaptivePlan = null,
+    blueprint = null,
+    communicationPlan = null,
+    voiceProfile = null,
   } = {}) {
     const resolvedContext =
       resolveGenerationContext(context);
@@ -2452,18 +2721,40 @@ function createResponseGenerator({
       resolvedAdaptiveMentorEngine
         .planMentorBehaviour({
           message,
+
           context:
             resolvedContext,
         });
 
     const resolvedBlueprint =
+      blueprint ||
       resolvedResponseComposer
         .composeResponseBlueprint({
           message,
+
           adaptivePlan:
             resolvedAdaptivePlan,
+
           context:
             resolvedContext,
+        });
+
+    const resolvedCommunicationPlan =
+      communicationPlan ||
+      resolvedCommunicationVoiceEngine
+        .planCommunication({
+          message,
+
+          context:
+            resolvedContext,
+
+          adaptivePlan:
+            resolvedAdaptivePlan,
+
+          responseBlueprint:
+            resolvedBlueprint,
+
+          voiceProfile,
         });
 
     return {
@@ -2472,6 +2763,9 @@ function createResponseGenerator({
 
       blueprint:
         resolvedBlueprint,
+
+      communicationPlan:
+        resolvedCommunicationPlan,
 
       shouldRemainSilent:
         resolvedResponseComposer
@@ -2484,6 +2778,11 @@ function createResponseGenerator({
           .getSectionOrder(
             resolvedBlueprint
           ),
+
+      communicationSummary:
+        resolvedCommunicationPlan
+          ?.summary ||
+        null,
 
       createdAt:
         createTimestamp(),
@@ -2556,7 +2855,9 @@ function createResponseGenerator({
         .setMemory === "function"
     ) {
       resolvedAdaptiveMentorEngine
-        .setMemory(activeMemory);
+        .setMemory(
+          activeMemory
+        );
     }
 
     return activeMemory;
@@ -2580,6 +2881,7 @@ function createResponseGenerator({
         ...cloneValue(
           activeDefaultOptions
         ),
+
         ...cloneValue(nextOptions),
       });
 
@@ -2609,16 +2911,22 @@ function createResponseGenerator({
       responseComposer:
         resolvedResponseComposer,
 
+      communicationVoiceEngine:
+        resolvedCommunicationVoiceEngine,
+
       responseProvider:
         activeResponseProvider,
 
-      memory: activeMemory,
+      memory:
+        activeMemory,
     };
   }
 
   return {
     generateResponse,
+
     previewResponsePlan,
+
     applyMemoryPlan,
 
     setResponseProvider,
@@ -2646,6 +2954,8 @@ async function generateResponse({
   memory = null,
   adaptivePlan = null,
   blueprint = null,
+  communicationPlan = null,
+  voiceProfile = null,
 } = {}) {
   const generator =
     createResponseGenerator({
@@ -2657,20 +2967,27 @@ async function generateResponse({
     message,
     context,
     options,
+
     adaptivePlan,
     blueprint,
+    communicationPlan,
+    voiceProfile,
   });
 }
 
 export {
   RESPONSE_GENERATOR_VERSION,
+
   GENERATION_STATUSES,
   GENERATION_STAGES,
+
   PROVIDER_TYPES,
   OUTPUT_FORMATS,
   RESPONSE_SOURCES,
+
   MEMORY_APPLICATION_POLICIES,
   VALIDATION_SEVERITIES,
+
   createResponseGenerator,
   generateResponse,
 };
