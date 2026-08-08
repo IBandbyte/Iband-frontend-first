@@ -979,6 +979,7 @@ export default function MovieMentorConversation({
   onDemonstrate,
   onTeach,
   onContinue,
+  onThinkingChange,
 
   renderComposerExtra,
   renderAboveConversation,
