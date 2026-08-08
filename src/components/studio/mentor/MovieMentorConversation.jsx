@@ -1456,14 +1456,20 @@ export default function MovieMentorConversation({
               onClick={
                 handleSend
               }
-              disabled={
-                !draft.trim()
+                            disabled={
+                !draft.trim() ||
+                isThinking ||
+                isGenerating
               }
               style={{
                 ...styles.sendButton,
-                ...(!draft.trim()
-                  ? styles.sendButtonDisabled
-                  : {}),
+                ...(
+                  !draft.trim() ||
+                  isThinking ||
+                  isGenerating
+                    ? styles.sendButtonDisabled
+                    : {}
+                ),
               }}
             >
               Send
