@@ -1049,7 +1049,7 @@ export default function MovieMentorConversation({
     );
   }
 
-  function handleSend() {
+    async function handleSend() {
     const text = draft.trim();
 
     if (!text) {
@@ -1074,6 +1074,77 @@ export default function MovieMentorConversation({
     );
 
     setDraft("");
+
+    const responseGenerator =
+      responseGeneratorRef.current;
+
+    if (!responseGenerator) {
+      return;
+    }
+
+    const generatedResponse =
+      await responseGenerator.generateResponse({
+        message: text,
+        context: {
+          creatorName,
+          creatorType: "movie",
+          creatorJourney:
+            localStartPoint?.id ||
+            "guide",
+          projectType: "movie",
+          recentCreatorMessages: [
+            ...normalisedMessages
+              .filter(
+                (message) =>
+                  message.role ===
+                  "creator"
+              )
+              .map(
+                (message) =>
+                  message.text
+              ),
+            text,
+          ],
+          recentMentorMessages:
+            normalisedMessages
+              .filter(
+                (message) =>
+                  message.role ===
+                  "mentor"
+              )
+              .map(
+                (message) =>
+                  message.text
+              ),
+        },
+      });
+
+    if (
+      generatedResponse?.response?.text
+    ) {
+      onSendMessage?.({
+        id: createId(
+          "mentor-message"
+        ),
+        role: "mentor",
+        type: MESSAGE_TYPES.TEXT,
+        behaviour:
+          MENTOR_BEHAVIOURS.DISCUSS,
+        text:
+          generatedResponse.response
+            .text,
+        createdAt:
+          createTimestamp(),
+        metadata: {
+          generationId:
+            generatedResponse.id,
+          generationStatus:
+            generatedResponse.status,
+          responseSource:
+            generatedResponse.source,
+        },
+      });
+    }
   }
 
   function handleKeyDown(event) {
