@@ -10,6 +10,7 @@
  * - ReflectionEngine
  * - ProgressionEngine
  * - CreatorMemoryEngine
+ * - CreatorMemory
  *
  * It does not generate the final Mentor response.
  *
@@ -46,7 +47,7 @@ import createReflectionEngine from "./ReflectionEngine";
 import createProgressionEngine from "./ProgressionEngine";
 import createCreatorMemoryEngine from "./CreatorMemoryEngine";
 
-const ADAPTIVE_MENTOR_ENGINE_VERSION = "2.0.0";
+const ADAPTIVE_MENTOR_ENGINE_VERSION = "2.1.0";
 
 const MENTOR_ROLES = Object.freeze({
   LISTENER: "listener",
@@ -217,6 +218,12 @@ const ADAPTATION_SIGNALS = Object.freeze({
   MEMORY_CAPTURE_AVAILABLE:
     "memory-capture-available",
 
+  CREATOR_MEMORY_CONNECTED:
+    "creator-memory-connected",
+
+  CREATOR_MEMORY_CONTEXT_AVAILABLE:
+    "creator-memory-context-available",
+
   FORGET_REQUEST:
     "forget-request",
 
@@ -235,6 +242,9 @@ const DEFAULT_ADAPTIVE_CONTEXT = Object.freeze({
   creatorJourney: "guide",
   creatorType: null,
   projectType: null,
+
+  creatorProfile: null,
+  creatorMemoryContext: null,
 
   activeProject: null,
   activeProjectId: null,
@@ -448,6 +458,225 @@ function getProjectId(
     ) ||
     null
   );
+}
+
+/**
+ * Safely reads the compact engine context exposed by
+ * CreatorMemory.js.
+ *
+ * Memory failure must never prevent the Mentor from
+ * continuing the current conversation.
+ */
+function readCreatorMemoryContext(
+  memory
+) {
+  if (
+    !memory ||
+    typeof memory.createEngineContext !==
+      "function"
+  ) {
+    return null;
+  }
+
+  try {
+    return cloneValue(
+      memory.createEngineContext()
+    );
+  } catch (error) {
+    console.warn(
+      "AdaptiveMentorEngine memory context error:",
+      error
+    );
+
+    return null;
+  }
+}
+
+/**
+ * Safely reads recent conversations from CreatorMemory.js.
+ */
+function readRecentMemoryConversations(
+  memory,
+  limit = 10
+) {
+  if (
+    !memory ||
+    typeof memory.getRecentConversations !==
+      "function"
+  ) {
+    return [];
+  }
+
+  try {
+    return asArray(
+      memory.getRecentConversations(
+        limit
+      )
+    );
+  } catch (error) {
+    console.warn(
+      "AdaptiveMentorEngine recent memory error:",
+      error
+    );
+
+    return [];
+  }
+}
+
+/**
+ * Builds the context used by all specialist engines.
+ *
+ * Precedence:
+ * 1. Explicit current-turn context.
+ * 2. CreatorMemory compact engine context.
+ * 3. Adaptive defaults.
+ *
+ * This ensures present creator direction always overrides
+ * historical memory.
+ */
+function createMemoryAwareContext({
+  context = {},
+  memory = null,
+} = {}) {
+  const explicitContext =
+    cloneValue(context) || {};
+
+  const memoryContext =
+    readCreatorMemoryContext(
+      memory
+    );
+
+  const memoryProfile =
+    memoryContext
+      ?.creatorProfile ||
+    null;
+
+  const rememberedProject =
+    memoryContext
+      ?.activeProject ||
+    null;
+
+  const rememberedProjectId =
+    cleanString(
+      rememberedProject?.id
+    ) ||
+    cleanString(
+      rememberedProject?.projectId
+    ) ||
+    null;
+
+  const recentConversations =
+    readRecentMemoryConversations(
+      memory,
+      10
+    );
+
+  const rememberedPatterns =
+    asArray(
+      memoryContext
+        ?.knownPatterns
+    );
+
+  const memoryDerivedContext = {
+    creatorProfile:
+      memoryProfile,
+
+    creatorMemoryContext:
+      memoryContext,
+
+    activeProject:
+      rememberedProject,
+
+    activeProjectId:
+      rememberedProjectId,
+
+    recentConversations,
+
+    existingPatterns:
+      rememberedPatterns,
+
+    creatorType:
+      asArray(
+        memoryProfile
+          ?.creatorTypes
+      )[0] ||
+      null,
+
+    recentStage:
+      memoryContext
+        ?.recentStage ||
+      null,
+
+    recentEmotionalState:
+      memoryContext
+        ?.recentEmotionalState ||
+      null,
+  };
+
+  return {
+    ...cloneValue(
+      DEFAULT_ADAPTIVE_CONTEXT
+    ),
+
+    ...memoryDerivedContext,
+
+    ...explicitContext,
+
+    creatorProfile:
+      explicitContext
+        .creatorProfile ??
+      memoryDerivedContext
+        .creatorProfile ??
+      null,
+
+    creatorMemoryContext:
+      memoryContext,
+
+    activeProject:
+      explicitContext
+        .activeProject ??
+      memoryDerivedContext
+        .activeProject ??
+      null,
+
+    activeProjectId:
+      explicitContext
+        .activeProjectId ??
+      memoryDerivedContext
+        .activeProjectId ??
+      null,
+
+    recentConversations:
+      asArray(
+        explicitContext
+          .recentConversations
+      ).length > 0
+        ? cloneValue(
+            explicitContext
+              .recentConversations
+          )
+        : cloneValue(
+            recentConversations
+          ),
+
+    existingPatterns:
+      asArray(
+        explicitContext
+          .existingPatterns
+      ).length > 0
+        ? cloneValue(
+            explicitContext
+              .existingPatterns
+          )
+        : cloneValue(
+            rememberedPatterns
+          ),
+
+    currentTimestamp:
+      explicitContext
+        .currentTimestamp ||
+      createTimestamp(),
+  };
 }
 
 /**
@@ -814,6 +1043,42 @@ function collectAdaptationSignals({
     signals.push(
       ADAPTATION_SIGNALS
         .PROJECT_CONTEXT_AVAILABLE
+    );
+  }
+
+  if (
+    context
+      ?.creatorMemoryContext
+  ) {
+    signals.push(
+      ADAPTATION_SIGNALS
+        .CREATOR_MEMORY_CONNECTED
+    );
+  }
+
+  if (
+    context
+      ?.creatorMemoryContext &&
+    (
+      context
+        .creatorMemoryContext
+        .hasSharedIdea ||
+      context
+        .creatorMemoryContext
+        .activeProject ||
+      asArray(
+        context
+          .creatorMemoryContext
+          .knownPatterns
+      ).length > 0 ||
+      context
+        .creatorMemoryContext
+        .conversationCount > 0
+    )
+  ) {
+    signals.push(
+      ADAPTATION_SIGNALS
+        .CREATOR_MEMORY_CONTEXT_AVAILABLE
     );
   }
 
@@ -1551,10 +1816,6 @@ function resolvePrimaryAction({
     };
   }
 
-  /**
-   * Explicit forget requests must be handled before
-   * ordinary reflection, recall or progression.
-   */
   if (
     signals.includes(
       ADAPTATION_SIGNALS
@@ -2488,37 +2749,36 @@ function combineResponseGuidance({
     ),
 
     `Active Mentor role: ${role}.`,
-
     `Leadership stance: ${leadershipStance}.`,
-
     `Intervention level: ${interventionLevel}.`,
-
     `Response depth: ${responseDepth}.`,
-
     `Question policy: ${questionPolicy.policy}.`,
-
     `Maximum questions: ${questionPolicy.maximumQuestions}.`,
-
     `Memory policy: ${memoryPolicy}.`,
-
     `Primary adaptive action: ${primaryAction.action}.`,
 
     "Demonstrate understanding before introducing a new direction.",
-
     "Prefer the creator's present state over historical assumptions.",
-
     "Use remembered preferences as guidance, not fixed rules.",
-
     "Treat project decisions as scoped truth until the creator changes them.",
-
     "Do not expose internal specialist-agent machinery unless it helps the creator.",
-
     "Do not maximise response length.",
-
     "Do not compete with the creator for control of the conversation.",
-
     "Leave the creator with greater clarity, confidence or momentum.",
   ];
+
+  if (
+    signals.includes(
+      ADAPTATION_SIGNALS
+        .CREATOR_MEMORY_CONTEXT_AVAILABLE
+    )
+  ) {
+    guidance.push(
+      "Use long-term creator memory only when it improves continuity, reduces repetition or protects momentum.",
+      "Present creator direction overrides remembered preferences and historical patterns.",
+      "Do not mention remembered information merely to demonstrate that memory exists."
+    );
+  }
 
   if (
     signals.includes(
@@ -2682,31 +2942,18 @@ function combineGuardRails({
     ),
 
     "Do not diagnose the creator.",
-
     "Do not claim certainty about the creator's internal state.",
-
     "Do not use personalisation to manipulate engagement.",
-
     "Do not surface memory merely to demonstrate recall.",
-
     "Do not interrupt active flow with optional information.",
-
     "Do not use historical behaviour to override explicit present direction.",
-
     "Do not imitate the creator's language unnaturally.",
-
     "Do not produce multiple next steps when one is sufficient.",
-
     "Do not make the creator dependent on the Mentor.",
-
     "Do not treat agreement as the goal; useful alignment is the goal.",
-
     "Do not allow specialist agents to silently overwrite creator-approved project truth.",
-
     "Do not mix project-scoped memory across different projects.",
-
     "Do not execute an ambiguous forget request.",
-
     "Do not treat memory recall as permission to derail the creator's current task.",
   ]);
 }
@@ -2879,6 +3126,13 @@ function createExecutionPlan({
     recallPlan,
 
     forgetPlan,
+
+    creatorMemoryContext:
+      cloneValue(
+        context
+          ?.creatorMemoryContext ||
+        null
+      ),
 
     projectMemory: {
       activeProjectId:
@@ -3091,6 +3345,8 @@ function createFallbackAdaptivePlan({
       recallPlan: null,
       forgetPlan: null,
 
+      creatorMemoryContext: null,
+
       projectMemory: {
         activeProjectId:
           getProjectId(
@@ -3215,20 +3471,12 @@ function createAdaptiveMentorEngine({
     memoryPlan = null,
   } = {}) {
     try {
-      const combinedContext = {
-        ...cloneValue(
-          DEFAULT_ADAPTIVE_CONTEXT
-        ),
-
-        ...cloneValue(
-          context
-        ),
-
-        currentTimestamp:
-          context
-            ?.currentTimestamp ||
-          createTimestamp(),
-      };
+      const combinedContext =
+        createMemoryAwareContext({
+          context,
+          memory:
+            activeMemory,
+        });
 
       const resolvedConversationPlan =
         conversationPlan ||
@@ -3616,6 +3864,12 @@ function createAdaptiveMentorEngine({
               resolvedMemoryPlan
             ),
 
+          longTermMemoryAvailable:
+            Boolean(
+              combinedContext
+                ?.creatorMemoryContext
+            ),
+
           sessionHandoffAvailable:
             memoryPlanHasSessionHandoff(
               resolvedMemoryPlan
@@ -3669,7 +3923,7 @@ function createAdaptiveMentorEngine({
    *
    * CreatorMemoryEngine remains responsible for deciding
    * which instructions are immediately executable and which
-   * require the future project-memory adapter.
+   * require a future project-memory adapter.
    */
   function applyMemoryPlan(
     plan
@@ -3697,6 +3951,18 @@ function createAdaptiveMentorEngine({
       plan
         ?.specialistPlans
         ?.memory;
+
+    if (
+      !memoryPlan
+    ) {
+      return {
+        applied: [],
+        skipped: [],
+        errors: [],
+        reason:
+          "No Creator Memory plan was available.",
+      };
+    }
 
     return (
       resolvedCreatorMemoryEngine
@@ -3734,11 +4000,19 @@ function createAdaptiveMentorEngine({
       };
     }
 
+    const combinedContext =
+      createMemoryAwareContext({
+        context,
+        memory:
+          activeMemory,
+      });
+
     return (
       resolvedCreatorMemoryEngine
         .planRecall({
           message,
-          context,
+          context:
+            combinedContext,
         })
     );
   }
@@ -3763,12 +4037,30 @@ function createAdaptiveMentorEngine({
       };
     }
 
+    const combinedContext =
+      createMemoryAwareContext({
+        context,
+        memory:
+          activeMemory,
+      });
+
     return (
       resolvedCreatorMemoryEngine
         .planSessionHandoff({
           handoff,
-          context,
+          context:
+            combinedContext,
         })
+    );
+  }
+
+  /**
+   * Returns the compact long-term memory context currently
+   * available to the Adaptive Mentor.
+   */
+  function getMemoryContext() {
+    return readCreatorMemoryContext(
+      activeMemory
     );
   }
 
@@ -3879,6 +4171,7 @@ function createAdaptiveMentorEngine({
 
     setMemory,
     getMemory,
+    getMemoryContext,
 
     shouldWait,
     shouldMoveForward,
