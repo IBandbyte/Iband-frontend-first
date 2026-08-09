@@ -1096,10 +1096,13 @@ export default function MovieMentorConversation({
           context: {
             creatorName,
             creatorType: "movie",
-            creatorJourney:
+                        creatorJourney:
               localStartPoint?.id ||
               "guide",
             projectType: "movie",
+            conversationMode:
+              localStartPoint?.id ||
+              "explore",
             recentCreatorMessages: [
               ...normalisedMessages
                 .filter(
