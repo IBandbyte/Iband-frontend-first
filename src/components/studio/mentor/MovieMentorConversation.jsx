@@ -1127,7 +1127,27 @@ export default function MovieMentorConversation({
           },
         });
 
-            if (
+                  const generationSilent =
+        generatedResponse?.status ===
+          "silent" ||
+        generatedResponse?.response
+          ?.isSilent === true;
+
+      if (generationSilent) {
+        onAction?.(
+          {
+            action:
+              "mentor-remained-silent",
+            generationId:
+              generatedResponse?.id ||
+              null,
+            generationStatus:
+              generatedResponse?.status ||
+              "silent",
+          },
+          null
+        );
+      } else if (
         generatedResponse?.response
           ?.text
       ) {
@@ -1161,6 +1181,7 @@ export default function MovieMentorConversation({
               generatedResponse.source,
             generationFallback:
               generationFailed,
+            generationSilent: false,
           },
         });
       }
