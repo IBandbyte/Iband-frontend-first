@@ -1213,7 +1213,7 @@ export default function MovieMentorConversation({
               generatedResponse
                 ?.blueprint?.id ||
               null,
-            responseValidated:
+                      responseValidated:
               generatedResponse
                 ?.validation?.valid ??
               null,
@@ -1221,6 +1221,14 @@ export default function MovieMentorConversation({
               generatedResponse
                 ?.validation?.issues ||
               [],
+            responseProvider:
+              generatedResponse
+                ?.provider?.name ||
+              null,
+            providerAttempt:
+              generatedResponse
+                ?.provider?.attempt ||
+              null,
           },
         });
       }
