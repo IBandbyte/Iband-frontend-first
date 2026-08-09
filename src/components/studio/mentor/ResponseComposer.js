@@ -7,20 +7,22 @@
  * This module does not generate the final Mentor wording.
  *
  * It receives an AdaptiveMentorEngine plan and converts it into
- * an ordered response blueprint that a future response generator
- * or language model can execute.
+ * an ordered, validated response blueprint that a future response
+ * generator or language model can execute.
  *
  * Responsibilities:
  * - Choose which response sections are required.
  * - Put those sections in the correct order.
  * - Control response length, rhythm, warmth and directness.
- * - Translate adaptive actions into compositional instructions.
+ * - Translate adaptive and progression actions into compositional instructions.
  * - Respect silence, flow, information saturation and question limits.
  * - Express creator and project memory naturally.
  * - Restore project context without dumping project history.
  * - Preserve session handoffs without introducing new work.
  * - Handle forget requests safely and minimally.
+ * - Prevent persistence intentions from becoming false persistence claims.
  * - Hide specialist-agent machinery behind one Mentor relationship.
+ * - Validate the final blueprint before response generation.
  * - Preserve creator ownership and autonomy.
  *
  * Core principles:
@@ -33,10 +35,12 @@
  * - Project memory exists to protect continuity, not to display recall.
  * - Specialist agents contribute intelligence, not additional voices.
  * - Complexity belongs behind the conversation.
+ * - Silence is a valid response and must win when required.
+ * - Persistence intent is not persistence success.
  * - The response must leave the creator clearer, stronger or moving.
  */
 
-const RESPONSE_COMPOSER_VERSION = "2.0.0";
+const RESPONSE_COMPOSER_VERSION = "2.1.0";
 
 const RESPONSE_SECTIONS = Object.freeze({
   OPENING: "opening",
@@ -305,6 +309,20 @@ function uniqueValues(values = []) {
   ];
 }
 
+function safeNumber(
+  value,
+  fallback = 0
+) {
+  const numericValue =
+    Number(value);
+
+  return Number.isFinite(
+    numericValue
+  )
+    ? numericValue
+    : fallback;
+}
+
 function getNestedValue(
   value,
   path,
@@ -378,6 +396,159 @@ function getProjectId(
   );
 }
 
+function getProgressionDecision(
+  adaptivePlan
+) {
+  return (
+    cleanString(
+      getNestedValue(
+        adaptivePlan,
+        "progressionPlan.decision",
+        ""
+      )
+    ) ||
+    cleanString(
+      getNestedValue(
+        adaptivePlan,
+        "specialistPlans.progression.decision",
+        ""
+      )
+    ) ||
+    cleanString(
+      getNestedValue(
+        adaptivePlan,
+        "progression.decision",
+        ""
+      )
+    ) ||
+    cleanString(
+      getNestedValue(
+        adaptivePlan,
+        "progressionDecision",
+        ""
+      )
+    ) ||
+    null
+  );
+}
+
+function getProgressionPrimaryAction(
+  adaptivePlan
+) {
+  return (
+    cleanString(
+      getNestedValue(
+        adaptivePlan,
+        "progressionPlan.progression.primaryAction",
+        ""
+      )
+    ) ||
+    cleanString(
+      getNestedValue(
+        adaptivePlan,
+        "specialistPlans.progression.progression.primaryAction",
+        ""
+      )
+    ) ||
+    cleanString(
+      getNestedValue(
+        adaptivePlan,
+        "progression.primaryAction",
+        ""
+      )
+    ) ||
+    null
+  );
+}
+
+function progressionRequiresSilence(
+  adaptivePlan
+) {
+  const decision =
+    getProgressionDecision(
+      adaptivePlan
+    );
+
+  const action =
+    getProgressionPrimaryAction(
+      adaptivePlan
+    );
+
+  const shouldHoldSpace =
+    Boolean(
+      getNestedValue(
+        adaptivePlan,
+        "progressionPlan.progression.shouldHoldSpace",
+        false
+      )
+    ) ||
+    Boolean(
+      getNestedValue(
+        adaptivePlan,
+        "specialistPlans.progression.progression.shouldHoldSpace",
+        false
+      )
+    ) ||
+    Boolean(
+      getNestedValue(
+        adaptivePlan,
+        "progression.shouldHoldSpace",
+        false
+      )
+    );
+
+  return Boolean(
+    shouldHoldSpace ||
+    includesValue(
+      decision,
+      [
+        "hold-space",
+        "wait-for-creator",
+      ]
+    ) ||
+    action ===
+      "wait-without-new-direction"
+  );
+}
+
+function adaptivePlanRequiresSilence(
+  adaptivePlan
+) {
+  const adaptiveAction =
+    cleanString(
+      getNestedValue(
+        adaptivePlan,
+        "primaryAction.action",
+        ""
+      )
+    );
+
+  const responseDepth =
+    cleanString(
+      getNestedValue(
+        adaptivePlan,
+        "behaviour.responseDepth",
+        ""
+      )
+    );
+
+  const shouldGenerateText =
+    getNestedValue(
+      adaptivePlan,
+      "execution.shouldGenerateText",
+      null
+    );
+
+  return Boolean(
+    adaptiveAction === "wait" ||
+    responseDepth === "silent" ||
+    shouldGenerateText === false ||
+    progressionRequiresSilence(
+      adaptivePlan
+    )
+  );
+}
+
 function createSection({
   type,
   purpose,
@@ -416,8 +587,22 @@ function createSection({
 }
 
 function resolveBlueprintLength(
-  adaptivePlan
+  adaptivePlan,
+  action
 ) {
+  if (
+    action ===
+      COMPOSER_ACTIONS
+        .RETURN_SILENCE ||
+    adaptivePlanRequiresSilence(
+      adaptivePlan
+    )
+  ) {
+    return (
+      BLUEPRINT_LENGTHS.SILENT
+    );
+  }
+
   const adaptiveDepth =
     getNestedValue(
       adaptivePlan,
@@ -465,8 +650,11 @@ function chooseResponseRhythm({
 
   if (
     action ===
-    COMPOSER_ACTIONS
-      .RETURN_SILENCE
+      COMPOSER_ACTIONS
+        .RETURN_SILENCE ||
+    adaptivePlanRequiresSilence(
+      adaptivePlan
+    )
   ) {
     return RESPONSE_RHYTHMS.SILENT;
   }
@@ -636,7 +824,7 @@ function chooseResponseWarmth({
 
   if (
     role ===
-    "creative-director"
+      "creative-director"
   ) {
     return RESPONSE_WARMTH.LIGHT;
   }
@@ -684,8 +872,8 @@ function chooseResponseDirectness({
 
   if (
     action ===
-    COMPOSER_ACTIONS
-      .COMPOSE_FORGET_CLARIFICATION
+      COMPOSER_ACTIONS
+        .COMPOSE_FORGET_CLARIFICATION
   ) {
     return RESPONSE_DIRECTNESS.DIRECT;
   }
@@ -733,8 +921,11 @@ function chooseResponseEnergy({
 
   if (
     action ===
-    COMPOSER_ACTIONS
-      .RETURN_SILENCE
+      COMPOSER_ACTIONS
+        .RETURN_SILENCE ||
+    adaptivePlanRequiresSilence(
+      adaptivePlan
+    )
   ) {
     return RESPONSE_ENERGY.QUIET;
   }
@@ -774,8 +965,8 @@ function chooseResponseEnergy({
 
   if (
     action ===
-    COMPOSER_ACTIONS
-      .COMPOSE_PRESSURE_RELEASE
+      COMPOSER_ACTIONS
+        .COMPOSE_PRESSURE_RELEASE
   ) {
     return RESPONSE_ENERGY.QUIET;
   }
@@ -791,87 +982,48 @@ function chooseResponseEnergy({
   return RESPONSE_ENERGY.MATCHED;
 }
 
-function resolveComposerAction(
+function resolveProgressionComposerAction(
   adaptivePlan
 ) {
-  const adaptiveAction =
-    getNestedValue(
-      adaptivePlan,
-      "primaryAction.action",
-      "acknowledge-briefly"
+  const decision =
+    getProgressionDecision(
+      adaptivePlan
     );
 
-  switch (adaptiveAction) {
-    case "wait":
+  const primaryAction =
+    getProgressionPrimaryAction(
+      adaptivePlan
+    );
+
+  if (
+    progressionRequiresSilence(
+      adaptivePlan
+    )
+  ) {
+    return (
+      COMPOSER_ACTIONS
+        .RETURN_SILENCE
+    );
+  }
+
+  switch (decision) {
+    case "continue-exploring":
       return (
         COMPOSER_ACTIONS
-          .RETURN_SILENCE
+          .COMPOSE_BRAINSTORMING_TURN
       );
 
-    case "reflect-gently":
-      return (
-        COMPOSER_ACTIONS
-          .COMPOSE_REFLECTION
-      );
-
-    case "release-pressure":
-      return (
-        COMPOSER_ACTIONS
-          .COMPOSE_PRESSURE_RELEASE
-      );
-
-    case "restore-context":
-      return (
-        COMPOSER_ACTIONS
-          .COMPOSE_CONTEXT_RESTORATION
-      );
-
-    case "restore-project-context":
-      return (
-        COMPOSER_ACTIONS
-          .COMPOSE_PROJECT_CONTEXT_RESTORATION
-      );
-
-    case "capture-and-continue":
-      return (
-        COMPOSER_ACTIONS
-          .COMPOSE_CAPTURE_AND_CONTINUE
-      );
-
-    case "recall-with-permission":
-      return (
-        COMPOSER_ACTIONS
-          .COMPOSE_MEMORY_RECALL
-      );
-
-    case "clarify-forget-request":
-      return (
-        COMPOSER_ACTIONS
-          .COMPOSE_FORGET_CLARIFICATION
-      );
-
-    case "apply-forget-request":
-      return (
-        COMPOSER_ACTIONS
-          .COMPOSE_FORGET_CONFIRMATION
-      );
-
-    case "offer-one-recommendation":
-      return (
-        COMPOSER_ACTIONS
-          .COMPOSE_ONE_RECOMMENDATION
-      );
-
-    case "teach-one-concept":
+    case "continue-learning":
       return (
         COMPOSER_ACTIONS
           .COMPOSE_ONE_CONCEPT
       );
 
-    case "continue-brainstorming":
+    case "reduce-information":
+    case "offer-one-small-step":
       return (
         COMPOSER_ACTIONS
-          .COMPOSE_BRAINSTORMING_TURN
+          .COMPOSE_ONE_RECOMMENDATION
       );
 
     case "move-to-creation":
@@ -898,33 +1050,264 @@ function resolveComposerAction(
           .COMPOSE_PUBLISHING_HANDOFF
       );
 
-    case "preserve-session-handoff":
+    case "restore-context":
       return (
         COMPOSER_ACTIONS
-          .COMPOSE_SESSION_HANDOFF
+          .COMPOSE_CONTEXT_RESTORATION
       );
 
-    case "save-and-pause":
+    case "release-pressure":
+      return (
+        COMPOSER_ACTIONS
+          .COMPOSE_PRESSURE_RELEASE
+      );
+
+    case "save-and-return-later":
+    case "pause-session":
       return (
         COMPOSER_ACTIONS
           .COMPOSE_SESSION_PAUSE
       );
 
-    case "end-positively":
+    case "end-session-positively":
       return (
         COMPOSER_ACTIONS
           .COMPOSE_SESSION_CLOSE
       );
 
-    case "listen-and-invite":
-    case "ask-one-question":
-    case "acknowledge-briefly":
     default:
+      break;
+  }
+
+  switch (primaryAction) {
+    case "ask-one-more-question":
       return (
         COMPOSER_ACTIONS
-          .COMPOSE_ACKNOWLEDGEMENT
+          .COMPOSE_BRAINSTORMING_TURN
       );
+
+    case "reduce-to-one-recommendation":
+      return (
+        COMPOSER_ACTIONS
+          .COMPOSE_ONE_RECOMMENDATION
+      );
+
+    case "begin-generation":
+      return (
+        COMPOSER_ACTIONS
+          .COMPOSE_CREATION_HANDOFF
+      );
+
+    case "begin-next-creative-step":
+      return (
+        COMPOSER_ACTIONS
+          .COMPOSE_NEXT_TASK
+      );
+
+    case "begin-refinement":
+      return (
+        COMPOSER_ACTIONS
+          .COMPOSE_REFINEMENT_HANDOFF
+      );
+
+    case "begin-publishing":
+      return (
+        COMPOSER_ACTIONS
+          .COMPOSE_PUBLISHING_HANDOFF
+      );
+
+    case "recap-context":
+      return (
+        COMPOSER_ACTIONS
+          .COMPOSE_CONTEXT_RESTORATION
+      );
+
+    case "release-expectation":
+      return (
+        COMPOSER_ACTIONS
+          .COMPOSE_PRESSURE_RELEASE
+      );
+
+    case "save-current-progress":
+      return (
+        COMPOSER_ACTIONS
+          .COMPOSE_SESSION_PAUSE
+      );
+
+    case "close-with-open-door":
+      return (
+        COMPOSER_ACTIONS
+          .COMPOSE_SESSION_CLOSE
+      );
+
+    case "wait-without-new-direction":
+      return (
+        COMPOSER_ACTIONS
+          .RETURN_SILENCE
+      );
+
+    default:
+      return null;
   }
+}
+
+function resolveComposerAction(
+  adaptivePlan
+) {
+  if (
+    adaptivePlanRequiresSilence(
+      adaptivePlan
+    )
+  ) {
+    return (
+      COMPOSER_ACTIONS
+        .RETURN_SILENCE
+    );
+  }
+
+  const adaptiveAction =
+    getNestedValue(
+      adaptivePlan,
+      "primaryAction.action",
+      null
+    );
+
+  if (adaptiveAction) {
+    switch (adaptiveAction) {
+      case "wait":
+        return (
+          COMPOSER_ACTIONS
+            .RETURN_SILENCE
+        );
+
+      case "reflect-gently":
+        return (
+          COMPOSER_ACTIONS
+            .COMPOSE_REFLECTION
+        );
+
+      case "release-pressure":
+        return (
+          COMPOSER_ACTIONS
+            .COMPOSE_PRESSURE_RELEASE
+        );
+
+      case "restore-context":
+        return (
+          COMPOSER_ACTIONS
+            .COMPOSE_CONTEXT_RESTORATION
+        );
+
+      case "restore-project-context":
+        return (
+          COMPOSER_ACTIONS
+            .COMPOSE_PROJECT_CONTEXT_RESTORATION
+        );
+
+      case "capture-and-continue":
+        return (
+          COMPOSER_ACTIONS
+            .COMPOSE_CAPTURE_AND_CONTINUE
+        );
+
+      case "recall-with-permission":
+        return (
+          COMPOSER_ACTIONS
+            .COMPOSE_MEMORY_RECALL
+        );
+
+      case "clarify-forget-request":
+        return (
+          COMPOSER_ACTIONS
+            .COMPOSE_FORGET_CLARIFICATION
+        );
+
+      case "apply-forget-request":
+        return (
+          COMPOSER_ACTIONS
+            .COMPOSE_FORGET_CONFIRMATION
+        );
+
+      case "offer-one-recommendation":
+        return (
+          COMPOSER_ACTIONS
+            .COMPOSE_ONE_RECOMMENDATION
+        );
+
+      case "teach-one-concept":
+        return (
+          COMPOSER_ACTIONS
+            .COMPOSE_ONE_CONCEPT
+        );
+
+      case "continue-brainstorming":
+        return (
+          COMPOSER_ACTIONS
+            .COMPOSE_BRAINSTORMING_TURN
+        );
+
+      case "move-to-creation":
+        return (
+          COMPOSER_ACTIONS
+            .COMPOSE_CREATION_HANDOFF
+        );
+
+      case "move-to-next-task":
+        return (
+          COMPOSER_ACTIONS
+            .COMPOSE_NEXT_TASK
+        );
+
+      case "move-to-refinement":
+        return (
+          COMPOSER_ACTIONS
+            .COMPOSE_REFINEMENT_HANDOFF
+        );
+
+      case "move-to-publishing":
+        return (
+          COMPOSER_ACTIONS
+            .COMPOSE_PUBLISHING_HANDOFF
+        );
+
+      case "preserve-session-handoff":
+        return (
+          COMPOSER_ACTIONS
+            .COMPOSE_SESSION_HANDOFF
+        );
+
+      case "save-and-pause":
+        return (
+          COMPOSER_ACTIONS
+            .COMPOSE_SESSION_PAUSE
+        );
+
+      case "end-positively":
+        return (
+          COMPOSER_ACTIONS
+            .COMPOSE_SESSION_CLOSE
+        );
+
+      case "listen-and-invite":
+      case "ask-one-question":
+      case "acknowledge-briefly":
+        return (
+          COMPOSER_ACTIONS
+            .COMPOSE_ACKNOWLEDGEMENT
+        );
+
+      default:
+        break;
+    }
+  }
+
+  return (
+    resolveProgressionComposerAction(
+      adaptivePlan
+    ) ||
+    COMPOSER_ACTIONS
+      .COMPOSE_ACKNOWLEDGEMENT
+  );
 }
 
 function buildAcknowledgementSections({
@@ -1353,8 +1736,9 @@ function buildCaptureAndContinueSections({
 
       instructions: [
         "Acknowledge that the thought is worth preserving when useful.",
-        "State that something was saved only when persistence has actually succeeded or execution guarantees it.",
+        "State that something was saved only when persistence has actually succeeded or execution explicitly guarantees persistence success.",
         "Never falsely claim that memory storage occurred.",
+        "If persistence success is unknown, describe only the intention to preserve the thought.",
         "Do not make memory mechanics the focus of the response.",
       ],
 
@@ -1535,6 +1919,7 @@ function buildForgetClarificationSections({
         "Ask only for the minimum clarification needed to identify what should be forgotten.",
         "Do not guess which memory the creator means.",
         "Do not delete anything yet.",
+        "Do not claim that anything has been deleted.",
         "Do not discuss the wider memory system unless asked.",
       ],
 
@@ -1596,8 +1981,9 @@ function buildForgetConfirmationSections({
         TRANSITION_STYLES.NONE,
 
       instructions: [
-        "Confirm the forget request briefly only after the persistence action is confirmed.",
+        "Confirm the forget request briefly only after persistence confirms deletion or forgetting.",
         "Do not claim deletion if the persistence layer has not executed it.",
+        "If execution is still pending, describe only the requested action and do not imply completion.",
         "Do not repeat the forgotten information unnecessarily.",
         "Do not recreate the deleted conclusion from inference.",
         "Do not introduce another question unless required by execution failure.",
@@ -2362,6 +2748,107 @@ function buildSections({
   }
 }
 
+function getMaximumQuestions(
+  adaptivePlan
+) {
+  const adaptiveMaximum =
+    safeNumber(
+      getNestedValue(
+        adaptivePlan,
+        "behaviour.questionPolicy.maximumQuestions",
+        0
+      ),
+      0
+    );
+
+  const progressionMaximum =
+    getNestedValue(
+      adaptivePlan,
+      "progressionPlan.progression.maximumQuestions",
+      null
+    );
+
+  const specialistProgressionMaximum =
+    getNestedValue(
+      adaptivePlan,
+      "specialistPlans.progression.progression.maximumQuestions",
+      null
+    );
+
+  const directProgressionMaximum =
+    getNestedValue(
+      adaptivePlan,
+      "progression.maximumQuestions",
+      null
+    );
+
+  const progressionValues = [
+    progressionMaximum,
+    specialistProgressionMaximum,
+    directProgressionMaximum,
+  ]
+    .filter(
+      (value) =>
+        value !== null &&
+        value !== undefined
+    )
+    .map(
+      (value) =>
+        Math.max(
+          0,
+          safeNumber(
+            value,
+            0
+          )
+        )
+    );
+
+  if (
+    progressionValues.length === 0
+  ) {
+    return Math.max(
+      0,
+      adaptiveMaximum
+    );
+  }
+
+  return Math.min(
+    Math.max(
+      0,
+      adaptiveMaximum
+    ),
+    ...progressionValues
+  );
+}
+
+function enforceQuestionLimit({
+  sections,
+  maximumQuestions,
+}) {
+  let questionCount = 0;
+
+  return sections.filter(
+    (section) => {
+      if (
+        section.type !==
+        RESPONSE_SECTIONS.QUESTION
+      ) {
+        return true;
+      }
+
+      if (
+        questionCount >=
+        maximumQuestions
+      ) {
+        return false;
+      }
+
+      questionCount += 1;
+      return true;
+    }
+  );
+}
+
 function getOneLinePreferredSection(
   sections
 ) {
@@ -2419,47 +2906,66 @@ function constrainSections({
   sections,
   blueprintLength,
   action,
+  maximumQuestions,
 }) {
   if (
     blueprintLength ===
-    BLUEPRINT_LENGTHS.SILENT
+      BLUEPRINT_LENGTHS.SILENT ||
+    action ===
+      COMPOSER_ACTIONS
+        .RETURN_SILENCE
   ) {
     return [];
   }
 
+  let constrainedSections =
+    enforceQuestionLimit({
+      sections,
+      maximumQuestions,
+    });
+
   /**
-   * Forget clarification requires the question itself,
-   * even if another layer requested extreme brevity.
+   * Forget clarification requires the
+   * clarification instruction and the question
+   * itself when one question is permitted.
    */
   if (
     action ===
-    COMPOSER_ACTIONS
-      .COMPOSE_FORGET_CLARIFICATION
+      COMPOSER_ACTIONS
+        .COMPOSE_FORGET_CLARIFICATION
   ) {
-    return sections
-      .filter(
-        (section) =>
-          includesValue(
-            section.type,
-            [
-              RESPONSE_SECTIONS
-                .MEMORY_FORGET_CLARIFICATION,
+    constrainedSections =
+      constrainedSections
+        .filter(
+          (section) =>
+            includesValue(
+              section.type,
+              [
+                RESPONSE_SECTIONS
+                  .MEMORY_FORGET_CLARIFICATION,
 
-              RESPONSE_SECTIONS
-                .QUESTION,
-            ]
-          )
-      )
-      .slice(0, 2);
+                RESPONSE_SECTIONS
+                  .QUESTION,
+              ]
+            )
+        )
+        .slice(
+          0,
+          maximumQuestions > 0
+            ? 2
+            : 1
+        );
+
+    return constrainedSections;
   }
 
   if (
     blueprintLength ===
-    BLUEPRINT_LENGTHS.ONE_LINE
+      BLUEPRINT_LENGTHS.ONE_LINE
   ) {
     const preferred =
       getOneLinePreferredSection(
-        sections
+        constrainedSections
       );
 
     if (!preferred) {
@@ -2479,38 +2985,42 @@ function constrainSections({
 
   if (
     blueprintLength ===
-    BLUEPRINT_LENGTHS.SHORT
+      BLUEPRINT_LENGTHS.SHORT
   ) {
-    return sections
-      .filter(
-        (section) =>
-          !section.optional
-      )
-      .slice(0, 3)
-      .map((section) => ({
-        ...section,
+    constrainedSections =
+      constrainedSections
+        .filter(
+          (section) =>
+            !section.optional
+        )
+        .slice(0, 3)
+        .map((section) => ({
+          ...section,
 
-        length:
-          section.length ===
-          SECTION_LENGTHS
-            .MEDIUM_PARAGRAPH
-            ? SECTION_LENGTHS
-                .SHORT_PARAGRAPH
-            : section.length,
-      }));
-  }
-
-  if (
+          length:
+            section.length ===
+            SECTION_LENGTHS
+              .MEDIUM_PARAGRAPH
+              ? SECTION_LENGTHS
+                  .SHORT_PARAGRAPH
+              : section.length,
+        }));
+  } else if (
     blueprintLength ===
-    BLUEPRINT_LENGTHS.MEDIUM
+      BLUEPRINT_LENGTHS.MEDIUM
   ) {
-    return sections.slice(
-      0,
-      5
-    );
+    constrainedSections =
+      constrainedSections.slice(
+        0,
+        5
+      );
   }
 
-  return sections;
+  return enforceQuestionLimit({
+    sections:
+      constrainedSections,
+    maximumQuestions,
+  });
 }
 
 function createLanguageGuidance({
@@ -2590,8 +3100,79 @@ function createLanguageGuidance({
 
     "Do not use more words than the blueprint requires.",
 
+    "Never claim that memory was saved, updated or deleted merely because the plan requested it.",
+
+    "Persistence language must reflect confirmed execution state.",
+
     "Complexity belongs behind the conversation, not in the creator's head.",
   ]);
+}
+
+function createPersistenceTruth({
+  adaptivePlan,
+}) {
+  const captureSucceeded =
+    Boolean(
+      getNestedValue(
+        adaptivePlan,
+        "execution.memoryPersistenceSucceeded",
+        false
+      )
+    ) ||
+    Boolean(
+      getNestedValue(
+        adaptivePlan,
+        "execution.captureSucceeded",
+        false
+      )
+    );
+
+  const forgetSucceeded =
+    Boolean(
+      getNestedValue(
+        adaptivePlan,
+        "execution.forgetPersistenceSucceeded",
+        false
+      )
+    ) ||
+    Boolean(
+      getNestedValue(
+        adaptivePlan,
+        "execution.forgetSucceeded",
+        false
+      )
+    );
+
+  const handoffSucceeded =
+    Boolean(
+      getNestedValue(
+        adaptivePlan,
+        "execution.sessionHandoffPersistenceSucceeded",
+        false
+      )
+    ) ||
+    Boolean(
+      getNestedValue(
+        adaptivePlan,
+        "execution.handoffSucceeded",
+        false
+      )
+    );
+
+  return {
+    captureSucceeded,
+    forgetSucceeded,
+    handoffSucceeded,
+
+    mayClaimMemorySaved:
+      captureSucceeded,
+
+    mayClaimMemoryForgotten:
+      forgetSucceeded,
+
+    mayClaimSessionHandoffSaved:
+      handoffSucceeded,
+  };
 }
 
 function createResponseConstraints({
@@ -2599,14 +3180,9 @@ function createResponseConstraints({
   blueprintLength,
   sections,
   action,
+  maximumQuestions,
+  persistenceTruth,
 }) {
-  const maximumQuestions =
-    getNestedValue(
-      adaptivePlan,
-      "behaviour.questionPolicy.maximumQuestions",
-      0
-    );
-
   const memoryPolicy =
     getNestedValue(
       adaptivePlan,
@@ -2641,6 +3217,13 @@ function createResponseConstraints({
       )
     );
 
+  const shouldGenerateText =
+    blueprintLength !==
+      BLUEPRINT_LENGTHS.SILENT &&
+    action !==
+      COMPOSER_ACTIONS
+        .RETURN_SILENCE;
+
   return {
     blueprintLength,
 
@@ -2648,7 +3231,7 @@ function createResponseConstraints({
 
     maximumRecommendations:
       blueprintLength ===
-      BLUEPRINT_LENGTHS.DETAILED
+        BLUEPRINT_LENGTHS.DETAILED
         ? 3
         : 1,
 
@@ -2656,6 +3239,7 @@ function createResponseConstraints({
       sections.length,
 
     shouldEndWithQuestion:
+      shouldGenerateText &&
       sections.some(
         (section) =>
           section.type ===
@@ -2663,9 +3247,7 @@ function createResponseConstraints({
             .QUESTION
       ),
 
-    shouldGenerateText:
-      blueprintLength !==
-      BLUEPRINT_LENGTHS.SILENT,
+    shouldGenerateText,
 
     shouldUseMemory:
       includesValue(
@@ -2678,6 +3260,7 @@ function createResponseConstraints({
       ),
 
     shouldMentionMemoryCapture:
+      shouldGenerateText &&
       sections.some(
         (section) =>
           section.type ===
@@ -2686,15 +3269,28 @@ function createResponseConstraints({
       ),
 
     shouldRestoreProjectContext:
+      shouldGenerateText &&
       action ===
-      COMPOSER_ACTIONS
-        .COMPOSE_PROJECT_CONTEXT_RESTORATION,
+        COMPOSER_ACTIONS
+          .COMPOSE_PROJECT_CONTEXT_RESTORATION,
 
     shouldPreserveSessionHandoff,
 
     shouldApplyForget,
 
     shouldClarifyForget,
+
+    mayClaimMemorySaved:
+      persistenceTruth
+        .mayClaimMemorySaved,
+
+    mayClaimMemoryForgotten:
+      persistenceTruth
+        .mayClaimMemoryForgotten,
+
+    mayClaimSessionHandoffSaved:
+      persistenceTruth
+        .mayClaimSessionHandoffSaved,
 
     shouldHideSpecialistMachinery:
       true,
@@ -2713,6 +3309,21 @@ function createResponseConstraints({
       "The Character Agent says",
       "According to my memory score",
     ],
+
+    forbiddenUnverifiedClaims: [
+      "I saved that.",
+      "I've saved that.",
+      "I have saved that.",
+      "That's saved.",
+      "It has been saved.",
+      "I've remembered that.",
+      "I deleted that.",
+      "I've deleted that.",
+      "I forgot that.",
+      "I've forgotten that.",
+      "That's been removed.",
+      "Your return point is saved.",
+    ],
   };
 }
 
@@ -2723,6 +3334,22 @@ function collectSourceGuidance(
     ...asArray(
       adaptivePlan
         ?.responseGuidance
+    ),
+
+    ...asArray(
+      getNestedValue(
+        adaptivePlan,
+        "progressionPlan.responseGuidance",
+        []
+      )
+    ),
+
+    ...asArray(
+      getNestedValue(
+        adaptivePlan,
+        "specialistPlans.progression.responseGuidance",
+        []
+      )
     ),
 
     "Follow the response sections in their supplied order.",
@@ -2740,6 +3367,10 @@ function collectSourceGuidance(
     "When creator-approved project truth conflicts with a specialist observation, creator-approved truth wins.",
 
     "Present state and explicit creator direction override historical assumptions.",
+
+    "Progression guidance controls pacing and movement; do not re-open exploration after progression has moved the creator into action.",
+
+    "Never convert a requested persistence operation into a statement that persistence succeeded.",
   ]);
 }
 
@@ -2768,6 +3399,7 @@ function createBlueprintSummary({
 
 function createMemoryBlueprintData({
   adaptivePlan,
+  persistenceTruth,
 }) {
   return {
     policy:
@@ -2857,6 +3489,32 @@ function createMemoryBlueprintData({
           false
         )
       ),
+
+    persistence: {
+      captureSucceeded:
+        persistenceTruth
+          .captureSucceeded,
+
+      forgetSucceeded:
+        persistenceTruth
+          .forgetSucceeded,
+
+      handoffSucceeded:
+        persistenceTruth
+          .handoffSucceeded,
+
+      mayClaimMemorySaved:
+        persistenceTruth
+          .mayClaimMemorySaved,
+
+      mayClaimMemoryForgotten:
+        persistenceTruth
+          .mayClaimMemoryForgotten,
+
+      mayClaimSessionHandoffSaved:
+        persistenceTruth
+          .mayClaimSessionHandoffSaved,
+    },
   };
 }
 
@@ -2937,6 +3595,194 @@ function createProjectBlueprintData({
           false
         )
       ),
+  };
+}
+
+function validateBlueprint({
+  blueprint,
+  adaptivePlan,
+}) {
+  const issues = [];
+  let sections =
+    asArray(
+      blueprint?.sections
+    );
+
+  const action =
+    blueprint?.action;
+
+  const maximumQuestions =
+    Math.max(
+      0,
+      safeNumber(
+        blueprint
+          ?.constraints
+          ?.maximumQuestions,
+        0
+      )
+    );
+
+  const silenceRequired =
+    action ===
+      COMPOSER_ACTIONS
+        .RETURN_SILENCE ||
+    blueprint?.length ===
+      BLUEPRINT_LENGTHS.SILENT ||
+    adaptivePlanRequiresSilence(
+      adaptivePlan
+    );
+
+  if (silenceRequired) {
+    if (sections.length > 0) {
+      issues.push(
+        "Removed sections because silence has precedence."
+      );
+    }
+
+    sections = [];
+  } else {
+    const originalQuestionCount =
+      sections.filter(
+        (section) =>
+          section?.type ===
+          RESPONSE_SECTIONS
+            .QUESTION
+      ).length;
+
+    sections =
+      enforceQuestionLimit({
+        sections,
+        maximumQuestions,
+      });
+
+    if (
+      originalQuestionCount >
+      maximumQuestions
+    ) {
+      issues.push(
+        "Question sections exceeded the allowed maximum and were reduced."
+      );
+    }
+  }
+
+  const shouldGenerateText =
+    !silenceRequired;
+
+  const constraints = {
+    ...blueprint.constraints,
+
+    maximumQuestions,
+
+    maximumPrimarySections:
+      sections.length,
+
+    shouldGenerateText,
+
+    shouldEndWithQuestion:
+      shouldGenerateText &&
+      sections.some(
+        (section) =>
+          section?.type ===
+          RESPONSE_SECTIONS
+            .QUESTION
+      ),
+  };
+
+  if (
+    action ===
+      COMPOSER_ACTIONS
+        .COMPOSE_FORGET_CONFIRMATION &&
+    !constraints
+      .mayClaimMemoryForgotten
+  ) {
+    issues.push(
+      "Forget confirmation may describe intent only because deletion success is unverified."
+    );
+  }
+
+  if (
+    sections.some(
+      (section) =>
+        section?.type ===
+        RESPONSE_SECTIONS
+          .MEMORY_CAPTURE
+    ) &&
+    !constraints
+      .mayClaimMemorySaved
+  ) {
+    issues.push(
+      "Memory capture wording may not claim persistence success."
+    );
+  }
+
+  if (
+    sections.some(
+      (section) =>
+        section?.type ===
+        RESPONSE_SECTIONS
+          .SESSION_HANDOFF
+    ) &&
+    !constraints
+      .mayClaimSessionHandoffSaved
+  ) {
+    issues.push(
+      "Session handoff wording may not claim persistence success."
+    );
+  }
+
+  return {
+    blueprint: {
+      ...blueprint,
+
+      length:
+        silenceRequired
+          ? BLUEPRINT_LENGTHS
+              .SILENT
+          : blueprint.length,
+
+      style: {
+        ...blueprint.style,
+
+        rhythm:
+          silenceRequired
+            ? RESPONSE_RHYTHMS
+                .SILENT
+            : blueprint
+                ?.style
+                ?.rhythm,
+
+        energy:
+          silenceRequired
+            ? RESPONSE_ENERGY
+                .QUIET
+            : blueprint
+                ?.style
+                ?.energy,
+      },
+
+      sections,
+
+      constraints,
+
+      executionIntent: {
+        ...blueprint
+          .executionIntent,
+
+        shouldGenerateText,
+
+        shouldHideSpecialistMachinery:
+          true,
+      },
+    },
+
+    validation: {
+      valid: true,
+      repaired:
+        issues.length > 0,
+      issues,
+      checkedAt:
+        createTimestamp(),
+    },
   };
 }
 
@@ -3052,12 +3898,28 @@ function createFallbackBlueprint({
       shouldClarifyForget:
         false,
 
+      mayClaimMemorySaved:
+        false,
+
+      mayClaimMemoryForgotten:
+        false,
+
+      mayClaimSessionHandoffSaved:
+        false,
+
       shouldHideSpecialistMachinery:
         true,
 
       forbiddenPatterns: [
         "I don't understand.",
         "What do you mean?",
+      ],
+
+      forbiddenUnverifiedClaims: [
+        "I saved that.",
+        "I've saved that.",
+        "I deleted that.",
+        "I've deleted that.",
       ],
     },
 
@@ -3091,6 +3953,26 @@ function createFallbackBlueprint({
 
       shouldClarifyForget:
         false,
+
+      persistence: {
+        captureSucceeded:
+          false,
+
+        forgetSucceeded:
+          false,
+
+        handoffSucceeded:
+          false,
+
+        mayClaimMemorySaved:
+          false,
+
+        mayClaimMemoryForgotten:
+          false,
+
+        mayClaimSessionHandoffSaved:
+          false,
+      },
     },
 
     project: {
@@ -3127,6 +4009,14 @@ function createFallbackBlueprint({
 
       complexityStaysBehindConversation:
         true,
+    },
+
+    validation: {
+      valid: true,
+      repaired: false,
+      issues: [],
+      checkedAt:
+        createTimestamp(),
     },
 
     adaptivePlanSnapshot:
@@ -3262,7 +4152,8 @@ function createResponseComposer() {
 
       const blueprintLength =
         resolveBlueprintLength(
-          adaptivePlan
+          adaptivePlan,
+          action
         );
 
       const rhythm =
@@ -3289,6 +4180,11 @@ function createResponseComposer() {
           action,
         });
 
+      const maximumQuestions =
+        getMaximumQuestions(
+          adaptivePlan
+        );
+
       const rawSections =
         buildSections({
           action,
@@ -3305,6 +4201,13 @@ function createResponseComposer() {
           blueprintLength,
 
           action,
+
+          maximumQuestions,
+        });
+
+      const persistenceTruth =
+        createPersistenceTruth({
+          adaptivePlan,
         });
 
       const languageGuidance =
@@ -3330,11 +4233,14 @@ function createResponseComposer() {
           blueprintLength,
           sections,
           action,
+          maximumQuestions,
+          persistenceTruth,
         });
 
       const memory =
         createMemoryBlueprintData({
           adaptivePlan,
+          persistenceTruth,
         });
 
       const project =
@@ -3345,7 +4251,24 @@ function createResponseComposer() {
             combinedContext,
         });
 
-      return {
+      const progression = {
+        decision:
+          getProgressionDecision(
+            adaptivePlan
+          ),
+
+        primaryAction:
+          getProgressionPrimaryAction(
+            adaptivePlan
+          ),
+
+        requiresSilence:
+          progressionRequiresSilence(
+            adaptivePlan
+          ),
+      };
+
+      const unvalidatedBlueprint = {
         id:
           createBlueprintId(),
 
@@ -3363,6 +4286,8 @@ function createResponseComposer() {
         },
 
         action,
+
+        progression,
 
         style: {
           rhythm,
@@ -3443,6 +4368,18 @@ function createResponseComposer() {
             constraints
               .shouldRestoreProjectContext,
 
+          mayClaimMemorySaved:
+            persistenceTruth
+              .mayClaimMemorySaved,
+
+          mayClaimMemoryForgotten:
+            persistenceTruth
+              .mayClaimMemoryForgotten,
+
+          mayClaimSessionHandoffSaved:
+            persistenceTruth
+              .mayClaimSessionHandoffSaved,
+
           shouldHideSpecialistMachinery:
             true,
         },
@@ -3499,10 +4436,19 @@ function createResponseComposer() {
           silenceCanBeTheResponse:
             true,
 
+          silenceHasPrecedence:
+            true,
+
           sessionHandoffProtectsReturn:
             true,
 
           forgetRequestsRequireAccuracy:
+            true,
+
+          persistenceIntentIsNotPersistenceSuccess:
+            true,
+
+          responseBlueprintMustBeValidated:
             true,
 
           complexityStaysBehindConversation:
@@ -3532,6 +4478,52 @@ function createResponseComposer() {
 
         createdAt:
           createTimestamp(),
+      };
+
+      const validationResult =
+        validateBlueprint({
+          blueprint:
+            unvalidatedBlueprint,
+
+          adaptivePlan,
+        });
+
+      const validatedBlueprint =
+        validationResult.blueprint;
+
+      return {
+        ...validatedBlueprint,
+
+        validation:
+          validationResult
+            .validation,
+
+        blueprintSummary:
+          createBlueprintSummary({
+            action:
+              validatedBlueprint
+                .action,
+
+            sections:
+              validatedBlueprint
+                .sections,
+
+            blueprintLength:
+              validatedBlueprint
+                .length,
+
+            rhythm:
+              validatedBlueprint
+                ?.style
+                ?.rhythm,
+          }),
+
+        status:
+          validationResult
+            .validation
+            .repaired
+            ? "composed-and-repaired"
+            : "composed",
       };
     } catch (error) {
       console.error(
@@ -3643,6 +4635,36 @@ function createResponseComposer() {
     );
   }
 
+  function mayClaimMemorySaved(
+    blueprint
+  ) {
+    return Boolean(
+      blueprint
+        ?.executionIntent
+        ?.mayClaimMemorySaved
+    );
+  }
+
+  function mayClaimMemoryForgotten(
+    blueprint
+  ) {
+    return Boolean(
+      blueprint
+        ?.executionIntent
+        ?.mayClaimMemoryForgotten
+    );
+  }
+
+  function mayClaimSessionHandoffSaved(
+    blueprint
+  ) {
+    return Boolean(
+      blueprint
+        ?.executionIntent
+        ?.mayClaimSessionHandoffSaved
+    );
+  }
+
   return {
     composeResponseBlueprint,
 
@@ -3655,6 +4677,10 @@ function createResponseComposer() {
     shouldPreserveSessionHandoff,
     shouldApplyForget,
     shouldClarifyForget,
+
+    mayClaimMemorySaved,
+    mayClaimMemoryForgotten,
+    mayClaimSessionHandoffSaved,
   };
 }
 
