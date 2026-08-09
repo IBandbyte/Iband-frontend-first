@@ -1127,18 +1127,26 @@ export default function MovieMentorConversation({
           },
         });
 
-      if (
+            if (
         generatedResponse?.response
           ?.text
       ) {
+        const generationFailed =
+          generatedResponse.status ===
+          "failed";
+
         onSendMessage?.({
           id: createId(
-            "mentor-message"
+            generationFailed
+              ? "mentor-fallback-message"
+              : "mentor-message"
           ),
           role: "mentor",
           type: MESSAGE_TYPES.TEXT,
           behaviour:
-            MENTOR_BEHAVIOURS.DISCUSS,
+            generationFailed
+              ? MENTOR_BEHAVIOURS.CONTINUE
+              : MENTOR_BEHAVIOURS.DISCUSS,
           text:
             generatedResponse.response
               .text,
@@ -1151,10 +1159,12 @@ export default function MovieMentorConversation({
               generatedResponse.status,
             responseSource:
               generatedResponse.source,
+            generationFallback:
+              generationFailed,
           },
         });
       }
-        } catch (error) {
+    } catch (error) {
       console.error(
         "MovieMentorConversation response generation error:",
         error
