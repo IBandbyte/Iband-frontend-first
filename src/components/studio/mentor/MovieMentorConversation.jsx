@@ -1002,6 +1002,9 @@ export default function MovieMentorConversation({
       createResponseGenerator();
   }
 
+      const effectiveIsThinking =
+    isThinking || localIsThinking;
+
   const messagesEndRef =
     useRef(null);
 
@@ -1037,9 +1040,9 @@ export default function MovieMentorConversation({
         block: "nearest",
       }
     );
-  }, [
+    }, [
     normalisedMessages.length,
-    isThinking,
+    effectiveIsThinking,
     isGenerating,
   ]);
 
@@ -1056,13 +1059,13 @@ export default function MovieMentorConversation({
       async function handleSend() {
     const text = draft.trim();
 
-    if (
-      !text ||
-      isThinking ||
-      isGenerating
-    ) {
-      return;
-    }
+      if (
+    !text ||
+    effectiveIsThinking ||
+    isGenerating
+  ) {
+    return;
+  }
 
     const creatorMessage = {
       id: createId(
@@ -1261,7 +1264,8 @@ export default function MovieMentorConversation({
           generationError: true,
         },
       });
-    } finally {
+        } finally {
+      setLocalIsThinking(false);
       onThinkingChange?.(false);
     }
   }
@@ -1563,16 +1567,16 @@ export default function MovieMentorConversation({
               onClick={
                 handleSend
               }
-                            disabled={
+                                          disabled={
                 !draft.trim() ||
-                isThinking ||
+                effectiveIsThinking ||
                 isGenerating
               }
-              style={{
+                            style={{
                 ...styles.sendButton,
                 ...(
                   !draft.trim() ||
-                  isThinking ||
+                  effectiveIsThinking ||
                   isGenerating
                     ? styles.sendButtonDisabled
                     : {}
