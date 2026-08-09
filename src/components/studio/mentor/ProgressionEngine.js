@@ -1,33 +1,42 @@
 /**
  * Progression Engine
  * ------------------------------------------------------------
- * The pacing, momentum and next-step decision layer for
- * iBand's AI Mentor — The Creator.
+ * The pacing, momentum, continuity and next-step decision layer
+ * for iBand's AI Mentor — The Creator.
  *
- * This engine does not generate the final Mentor response.
- * It decides whether the experience should:
+ * The Progression Engine does not generate the final Mentor
+ * response. It decides what should happen next.
  *
- * - Continue exploring.
- * - Continue listening.
- * - Hold space.
- * - Reduce information.
- * - Move into creation.
- * - Move to the next task.
- * - Offer one small step.
- * - Pause and return later.
- * - End the current session positively.
+ * It combines:
+ *
+ * - The creator's current message.
+ * - Current conversation state.
+ * - Conversation Planner signals.
+ * - Reflection Engine signals.
+ * - Creator Memory signals.
+ * - Current energy and momentum.
+ * - Information saturation.
+ * - Guidance receptiveness.
+ * - Project readiness.
+ * - Previous progression state.
  *
  * Core philosophy:
+ *
  * - Conversation exists in service of creation.
+ * - Current creator intent has priority over remembered preference.
+ * - Memory should improve continuity, never trap the creator.
+ * - Durable preferences and temporary states are different things.
  * - Do not interrupt creative flow with unnecessary teaching.
  * - Do not keep talking merely because more information exists.
  * - Adapt the amount of guidance to the individual creator.
  * - Protect momentum, energy and attention.
  * - Move forward when enough has been discovered.
  * - Allow unfinished ideas to return later without pressure.
+ * - Restore context without forcing the creator to repeat themselves.
+ * - One useful next step is often better than a roadmap.
  */
 
-const PROGRESSION_ENGINE_VERSION = "1.0.0";
+const PROGRESSION_ENGINE_VERSION = "2.0.0";
 
 const PROGRESSION_DECISIONS = Object.freeze({
   CONTINUE_LISTENING: "continue-listening",
@@ -97,6 +106,7 @@ const SESSION_PHASES = Object.freeze({
   RECOVERING: "recovering",
   PAUSING: "pausing",
   CLOSING: "closing",
+  RETURNING: "returning",
   UNKNOWN: "unknown",
 });
 
@@ -130,6 +140,8 @@ const PROGRESSION_ACTIONS = Object.freeze({
     "close-with-open-door",
   DO_NOT_ADD_MORE_INFORMATION:
     "do-not-add-more-information",
+  RESTORE_CREATOR_WORKING_MODE:
+    "restore-creator-working-mode",
 });
 
 const RESPONSE_LENGTHS = Object.freeze({
@@ -159,6 +171,7 @@ const DEFAULT_PROGRESSION_CONTEXT = Object.freeze({
 
   consecutiveShortCreatorReplies: 0,
   consecutiveLongCreatorReplies: 0,
+  consecutiveMentorMessages: 0,
 
   creatorExplicitlyAskedToContinue: false,
   creatorExplicitlyAskedToStop: false,
@@ -188,20 +201,25 @@ const DEFAULT_PROGRESSION_CONTEXT = Object.freeze({
   preferredResponseDepth: null,
   preferredGuidanceStyle: null,
 
+  creatorMemory: null,
+  creatorMemoryProfile: null,
+  creatorMemorySignals: null,
+  memoryContext: null,
+
+  returningCreator: false,
+  returningToProject: false,
+  previousSessionSummary: null,
+  previousReturnPoint: null,
+  previousNextStep: null,
+
   lastProgressionDecision: null,
   lastProgressionAt: null,
 });
 
-/**
- * Returns the current ISO timestamp.
- */
 function createTimestamp() {
   return new Date().toISOString();
 }
 
-/**
- * Creates a lightweight unique plan id.
- */
 function createProgressionId() {
   const randomValue = Math.random()
     .toString(36)
@@ -210,20 +228,18 @@ function createProgressionId() {
   return `progression-plan-${Date.now()}-${randomValue}`;
 }
 
-/**
- * Safely clones plain data.
- */
 function cloneValue(value) {
   if (value === undefined) {
     return undefined;
   }
 
-  return JSON.parse(JSON.stringify(value));
+  try {
+    return JSON.parse(JSON.stringify(value));
+  } catch {
+    return value;
+  }
 }
 
-/**
- * Converts unknown values into clean text.
- */
 function normaliseText(value) {
   if (typeof value !== "string") {
     return "";
@@ -236,18 +252,12 @@ function normaliseText(value) {
     .replace(/\s+/g, " ");
 }
 
-/**
- * Returns a clean string.
- */
 function cleanString(value) {
   return typeof value === "string"
     ? value.trim()
     : "";
 }
 
-/**
- * Returns unique useful values.
- */
 function uniqueValues(values = []) {
   return [
     ...new Set(
@@ -261,9 +271,6 @@ function uniqueValues(values = []) {
   ];
 }
 
-/**
- * Restricts confidence values to 0–1.
- */
 function clampConfidence(value) {
   const numericValue = Number(value);
 
@@ -274,9 +281,6 @@ function clampConfidence(value) {
   return Math.max(0, Math.min(1, numericValue));
 }
 
-/**
- * Creates a consistent detection result.
- */
 function createDetection({
   value,
   confidence = 0.5,
@@ -289,29 +293,12 @@ function createDetection({
   };
 }
 
-/**
- * Returns true when text contains one or more phrases.
- */
 function includesAny(text, phrases = []) {
   return phrases.some((phrase) =>
     text.includes(phrase)
   );
 }
 
-/**
- * Counts matching phrases.
- */
-function countMatches(text, phrases = []) {
-  return phrases.reduce((total, phrase) => {
-    return text.includes(phrase)
-      ? total + 1
-      : total;
-  }, 0);
-}
-
-/**
- * Converts a supplied numeric value into a safe number.
- */
 function safeNumber(value, fallback = 0) {
   const numericValue = Number(value);
 
@@ -320,9 +307,6 @@ function safeNumber(value, fallback = 0) {
     : fallback;
 }
 
-/**
- * Returns the latest creator messages as plain text.
- */
 function getRecentCreatorText(context) {
   const messages = Array.isArray(
     context?.recentCreatorMessages
@@ -348,9 +332,6 @@ function getRecentCreatorText(context) {
     .join(" ");
 }
 
-/**
- * Returns the latest Mentor messages as plain text.
- */
 function getRecentMentorText(context) {
   const messages = Array.isArray(
     context?.recentMentorMessages
@@ -377,8 +358,313 @@ function getRecentMentorText(context) {
 }
 
 /**
- * Detects explicit creator direction.
+ * Creator Memory may arrive from different parts of the Mentor
+ * architecture while the wider system evolves.
+ *
+ * This helper creates one safe memory view without forcing the
+ * Progression Engine to own the memory architecture.
  */
+function resolveCreatorMemory(context = {}) {
+  const candidates = [
+    context.creatorMemorySignals,
+    context.creatorMemoryProfile,
+    context.creatorMemory,
+    context.memoryContext,
+  ].filter(
+    (candidate) =>
+      candidate &&
+      typeof candidate === "object"
+  );
+
+  return candidates.reduce(
+    (memory, candidate) => ({
+      ...memory,
+      ...cloneValue(candidate),
+    }),
+    {}
+  );
+}
+
+function readMemoryValue(memory, paths = []) {
+  for (const path of paths) {
+    const parts = path.split(".");
+    let current = memory;
+
+    for (const part of parts) {
+      if (
+        current === null ||
+        current === undefined ||
+        typeof current !== "object"
+      ) {
+        current = undefined;
+        break;
+      }
+
+      current = current[part];
+    }
+
+    if (
+      current !== undefined &&
+      current !== null &&
+      current !== ""
+    ) {
+      return current;
+    }
+  }
+
+  return null;
+}
+
+function normalisePreference(value) {
+  if (typeof value === "string") {
+    return normaliseText(value);
+  }
+
+  if (
+    value &&
+    typeof value === "object"
+  ) {
+    return normaliseText(
+      value.value ||
+        value.preference ||
+        value.style ||
+        value.mode ||
+        value.label ||
+        ""
+    );
+  }
+
+  return "";
+}
+
+/**
+ * Extracts only progression-relevant memory.
+ *
+ * Memory is advisory. Current explicit creator direction always
+ * has higher priority.
+ */
+function deriveMemorySignals(context = {}) {
+  const memory = resolveCreatorMemory(context);
+
+  const responseDepth = normalisePreference(
+    readMemoryValue(memory, [
+      "preferredResponseDepth",
+      "responseDepth",
+      "preferences.responseDepth",
+      "communication.responseDepth",
+      "communication.preferredResponseDepth",
+    ])
+  );
+
+  const guidanceStyle = normalisePreference(
+    readMemoryValue(memory, [
+      "preferredGuidanceStyle",
+      "guidanceStyle",
+      "preferences.guidanceStyle",
+      "mentoring.guidanceStyle",
+      "workingStyle.guidanceStyle",
+    ])
+  );
+
+  const learningStyle = normalisePreference(
+    readMemoryValue(memory, [
+      "preferredLearningStyle",
+      "learningStyle",
+      "preferences.learningStyle",
+      "learning.preferredStyle",
+    ])
+  );
+
+  const pacingPreference = normalisePreference(
+    readMemoryValue(memory, [
+      "preferredPacing",
+      "pacingPreference",
+      "preferences.pacing",
+      "workingStyle.pacing",
+      "pace",
+    ])
+  );
+
+  const autonomyPreference = normalisePreference(
+    readMemoryValue(memory, [
+      "autonomyPreference",
+      "preferredAutonomy",
+      "preferences.autonomy",
+      "workingStyle.autonomy",
+    ])
+  );
+
+  const overloadSensitivity = normalisePreference(
+    readMemoryValue(memory, [
+      "overloadSensitivity",
+      "informationTolerance",
+      "preferences.informationTolerance",
+      "communication.informationTolerance",
+    ])
+  );
+
+  const buildModePreference = normalisePreference(
+    readMemoryValue(memory, [
+      "buildMode",
+      "workingMode",
+      "preferredWorkingMode",
+      "preferences.workingMode",
+      "workingStyle.mode",
+    ])
+  );
+
+  const returnPoint =
+    readMemoryValue(memory, [
+      "returnPoint",
+      "continuity.returnPoint",
+      "session.returnPoint",
+      "lastReturnPoint",
+      "nextStep",
+      "continuity.nextStep",
+    ]) ||
+    context.previousReturnPoint ||
+    context.previousNextStep ||
+    null;
+
+  const previousSummary =
+    readMemoryValue(memory, [
+      "previousSessionSummary",
+      "continuity.previousSessionSummary",
+      "lastSessionSummary",
+      "sessionSummary",
+    ]) ||
+    context.previousSessionSummary ||
+    null;
+
+  const hasContinuity =
+    Boolean(
+      returnPoint ||
+      previousSummary ||
+      context.returningCreator ||
+      context.returningToProject
+    );
+
+  const prefersConcise = includesAny(
+    responseDepth,
+    [
+      "minimal",
+      "short",
+      "concise",
+      "brief",
+      "direct",
+    ]
+  );
+
+  const prefersDetail = includesAny(
+    responseDepth,
+    [
+      "detailed",
+      "deep",
+      "thorough",
+      "comprehensive",
+    ]
+  );
+
+  const prefersOneStep = includesAny(
+    `${guidanceStyle} ${pacingPreference}`,
+    [
+      "one step",
+      "one-step",
+      "step by step",
+      "step-by-step",
+      "single step",
+      "small step",
+    ]
+  );
+
+  const prefersLeadership = includesAny(
+    `${guidanceStyle} ${autonomyPreference}`,
+    [
+      "lead",
+      "guided",
+      "guide me",
+      "recommend",
+      "mentor-led",
+    ]
+  );
+
+  const prefersAutonomy = includesAny(
+    `${guidanceStyle} ${autonomyPreference}`,
+    [
+      "independent",
+      "autonomous",
+      "creator-led",
+      "i'll do it",
+      "ill do it",
+      "options",
+    ]
+  );
+
+  const prefersAction = includesAny(
+    `${guidanceStyle} ${buildModePreference}`,
+    [
+      "build",
+      "action",
+      "implementation",
+      "direct",
+      "doing",
+      "create",
+    ]
+  );
+
+  const learnsByExample = includesAny(
+    learningStyle,
+    [
+      "example",
+      "demonstration",
+      "show me",
+      "visual",
+      "learn by doing",
+      "doing",
+    ]
+  );
+
+  const sensitiveToOverload = includesAny(
+    overloadSensitivity,
+    [
+      "low",
+      "sensitive",
+      "easily overloaded",
+      "one thing",
+      "concise",
+      "short",
+    ]
+  );
+
+  return {
+    available:
+      Object.keys(memory).length > 0,
+
+    raw: memory,
+
+    responseDepth,
+    guidanceStyle,
+    learningStyle,
+    pacingPreference,
+    autonomyPreference,
+    overloadSensitivity,
+    buildModePreference,
+
+    prefersConcise,
+    prefersDetail,
+    prefersOneStep,
+    prefersLeadership,
+    prefersAutonomy,
+    prefersAction,
+    learnsByExample,
+    sensitiveToOverload,
+
+    hasContinuity,
+    returnPoint,
+    previousSummary,
+  };
+}
+
 function detectExplicitDirection({
   message,
   context,
@@ -496,14 +782,12 @@ function detectExplicitDirection({
   });
 }
 
-/**
- * Detects the current session phase.
- */
 function detectSessionPhase({
   message,
   context,
   conversationPlan,
   reflectionPlan,
+  memorySignals,
 }) {
   const text = normaliseText(message);
 
@@ -512,6 +796,23 @@ function detectSessionPhase({
 
   const reflectionDecision =
     reflectionPlan?.decision;
+
+  if (
+    context?.returningCreator ||
+    context?.returningToProject ||
+    (
+      memorySignals?.hasContinuity &&
+      context?.creatorMessageCount <= 1
+    )
+  ) {
+    return createDetection({
+      value: SESSION_PHASES.RETURNING,
+      confidence: 0.82,
+      evidence: [
+        "creator continuity context detected",
+      ],
+    });
+  }
 
   if (
     context?.creatorExplicitlyAskedToPause
@@ -544,6 +845,16 @@ function detectSessionPhase({
       value: SESSION_PHASES.REFINING,
       confidence: 0.84,
       evidence: ["refinement state detected"],
+    });
+  }
+
+  if (
+    conversationMode === "building"
+  ) {
+    return createDetection({
+      value: SESSION_PHASES.BUILDING,
+      confidence: 0.84,
+      evidence: ["building mode detected"],
     });
   }
 
@@ -636,9 +947,6 @@ function detectSessionPhase({
   });
 }
 
-/**
- * Detects the creator's current energy.
- */
 function detectCreatorEnergy({
   message,
   context,
@@ -740,7 +1048,9 @@ function detectCreatorEnergy({
 
   if (
     messageLength > 350 ||
-    context?.consecutiveLongCreatorReplies >= 2
+    safeNumber(
+      context?.consecutiveLongCreatorReplies
+    ) >= 2
   ) {
     return createDetection({
       value: CREATOR_ENERGY_STATES.MEDIUM,
@@ -756,12 +1066,10 @@ function detectCreatorEnergy({
   });
 }
 
-/**
- * Detects whether information is becoming excessive.
- */
 function detectInformationSaturation({
   message,
   context,
+  memorySignals,
 }) {
   if (context?.informationSaturation) {
     return createDetection({
@@ -774,6 +1082,7 @@ function detectInformationSaturation({
   }
 
   const text = normaliseText(message);
+
   const recentMentorText =
     normaliseText(
       getRecentMentorText(context)
@@ -824,13 +1133,28 @@ function detectInformationSaturation({
 
   if (
     mentorWordCount > 900 ||
-    context?.consecutiveMentorMessages >= 3
+    safeNumber(
+      context?.consecutiveMentorMessages
+    ) >= 3
   ) {
     return createDetection({
       value: INFORMATION_SATURATION.HIGH,
       confidence: 0.74,
       evidence: [
         "large volume of recent Mentor information",
+      ],
+    });
+  }
+
+  if (
+    memorySignals?.sensitiveToOverload &&
+    mentorWordCount > 300
+  ) {
+    return createDetection({
+      value: INFORMATION_SATURATION.MEDIUM,
+      confidence: 0.68,
+      evidence: [
+        "creator memory indicates lower information tolerance",
       ],
     });
   }
@@ -855,15 +1179,13 @@ function detectInformationSaturation({
   });
 }
 
-/**
- * Detects whether guidance is welcome at this moment.
- */
 function detectGuidanceWindow({
   message,
   context,
   reflectionPlan,
   creatorEnergy,
   informationSaturation,
+  memorySignals,
 }) {
   if (context?.guidanceWindow) {
     return createDetection({
@@ -947,6 +1269,35 @@ function detectGuidanceWindow({
   }
 
   if (
+    memorySignals?.prefersLeadership &&
+    creatorEnergy.value !==
+      CREATOR_ENERGY_STATES.LOW &&
+    creatorEnergy.value !==
+      CREATOR_ENERGY_STATES.DEPLETED
+  ) {
+    return createDetection({
+      value: GUIDANCE_WINDOWS.WIDE_OPEN,
+      confidence: 0.64,
+      evidence: [
+        "creator memory indicates preference for Mentor leadership",
+      ],
+    });
+  }
+
+  if (
+    memorySignals?.prefersAutonomy
+  ) {
+    return createDetection({
+      value:
+        GUIDANCE_WINDOWS.PARTIALLY_OPEN,
+      confidence: 0.62,
+      evidence: [
+        "creator memory indicates preference for creator-led work",
+      ],
+    });
+  }
+
+  if (
     creatorEnergy.value ===
       CREATOR_ENERGY_STATES.HIGH
   ) {
@@ -968,9 +1319,6 @@ function detectGuidanceWindow({
   });
 }
 
-/**
- * Detects current creative momentum.
- */
 function detectMomentum({
   message,
   context,
@@ -1090,9 +1438,6 @@ function detectMomentum({
   });
 }
 
-/**
- * Determines whether enough information exists to act.
- */
 function detectReadiness({
   context,
   conversationPlan,
@@ -1133,9 +1478,6 @@ function detectReadiness({
   };
 }
 
-/**
- * Determines the main progression decision.
- */
 function chooseProgressionDecision({
   explicitDirection,
   sessionPhase,
@@ -1146,6 +1488,7 @@ function chooseProgressionDecision({
   readiness,
   reflectionPlan,
   context,
+  memorySignals,
 }) {
   if (
     explicitDirection.value === "pause"
@@ -1183,6 +1526,15 @@ function chooseProgressionDecision({
   }
 
   if (
+    sessionPhase.value ===
+      SESSION_PHASES.RETURNING &&
+    memorySignals?.hasContinuity &&
+    explicitDirection.value === "none"
+  ) {
+    return PROGRESSION_DECISIONS.RESTORE_CONTEXT;
+  }
+
+  if (
     reflectionPlan?.decision ===
       "release-pressure"
   ) {
@@ -1215,7 +1567,8 @@ function chooseProgressionDecision({
     (
       sessionPhase.value ===
         SESSION_PHASES.BUILDING ||
-      context?.creatorExplicitlyAskedForNextStep
+      context?.creatorExplicitlyAskedForNextStep ||
+      memorySignals?.prefersAction
     )
   ) {
     return PROGRESSION_DECISIONS.MOVE_TO_NEXT_TASK;
@@ -1255,7 +1608,8 @@ function chooseProgressionDecision({
     informationSaturation.value ===
       INFORMATION_SATURATION.HIGH ||
     guidanceWindow.value ===
-      GUIDANCE_WINDOWS.NARROW
+      GUIDANCE_WINDOWS.NARROW ||
+    memorySignals?.prefersOneStep
   ) {
     return PROGRESSION_DECISIONS.OFFER_ONE_SMALL_STEP;
   }
@@ -1302,9 +1656,6 @@ function chooseProgressionDecision({
   return PROGRESSION_DECISIONS.CONTINUE_LISTENING;
 }
 
-/**
- * Chooses the practical action associated with the decision.
- */
 function choosePrimaryAction(decision) {
   switch (decision) {
     case PROGRESSION_DECISIONS.CONTINUE_LISTENING:
@@ -1353,9 +1704,6 @@ function choosePrimaryAction(decision) {
         .RELEASE_EXPECTATION;
 
     case PROGRESSION_DECISIONS.SAVE_AND_RETURN_LATER:
-      return PROGRESSION_ACTIONS
-        .SAVE_CURRENT_PROGRESS;
-
     case PROGRESSION_DECISIONS.PAUSE_SESSION:
       return PROGRESSION_ACTIONS
         .SAVE_CURRENT_PROGRESS;
@@ -1370,12 +1718,10 @@ function choosePrimaryAction(decision) {
   }
 }
 
-/**
- * Chooses supporting actions.
- */
 function chooseSupportingActions({
   decision,
   context,
+  memorySignals,
 }) {
   const actions = [];
 
@@ -1404,6 +1750,17 @@ function chooseSupportingActions({
 
   if (
     decision ===
+      PROGRESSION_DECISIONS.RESTORE_CONTEXT &&
+    memorySignals?.hasContinuity
+  ) {
+    actions.push(
+      PROGRESSION_ACTIONS
+        .RESTORE_CREATOR_WORKING_MODE
+    );
+  }
+
+  if (
+    decision ===
       PROGRESSION_DECISIONS.END_SESSION_POSITIVELY ||
     decision ===
       PROGRESSION_DECISIONS.PAUSE_SESSION
@@ -1417,18 +1774,72 @@ function chooseSupportingActions({
   return uniqueValues(actions);
 }
 
-/**
- * Chooses the ideal response length.
- */
+function normaliseResponseLengthPreference(
+  value
+) {
+  const preference =
+    normalisePreference(value);
+
+  if (
+    includesAny(preference, [
+      "minimal",
+      "very short",
+    ])
+  ) {
+    return RESPONSE_LENGTHS.MINIMAL;
+  }
+
+  if (
+    includesAny(preference, [
+      "short",
+      "concise",
+      "brief",
+      "direct",
+    ])
+  ) {
+    return RESPONSE_LENGTHS.SHORT;
+  }
+
+  if (
+    includesAny(preference, [
+      "medium",
+      "balanced",
+      "normal",
+    ])
+  ) {
+    return RESPONSE_LENGTHS.MEDIUM;
+  }
+
+  if (
+    includesAny(preference, [
+      "detailed",
+      "deep",
+      "thorough",
+      "comprehensive",
+    ])
+  ) {
+    return RESPONSE_LENGTHS.DETAILED;
+  }
+
+  return null;
+}
+
 function chooseResponseLength({
   decision,
   creatorEnergy,
   informationSaturation,
   context,
+  memorySignals,
 }) {
-  if (context?.preferredResponseDepth) {
-    return context.preferredResponseDepth;
-  }
+  const currentPreference =
+    normaliseResponseLengthPreference(
+      context?.preferredResponseDepth
+    );
+
+  const rememberedPreference =
+    normaliseResponseLengthPreference(
+      memorySignals?.responseDepth
+    );
 
   if (
     decision ===
@@ -1465,6 +1876,14 @@ function chooseResponseLength({
     return RESPONSE_LENGTHS.SHORT;
   }
 
+  if (currentPreference) {
+    return currentPreference;
+  }
+
+  if (rememberedPreference) {
+    return rememberedPreference;
+  }
+
   if (
     decision ===
       PROGRESSION_DECISIONS.CONTINUE_LEARNING ||
@@ -1477,13 +1896,11 @@ function chooseResponseLength({
   return RESPONSE_LENGTHS.SHORT;
 }
 
-/**
- * Determines whether the Mentor should ask another question.
- */
 function chooseQuestionAllowance({
   decision,
   guidanceWindow,
   informationSaturation,
+  memorySignals,
 }) {
   if (
     decision ===
@@ -1513,12 +1930,87 @@ function chooseQuestionAllowance({
     return 0;
   }
 
+  if (
+    memorySignals?.prefersAction &&
+    decision ===
+      PROGRESSION_DECISIONS.CONTINUE_LISTENING
+  ) {
+    return 0;
+  }
+
   return 1;
 }
 
-/**
- * Creates response-generation guidance.
- */
+function createMemoryGuidance(
+  memorySignals
+) {
+  const guidance = [];
+
+  if (!memorySignals?.available) {
+    return guidance;
+  }
+
+  guidance.push(
+    "Use creator memory as supporting context, not as an instruction that overrides the current message."
+  );
+
+  if (memorySignals.prefersConcise) {
+    guidance.push(
+      "The creator generally prefers concise communication."
+    );
+  }
+
+  if (memorySignals.prefersDetail) {
+    guidance.push(
+      "The creator is comfortable with deeper explanation when it is useful."
+    );
+  }
+
+  if (memorySignals.prefersOneStep) {
+    guidance.push(
+      "The creator benefits from one clear step at a time."
+    );
+  }
+
+  if (memorySignals.prefersLeadership) {
+    guidance.push(
+      "The creator generally welcomes a clear Mentor recommendation."
+    );
+  }
+
+  if (memorySignals.prefersAutonomy) {
+    guidance.push(
+      "Preserve creator autonomy and avoid taking control unnecessarily."
+    );
+  }
+
+  if (memorySignals.prefersAction) {
+    guidance.push(
+      "The creator generally prefers implementation and forward movement over extended discussion."
+    );
+  }
+
+  if (memorySignals.learnsByExample) {
+    guidance.push(
+      "Where teaching is useful, prefer demonstration or a concrete example."
+    );
+  }
+
+  if (memorySignals.sensitiveToOverload) {
+    guidance.push(
+      "Keep option count and information density low."
+    );
+  }
+
+  if (memorySignals.hasContinuity) {
+    guidance.push(
+      "Use remembered continuity so the creator does not need to reconstruct previous progress."
+    );
+  }
+
+  return guidance;
+}
+
 function createResponseGuidance({
   decision,
   primaryAction,
@@ -1528,6 +2020,7 @@ function createResponseGuidance({
   momentum,
   informationSaturation,
   guidanceWindow,
+  memorySignals,
 }) {
   const guidance = [
     "Keep the creator in ownership of the next step.",
@@ -1536,9 +2029,32 @@ function createResponseGuidance({
     "Adapt the response to the creator's current mode and energy.",
     "Do not overwhelm the creator with multiple next steps.",
     "Use no more questions than the plan allows.",
+    "Current explicit creator intent has priority over remembered preference.",
+    "Do not convert a temporary state into a permanent creator preference.",
     `Preferred response length: ${responseLength}.`,
     `Maximum questions: ${maximumQuestions}.`,
+    ...createMemoryGuidance(memorySignals),
   ];
+
+  if (
+    decision ===
+      PROGRESSION_DECISIONS.RESTORE_CONTEXT
+  ) {
+    guidance.push(
+      "Restore only the context needed to continue.",
+      "Do not make the creator repeat information already known.",
+      "Recap the previous position briefly.",
+      "Return the creator to a clear next step."
+    );
+
+    if (memorySignals?.returnPoint) {
+      guidance.push(
+        `Known return point: ${String(
+          memorySignals.returnPoint
+        )}.`
+      );
+    }
+  }
 
   if (
     decision ===
@@ -1704,9 +2220,6 @@ function createResponseGuidance({
   return uniqueValues(guidance);
 }
 
-/**
- * Creates guard rails for the response layer.
- */
 function createGuardRails() {
   return [
     "Do not keep the creator talking simply to prolong the session.",
@@ -1723,12 +2236,13 @@ function createGuardRails() {
     "Do not force a decision merely to create artificial progress.",
     "Do not leave the creator without a clear return point when pausing.",
     "Do not treat every creator as having the same reading tolerance.",
+    "Do not let remembered preferences override an explicit current request.",
+    "Do not infer a permanent preference from one temporary emotional or energy state.",
+    "Do not make the creator repeat context that reliable memory already contains.",
+    "Do not expose internal memory machinery unnecessarily to the creator.",
   ];
 }
 
-/**
- * Produces a concise explanation of the progression decision.
- */
 function createDecisionSummary({
   decision,
   sessionPhase,
@@ -1736,20 +2250,24 @@ function createDecisionSummary({
   informationSaturation,
   guidanceWindow,
   momentum,
+  memorySignals,
 }) {
+  const memorySummary =
+    memorySignals?.available
+      ? " Creator memory was available as supporting context."
+      : "";
+
   return (
     `Use the ${decision} progression decision. ` +
     `The session is in the ${sessionPhase.value} phase. ` +
     `Creator energy is ${creatorEnergy.value}, ` +
     `momentum is ${momentum.value}, ` +
     `information saturation is ${informationSaturation.value}, ` +
-    `and the guidance window is ${guidanceWindow.value}.`
+    `and the guidance window is ${guidanceWindow.value}.` +
+    memorySummary
   );
 }
 
-/**
- * Creates a safe fallback plan.
- */
 function createFallbackProgressionPlan({
   message,
   context,
@@ -1783,6 +2301,11 @@ function createFallbackProgressionPlan({
       shouldPause: false,
       shouldEndSession: false,
       shouldHoldSpace: false,
+      shouldReduceInformation: false,
+      shouldSaveProgress: false,
+      shouldContinueExploring: false,
+      shouldContinueLearning: false,
+      shouldRestoreContext: false,
     },
 
     creatorState: {
@@ -1813,6 +2336,10 @@ function createFallbackProgressionPlan({
         value: MOMENTUM_STATES.UNKNOWN,
         confidence: 0.2,
       }),
+
+      memorySignals: {
+        available: false,
+      },
     },
 
     responseGuidance: [
@@ -1844,19 +2371,7 @@ function createFallbackProgressionPlan({
   };
 }
 
-/**
- * Creates the Progression Engine service.
- */
 function createProgressionEngine() {
-  /**
-   * Produces a structured progression plan.
-   *
-   * @param {Object} input
-   * @param {string} input.message
-   * @param {Object} [input.context]
-   * @param {Object|null} [input.conversationPlan]
-   * @param {Object|null} [input.reflectionPlan]
-   */
   function planProgression({
     message = "",
     context = {},
@@ -1871,6 +2386,11 @@ function createProgressionEngine() {
         ...cloneValue(context),
       };
 
+      const memorySignals =
+        deriveMemorySignals(
+          combinedContext
+        );
+
       const explicitDirection =
         detectExplicitDirection({
           message,
@@ -1883,6 +2403,7 @@ function createProgressionEngine() {
           context: combinedContext,
           conversationPlan,
           reflectionPlan,
+          memorySignals,
         });
 
       const creatorEnergy =
@@ -1896,6 +2417,7 @@ function createProgressionEngine() {
         detectInformationSaturation({
           message,
           context: combinedContext,
+          memorySignals,
         });
 
       const guidanceWindow =
@@ -1905,6 +2427,7 @@ function createProgressionEngine() {
           reflectionPlan,
           creatorEnergy,
           informationSaturation,
+          memorySignals,
         });
 
       const momentum =
@@ -1931,6 +2454,7 @@ function createProgressionEngine() {
           readiness,
           reflectionPlan,
           context: combinedContext,
+          memorySignals,
         });
 
       const primaryAction =
@@ -1940,6 +2464,7 @@ function createProgressionEngine() {
         chooseSupportingActions({
           decision,
           context: combinedContext,
+          memorySignals,
         });
 
       const responseLength =
@@ -1948,6 +2473,7 @@ function createProgressionEngine() {
           creatorEnergy,
           informationSaturation,
           context: combinedContext,
+          memorySignals,
         });
 
       const maximumQuestions =
@@ -1955,6 +2481,7 @@ function createProgressionEngine() {
           decision,
           guidanceWindow,
           informationSaturation,
+          memorySignals,
         });
 
       const responseGuidance =
@@ -1967,6 +2494,7 @@ function createProgressionEngine() {
           momentum,
           informationSaturation,
           guidanceWindow,
+          memorySignals,
         });
 
       return {
@@ -2043,6 +2571,11 @@ function createProgressionEngine() {
             decision ===
             PROGRESSION_DECISIONS
               .CONTINUE_LEARNING,
+
+          shouldRestoreContext:
+            decision ===
+            PROGRESSION_DECISIONS
+              .RESTORE_CONTEXT,
         },
 
         creatorState: {
@@ -2053,6 +2586,61 @@ function createProgressionEngine() {
           guidanceWindow,
           momentum,
           readiness,
+
+          memorySignals: {
+            available:
+              memorySignals.available,
+
+            responseDepth:
+              memorySignals.responseDepth,
+
+            guidanceStyle:
+              memorySignals.guidanceStyle,
+
+            learningStyle:
+              memorySignals.learningStyle,
+
+            pacingPreference:
+              memorySignals.pacingPreference,
+
+            autonomyPreference:
+              memorySignals.autonomyPreference,
+
+            buildModePreference:
+              memorySignals.buildModePreference,
+
+            prefersConcise:
+              memorySignals.prefersConcise,
+
+            prefersDetail:
+              memorySignals.prefersDetail,
+
+            prefersOneStep:
+              memorySignals.prefersOneStep,
+
+            prefersLeadership:
+              memorySignals.prefersLeadership,
+
+            prefersAutonomy:
+              memorySignals.prefersAutonomy,
+
+            prefersAction:
+              memorySignals.prefersAction,
+
+            learnsByExample:
+              memorySignals.learnsByExample,
+
+            sensitiveToOverload:
+              memorySignals.sensitiveToOverload,
+
+            hasContinuity:
+              memorySignals.hasContinuity,
+
+            returnPoint:
+              cloneValue(
+                memorySignals.returnPoint
+              ),
+          },
         },
 
         responseGuidance,
@@ -2071,6 +2659,13 @@ function createProgressionEngine() {
             true,
           doNotMaximiseConversationLength: true,
           moveForwardWhenEnoughIsKnown: true,
+
+          memorySupportsContinuity: true,
+          currentIntentOverridesMemory: true,
+          temporaryStateDoesNotBecomePreference:
+            true,
+          creatorShouldNotRepeatKnownContext:
+            true,
         },
 
         contextSnapshot:
@@ -2082,6 +2677,11 @@ function createProgressionEngine() {
         reflectionPlanSnapshot:
           cloneValue(reflectionPlan),
 
+        memorySnapshot:
+          cloneValue(
+            memorySignals.raw
+          ),
+
         decisionSummary:
           createDecisionSummary({
             decision,
@@ -2090,6 +2690,7 @@ function createProgressionEngine() {
             informationSaturation,
             guidanceWindow,
             momentum,
+            memorySignals,
           }),
 
         status: "planned",
@@ -2110,18 +2711,12 @@ function createProgressionEngine() {
     }
   }
 
-  /**
-   * Checks whether the experience should move into action.
-   */
   function shouldMoveForward(plan) {
     return Boolean(
       plan?.progression?.shouldMoveForward
     );
   }
 
-  /**
-   * Checks whether the Mentor should stop adding information.
-   */
   function shouldReduceInformation(plan) {
     return Boolean(
       plan?.progression
@@ -2129,30 +2724,27 @@ function createProgressionEngine() {
     );
   }
 
-  /**
-   * Checks whether the Mentor should hold space.
-   */
   function shouldHoldSpace(plan) {
     return Boolean(
       plan?.progression?.shouldHoldSpace
     );
   }
 
-  /**
-   * Checks whether progress should be saved for later.
-   */
   function shouldSaveProgress(plan) {
     return Boolean(
       plan?.progression?.shouldSaveProgress
     );
   }
 
-  /**
-   * Checks whether the current session should end.
-   */
   function shouldEndSession(plan) {
     return Boolean(
       plan?.progression?.shouldEndSession
+    );
+  }
+
+  function shouldRestoreContext(plan) {
+    return Boolean(
+      plan?.progression?.shouldRestoreContext
     );
   }
 
@@ -2163,12 +2755,10 @@ function createProgressionEngine() {
     shouldHoldSpace,
     shouldSaveProgress,
     shouldEndSession,
+    shouldRestoreContext,
   };
 }
 
-/**
- * Convenience method for one-off progression planning.
- */
 function planProgression({
   message = "",
   context = {},
