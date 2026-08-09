@@ -4,7 +4,7 @@ import React, {
   useRef,
   useState,
 } from "react";
-import createResponseGenerator from "../mentor/ResponseGenerator";
+import createResponseGenerator from "./mentor/ResponseGenerator";
 
 /**
  * MovieMentorConversation
@@ -985,7 +985,7 @@ export default function MovieMentorConversation({
   renderAboveConversation,
   renderBelowConversation,
 }) {
-    const [draft, setDraft] =
+  const [draft, setDraft] =
     useState("");
 
   const [localStartPoint, setLocalStartPoint] =
@@ -1002,7 +1002,7 @@ export default function MovieMentorConversation({
       createResponseGenerator();
   }
 
-      const effectiveIsThinking =
+  const effectiveIsThinking =
     isThinking || localIsThinking;
 
   const messagesEndRef =
@@ -1040,7 +1040,7 @@ export default function MovieMentorConversation({
         block: "nearest",
       }
     );
-    }, [
+  }, [
     normalisedMessages.length,
     effectiveIsThinking,
     isGenerating,
@@ -1056,16 +1056,16 @@ export default function MovieMentorConversation({
     );
   }
 
-      async function handleSend() {
+  async function handleSend() {
     const text = draft.trim();
 
-      if (
-    !text ||
-    effectiveIsThinking ||
-    isGenerating
-  ) {
-    return;
-  }
+    if (
+      !text ||
+      effectiveIsThinking ||
+      isGenerating
+    ) {
+      return;
+    }
 
     const creatorMessage = {
       id: createId(
@@ -1086,14 +1086,14 @@ export default function MovieMentorConversation({
 
     setDraft("");
 
-        const responseGenerator =
+    const responseGenerator =
       responseGeneratorRef.current;
 
     if (!responseGenerator) {
       return;
     }
 
-        setLocalIsThinking(true);
+    setLocalIsThinking(true);
     onThinkingChange?.(true);
 
     try {
@@ -1103,7 +1103,7 @@ export default function MovieMentorConversation({
           context: {
             creatorName,
             creatorType: "movie",
-                        creatorJourney:
+            creatorJourney:
               localStartPoint?.id ||
               "guide",
             projectType: "movie",
@@ -1137,7 +1137,7 @@ export default function MovieMentorConversation({
           },
         });
 
-                  const generationSilent =
+      const generationSilent =
         generatedResponse?.status ===
           "silent" ||
         generatedResponse?.response
@@ -1161,7 +1161,7 @@ export default function MovieMentorConversation({
         generatedResponse?.response
           ?.text
       ) {
-                const generationFailed =
+        const generationFailed =
           generatedResponse.status ===
           "failed";
 
@@ -1205,12 +1205,12 @@ export default function MovieMentorConversation({
               generatedResponse.status,
             responseSource:
               generatedResponse.source,
-                        generationFallback:
+            generationFallback:
               generationFailed,
             generationSilent: false,
-                        generatedBehaviour:
+            generatedBehaviour:
               generatedBehaviour,
-                        generatedAction:
+            generatedAction:
               generatedResponse
                 ?.adaptivePlan
                 ?.primaryAction
@@ -1223,7 +1223,7 @@ export default function MovieMentorConversation({
               generatedResponse
                 ?.blueprint?.id ||
               null,
-                      responseValidated:
+            responseValidated:
               generatedResponse
                 ?.validation?.valid ??
               null,
@@ -1264,7 +1264,7 @@ export default function MovieMentorConversation({
           generationError: true,
         },
       });
-        } finally {
+    } finally {
       setLocalIsThinking(false);
       onThinkingChange?.(false);
     }
@@ -1406,7 +1406,7 @@ export default function MovieMentorConversation({
             />
           )}
 
-          {isThinking && (
+          {effectiveIsThinking && (
             <div
               style={
                 styles.mentorMessageRow
@@ -1567,12 +1567,12 @@ export default function MovieMentorConversation({
               onClick={
                 handleSend
               }
-                                          disabled={
+              disabled={
                 !draft.trim() ||
                 effectiveIsThinking ||
                 isGenerating
               }
-                            style={{
+              style={{
                 ...styles.sendButton,
                 ...(
                   !draft.trim() ||
