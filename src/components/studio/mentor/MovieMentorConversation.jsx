@@ -1198,7 +1198,7 @@ export default function MovieMentorConversation({
                         generationFallback:
               generationFailed,
             generationSilent: false,
-            generatedBehaviour:
+                        generatedBehaviour:
               generatedBehaviour,
             generatedAction:
               generatedResponse
@@ -1208,6 +1208,10 @@ export default function MovieMentorConversation({
               generatedResponse
                 ?.blueprint
                 ?.action ||
+              null,
+            blueprintId:
+              generatedResponse
+                ?.blueprint?.id ||
               null,
           },
         });
