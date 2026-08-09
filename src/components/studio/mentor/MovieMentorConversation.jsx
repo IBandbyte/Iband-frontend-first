@@ -1195,11 +1195,20 @@ export default function MovieMentorConversation({
               generatedResponse.status,
             responseSource:
               generatedResponse.source,
-            generationFallback:
+                        generationFallback:
               generationFailed,
             generationSilent: false,
             generatedBehaviour:
               generatedBehaviour,
+            generatedAction:
+              generatedResponse
+                ?.adaptivePlan
+                ?.primaryAction
+                ?.action ||
+              generatedResponse
+                ?.blueprint
+                ?.action ||
+              null,
           },
         });
       }
