@@ -1200,7 +1200,7 @@ export default function MovieMentorConversation({
             generationSilent: false,
                         generatedBehaviour:
               generatedBehaviour,
-            generatedAction:
+                        generatedAction:
               generatedResponse
                 ?.adaptivePlan
                 ?.primaryAction
@@ -1213,6 +1213,14 @@ export default function MovieMentorConversation({
               generatedResponse
                 ?.blueprint?.id ||
               null,
+            responseValidated:
+              generatedResponse
+                ?.validation?.valid ??
+              null,
+            validationIssues:
+              generatedResponse
+                ?.validation?.issues ||
+              [],
           },
         });
       }
