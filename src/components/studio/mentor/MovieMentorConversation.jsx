@@ -1151,9 +1151,27 @@ export default function MovieMentorConversation({
         generatedResponse?.response
           ?.text
       ) {
-        const generationFailed =
+                const generationFailed =
           generatedResponse.status ===
           "failed";
+
+        const generatedBehaviour =
+          generatedResponse?.adaptivePlan
+            ?.behaviour?.primary ||
+          generatedResponse?.adaptivePlan
+            ?.primaryAction?.behaviour ||
+          null;
+
+        const mentorBehaviour =
+          Object.values(
+            MENTOR_BEHAVIOURS
+          ).includes(
+            generatedBehaviour
+          )
+            ? generatedBehaviour
+            : generationFailed
+              ? MENTOR_BEHAVIOURS.CONTINUE
+              : MENTOR_BEHAVIOURS.DISCUSS;
 
         onSendMessage?.({
           id: createId(
@@ -1164,9 +1182,7 @@ export default function MovieMentorConversation({
           role: "mentor",
           type: MESSAGE_TYPES.TEXT,
           behaviour:
-            generationFailed
-              ? MENTOR_BEHAVIOURS.CONTINUE
-              : MENTOR_BEHAVIOURS.DISCUSS,
+            mentorBehaviour,
           text:
             generatedResponse.response
               .text,
@@ -1182,6 +1198,8 @@ export default function MovieMentorConversation({
             generationFallback:
               generationFailed,
             generationSilent: false,
+            generatedBehaviour:
+              generatedBehaviour,
           },
         });
       }
