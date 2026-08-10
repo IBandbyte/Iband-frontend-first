@@ -1,18 +1,18 @@
 /**
  * Communication Voice Engine
  * ------------------------------------------------------------
- * The communication-intelligence layer for iBand's AI Mentor —
- * The Creator.
+ * The communication-intelligence and performance layer for
+ * iBand's AI Mentor — The Creator.
  *
  * This engine receives:
  *
  * - An AdaptiveMentorEngine behaviour plan.
  * - A ResponseComposer blueprint.
- * - Current creator, project and relationship context.
+ * - Current creator, project, session and relationship context.
  *
  * It produces:
  *
- * - A communication voice plan.
+ * - A unified communication voice plan.
  * - Relationship and familiarity calibration.
  * - Text-expression guidance.
  * - Spoken-performance guidance.
@@ -25,6 +25,7 @@
  * - Memory-recall and forget-request expression guidance.
  * - Evidence and uncertainty controls.
  * - Solo and multi-creator participation guidance.
+ * - Provider-facing communication constraints.
  *
  * It does not:
  *
@@ -35,12 +36,38 @@
  * - Decide which specialist agent should run.
  * - Diagnose the creator.
  * - Infer private traits without evidence.
+ * - Override AdaptiveMentorEngine behaviour.
+ * - Override ResponseComposer structure.
  * - Replace the Mentor's permanent identity or principles.
+ *
+ * Architecture:
+ *
+ * CreatorEngine
+ *      ↓
+ * ConversationPlanner
+ *      ↓
+ * ReflectionEngine
+ *      ↓
+ * ProgressionEngine
+ *      ↓
+ * CreatorMemoryEngine
+ *      ↓
+ * AdaptiveMentorEngine
+ *      ↓
+ * ResponseComposer
+ *      ↓
+ * CommunicationVoiceEngine
+ *      ↓
+ * ResponseGenerator
  *
  * Core philosophy:
  *
  * - Communicate with the creator who is present now.
  * - Respond to evidence rather than imagined problems.
+ * - Present behaviour leads; memory informs.
+ * - The response blueprint controls what may be said.
+ * - Communication controls how permitted content should feel.
+ * - Never use communication style to reopen an upstream decision.
  * - Read the trajectory of the conversation, not only the last message.
  * - Educational, helpful and well paced does not mean long.
  * - Do not reassure someone who has not shown uncertainty.
@@ -56,7 +83,7 @@
  * - Complexity belongs behind the conversation.
  */
 
-const COMMUNICATION_VOICE_ENGINE_VERSION = "2.0.0";
+const COMMUNICATION_VOICE_ENGINE_VERSION = "3.0.0";
 
 const COMMUNICATION_MODES = Object.freeze({
   BUILD: "build",
@@ -69,11 +96,26 @@ const COMMUNICATION_MODES = Object.freeze({
   CELEBRATION: "celebration",
   COLLABORATION: "collaboration",
 
+  CREATION_HANDOFF:
+    "creation-handoff",
+
+  REFINEMENT_HANDOFF:
+    "refinement-handoff",
+
+  PUBLISHING_HANDOFF:
+    "publishing-handoff",
+
+  NEXT_TASK:
+    "next-task",
+
   PROJECT_RESTORATION:
     "project-restoration",
 
   MEMORY_RECALL:
     "memory-recall",
+
+  MEMORY_CAPTURE:
+    "memory-capture",
 
   MEMORY_FORGET:
     "memory-forget",
@@ -205,11 +247,15 @@ const CONVERSATION_PHASES = Object.freeze({
 
 const LANDING_STYLES = Object.freeze({
   NONE: "none",
+
   CONTINUE_FORWARD:
     "continue-forward",
+
   SOFT_STOP: "soft-stop",
+
   PRESERVE_AND_LEAVE:
     "preserve-and-leave",
+
   CLOSE_SESSION:
     "close-session",
 });
@@ -228,17 +274,26 @@ const SHORT_REPLY_INTERPRETATIONS =
     AGREES: "agrees",
     PROCESSING: "processing",
     BUSY: "busy",
+
     WANTS_TO_CONTINUE:
       "wants-to-continue",
+
     WANTS_TO_MOVE_ON:
       "wants-to-move-on",
+
     UNCERTAIN: "uncertain",
     OVERWHELMED: "overwhelmed",
     FILLER: "filler",
+
     BUILD_CONFIRMATION:
       "build-confirmation",
+
     READY_FOR_NEXT:
       "ready-for-next",
+
+    PAUSING: "pausing",
+    CLOSING: "closing",
+
     UNKNOWN: "unknown",
   });
 
@@ -246,6 +301,7 @@ const CHECK_IN_POLICIES = Object.freeze({
   NONE: "none",
   OPTIONAL: "optional",
   RECOMMENDED: "recommended",
+
   REQUIRED_BEFORE_PROGRESSING:
     "required-before-progressing",
 });
@@ -277,23 +333,33 @@ const RESPONSE_EFFECTS = Object.freeze({
 const COMMUNICATION_CHANNELS = Object.freeze({
   TEXT: "text",
   SPEECH: "speech",
+
   TEXT_AND_SPEECH:
     "text-and-speech",
-  FUTURE_AVATAR: "future-avatar",
+
+  FUTURE_AVATAR:
+    "future-avatar",
 });
 
 const PARTICIPATION_MODES = Object.freeze({
   SOLO: "solo",
+
   PRIMARY_WITH_GUEST:
     "primary-with-guest",
-  COLLABORATIVE: "collaborative",
+
+  COLLABORATIVE:
+    "collaborative",
+
   GROUP: "group",
 });
 
 const PARTICIPANT_ROLES = Object.freeze({
   PRIMARY_CREATOR:
     "primary-creator",
-  COLLABORATOR: "collaborator",
+
+  COLLABORATOR:
+    "collaborator",
+
   GUEST: "guest",
   OBSERVER: "observer",
   PRODUCER: "producer",
@@ -341,6 +407,9 @@ const COMMUNICATION_ACTIONS = Object.freeze({
   EXPRESS_MEMORY_NATURALLY:
     "express-memory-naturally",
 
+  EXPRESS_MEMORY_CAPTURE_MINIMALLY:
+    "express-memory-capture-minimally",
+
   CLARIFY_FORGET_REQUEST:
     "clarify-forget-request",
 
@@ -364,6 +433,12 @@ const COMMUNICATION_ACTIONS = Object.freeze({
 
   HIDE_SPECIALIST_MACHINERY:
     "hide-specialist-machinery",
+
+  OBEY_BLUEPRINT_QUESTION_LIMIT:
+    "obey-blueprint-question-limit",
+
+  OBEY_BLUEPRINT_SILENCE:
+    "obey-blueprint-silence",
 });
 
 const DEFAULT_VOICE_PROFILE = Object.freeze({
@@ -374,8 +449,10 @@ const DEFAULT_VOICE_PROFILE = Object.freeze({
   locale: "en-GB",
 
   apparentAge: "neutral-adult",
+
   genderPresentation:
     "creator-choice",
+
   accent: "neutral",
 
   warmth: 0.72,
@@ -400,6 +477,10 @@ const DEFAULT_COMMUNICATION_CONTEXT =
     creatorId: null,
     creatorName: null,
     creatorJourney: "guide",
+    creatorType: null,
+
+    creatorProfile: null,
+    creatorMemoryContext: null,
 
     message: "",
 
@@ -408,8 +489,10 @@ const DEFAULT_COMMUNICATION_CONTEXT =
     recentConversations: [],
 
     projectType: null,
+
     activeProject: null,
     activeProjectId: null,
+
     activeIdea: null,
     activeStage: null,
     activeScene: null,
@@ -424,6 +507,7 @@ const DEFAULT_COMMUNICATION_CONTEXT =
 
     conversationMode: null,
     thinkingMode: null,
+
     creatorEnergy: null,
     momentum: null,
     guidanceWindow: null,
@@ -435,6 +519,7 @@ const DEFAULT_COMMUNICATION_CONTEXT =
 
     creatorConfidence: null,
     creatorAppearsConfused: false,
+    creatorAppearsFinished: true,
 
     creatorExplicitlyAskedForHelp:
       false,
@@ -442,10 +527,16 @@ const DEFAULT_COMMUNICATION_CONTEXT =
     creatorExplicitlyAskedForExplanation:
       false,
 
+    creatorExplicitlyAskedForGuidance:
+      false,
+
     creatorExplicitlyAskedToContinue:
       false,
 
     creatorExplicitlyAskedForNextStep:
+      false,
+
+    creatorExplicitlyAskedToCreate:
       false,
 
     creatorExplicitlyAskedToPause:
@@ -474,6 +565,7 @@ const DEFAULT_COMMUNICATION_CONTEXT =
     sharedJokes: [],
 
     preferredResponseDepth: null,
+
     preferredCommunicationPace:
       null,
 
@@ -484,14 +576,17 @@ const DEFAULT_COMMUNICATION_CONTEXT =
     emojisAllowed: true,
 
     participants: [],
+
     primaryCreatorId: null,
     currentSpeakerId: null,
+
     participationMode: null,
 
     language: "en",
     locale: "en-GB",
 
     sourceAgent: null,
+    sourceSystem: null,
 
     currentTimestamp: null,
   });
@@ -702,6 +797,30 @@ function getAdaptiveAction(
   );
 }
 
+function getConversationPlannerMode(
+  adaptivePlan
+) {
+  return cleanString(
+    getNestedValue(
+      adaptivePlan,
+      "specialistPlans.conversation.conversation.mode",
+      ""
+    )
+  );
+}
+
+function getConversationPlannerMove(
+  adaptivePlan
+) {
+  return cleanString(
+    getNestedValue(
+      adaptivePlan,
+      "specialistPlans.conversation.conversation.mentorMove",
+      ""
+    )
+  );
+}
+
 function getProjectId({
   adaptivePlan,
   responseBlueprint,
@@ -755,6 +874,40 @@ function getProjectId({
   return null;
 }
 
+function getBlueprintMaximumQuestions(
+  responseBlueprint
+) {
+  const value =
+    Number(
+      responseBlueprint
+        ?.constraints
+        ?.maximumQuestions
+    );
+
+  if (
+    !Number.isFinite(
+      value
+    )
+  ) {
+    return 0;
+  }
+
+  return Math.max(
+    0,
+    Math.floor(value)
+  );
+}
+
+function blueprintAllowsQuestions(
+  responseBlueprint
+) {
+  return (
+    getBlueprintMaximumQuestions(
+      responseBlueprint
+    ) > 0
+  );
+}
+
 function blueprintRequestsSilence(
   responseBlueprint
 ) {
@@ -782,6 +935,25 @@ function blueprintUsesMemory(
     responseBlueprint
       ?.constraints
       ?.shouldUseMemory
+  );
+}
+
+function blueprintCapturesMemory(
+  responseBlueprint
+) {
+  return Boolean(
+    responseBlueprint
+      ?.memory
+      ?.shouldCapture ||
+    responseBlueprint
+      ?.executionIntent
+      ?.shouldCaptureMemory ||
+    responseBlueprint
+      ?.constraints
+      ?.shouldMentionMemoryCapture ||
+    responseBlueprint
+      ?.action ===
+      "compose-capture-and-continue"
   );
 }
 
@@ -813,7 +985,10 @@ function blueprintPreservesSessionHandoff(
       ?.shouldPreserveSessionHandoff ||
     responseBlueprint
       ?.action ===
-      "compose-session-handoff"
+      "compose-session-handoff" ||
+    responseBlueprint
+      ?.action ===
+      "compose-session-pause"
   );
 }
 
@@ -856,6 +1031,7 @@ function hasSpecialistMachinery({
 }) {
   return Boolean(
     context?.sourceAgent ||
+    context?.sourceSystem ||
     getNestedValue(
       adaptivePlan,
       "projectState.specialistMemorySignalsPresent",
@@ -869,34 +1045,66 @@ function hasSpecialistMachinery({
   );
 }
 
-function resolveRelationshipStage(
-  context
+function normaliseRelationshipStage(
+  value
 ) {
   if (
     Object.values(
       RELATIONSHIP_STAGES
-    ).includes(
+    ).includes(value)
+  ) {
+    return value;
+  }
+
+  return null;
+}
+
+function resolveRelationshipStage(
+  context
+) {
+  const explicitStage =
+    normaliseRelationshipStage(
       context
         ?.relationshipStage
-    )
-  ) {
-    return (
-      context
-        .relationshipStage
     );
+
+  if (explicitStage) {
+    return explicitStage;
+  }
+
+  const rememberedStage =
+    normaliseRelationshipStage(
+      context
+        ?.creatorMemoryContext
+        ?.relationshipStage
+    );
+
+  if (rememberedStage) {
+    return rememberedStage;
   }
 
   const interactionCount =
     Number(
       context
-        ?.interactionCount
-    ) || 0;
+        ?.interactionCount ||
+      context
+        ?.creatorMemoryContext
+        ?.interactionCount ||
+      context
+        ?.creatorMemoryContext
+        ?.conversationCount ||
+      0
+    );
 
   const knownDurationDays =
     Number(
       context
-        ?.knownDurationDays
-    ) || 0;
+        ?.knownDurationDays ||
+      context
+        ?.creatorMemoryContext
+        ?.knownDurationDays ||
+      0
+    );
 
   const sharedHistoryCount =
     asArray(
@@ -1044,6 +1252,11 @@ function resolveCommunicationMode({
       adaptivePlan
     );
 
+  const conversationMode =
+    getConversationPlannerMode(
+      adaptivePlan
+    );
+
   if (
     blueprintRequestsSilence(
       responseBlueprint
@@ -1074,9 +1287,7 @@ function resolveCommunicationMode({
   if (
     blueprintPreservesSessionHandoff(
       responseBlueprint
-    ) ||
-    composerAction ===
-      "compose-session-pause"
+    )
   ) {
     return (
       COMMUNICATION_MODES
@@ -1096,6 +1307,46 @@ function resolveCommunicationMode({
   }
 
   if (
+    composerAction ===
+      "compose-creation-handoff"
+  ) {
+    return (
+      COMMUNICATION_MODES
+        .CREATION_HANDOFF
+    );
+  }
+
+  if (
+    composerAction ===
+      "compose-next-task"
+  ) {
+    return (
+      COMMUNICATION_MODES
+        .NEXT_TASK
+    );
+  }
+
+  if (
+    composerAction ===
+      "compose-refinement-handoff"
+  ) {
+    return (
+      COMMUNICATION_MODES
+        .REFINEMENT_HANDOFF
+    );
+  }
+
+  if (
+    composerAction ===
+      "compose-publishing-handoff"
+  ) {
+    return (
+      COMMUNICATION_MODES
+        .PUBLISHING_HANDOFF
+    );
+  }
+
+  if (
     blueprintUsesMemory(
       responseBlueprint
     ) ||
@@ -1105,6 +1356,17 @@ function resolveCommunicationMode({
     return (
       COMMUNICATION_MODES
         .MEMORY_RECALL
+    );
+  }
+
+  if (
+    blueprintCapturesMemory(
+      responseBlueprint
+    )
+  ) {
+    return (
+      COMMUNICATION_MODES
+        .MEMORY_CAPTURE
     );
   }
 
@@ -1164,11 +1426,23 @@ function resolveCommunicationMode({
   }
 
   if (
+    conversationMode ===
+      "celebration"
+  ) {
+    return (
+      COMMUNICATION_MODES
+        .CELEBRATION
+    );
+  }
+
+  if (
     signals.includes(
       "learning-mode"
     ) ||
     context
       ?.thinkingMode ===
+      "learning" ||
+    conversationMode ===
       "learning"
   ) {
     return (
@@ -1183,6 +1457,8 @@ function resolveCommunicationMode({
     ) ||
     context
       ?.thinkingMode ===
+      "reflection" ||
+    conversationMode ===
       "reflection"
   ) {
     return (
@@ -1197,7 +1473,11 @@ function resolveCommunicationMode({
     ) ||
     context
       ?.thinkingMode ===
-      "recovery"
+      "recovery" ||
+    conversationMode ===
+      "recovery" ||
+    conversationMode ===
+      "confidence"
   ) {
     return (
       COMMUNICATION_MODES
@@ -1225,7 +1505,11 @@ function resolveCommunicationMode({
     ) ||
     context
       ?.thinkingMode ===
-      "exploration"
+      "exploration" ||
+    conversationMode ===
+      "imagination" ||
+    conversationMode ===
+      "discovery"
   ) {
     return (
       COMMUNICATION_MODES
@@ -1276,6 +1560,9 @@ function resolveConversationPhase({
     "ill be back later",
     "i'll be back",
     "ill be back",
+    "that's me done",
+    "thats me done",
+    "done for tonight",
   ];
 
   const adaptiveAction =
@@ -1299,6 +1586,8 @@ function resolveConversationPhase({
     blueprintPreservesSessionHandoff(
       responseBlueprint
     ) ||
+    context
+      ?.creatorExplicitlyAskedToPause ||
     includesAny(
       text,
       landingPhrases
@@ -1329,8 +1618,16 @@ function resolveConversationPhase({
         ?.recentCreatorMessages
     ).length;
 
+  const interactionCount =
+    Number(
+      context
+        ?.interactionCount ||
+      0
+    );
+
   if (
-    creatorMessageCount <= 1
+    creatorMessageCount <= 1 &&
+    interactionCount <= 1
   ) {
     return (
       CONVERSATION_PHASES
@@ -1405,9 +1702,9 @@ function detectShortReply(
 
   return {
     isShortReply:
-      wordCount <= 3 &&
+      wordCount <= 4 &&
       cleanedMessage.length <=
-        24,
+        32,
 
     wordCount,
 
@@ -1420,6 +1717,7 @@ function interpretShortReply({
   message,
   context,
   adaptivePlan,
+  responseBlueprint,
 }) {
   const detection =
     detectShortReply(
@@ -1472,6 +1770,16 @@ function interpretShortReply({
       adaptivePlan?.signals
     ).includes(
       "build-mode"
+    ) ||
+    [
+      "compose-next-task",
+      "compose-creation-handoff",
+      "compose-refinement-handoff",
+      "compose-publishing-handoff",
+    ].includes(
+      getComposerAction(
+        responseBlueprint
+      )
     );
 
   const forwardPhrases = [
@@ -1482,7 +1790,35 @@ function interpretShortReply({
     "go on",
     "continue",
     "fire away",
+    "let's go",
+    "lets go",
   ];
+
+  const pausePhrases = [
+    "later",
+    "tomorrow",
+    "pause",
+    "stop here",
+    "not now",
+    "goodnight",
+    "good night",
+  ];
+
+  if (
+    includesAny(
+      text,
+      pausePhrases
+    )
+  ) {
+    addPossibility(
+      SHORT_REPLY_INTERPRETATIONS
+        .PAUSING,
+
+      0.94,
+
+      "explicit short pause language"
+    );
+  }
 
   if (
     buildMode &&
@@ -1495,7 +1831,7 @@ function interpretShortReply({
       SHORT_REPLY_INTERPRETATIONS
         .READY_FOR_NEXT,
 
-      0.93,
+      0.95,
 
       "explicit short forward-moving build reply"
     );
@@ -1504,7 +1840,7 @@ function interpretShortReply({
       SHORT_REPLY_INTERPRETATIONS
         .WANTS_TO_CONTINUE,
 
-      0.9,
+      0.92,
 
       "build context supports continuation"
     );
@@ -1528,7 +1864,7 @@ function interpretShortReply({
       SHORT_REPLY_INTERPRETATIONS
         .BUILD_CONFIRMATION,
 
-      0.82,
+      0.86,
 
       "short confirmation during build mode"
     );
@@ -1571,15 +1907,6 @@ function interpretShortReply({
       0.38,
 
       "brief forward-moving reply"
-    );
-
-    addPossibility(
-      SHORT_REPLY_INTERPRETATIONS
-        .FILLER,
-
-      0.28,
-
-      "brief reply may preserve conversation"
     );
   }
 
@@ -1648,9 +1975,37 @@ function interpretShortReply({
       SHORT_REPLY_INTERPRETATIONS
         .WANTS_TO_CONTINUE,
 
-      0.82,
+      0.84,
 
       "explicit forward direction in context"
+    );
+  }
+
+  if (
+    context
+      ?.creatorExplicitlyAskedToPause
+  ) {
+    addPossibility(
+      SHORT_REPLY_INTERPRETATIONS
+        .PAUSING,
+
+      0.96,
+
+      "explicit pause direction in context"
+    );
+  }
+
+  if (
+    context
+      ?.creatorExplicitlyAskedToStop
+  ) {
+    addPossibility(
+      SHORT_REPLY_INTERPRETATIONS
+        .CLOSING,
+
+      0.98,
+
+      "explicit stop direction in context"
     );
   }
 
@@ -1698,20 +2053,20 @@ function interpretShortReply({
   ) {
     addPossibility(
       SHORT_REPLY_INTERPRETATIONS
-        .BUSY,
-
-      0.36,
-
-      "limited-response context"
-    );
-
-    addPossibility(
-      SHORT_REPLY_INTERPRETATIONS
         .PROCESSING,
 
       0.45,
 
       "low-energy context"
+    );
+
+    addPossibility(
+      SHORT_REPLY_INTERPRETATIONS
+        .BUSY,
+
+      0.34,
+
+      "limited-response context"
     );
   }
 
@@ -1759,8 +2114,7 @@ function interpretShortReply({
   if (
     strongest
       ?.confidence >=
-      0.85 &&
-    separation >= 0.05
+      0.9
   ) {
     confidence =
       CREATOR_SIGNAL_CONFIDENCE
@@ -1768,8 +2122,8 @@ function interpretShortReply({
   } else if (
     strongest
       ?.confidence >=
-      0.75 &&
-    separation >= 0.12
+      0.78 &&
+    separation >= 0.05
   ) {
     confidence =
       CREATOR_SIGNAL_CONFIDENCE
@@ -1778,7 +2132,7 @@ function interpretShortReply({
     strongest
       ?.confidence >=
       0.55 &&
-    separation >= 0.1
+    separation >= 0.08
   ) {
     confidence =
       CREATOR_SIGNAL_CONFIDENCE
@@ -1982,8 +2336,10 @@ function analyseQuestionPattern({
     normaliseText(
       [
         extractMessageText(
-          context
-            ?.recentCreatorMessages
+          asArray(
+            context
+              ?.recentCreatorMessages
+          ).slice(-5)
         ),
 
         message,
@@ -2109,7 +2465,11 @@ function resolveParticipation({
       ?.participationMode;
 
   if (
-    !participationMode
+    !Object.values(
+      PARTICIPATION_MODES
+    ).includes(
+      participationMode
+    )
   ) {
     if (
       participants.length <=
@@ -2193,6 +2553,12 @@ function resolveParticipation({
           ?.known ===
           false
       ),
+
+    personalMemoryMustRemainScoped:
+      participants.length > 1,
+
+    projectMemoryMayBeShared:
+      participants.length > 1,
   };
 }
 
@@ -2219,9 +2585,66 @@ function resolveCommunicationChannel({
   );
 }
 
+function resolvePreferredDepth(
+  preferredDepth
+) {
+  if (
+    Object.values(
+      COMMUNICATION_DEPTHS
+    ).includes(
+      preferredDepth
+    )
+  ) {
+    return preferredDepth;
+  }
+
+  switch (
+    preferredDepth
+  ) {
+    case "silent":
+    case "one-line":
+    case "minimal":
+      return (
+        COMMUNICATION_DEPTHS
+          .MINIMAL
+      );
+
+    case "short":
+    case "concise":
+      return (
+        COMMUNICATION_DEPTHS
+          .CONCISE
+      );
+
+    case "medium":
+    case "balanced":
+      return (
+        COMMUNICATION_DEPTHS
+          .BALANCED
+      );
+
+    case "detailed":
+    case "explanatory":
+      return (
+        COMMUNICATION_DEPTHS
+          .EXPLANATORY
+      );
+
+    case "deep":
+      return (
+        COMMUNICATION_DEPTHS
+          .DEEP
+      );
+
+    default:
+      return null;
+  }
+}
+
 function resolveCommunicationPace({
   mode,
   adaptivePlan,
+  responseBlueprint,
   context,
   uncertainty,
 }) {
@@ -2240,6 +2663,17 @@ function resolveCommunicationPace({
   }
 
   if (
+    blueprintRequestsSilence(
+      responseBlueprint
+    )
+  ) {
+    return (
+      COMMUNICATION_PACES
+        .VERY_SLOW
+    );
+  }
+
+  if (
     mode ===
       COMMUNICATION_MODES
         .MEMORY_FORGET
@@ -2247,6 +2681,27 @@ function resolveCommunicationPace({
     return (
       COMMUNICATION_PACES
         .BRISK
+    );
+  }
+
+  if (
+    [
+      COMMUNICATION_MODES
+        .CREATION_HANDOFF,
+
+      COMMUNICATION_MODES
+        .REFINEMENT_HANDOFF,
+
+      COMMUNICATION_MODES
+        .PUBLISHING_HANDOFF,
+
+      COMMUNICATION_MODES
+        .NEXT_TASK,
+    ].includes(mode)
+  ) {
+    return (
+      COMMUNICATION_PACES
+        .FAST
     );
   }
 
@@ -2348,18 +2803,14 @@ function resolveCommunicationDepth({
   context,
   questionPattern,
 }) {
-  if (
-    Object.values(
-      COMMUNICATION_DEPTHS
-    ).includes(
+  const preferredDepth =
+    resolvePreferredDepth(
       context
         ?.preferredResponseDepth
-    )
-  ) {
-    return (
-      context
-        .preferredResponseDepth
     );
+
+  if (preferredDepth) {
+    return preferredDepth;
   }
 
   const adaptiveDepth =
@@ -2375,15 +2826,7 @@ function resolveCommunicationDepth({
 
   if (
     blueprintLength ===
-      "silent"
-  ) {
-    return (
-      COMMUNICATION_DEPTHS
-        .MINIMAL
-    );
-  }
-
-  if (
+      "silent" ||
     blueprintLength ===
       "one-line"
   ) {
@@ -2407,6 +2850,18 @@ function resolveCommunicationDepth({
   if (
     [
       COMMUNICATION_MODES
+        .CREATION_HANDOFF,
+
+      COMMUNICATION_MODES
+        .REFINEMENT_HANDOFF,
+
+      COMMUNICATION_MODES
+        .PUBLISHING_HANDOFF,
+
+      COMMUNICATION_MODES
+        .NEXT_TASK,
+
+      COMMUNICATION_MODES
         .SESSION_HANDOFF,
 
       COMMUNICATION_MODES
@@ -2414,6 +2869,9 @@ function resolveCommunicationDepth({
 
       COMMUNICATION_MODES
         .RETURNING,
+
+      COMMUNICATION_MODES
+        .MEMORY_CAPTURE,
     ].includes(mode)
   ) {
     return (
@@ -2464,6 +2922,16 @@ function resolveCommunicationDepth({
   }
 
   if (
+    adaptiveDepth ===
+      "medium"
+  ) {
+    return (
+      COMMUNICATION_DEPTHS
+        .BALANCED
+    );
+  }
+
+  if (
     mode ===
       COMMUNICATION_MODES
         .REFLECTION ||
@@ -2487,6 +2955,7 @@ function resolveCommunicationTone({
   mode,
   uncertainty,
   context,
+  responseBlueprint,
 }) {
   if (
     uncertainty
@@ -2512,12 +2981,50 @@ function resolveCommunicationTone({
     );
   }
 
+  const blueprintWarmth =
+    responseBlueprint
+      ?.style
+      ?.warmth;
+
+  if (
+    blueprintWarmth ===
+      "deeply-warm" &&
+    ![
+      COMMUNICATION_MODES
+        .BUILD,
+
+      COMMUNICATION_MODES
+        .NEXT_TASK,
+    ].includes(mode)
+  ) {
+    return (
+      COMMUNICATION_TONES
+        .WARM
+    );
+  }
+
   switch (mode) {
     case COMMUNICATION_MODES
       .BUILD:
+
+    case COMMUNICATION_MODES
+      .NEXT_TASK:
       return (
         COMMUNICATION_TONES
           .FOCUSED
+      );
+
+    case COMMUNICATION_MODES
+      .CREATION_HANDOFF:
+
+    case COMMUNICATION_MODES
+      .REFINEMENT_HANDOFF:
+
+    case COMMUNICATION_MODES
+      .PUBLISHING_HANDOFF:
+      return (
+        COMMUNICATION_TONES
+          .CONFIDENT
       );
 
     case COMMUNICATION_MODES
@@ -2564,6 +3071,7 @@ function resolveCommunicationTone({
 
     case COMMUNICATION_MODES
       .PROJECT_RESTORATION:
+
     case COMMUNICATION_MODES
       .RETURNING:
       return (
@@ -2573,6 +3081,9 @@ function resolveCommunicationTone({
 
     case COMMUNICATION_MODES
       .MEMORY_RECALL:
+
+    case COMMUNICATION_MODES
+      .MEMORY_CAPTURE:
       return (
         COMMUNICATION_TONES
           .WARM
@@ -2587,8 +3098,12 @@ function resolveCommunicationTone({
 
     case COMMUNICATION_MODES
       .SESSION_HANDOFF:
+
     case COMMUNICATION_MODES
       .CONVERSATION_LANDING:
+
+    case COMMUNICATION_MODES
+      .INCUBATION:
       return (
         COMMUNICATION_TONES
           .QUIET
@@ -2605,6 +3120,7 @@ function resolveCommunicationTone({
 function resolveDirectness({
   mode,
   adaptivePlan,
+  responseBlueprint,
   uncertainty,
 }) {
   if (
@@ -2624,6 +3140,41 @@ function resolveDirectness({
       "walk-beside"
     );
 
+  const blueprintDirectness =
+    responseBlueprint
+      ?.style
+      ?.directness;
+
+  if (
+    blueprintDirectness ===
+      "very-direct"
+  ) {
+    return (
+      DIRECTNESS_LEVELS
+        .VERY_DIRECT
+    );
+  }
+
+  if (
+    blueprintDirectness ===
+      "direct"
+  ) {
+    return (
+      DIRECTNESS_LEVELS
+        .DIRECT
+    );
+  }
+
+  if (
+    blueprintDirectness ===
+      "gentle"
+  ) {
+    return (
+      DIRECTNESS_LEVELS
+        .GENTLE
+    );
+  }
+
   if (
     mode ===
       COMMUNICATION_MODES
@@ -2636,9 +3187,22 @@ function resolveDirectness({
   }
 
   if (
-    mode ===
+    [
       COMMUNICATION_MODES
-        .BUILD ||
+        .BUILD,
+
+      COMMUNICATION_MODES
+        .NEXT_TASK,
+
+      COMMUNICATION_MODES
+        .CREATION_HANDOFF,
+
+      COMMUNICATION_MODES
+        .REFINEMENT_HANDOFF,
+
+      COMMUNICATION_MODES
+        .PUBLISHING_HANDOFF,
+    ].includes(mode) ||
     stance ===
       "lead"
   ) {
@@ -2665,20 +3229,6 @@ function resolveDirectness({
     );
   }
 
-  if (
-    mode ===
-      COMMUNICATION_MODES
-        .PROJECT_RESTORATION ||
-    mode ===
-      COMMUNICATION_MODES
-        .SESSION_HANDOFF
-  ) {
-    return (
-      DIRECTNESS_LEVELS
-        .BALANCED
-    );
-  }
-
   return (
     DIRECTNESS_LEVELS
       .BALANCED
@@ -2688,7 +3238,19 @@ function resolveDirectness({
 function resolveCommunicationEnergy({
   mode,
   context,
+  responseBlueprint,
 }) {
+  if (
+    blueprintRequestsSilence(
+      responseBlueprint
+    )
+  ) {
+    return (
+      COMMUNICATION_ENERGY
+        .VERY_LOW
+    );
+  }
+
   if (
     context
       ?.creatorEnergy ===
@@ -2712,7 +3274,10 @@ function resolveCommunicationEnergy({
         .SESSION_HANDOFF ||
     mode ===
       COMMUNICATION_MODES
-        .CONVERSATION_LANDING
+        .CONVERSATION_LANDING ||
+    mode ===
+      COMMUNICATION_MODES
+        .INCUBATION
   ) {
     return (
       COMMUNICATION_ENERGY
@@ -2721,19 +3286,40 @@ function resolveCommunicationEnergy({
   }
 
   if (
-    mode ===
+    [
       COMMUNICATION_MODES
-        .FLOW ||
-    mode ===
+        .FLOW,
+
       COMMUNICATION_MODES
-        .BUILD ||
+        .BUILD,
+
+      COMMUNICATION_MODES
+        .NEXT_TASK,
+
+      COMMUNICATION_MODES
+        .CREATION_HANDOFF,
+    ].includes(mode) ||
     context
       ?.momentum ===
-      "strong"
+      "strong" ||
+    context
+      ?.momentum ===
+      "rising"
   ) {
     return (
       COMMUNICATION_ENERGY
         .HIGH
+    );
+  }
+
+  if (
+    mode ===
+      COMMUNICATION_MODES
+        .CELEBRATION
+  ) {
+    return (
+      COMMUNICATION_ENERGY
+        .LIFTING
     );
   }
 
@@ -2748,20 +3334,6 @@ function resolveCommunicationEnergy({
     return (
       COMMUNICATION_ENERGY
         .LOW
-    );
-  }
-
-  if (
-    mode ===
-      COMMUNICATION_MODES
-        .RETURNING ||
-    mode ===
-      COMMUNICATION_MODES
-        .PROJECT_RESTORATION
-  ) {
-    return (
-      COMMUNICATION_ENERGY
-        .MATCHED
     );
   }
 
@@ -2810,6 +3382,9 @@ function resolveHumourPolicy({
 
       COMMUNICATION_MODES
         .RECOVERY,
+
+      COMMUNICATION_MODES
+        .INCUBATION,
     ].includes(mode)
   ) {
     return {
@@ -3024,6 +3599,18 @@ function resolveCreativeExpression({
         .FLOW,
 
       COMMUNICATION_MODES
+        .NEXT_TASK,
+
+      COMMUNICATION_MODES
+        .CREATION_HANDOFF,
+
+      COMMUNICATION_MODES
+        .REFINEMENT_HANDOFF,
+
+      COMMUNICATION_MODES
+        .PUBLISHING_HANDOFF,
+
+      COMMUNICATION_MODES
         .MEMORY_FORGET,
 
       COMMUNICATION_MODES
@@ -3031,6 +3618,12 @@ function resolveCreativeExpression({
 
       COMMUNICATION_MODES
         .SESSION_HANDOFF,
+
+      COMMUNICATION_MODES
+        .MEMORY_CAPTURE,
+
+      COMMUNICATION_MODES
+        .INCUBATION,
     ].includes(mode)
   ) {
     analogy =
@@ -3052,6 +3645,7 @@ function resolvePerformance({
   channel,
   uncertainty,
   conversationPhase,
+  responseBlueprint,
 }) {
   let pauseStyle =
     PAUSE_STYLES.NATURAL;
@@ -3060,15 +3654,39 @@ function resolvePerformance({
     EMPHASIS_STYLES.NATURAL;
 
   if (
-    mode ===
+    blueprintRequestsSilence(
+      responseBlueprint
+    )
+  ) {
+    pauseStyle =
+      PAUSE_STYLES
+        .HOLD_SPACE;
+
+    emphasis =
+      EMPHASIS_STYLES.FLAT;
+  } else if (
+    [
       COMMUNICATION_MODES
-        .BUILD ||
-    mode ===
+        .BUILD,
+
       COMMUNICATION_MODES
-        .FLOW ||
-    mode ===
+        .FLOW,
+
       COMMUNICATION_MODES
-        .MEMORY_FORGET
+        .NEXT_TASK,
+
+      COMMUNICATION_MODES
+        .CREATION_HANDOFF,
+
+      COMMUNICATION_MODES
+        .REFINEMENT_HANDOFF,
+
+      COMMUNICATION_MODES
+        .PUBLISHING_HANDOFF,
+
+      COMMUNICATION_MODES
+        .MEMORY_FORGET,
+    ].includes(mode)
   ) {
     pauseStyle =
       PAUSE_STYLES.MICRO;
@@ -3076,9 +3694,7 @@ function resolvePerformance({
     emphasis =
       EMPHASIS_STYLES
         .SELECTIVE;
-  }
-
-  if (
+  } else if (
     mode ===
       COMMUNICATION_MODES
         .REFLECTION ||
@@ -3124,6 +3740,36 @@ function resolvePerformance({
         .LIGHT;
   }
 
+  const openingPauseMs =
+    pauseStyle ===
+      PAUSE_STYLES
+        .HOLD_SPACE
+      ? 1000
+      : pauseStyle ===
+          PAUSE_STYLES
+            .REFLECTIVE
+        ? 450
+        : pauseStyle ===
+            PAUSE_STYLES
+              .MICRO
+          ? 80
+          : 180;
+
+  const interSentencePauseMs =
+    pauseStyle ===
+      PAUSE_STYLES
+        .HOLD_SPACE
+      ? 700
+      : pauseStyle ===
+          PAUSE_STYLES
+            .REFLECTIVE
+        ? 420
+        : pauseStyle ===
+            PAUSE_STYLES
+              .MICRO
+          ? 100
+          : 220;
+
   return {
     channel,
 
@@ -3131,7 +3777,10 @@ function resolvePerformance({
       paragraphSpacing:
         pauseStyle ===
           PAUSE_STYLES
-            .REFLECTIVE
+            .REFLECTIVE ||
+        pauseStyle ===
+          PAUSE_STYLES
+            .HOLD_SPACE
           ? "generous"
           : pauseStyle ===
               PAUSE_STYLES
@@ -3140,12 +3789,16 @@ function resolvePerformance({
             : "natural",
 
       sentenceLength:
-        mode ===
+        [
           COMMUNICATION_MODES
-            .BUILD ||
-        mode ===
+            .BUILD,
+
           COMMUNICATION_MODES
-            .MEMORY_FORGET
+            .NEXT_TASK,
+
+          COMMUNICATION_MODES
+            .MEMORY_FORGET,
+        ].includes(mode)
           ? "short"
           : mode ===
               COMMUNICATION_MODES
@@ -3163,27 +3816,9 @@ function resolvePerformance({
     speech: {
       pauseStyle,
 
-      openingPauseMs:
-        pauseStyle ===
-          PAUSE_STYLES
-            .REFLECTIVE
-          ? 450
-          : pauseStyle ===
-              PAUSE_STYLES
-                .MICRO
-            ? 80
-            : 180,
+      openingPauseMs,
 
-      interSentencePauseMs:
-        pauseStyle ===
-          PAUSE_STYLES
-            .REFLECTIVE
-          ? 420
-          : pauseStyle ===
-              PAUSE_STYLES
-                .MICRO
-            ? 100
-            : 220,
+      interSentencePauseMs,
 
       emphasis,
 
@@ -3192,12 +3827,23 @@ function resolvePerformance({
 
       guidance: [
         "Do not stress every word equally.",
+
         "Emphasise only the words carrying the sentence's meaning.",
+
         "Avoid exaggerated performance unless the content genuinely calls for it.",
+
         "Allow pitch, volume and speed to vary naturally.",
+
         "Do not force a youthful, fashionable or culturally coded vocal mannerism.",
+
         "Do not change semantic meaning through vocal emphasis.",
-      ],
+
+        blueprintRequestsSilence(
+          responseBlueprint
+        )
+          ? "If silence is the response, do not manufacture spoken filler."
+          : null,
+      ].filter(Boolean),
     },
 
     avatar: {
@@ -3216,23 +3862,42 @@ function resolvePerformance({
                 .REFLECTION ||
             mode ===
               COMMUNICATION_MODES
-                .RECOVERY
+                .RECOVERY ||
+            mode ===
+              COMMUNICATION_MODES
+                .INCUBATION
             ? "subtle"
             : "natural",
 
       gestureDensity:
-        mode ===
+        [
           COMMUNICATION_MODES
-            .BUILD
+            .BUILD,
+
+          COMMUNICATION_MODES
+            .NEXT_TASK,
+
+          COMMUNICATION_MODES
+            .INCUBATION,
+        ].includes(mode)
           ? "low"
           : "natural",
 
       guidance: [
         "Facial expression and gesture must support rather than exaggerate the meaning.",
+
         "Do not perform emotional certainty the Mentor does not have.",
+
         "Do not allow avatar animation to create false urgency.",
+
         "Maintain one continuous Mentor identity across text, speech and avatar presentation.",
-      ],
+
+        blueprintRequestsSilence(
+          responseBlueprint
+        )
+          ? "During intentional silence, use only quiet presence rather than animated prompting."
+          : null,
+      ].filter(Boolean),
     },
   };
 }
@@ -3246,6 +3911,27 @@ function resolveCheckInPolicy({
   context,
   responseBlueprint,
 }) {
+  const maximumQuestions =
+    getBlueprintMaximumQuestions(
+      responseBlueprint
+    );
+
+  if (
+    blueprintRequestsSilence(
+      responseBlueprint
+    )
+  ) {
+    return {
+      policy:
+        CHECK_IN_POLICIES.NONE,
+
+      type: null,
+
+      reason:
+        "The response blueprint requires silence.",
+    };
+  }
+
   if (
     blueprintClarifiesForget(
       responseBlueprint
@@ -3253,15 +3939,39 @@ function resolveCheckInPolicy({
   ) {
     return {
       policy:
-        CHECK_IN_POLICIES
-          .REQUIRED_BEFORE_PROGRESSING,
+        maximumQuestions > 0
+          ? CHECK_IN_POLICIES
+              .REQUIRED_BEFORE_PROGRESSING
+          : CHECK_IN_POLICIES.NONE,
 
       type:
-        CHECK_IN_TYPES
-          .DIRECTION,
+        maximumQuestions > 0
+          ? CHECK_IN_TYPES
+              .DIRECTION
+          : null,
 
       reason:
-        "The forget target must be clarified before memory can be changed.",
+        maximumQuestions > 0
+          ? "The forget target must be clarified before memory can be changed."
+          : "The response blueprint does not permit a question.",
+    };
+  }
+
+  /**
+   * CommunicationVoiceEngine must never create a new question
+   * after ResponseComposer has already prohibited questions.
+   */
+  if (
+    maximumQuestions <= 0
+  ) {
+    return {
+      policy:
+        CHECK_IN_POLICIES.NONE,
+
+      type: null,
+
+      reason:
+        "The response blueprint allows no questions.",
     };
   }
 
@@ -3274,10 +3984,25 @@ function resolveCheckInPolicy({
         .FLOW,
 
       COMMUNICATION_MODES
+        .NEXT_TASK,
+
+      COMMUNICATION_MODES
+        .CREATION_HANDOFF,
+
+      COMMUNICATION_MODES
+        .REFINEMENT_HANDOFF,
+
+      COMMUNICATION_MODES
+        .PUBLISHING_HANDOFF,
+
+      COMMUNICATION_MODES
         .SESSION_HANDOFF,
 
       COMMUNICATION_MODES
         .MEMORY_FORGET,
+
+      COMMUNICATION_MODES
+        .INCUBATION,
     ].includes(mode) &&
     !uncertainty
       .shouldReassure
@@ -3289,7 +4014,7 @@ function resolveCheckInPolicy({
       type: null,
 
       reason:
-        "The current mode benefits from forward movement rather than an optional check-in.",
+        "The current mode benefits from forward movement or quiet space rather than an optional check-in.",
     };
   }
 
@@ -3316,7 +4041,9 @@ function resolveCheckInPolicy({
     context
       ?.creatorExplicitlyAskedToContinue ||
     context
-      ?.creatorExplicitlyAskedForNextStep
+      ?.creatorExplicitlyAskedForNextStep ||
+    context
+      ?.creatorExplicitlyAskedToCreate
   ) {
     return {
       policy:
@@ -3505,6 +4232,27 @@ function resolvePrimaryResponseEffect({
   }
 
   if (
+    [
+      COMMUNICATION_MODES
+        .CREATION_HANDOFF,
+
+      COMMUNICATION_MODES
+        .REFINEMENT_HANDOFF,
+
+      COMMUNICATION_MODES
+        .PUBLISHING_HANDOFF,
+
+      COMMUNICATION_MODES
+        .NEXT_TASK,
+    ].includes(mode)
+  ) {
+    return (
+      RESPONSE_EFFECTS
+        .READINESS
+    );
+  }
+
+  if (
     getNestedValue(
       adaptivePlan,
       "execution.shouldMoveForward",
@@ -3626,6 +4374,18 @@ function resolveLandingStyle({
 
       COMMUNICATION_MODES
         .FLOW,
+
+      COMMUNICATION_MODES
+        .NEXT_TASK,
+
+      COMMUNICATION_MODES
+        .CREATION_HANDOFF,
+
+      COMMUNICATION_MODES
+        .REFINEMENT_HANDOFF,
+
+      COMMUNICATION_MODES
+        .PUBLISHING_HANDOFF,
     ].includes(mode)
   ) {
     return (
@@ -3647,11 +4407,31 @@ function createCommunicationActions({
   creativeExpression,
   conversationPhase,
   participation,
+  checkIn,
   context,
   adaptivePlan,
   responseBlueprint,
 }) {
   const actions = [];
+
+  if (
+    blueprintRequestsSilence(
+      responseBlueprint
+    )
+  ) {
+    actions.push(
+      COMMUNICATION_ACTIONS
+        .OBEY_BLUEPRINT_SILENCE,
+
+      COMMUNICATION_ACTIONS
+        .HOLD_SPACE
+    );
+  }
+
+  actions.push(
+    COMMUNICATION_ACTIONS
+      .OBEY_BLUEPRINT_QUESTION_LIMIT
+  );
 
   if (
     hasSpecialistMachinery({
@@ -3698,6 +4478,17 @@ function createCommunicationActions({
     actions.push(
       COMMUNICATION_ACTIONS
         .EXPRESS_MEMORY_NATURALLY
+    );
+  }
+
+  if (
+    mode ===
+      COMMUNICATION_MODES
+        .MEMORY_CAPTURE
+  ) {
+    actions.push(
+      COMMUNICATION_ACTIONS
+        .EXPRESS_MEMORY_CAPTURE_MINIMALLY
     );
   }
 
@@ -3765,19 +4556,30 @@ function createCommunicationActions({
   }
 
   if (
-    mode ===
+    [
       COMMUNICATION_MODES
-        .BUILD ||
-    mode ===
+        .BUILD,
+
       COMMUNICATION_MODES
-        .FLOW
+        .FLOW,
+
+      COMMUNICATION_MODES
+        .NEXT_TASK,
+
+      COMMUNICATION_MODES
+        .CREATION_HANDOFF,
+
+      COMMUNICATION_MODES
+        .REFINEMENT_HANDOFF,
+
+      COMMUNICATION_MODES
+        .PUBLISHING_HANDOFF,
+    ].includes(mode)
   ) {
     actions.push(
       COMMUNICATION_ACTIONS
-        .MOVE_TO_ACTION
-    );
+        .MOVE_TO_ACTION,
 
-    actions.push(
       COMMUNICATION_ACTIONS
         .ANSWER_CONCISELY
     );
@@ -3790,10 +4592,24 @@ function createCommunicationActions({
       COMMUNICATION_ACTIONS
         .EXPLAIN_ONE_CONCEPT
     );
-  } else {
+  } else if (
+    !blueprintRequestsSilence(
+      responseBlueprint
+    )
+  ) {
     actions.push(
       COMMUNICATION_ACTIONS
         .MATCH_AND_CONTINUE
+    );
+  }
+
+  if (
+    checkIn.policy !==
+      CHECK_IN_POLICIES.NONE
+  ) {
+    actions.push(
+      COMMUNICATION_ACTIONS
+        .ASK_LOW_PRESSURE_CHECK_IN
     );
   }
 
@@ -3958,6 +4774,34 @@ function createProjectContinuityGuidance({
   );
 }
 
+function createMemoryCaptureGuidance({
+  mode,
+  responseBlueprint,
+}) {
+  if (
+    mode !==
+      COMMUNICATION_MODES
+        .MEMORY_CAPTURE &&
+    !blueprintCapturesMemory(
+      responseBlueprint
+    )
+  ) {
+    return [];
+  }
+
+  return [
+    "Keep memory capture conversationally small.",
+
+    "Do not turn preservation into the subject unless the creator asks.",
+
+    "Do not claim something was saved until persistence confirms it.",
+
+    "If capture is part of a brief detour, return to the previous task immediately after acknowledging the thought.",
+
+    "Do not reopen a deferred topic merely because it has been captured.",
+  ];
+}
+
 function createForgetGuidance({
   responseBlueprint,
 }) {
@@ -4030,7 +4874,7 @@ function createSessionHandoffGuidance({
     "Let the creator leave without requiring another response.",
 
     "The future return should feel easy, familiar and immediately actionable.",
-  ];
+  ].filter(Boolean);
 }
 
 function createSpecialistMachineryGuidance({
@@ -4061,6 +4905,45 @@ function createSpecialistMachineryGuidance({
 
     "Do not make the creator manage the internal team.",
   ];
+}
+
+function createBlueprintAuthorityGuidance({
+  responseBlueprint,
+}) {
+  const maximumQuestions =
+    getBlueprintMaximumQuestions(
+      responseBlueprint
+    );
+
+  const guidance = [
+    "ResponseComposer controls the permitted response structure.",
+
+    "Do not introduce a response section that is absent from the blueprint.",
+
+    `Do not exceed ${maximumQuestions} question${
+      maximumQuestions === 1
+        ? ""
+        : "s"
+    }.`,
+
+    "Communication style may shape delivery but must not override the blueprint's meaning, section order or constraints.",
+
+    "Do not convert an optional conversational check-in into a required question unless the blueprint permits it.",
+  ];
+
+  if (
+    blueprintRequestsSilence(
+      responseBlueprint
+    )
+  ) {
+    guidance.push(
+      "Generate no conversational text because the blueprint requires intentional silence.",
+
+      "Do not use reassurance, check-ins, humour or filler to break intentional silence."
+    );
+  }
+
+  return guidance;
 }
 
 function createTextGuidance({
@@ -4121,18 +5004,35 @@ function createTextGuidance({
     "Do not expose internal planning, memory structures, scores or specialist routing.",
 
     "Many internal capabilities may contribute; the final response must sound like one continuous Mentor relationship.",
+
+    ...createBlueprintAuthorityGuidance({
+      responseBlueprint,
+    }),
   ];
 
   if (
-    mode ===
+    [
       COMMUNICATION_MODES
-        .BUILD ||
-    mode ===
+        .BUILD,
+
       COMMUNICATION_MODES
-        .FLOW
+        .FLOW,
+
+      COMMUNICATION_MODES
+        .NEXT_TASK,
+
+      COMMUNICATION_MODES
+        .CREATION_HANDOFF,
+
+      COMMUNICATION_MODES
+        .REFINEMENT_HANDOFF,
+
+      COMMUNICATION_MODES
+        .PUBLISHING_HANDOFF,
+    ].includes(mode)
   ) {
     guidance.push(
-      "Lead with the answer, recommendation, task or code.",
+      "Lead with the answer, recommendation, task, action or code.",
 
       "Keep explanation brief unless the creator requests teaching.",
 
@@ -4189,6 +5089,20 @@ function createTextGuidance({
   }
 
   if (
+    mode ===
+      COMMUNICATION_MODES
+        .INCUBATION
+  ) {
+    guidance.push(
+      "Do not fill the silence merely because a response could be generated.",
+
+      "Allow the creator's thought to continue emerging.",
+
+      "If the blueprint requests silence, silence is the complete response."
+    );
+  }
+
+  if (
     humour.level !==
     HUMOUR_LEVELS.NONE
   ) {
@@ -4241,6 +5155,11 @@ function createTextGuidance({
       adaptivePlan,
       responseBlueprint,
       context,
+    }),
+
+    ...createMemoryCaptureGuidance({
+      mode,
+      responseBlueprint,
     }),
 
     ...createForgetGuidance({
@@ -4408,6 +5327,15 @@ function createCommunicationPrinciples() {
     presentCreatorLeadsInterpretation:
       true,
 
+    presentBehaviourLeadsMemory:
+      true,
+
+    blueprintControlsResponseStructure:
+      true,
+
+    communicationDoesNotOverrideBlueprint:
+      true,
+
     readConversationTrajectory:
       true,
 
@@ -4421,6 +5349,9 @@ function createCommunicationPrinciples() {
       true,
 
     protectCreatorComfort:
+      true,
+
+    protectCreatorThinkingTime:
       true,
 
     respectNaturalInterruptions:
@@ -4474,6 +5405,9 @@ function createCommunicationPrinciples() {
     checkAlignmentNotOnlyUnderstanding:
       true,
 
+    checkInsMustRespectQuestionLimits:
+      true,
+
     avoidUnnecessaryReassurance:
       true,
 
@@ -4511,6 +5445,12 @@ function createGuardRails() {
 
     "Do not ask repeated comprehension-check questions.",
 
+    "Do not ask more questions than ResponseComposer permits.",
+
+    "Do not create a check-in when the response blueprint allows zero questions.",
+
+    "Do not break intentional silence with filler, reassurance or a check-in.",
+
     "Do not interrupt build or flow mode with optional commentary.",
 
     "Do not use humour at the expense of the creator or another participant.",
@@ -4524,6 +5464,8 @@ function createGuardRails() {
     "Do not claim that memory was stored unless persistence confirms success.",
 
     "Do not claim that memory was deleted unless persistence confirms success.",
+
+    "Do not claim that a session handoff was persisted unless persistence confirms success.",
 
     "Do not recreate an explicitly deleted conclusion through immediate inference.",
 
@@ -4542,6 +5484,8 @@ function createGuardRails() {
     "Do not abruptly end a naturally landing conversation.",
 
     "Do not restart a conversation that the creator is trying to close.",
+
+    "Do not use communication style to reopen a decision already made by AdaptiveMentorEngine or ResponseComposer.",
   ];
 }
 
@@ -4554,6 +5498,7 @@ function createPlanSummary({
   primaryEffect,
   participation,
   landingStyle,
+  maximumQuestions,
 }) {
   return (
     `Communicate in ${mode} mode with a ${tone} tone, ` +
@@ -4561,7 +5506,8 @@ function createPlanSummary({
     `Relationship stage: ${relationshipStage}. ` +
     `Primary intended effect: ${primaryEffect}. ` +
     `Participation mode: ${participation.mode}. ` +
-    `Landing style: ${landingStyle}.`
+    `Landing style: ${landingStyle}. ` +
+    `Maximum permitted questions: ${maximumQuestions}.`
   );
 }
 
@@ -4572,6 +5518,16 @@ function createFallbackPlan({
   responseBlueprint,
   error = null,
 }) {
+  const maximumQuestions =
+    getBlueprintMaximumQuestions(
+      responseBlueprint
+    );
+
+  const shouldGenerateText =
+    !blueprintRequestsSilence(
+      responseBlueprint
+    );
+
   return {
     id:
       createPlanId(),
@@ -4590,8 +5546,11 @@ function createFallbackPlan({
     },
 
     mode:
-      COMMUNICATION_MODES
-        .GENERAL,
+      shouldGenerateText
+        ? COMMUNICATION_MODES
+            .GENERAL
+        : COMMUNICATION_MODES
+            .INCUBATION,
 
     conversationPhase:
       CONVERSATION_PHASES
@@ -4611,20 +5570,29 @@ function createFallbackPlan({
 
     style: {
       pace:
-        COMMUNICATION_PACES
-          .NATURAL,
+        shouldGenerateText
+          ? COMMUNICATION_PACES
+              .NATURAL
+          : COMMUNICATION_PACES
+              .VERY_SLOW,
 
       depth:
-        COMMUNICATION_DEPTHS
-          .CONCISE,
+        shouldGenerateText
+          ? COMMUNICATION_DEPTHS
+              .CONCISE
+          : COMMUNICATION_DEPTHS
+              .MINIMAL,
 
       tone:
         COMMUNICATION_TONES
           .WARM,
 
       energy:
-        COMMUNICATION_ENERGY
-          .MATCHED,
+        shouldGenerateText
+          ? COMMUNICATION_ENERGY
+              .MATCHED
+          : COMMUNICATION_ENERGY
+              .VERY_LOW,
 
       directness:
         DIRECTNESS_LEVELS
@@ -4666,8 +5634,11 @@ function createFallbackPlan({
 
       speech: {
         pauseStyle:
-          PAUSE_STYLES
-            .NATURAL,
+          shouldGenerateText
+            ? PAUSE_STYLES
+                .NATURAL
+            : PAUSE_STYLES
+                .HOLD_SPACE,
 
         emphasis:
           EMPHASIS_STYLES
@@ -4679,10 +5650,13 @@ function createFallbackPlan({
 
       avatar: {
         enabled: false,
+
         expressionIntensity:
           "natural",
+
         gestureDensity:
           "natural",
+
         guidance: [],
       },
     },
@@ -4694,16 +5668,30 @@ function createFallbackPlan({
       type: null,
 
       guidance: [],
+
+      maximumQuestions,
     },
 
     primaryEffect:
       RESPONSE_EFFECTS
         .CLARITY,
 
-    actions: [
-      COMMUNICATION_ACTIONS
-        .MATCH_AND_CONTINUE,
-    ],
+    actions:
+      shouldGenerateText
+        ? [
+            COMMUNICATION_ACTIONS
+              .MATCH_AND_CONTINUE,
+
+            COMMUNICATION_ACTIONS
+              .OBEY_BLUEPRINT_QUESTION_LIMIT,
+          ]
+        : [
+            COMMUNICATION_ACTIONS
+              .OBEY_BLUEPRINT_SILENCE,
+
+            COMMUNICATION_ACTIONS
+              .HOLD_SPACE,
+          ],
 
     projectContinuity: {
       activeProjectId:
@@ -4720,6 +5708,9 @@ function createFallbackPlan({
     },
 
     memoryExpression: {
+      shouldCapture:
+        false,
+
       shouldRecall:
         false,
 
@@ -4734,6 +5725,9 @@ function createFallbackPlan({
 
       mayClaimDeletion:
         false,
+
+      mayClaimHandoff:
+        false,
     },
 
     specialistPresentation: {
@@ -4747,17 +5741,39 @@ function createFallbackPlan({
         false,
     },
 
-    textGuidance: [
-      "Answer clearly and briefly.",
+    blueprintAuthority: {
+      shouldGenerateText,
 
-      "Do not make assumptions about the creator's internal state.",
+      maximumQuestions,
 
-      "Do not introduce unnecessary new directions.",
+      communicationMayOverrideStructure:
+        false,
+    },
 
-      "Do not make unverified memory claims.",
+    textGuidance:
+      shouldGenerateText
+        ? [
+            "Answer clearly and briefly.",
 
-      "Do not expose internal system machinery.",
-    ],
+            "Do not make assumptions about the creator's internal state.",
+
+            "Do not introduce unnecessary new directions.",
+
+            "Do not make unverified memory claims.",
+
+            "Do not expose internal system machinery.",
+
+            `Do not exceed ${maximumQuestions} question${
+              maximumQuestions === 1
+                ? ""
+                : "s"
+            }.`,
+          ]
+        : [
+            "Return intentional silence.",
+
+            "Do not create conversational filler.",
+          ],
 
     collaborationGuidance:
       [],
@@ -4790,7 +5806,9 @@ function createFallbackPlan({
       "fallback",
 
     summary:
-      "Use a concise, warm and assumption-safe communication style.",
+      shouldGenerateText
+        ? "Use a concise, warm and blueprint-safe communication style."
+        : "Preserve intentional silence.",
 
     error:
       error
@@ -4803,6 +5821,273 @@ function createFallbackPlan({
         : null,
 
     createdAt:
+      createTimestamp(),
+  };
+}
+
+function createMemoryAwareCommunicationContext({
+  context,
+  adaptivePlan,
+  responseBlueprint,
+}) {
+  const adaptiveContext =
+    getNestedValue(
+      adaptivePlan,
+      "contextSnapshot",
+      {}
+    ) || {};
+
+  const blueprintContext =
+    getNestedValue(
+      responseBlueprint,
+      "contextSnapshot",
+      {}
+    ) || {};
+
+  const creatorMemoryContext =
+    context
+      ?.creatorMemoryContext ||
+    adaptiveContext
+      ?.creatorMemoryContext ||
+    null;
+
+  const creatorProfile =
+    context
+      ?.creatorProfile ||
+    adaptiveContext
+      ?.creatorProfile ||
+    creatorMemoryContext
+      ?.creatorProfile ||
+    null;
+
+  const rememberedSharedMeanings =
+    asArray(
+      creatorMemoryContext
+        ?.sharedMeanings
+    );
+
+  const rememberedSharedRituals =
+    asArray(
+      creatorMemoryContext
+        ?.sharedRituals
+    );
+
+  const rememberedSharedJokes =
+    asArray(
+      creatorMemoryContext
+        ?.sharedJokes
+    );
+
+  const rememberedVocabulary =
+    asArray(
+      creatorMemoryContext
+        ?.establishedVocabulary
+    );
+
+  return {
+    ...cloneValue(
+      DEFAULT_COMMUNICATION_CONTEXT
+    ),
+
+    ...cloneValue(
+      adaptiveContext
+    ),
+
+    ...cloneValue(
+      blueprintContext
+    ),
+
+    ...cloneValue(
+      context
+    ),
+
+    creatorProfile,
+
+    creatorMemoryContext,
+
+    establishedVocabulary:
+      asArray(
+        context
+          ?.establishedVocabulary
+      ).length > 0
+        ? cloneValue(
+            context
+              .establishedVocabulary
+          )
+        : cloneValue(
+            rememberedVocabulary
+          ),
+
+    sharedMeanings:
+      asArray(
+        context
+          ?.sharedMeanings
+      ).length > 0
+        ? cloneValue(
+            context
+              .sharedMeanings
+          )
+        : cloneValue(
+            rememberedSharedMeanings
+          ),
+
+    sharedRituals:
+      asArray(
+        context
+          ?.sharedRituals
+      ).length > 0
+        ? cloneValue(
+            context
+              .sharedRituals
+          )
+        : cloneValue(
+            rememberedSharedRituals
+          ),
+
+    sharedJokes:
+      asArray(
+        context
+          ?.sharedJokes
+      ).length > 0
+        ? cloneValue(
+            context
+              .sharedJokes
+          )
+        : cloneValue(
+            rememberedSharedJokes
+          ),
+
+    interactionCount:
+      Number(
+        context
+          ?.interactionCount ??
+        adaptiveContext
+          ?.interactionCount ??
+        creatorMemoryContext
+          ?.interactionCount ??
+        creatorMemoryContext
+          ?.conversationCount ??
+        0
+      ),
+
+    knownDurationDays:
+      Number(
+        context
+          ?.knownDurationDays ??
+        adaptiveContext
+          ?.knownDurationDays ??
+        creatorMemoryContext
+          ?.knownDurationDays ??
+        0
+      ),
+
+    relationshipStage:
+      context
+        ?.relationshipStage ||
+      adaptiveContext
+        ?.relationshipStage ||
+      creatorMemoryContext
+        ?.relationshipStage ||
+      null,
+
+    projectType:
+      context
+        ?.projectType ||
+      blueprintContext
+        ?.projectType ||
+      adaptiveContext
+        ?.projectType ||
+      null,
+
+    activeProject:
+      context
+        ?.activeProject ||
+      getNestedValue(
+        responseBlueprint,
+        "project.activeProject",
+        null
+      ) ||
+      adaptiveContext
+        ?.activeProject ||
+      null,
+
+    activeProjectId:
+      context
+        ?.activeProjectId ||
+      getNestedValue(
+        responseBlueprint,
+        "project.activeProjectId",
+        null
+      ) ||
+      getNestedValue(
+        adaptivePlan,
+        "execution.activeProjectId",
+        null
+      ) ||
+      null,
+
+    activeIdea:
+      context
+        ?.activeIdea ||
+      adaptiveContext
+        ?.activeIdea ||
+      null,
+
+    activeStage:
+      context
+        ?.activeStage ||
+      getNestedValue(
+        responseBlueprint,
+        "project.activeStage",
+        null
+      ) ||
+      getNestedValue(
+        adaptivePlan,
+        "projectState.activeStage",
+        null
+      ) ||
+      null,
+
+    activeScene:
+      context
+        ?.activeScene ||
+      getNestedValue(
+        responseBlueprint,
+        "project.activeScene",
+        null
+      ) ||
+      getNestedValue(
+        adaptivePlan,
+        "projectState.activeScene",
+        null
+      ) ||
+      null,
+
+    activeCharacter:
+      context
+        ?.activeCharacter ||
+      getNestedValue(
+        responseBlueprint,
+        "project.activeCharacter",
+        null
+      ) ||
+      getNestedValue(
+        adaptivePlan,
+        "projectState.activeCharacter",
+        null
+      ) ||
+      null,
+
+    sessionId:
+      context
+        ?.sessionId ||
+      adaptiveContext
+        ?.sessionId ||
+      null,
+
+    currentTimestamp:
+      context
+        ?.currentTimestamp ||
       createTimestamp(),
   };
 }
@@ -4829,136 +6114,37 @@ function createCommunicationVoiceEngine({
     voiceProfile = null,
   } = {}) {
     try {
-      const combinedContext = {
-        ...cloneValue(
-          DEFAULT_COMMUNICATION_CONTEXT
-        ),
+      if (
+        !adaptivePlan ||
+        typeof adaptivePlan !==
+          "object"
+      ) {
+        throw new TypeError(
+          "CommunicationVoiceEngine requires a valid adaptivePlan."
+        );
+      }
 
-        ...cloneValue(
-          context
-        ),
+      if (
+        !responseBlueprint ||
+        typeof responseBlueprint !==
+          "object"
+      ) {
+        throw new TypeError(
+          "CommunicationVoiceEngine requires a valid responseBlueprint."
+        );
+      }
 
-        creatorId:
-          context
-            ?.creatorId ||
-          getNestedValue(
-            adaptivePlan,
-            "contextSnapshot.creatorId",
-            null
-          ),
+      const combinedContext =
+        createMemoryAwareCommunicationContext({
+          context,
+          adaptivePlan,
+          responseBlueprint,
+        });
 
-        projectType:
-          context
-            ?.projectType ||
-          getNestedValue(
-            responseBlueprint,
-            "contextSnapshot.projectType",
-            null
-          ) ||
-          getNestedValue(
-            adaptivePlan,
-            "contextSnapshot.projectType",
-            null
-          ),
-
-        activeProject:
-          context
-            ?.activeProject ||
-          getNestedValue(
-            responseBlueprint,
-            "project.activeProject",
-            null
-          ) ||
-          getNestedValue(
-            adaptivePlan,
-            "contextSnapshot.activeProject",
-            null
-          ),
-
-        activeProjectId:
-          context
-            ?.activeProjectId ||
-          getNestedValue(
-            responseBlueprint,
-            "project.activeProjectId",
-            null
-          ) ||
-          getNestedValue(
-            adaptivePlan,
-            "execution.activeProjectId",
-            null
-          ),
-
-        activeIdea:
-          context
-            ?.activeIdea ||
-          getNestedValue(
-            adaptivePlan,
-            "contextSnapshot.activeIdea",
-            null
-          ),
-
-        activeStage:
-          context
-            ?.activeStage ||
-          getNestedValue(
-            responseBlueprint,
-            "project.activeStage",
-            null
-          ) ||
-          getNestedValue(
-            adaptivePlan,
-            "projectState.activeStage",
-            null
-          ),
-
-        activeScene:
-          context
-            ?.activeScene ||
-          getNestedValue(
-            responseBlueprint,
-            "project.activeScene",
-            null
-          ) ||
-          getNestedValue(
-            adaptivePlan,
-            "projectState.activeScene",
-            null
-          ),
-
-        activeCharacter:
-          context
-            ?.activeCharacter ||
-          getNestedValue(
-            responseBlueprint,
-            "project.activeCharacter",
-            null
-          ) ||
-          getNestedValue(
-            adaptivePlan,
-            "projectState.activeCharacter",
-            null
-          ),
-
-        sessionId:
-          context
-            ?.sessionId ||
-          getNestedValue(
-            adaptivePlan,
-            "contextSnapshot.sessionId",
-            null
-          ),
-
-        message:
-          cleanString(
-            message
-          ),
-
-        currentTimestamp:
-          context
-            ?.currentTimestamp ||
-          createTimestamp(),
-      };
+      combinedContext.message =
+        cleanString(
+          message
+        );
 
       const activeVoiceProfile = {
         ...cloneValue(
@@ -5017,6 +6203,8 @@ function createCommunicationVoiceEngine({
             combinedContext,
 
           adaptivePlan,
+
+          responseBlueprint,
         });
 
       const uncertainty =
@@ -5051,6 +6239,7 @@ function createCommunicationVoiceEngine({
         resolveCommunicationPace({
           mode,
           adaptivePlan,
+          responseBlueprint,
 
           context:
             combinedContext,
@@ -5077,12 +6266,15 @@ function createCommunicationVoiceEngine({
 
           context:
             combinedContext,
+
+          responseBlueprint,
         });
 
       const directness =
         resolveDirectness({
           mode,
           adaptivePlan,
+          responseBlueprint,
           uncertainty,
         });
 
@@ -5092,6 +6284,8 @@ function createCommunicationVoiceEngine({
 
           context:
             combinedContext,
+
+          responseBlueprint,
         });
 
       const humour =
@@ -5122,6 +6316,7 @@ function createCommunicationVoiceEngine({
           channel,
           uncertainty,
           conversationPhase,
+          responseBlueprint,
         });
 
       const checkIn =
@@ -5161,6 +6356,7 @@ function createCommunicationVoiceEngine({
           creativeExpression,
           conversationPhase,
           participation,
+          checkIn,
 
           context:
             combinedContext,
@@ -5207,6 +6403,16 @@ function createCommunicationVoiceEngine({
             combinedContext,
         });
 
+      const maximumQuestions =
+        getBlueprintMaximumQuestions(
+          responseBlueprint
+        );
+
+      const shouldGenerateText =
+        !blueprintRequestsSilence(
+          responseBlueprint
+        );
+
       return {
         id:
           createPlanId(),
@@ -5251,6 +6457,12 @@ function createCommunicationVoiceEngine({
               combinedContext
                 .sharedJokes
             ).length > 0,
+
+          relationshipContextFromMemory:
+            Boolean(
+              combinedContext
+                .creatorMemoryContext
+            ),
         },
 
         interpretation: {
@@ -5286,6 +6498,8 @@ function createCommunicationVoiceEngine({
         checkIn: {
           ...checkIn,
 
+          maximumQuestions,
+
           guidance:
             createCheckInGuidance(
               checkIn
@@ -5295,6 +6509,36 @@ function createCommunicationVoiceEngine({
         primaryEffect,
 
         actions,
+
+        blueprintAuthority: {
+          shouldGenerateText,
+
+          maximumQuestions,
+
+          allowsQuestions:
+            maximumQuestions > 0,
+
+          sectionOrder:
+            asArray(
+              responseBlueprint
+                ?.sections
+            ).map(
+              (section) =>
+                section?.type
+            ).filter(Boolean),
+
+          communicationMayOverrideStructure:
+            false,
+
+          communicationMayAddSections:
+            false,
+
+          communicationMayBreakSilence:
+            false,
+
+          communicationMayIncreaseQuestionCount:
+            false,
+        },
 
         projectContinuity: {
           activeProjectId,
@@ -5356,6 +6600,11 @@ function createCommunicationVoiceEngine({
               )
             ),
 
+          shouldCapture:
+            blueprintCapturesMemory(
+              responseBlueprint
+            ),
+
           shouldRecall:
             blueprintUsesMemory(
               responseBlueprint
@@ -5371,10 +6620,19 @@ function createCommunicationVoiceEngine({
               responseBlueprint
             ),
 
+          /**
+           * Persistence truth is injected later by
+           * ResponseGenerator after memory execution.
+           *
+           * CommunicationVoiceEngine must never infer it.
+           */
           mayClaimStorage:
             false,
 
           mayClaimDeletion:
+            false,
+
+          mayClaimHandoff:
             false,
 
           expressionRule:
@@ -5404,6 +6662,40 @@ function createCommunicationVoiceEngine({
             false,
 
           creatorCorrectionsOverrideAgentAssumptions:
+            true,
+        },
+
+        upstreamAgreement: {
+          adaptiveAction:
+            getAdaptiveAction(
+              adaptivePlan
+            ),
+
+          composerAction:
+            getComposerAction(
+              responseBlueprint
+            ),
+
+          conversationPlannerMode:
+            getConversationPlannerMode(
+              adaptivePlan
+            ),
+
+          conversationPlannerMove:
+            getConversationPlannerMove(
+              adaptivePlan
+            ),
+
+          obeyAdaptiveBehaviour:
+            true,
+
+          obeyResponseBlueprint:
+            true,
+
+          preserveMemoryTruth:
+            true,
+
+          preserveCreatorDirection:
             true,
         },
 
@@ -5447,6 +6739,12 @@ function createCommunicationVoiceEngine({
 
           performanceMustNotChangeMeaning:
             true,
+
+          performanceMustNotAddContent:
+            true,
+
+          performanceMustNotCreateQuestions:
+            true,
         },
 
         communicationPrinciples:
@@ -5480,6 +6778,7 @@ function createCommunicationVoiceEngine({
             primaryEffect,
             participation,
             landingStyle,
+            maximumQuestions,
           }),
 
         status:
@@ -5530,6 +6829,39 @@ function createCommunicationVoiceEngine({
       );
     }
 
+    const blueprintMaximumQuestions =
+      Number(
+        providerRequest
+          ?.constraints
+          ?.maximumQuestions ??
+        communicationPlan
+          ?.blueprintAuthority
+          ?.maximumQuestions ??
+        0
+      );
+
+    const maximumQuestions =
+      Number.isFinite(
+        blueprintMaximumQuestions
+      )
+        ? Math.max(
+            0,
+            Math.floor(
+              blueprintMaximumQuestions
+            )
+          )
+        : 0;
+
+    const shouldGenerateText =
+      providerRequest
+        ?.constraints
+        ?.shouldGenerateText !==
+        false &&
+      communicationPlan
+        ?.blueprintAuthority
+        ?.shouldGenerateText !==
+        false;
+
     return {
       ...cloneValue(
         providerRequest
@@ -5551,6 +6883,14 @@ function createCommunicationVoiceEngine({
           relationship:
             communicationPlan
               .relationship,
+
+          interpretation:
+            communicationPlan
+              .interpretation,
+
+          participation:
+            communicationPlan
+              .participation,
 
           style:
             communicationPlan.style,
@@ -5576,6 +6916,10 @@ function createCommunicationVoiceEngine({
           actions:
             communicationPlan.actions,
 
+          blueprintAuthority:
+            communicationPlan
+              .blueprintAuthority,
+
           projectContinuity:
             communicationPlan
               .projectContinuity,
@@ -5587,6 +6931,10 @@ function createCommunicationVoiceEngine({
           specialistPresentation:
             communicationPlan
               .specialistPresentation,
+
+          upstreamAgreement:
+            communicationPlan
+              .upstreamAgreement,
 
           textGuidance:
             communicationPlan
@@ -5611,6 +6959,10 @@ function createCommunicationVoiceEngine({
             .constraints ||
           {}
         ),
+
+        maximumQuestions,
+
+        shouldGenerateText,
 
         respondToEvidenceNotAssumptions:
           true,
@@ -5646,6 +6998,21 @@ function createCommunicationVoiceEngine({
           true,
 
         doNotClaimMemoryDeletionWithoutConfirmation:
+          true,
+
+        doNotClaimSessionHandoffWithoutConfirmation:
+          true,
+
+        communicationCannotOverrideBlueprint:
+          true,
+
+        communicationCannotAddSections:
+          true,
+
+        communicationCannotIncreaseQuestionCount:
+          true,
+
+        communicationCannotBreakSilence:
           true,
       },
     };
@@ -5697,6 +7064,9 @@ function createCommunicationVoiceEngine({
     plan
   ) {
     return Boolean(
+      plan
+        ?.blueprintAuthority
+        ?.allowsQuestions &&
       [
         CHECK_IN_POLICIES
           .RECOMMENDED,
@@ -5793,6 +7163,43 @@ function createCommunicationVoiceEngine({
     );
   }
 
+  function shouldRemainSilent(
+    plan
+  ) {
+    return Boolean(
+      plan
+        ?.blueprintAuthority
+        ?.shouldGenerateText ===
+        false ||
+      plan
+        ?.actions
+        ?.includes?.(
+          COMMUNICATION_ACTIONS
+            .OBEY_BLUEPRINT_SILENCE
+        )
+    );
+  }
+
+  function getMaximumQuestions(
+    plan
+  ) {
+    const value =
+      Number(
+        plan
+          ?.blueprintAuthority
+          ?.maximumQuestions
+      );
+
+    return Number.isFinite(
+      value
+    )
+      ? Math.max(
+          0,
+          Math.floor(value)
+        )
+      : 0;
+  }
+
   return {
     planCommunication,
 
@@ -5811,6 +7218,9 @@ function createCommunicationVoiceEngine({
     shouldClarifyForget,
     shouldApplyForget,
     shouldHideSpecialistMachinery,
+
+    shouldRemainSilent,
+    getMaximumQuestions,
   };
 }
 
