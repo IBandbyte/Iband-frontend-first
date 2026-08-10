@@ -4,9 +4,16 @@
  * The reflective listening and creator-understanding layer for
  * iBand's AI Mentor — The Creator.
  *
- * This engine does not write the final Mentor response.
- * It returns structured decisions that a future response layer
- * can use to reflect, listen, encourage, clarify or hold space.
+ * Responsibilities:
+ * - Understand whether the creator is still thinking or speaking.
+ * - Protect creative flow and emerging ideas.
+ * - Decide whether to reflect, encourage, clarify or stay quiet.
+ * - Restore conversational context when a thought is lost.
+ * - Release pressure when forcing an idea would be harmful.
+ * - Surface evidence-based observations without defining the creator.
+ * - Respect execution decisions made by Conversation Planner.
+ *
+ * This engine does NOT write the final Mentor response.
  *
  * Core principles:
  * - Reflect before clarifying.
@@ -18,9 +25,11 @@
  * - Silence can be an intentional response.
  * - Reflections are possibilities, not verdicts.
  * - The creator remains the authority on their own experience.
+ * - When the creator wants action, reflection must not become
+ *   an obstacle between the creator and creation.
  */
 
-const REFLECTION_ENGINE_VERSION = "1.0.0";
+const REFLECTION_ENGINE_VERSION = "1.1.0";
 
 const REFLECTION_DECISIONS = Object.freeze({
   REFLECT: "reflect",
@@ -98,12 +107,22 @@ const SILENCE_REASONS = Object.freeze({
     "no-reflection-needed",
 });
 
+const EXECUTION_MENTOR_MOVES = Object.freeze([
+  "create",
+  "refine",
+  "demonstrate",
+  "show",
+  "continue",
+]);
+
 const DEFAULT_REFLECTION_CONTEXT = Object.freeze({
   creatorJourney: "guide",
   creatorType: null,
+  creatorExperience: null,
   projectType: null,
 
   conversationMode: null,
+  mentorMove: null,
   mentorTone: "warm",
 
   creatorMessageCount: 0,
@@ -125,6 +144,15 @@ const DEFAULT_REFLECTION_CONTEXT = Object.freeze({
   creatorExplicitlyAskedForGuidance: false,
   creatorExplicitlyAskedToContinue: false,
   creatorExplicitlyAskedToPause: false,
+
+  requestedHelp: false,
+  requestedExplanation: false,
+  requestedExample: false,
+  requestedDemonstration: false,
+  requestedCreation: false,
+  requestedChange: false,
+
+  mentorInvoked: true,
 
   creatorEnergy: "unknown",
   informationSaturation: "low",
@@ -254,14 +282,35 @@ function includesAny(text, phrases = []) {
 }
 
 /**
- * Counts matching phrases.
+ * Returns the active Conversation Planner Mentor move.
  */
-function countMatches(text, phrases = []) {
-  return phrases.reduce((total, phrase) => {
-    return text.includes(phrase)
-      ? total + 1
-      : total;
-  }, 0);
+function getPlannerMentorMove(
+  conversationPlan,
+  context
+) {
+  return (
+    conversationPlan?.conversation?.mentorMove ||
+    context?.mentorMove ||
+    null
+  );
+}
+
+/**
+ * Returns true when Conversation Planner has already decided
+ * that the Mentor should execute rather than interrupt.
+ */
+function isExecutionMove(
+  conversationPlan,
+  context
+) {
+  const mentorMove = getPlannerMentorMove(
+    conversationPlan,
+    context
+  );
+
+  return EXECUTION_MENTOR_MOVES.includes(
+    mentorMove
+  );
 }
 
 /**
@@ -275,7 +324,6 @@ function detectCreatorCompletion({
   const text = normaliseText(message);
 
   const unfinishedEndings = [
-    "...",
     "but",
     "and",
     "because",
@@ -324,6 +372,8 @@ function detectCreatorCompletion({
     "you lead",
     "please continue",
     "next step",
+    "go ahead",
+    "fire away",
   ];
 
   if (
@@ -343,7 +393,7 @@ function detectCreatorCompletion({
   ) {
     return createDetection({
       value: true,
-      confidence: 0.86,
+      confidence: 0.88,
       evidence:
         explicitCompletionPhrases.filter(
           (phrase) => text.includes(phrase)
@@ -379,7 +429,7 @@ function detectCreatorCompletion({
 
   return createDetection({
     value: true,
-    confidence: 0.54,
+    confidence: 0.56,
     evidence: [],
   });
 }
@@ -387,8 +437,9 @@ function detectCreatorCompletion({
 /**
  * Detects the creator's current thinking mode.
  *
- * This is not a diagnosis. It is a temporary creative-context
- * estimate used to adjust response timing and depth.
+ * This is not a diagnosis.
+ * It is a temporary creative-context estimate used to adjust
+ * response timing, depth and interruption behaviour.
  */
 function detectThinkingMode({
   message,
@@ -396,6 +447,11 @@ function detectThinkingMode({
   conversationPlan,
 }) {
   const text = normaliseText(message);
+
+  const mentorMove = getPlannerMentorMove(
+    conversationPlan,
+    context
+  );
 
   const buildPhrases = [
     "next file",
@@ -409,6 +465,8 @@ function detectThinkingMode({
     "continue",
     "done",
     "ready",
+    "go ahead",
+    "do it",
   ];
 
   const explorationPhrases = [
@@ -482,6 +540,24 @@ function detectThinkingMode({
     "actually...",
     "wait...",
   ];
+
+  /**
+   * Planner execution decisions are strong evidence that
+   * the creator is currently in build/action mode.
+   */
+  if (
+    EXECUTION_MENTOR_MOVES.includes(
+      mentorMove
+    )
+  ) {
+    return createDetection({
+      value: CREATOR_THINKING_MODES.BUILD,
+      confidence: 0.92,
+      evidence: [
+        `conversation planner selected ${mentorMove}`,
+      ],
+    });
+  }
 
   if (
     context?.creatorExplicitlyAskedForGuidance
@@ -604,13 +680,21 @@ function detectThinkingMode({
 
 /**
  * Estimates how receptive the creator is to guidance now.
+ *
+ * thinkingMode is always the complete detection object.
  */
 function detectGuidanceReceptivity({
   message,
   context,
   thinkingMode,
+  conversationPlan,
 }) {
   const text = normaliseText(message);
+
+  const mentorMove = getPlannerMentorMove(
+    conversationPlan,
+    context
+  );
 
   const openPhrases = [
     "you lead",
@@ -638,14 +722,20 @@ function detectGuidanceReceptivity({
 
   if (
     context?.creatorExplicitlyAskedForGuidance ||
+    context?.requestedHelp ||
     includesAny(text, openPhrases)
   ) {
     return createDetection({
       value: GUIDANCE_RECEPTIVITY.OPEN,
       confidence: 0.9,
-      evidence: openPhrases.filter(
-        (phrase) => text.includes(phrase)
-      ),
+      evidence: [
+        ...openPhrases.filter(
+          (phrase) => text.includes(phrase)
+        ),
+        context?.requestedHelp
+          ? "creator requested help"
+          : null,
+      ],
     });
   }
 
@@ -663,37 +753,70 @@ function detectGuidanceReceptivity({
     });
   }
 
+  /**
+   * Creation/refinement requests do not mean the creator is
+   * closed to the Mentor. They mean they want execution rather
+   * than extra teaching.
+   */
   if (
-    thinkingMode ===
-      CREATOR_THINKING_MODES.FLOW ||
-    thinkingMode ===
-      CREATOR_THINKING_MODES.INCUBATION ||
-    thinkingMode ===
-      CREATOR_THINKING_MODES.BUILD
+    EXECUTION_MENTOR_MOVES.includes(
+      mentorMove
+    )
   ) {
     return createDetection({
-      value: GUIDANCE_RECEPTIVITY.LOW,
-      confidence: 0.76,
+      value: GUIDANCE_RECEPTIVITY.OPEN,
+      confidence: 0.88,
       evidence: [
-        `creator appears to be in ${thinkingMode} mode`,
+        `creator is ready for ${mentorMove}`,
       ],
     });
   }
 
   if (
-    thinkingMode ===
+    thinkingMode?.value ===
+      CREATOR_THINKING_MODES.FLOW ||
+    thinkingMode?.value ===
+      CREATOR_THINKING_MODES.INCUBATION
+  ) {
+    return createDetection({
+      value: GUIDANCE_RECEPTIVITY.LOW,
+      confidence: 0.76,
+      evidence: [
+        `creator appears to be in ${thinkingMode.value} mode`,
+      ],
+    });
+  }
+
+  if (
+    thinkingMode?.value ===
+    CREATOR_THINKING_MODES.BUILD
+  ) {
+    return createDetection({
+      value:
+        GUIDANCE_RECEPTIVITY.PARTIALLY_OPEN,
+      confidence: 0.78,
+      evidence: [
+        "creator appears ready for practical action",
+      ],
+    });
+  }
+
+  if (
+    thinkingMode?.value ===
       CREATOR_THINKING_MODES.LEARNING ||
-    thinkingMode ===
+    thinkingMode?.value ===
       CREATOR_THINKING_MODES.EXPLORATION ||
-    thinkingMode ===
-      CREATOR_THINKING_MODES.REFLECTION
+    thinkingMode?.value ===
+      CREATOR_THINKING_MODES.REFLECTION ||
+    thinkingMode?.value ===
+      CREATOR_THINKING_MODES.DECISION
   ) {
     return createDetection({
       value:
         GUIDANCE_RECEPTIVITY.PARTIALLY_OPEN,
       confidence: 0.7,
       evidence: [
-        `creator appears to be in ${thinkingMode} mode`,
+        `creator appears to be in ${thinkingMode.value} mode`,
       ],
     });
   }
@@ -714,8 +837,29 @@ function detectHoldSpaceNeed({
   creatorCompletion,
   thinkingMode,
   guidanceReceptivity,
+  conversationPlan,
 }) {
   const text = normaliseText(message);
+
+  /**
+   * Explicit execution should not be blocked by reflective
+   * silence unless the creator has explicitly asked to pause.
+   */
+  if (
+    isExecutionMove(
+      conversationPlan,
+      context
+    ) &&
+    !context?.creatorExplicitlyAskedToPause
+  ) {
+    return createDetection({
+      value: false,
+      confidence: 0.94,
+      evidence: [
+        "conversation planner selected an execution move",
+      ],
+    });
+  }
 
   const shortThinkingResponses = [
     "no",
@@ -744,9 +888,7 @@ function detectHoldSpaceNeed({
 
   const guidanceIsClosed =
     guidanceReceptivity.value ===
-      GUIDANCE_RECEPTIVITY.CLOSED_FOR_NOW ||
-    guidanceReceptivity.value ===
-      GUIDANCE_RECEPTIVITY.LOW;
+      GUIDANCE_RECEPTIVITY.CLOSED_FOR_NOW;
 
   const shouldHoldSpace =
     creatorMayContinue ||
@@ -826,13 +968,17 @@ function detectContextRestorationNeed({
     "it was on the tip of my tongue",
   ];
 
+  const hasContext =
+    context?.recentCreatorMessages?.length >
+      0 ||
+    context?.recentConversations?.length >
+      0 ||
+    Boolean(context?.activeIdea) ||
+    Boolean(context?.activeProject);
+
   const need =
     includesAny(text, lostThoughtPhrases) &&
-    (
-      context?.recentCreatorMessages?.length >
-        0 ||
-      context?.recentConversations?.length > 0
-    );
+    hasContext;
 
   return createDetection({
     value: need,
@@ -920,7 +1066,7 @@ function scoreObservation(
 
   const repetitionPenalty =
     observation.lastReflectedAt &&
-    observation.reflectionCount > 1
+    Number(observation.reflectionCount) > 1
       ? 0.2
       : 0;
 
@@ -945,27 +1091,37 @@ function scoreObservation(
  * Selects the strongest evidence-based observation.
  */
 function selectReflectionCandidate(context) {
-  const candidates = [
-    ...(Array.isArray(context?.observations)
+  const observations =
+    Array.isArray(context?.observations)
       ? context.observations
-      : []),
+      : [];
 
-    ...(Array.isArray(context?.knownPatterns)
-      ? context.knownPatterns.map(
-          (pattern) => ({
-            ...pattern,
-            text:
-              pattern.description ||
-              pattern.positiveReflection ||
-              pattern.name,
-            category:
-              pattern.category || "pattern",
-            status:
-              pattern.status || "confirmed",
-            permissionToReflect: true,
-          })
-        )
-      : []),
+  const patterns =
+    Array.isArray(context?.knownPatterns)
+      ? context.knownPatterns
+      : [];
+
+  const candidates = [
+    ...observations,
+
+    ...patterns.map((pattern) => ({
+      ...pattern,
+
+      text:
+        pattern.description ||
+        pattern.positiveReflection ||
+        pattern.name,
+
+      category:
+        pattern.category || "pattern",
+
+      status:
+        pattern.status || "confirmed",
+
+      permissionToReflect:
+        pattern.permissionToReflect !==
+        false,
+    })),
   ];
 
   const ranked = candidates
@@ -1057,9 +1213,19 @@ function chooseResponseDepth({
   thinkingMode,
   guidanceReceptivity,
   context,
+  conversationPlan,
 }) {
   if (context?.preferredResponseDepth) {
     return context.preferredResponseDepth;
+  }
+
+  if (
+    isExecutionMove(
+      conversationPlan,
+      context
+    )
+  ) {
+    return RESPONSE_DEPTH.MINIMAL;
   }
 
   if (
@@ -1107,13 +1273,36 @@ function chooseDecision({
   thinkingMode,
   candidate,
   conversationPlan,
+  context,
 }) {
+  /**
+   * Execution decisions from Conversation Planner take
+   * precedence over optional reflection.
+   */
+  if (
+    isExecutionMove(
+      conversationPlan,
+      context
+    ) &&
+    !context?.creatorExplicitlyAskedToPause
+  ) {
+    return REFLECTION_DECISIONS.MOVE_FORWARD;
+  }
+
   if (contextRestorationNeeded.value) {
     return REFLECTION_DECISIONS.RESTORE_CONTEXT;
   }
 
   if (pressureReleaseNeeded.value) {
     return REFLECTION_DECISIONS.RELEASE_PRESSURE;
+  }
+
+  if (
+    creatorCompletion.value === false &&
+    thinkingMode.value ===
+      CREATOR_THINKING_MODES.INCUBATION
+  ) {
+    return REFLECTION_DECISIONS.STAY_SILENT;
   }
 
   if (holdSpaceNeeded.value) {
@@ -1175,16 +1364,41 @@ function chooseTiming({
   decision,
   thinkingMode,
   context,
+  conversationPlan,
 }) {
   if (
-    decision ===
-      REFLECTION_DECISIONS.STAY_SILENT ||
-    decision ===
-      REFLECTION_DECISIONS.HOLD_SPACE
+    isExecutionMove(
+      conversationPlan,
+      context
+    )
   ) {
     return {
-      responseDelayMs: 2500,
-      silenceWindowMs: 5000,
+      responseDelayMs: 0,
+      silenceWindowMs: 0,
+      allowCreatorToContinue: false,
+      canCancelResponseIfCreatorContinues: true,
+    };
+  }
+
+  if (
+    decision ===
+    REFLECTION_DECISIONS.STAY_SILENT
+  ) {
+    return {
+      responseDelayMs: 3000,
+      silenceWindowMs: 6000,
+      allowCreatorToContinue: true,
+      canCancelResponseIfCreatorContinues: true,
+    };
+  }
+
+  if (
+    decision ===
+    REFLECTION_DECISIONS.HOLD_SPACE
+  ) {
+    return {
+      responseDelayMs: 2000,
+      silenceWindowMs: 4500,
       allowCreatorToContinue: true,
       canCancelResponseIfCreatorContinues: true,
     };
@@ -1232,6 +1446,8 @@ function createResponseGuidance({
   thinkingMode,
   guidanceReceptivity,
   candidate,
+  conversationPlan,
+  context,
 }) {
   const guidance = [
     "Demonstrate that the creator has been heard before adding anything new.",
@@ -1242,6 +1458,20 @@ function createResponseGuidance({
     "Do not use empty praise.",
     "Do not make the creator repeat everything they have already explained.",
   ];
+
+  if (
+    isExecutionMove(
+      conversationPlan,
+      context
+    )
+  ) {
+    guidance.push(
+      "Conversation Planner has selected an execution move.",
+      "Do not insert unnecessary reflection before the requested action.",
+      "Move directly into the requested creation, refinement, demonstration or continuation.",
+      "Reflection may support the action but must not delay it."
+    );
+  }
 
   if (
     decision ===
@@ -1285,8 +1515,7 @@ function createResponseGuidance({
       "Confirm that enough useful material has already been captured.",
       "Remove any expectation that the creator must remember immediately.",
       "Leave the door open for the missing thought to return later.",
-      "Offer to continue with what is already known.",
-      "Use warm language such as 'I'm all ears' only when it fits the established tone."
+      "Offer to continue with what is already known."
     );
   }
 
@@ -1416,6 +1645,8 @@ function createGuardRails() {
     "Do not claim credit for an idea that emerged from the creator.",
     "Do not repeat a reflection merely because it previously worked.",
     "Do not pressure the creator to respond immediately.",
+    "Do not let reflection block an explicit request to create, refine, demonstrate or continue.",
+    "Do not mistake an experienced creator's independence for disengagement.",
   ];
 }
 
@@ -1470,6 +1701,39 @@ function createContextLandmarks(context) {
       }
     });
 
+  if (context?.activeIdea) {
+    const activeIdeaText =
+      typeof context.activeIdea === "string"
+        ? context.activeIdea
+        : context.activeIdea?.summary ||
+          context.activeIdea?.description ||
+          context.activeIdea?.title;
+
+    if (cleanString(activeIdeaText)) {
+      landmarks.push({
+        source: "active-idea",
+        text: cleanString(activeIdeaText),
+      });
+    }
+  }
+
+  if (context?.activeProject) {
+    const activeProjectText =
+      typeof context.activeProject ===
+      "string"
+        ? context.activeProject
+        : context.activeProject?.summary ||
+          context.activeProject?.title ||
+          context.activeProject?.name;
+
+    if (cleanString(activeProjectText)) {
+      landmarks.push({
+        source: "active-project",
+        text: cleanString(activeProjectText),
+      });
+    }
+  }
+
   return landmarks.slice(0, 5);
 }
 
@@ -1482,14 +1746,26 @@ function createDecisionSummary({
   thinkingMode,
   guidanceReceptivity,
   responseDepth,
+  conversationPlan,
+  context,
 }) {
+  const mentorMove = getPlannerMentorMove(
+    conversationPlan,
+    context
+  );
+
+  const moveSummary = mentorMove
+    ? ` Conversation Planner selected ${mentorMove}.`
+    : "";
+
   return (
     `Use the ${decision} decision with a ` +
     `${reflectionType} reflection. ` +
     `The creator appears to be in ` +
     `${thinkingMode.value} mode, with ` +
     `${guidanceReceptivity.value} guidance receptivity. ` +
-    `Use ${responseDepth} response depth.`
+    `Use ${responseDepth} response depth.` +
+    moveSummary
   );
 }
 
@@ -1514,7 +1790,8 @@ function createFallbackReflectionPlan({
       REFLECTION_DECISIONS.HOLD_SPACE,
 
     reflection: {
-      type: REFLECTION_TYPES.UNDERSTANDING,
+      type:
+        REFLECTION_TYPES.UNDERSTANDING,
       candidate: null,
       contextLandmarks: [],
     },
@@ -1543,7 +1820,8 @@ function createFallbackReflectionPlan({
       responseDelayMs: 1200,
       silenceWindowMs: 2000,
       allowCreatorToContinue: true,
-      canCancelResponseIfCreatorContinues: true,
+      canCancelResponseIfCreatorContinues:
+        true,
     },
 
     responseDepth: RESPONSE_DEPTH.SHORT,
@@ -1600,6 +1878,25 @@ function createReflectionEngine() {
           DEFAULT_REFLECTION_CONTEXT
         ),
         ...cloneValue(context),
+
+        conversationMode:
+          context?.conversationMode ||
+          conversationPlan?.conversation
+            ?.mode ||
+          null,
+
+        mentorMove:
+          context?.mentorMove ||
+          conversationPlan?.conversation
+            ?.mentorMove ||
+          null,
+
+        mentorTone:
+          context?.mentorTone ||
+          conversationPlan?.conversation
+            ?.tone ||
+          "warm",
+
         currentTimestamp:
           context?.currentTimestamp ||
           createTimestamp(),
@@ -1618,12 +1915,16 @@ function createReflectionEngine() {
           conversationPlan,
         });
 
+      /**
+       * v1.1:
+       * Pass the complete detection object consistently.
+       */
       const guidanceReceptivity =
         detectGuidanceReceptivity({
           message,
           context: combinedContext,
-          thinkingMode:
-            thinkingMode.value,
+          thinkingMode,
+          conversationPlan,
         });
 
       const holdSpaceNeeded =
@@ -1633,6 +1934,7 @@ function createReflectionEngine() {
           creatorCompletion,
           thinkingMode,
           guidanceReceptivity,
+          conversationPlan,
         });
 
       const contextRestorationNeeded =
@@ -1667,6 +1969,7 @@ function createReflectionEngine() {
           thinkingMode,
           guidanceReceptivity,
           context: combinedContext,
+          conversationPlan,
         });
 
       const decision = chooseDecision({
@@ -1677,12 +1980,14 @@ function createReflectionEngine() {
         thinkingMode,
         candidate,
         conversationPlan,
+        context: combinedContext,
       });
 
       const timing = chooseTiming({
         decision,
         thinkingMode,
         context: combinedContext,
+        conversationPlan,
       });
 
       const contextLandmarks =
@@ -1701,6 +2006,8 @@ function createReflectionEngine() {
           thinkingMode,
           guidanceReceptivity,
           candidate,
+          conversationPlan,
+          context: combinedContext,
         });
 
       return {
@@ -1730,7 +2037,10 @@ function createReflectionEngine() {
               REFLECTION_DECISIONS.REFLECT,
 
           shouldDemonstrateUnderstanding:
-            true,
+            !isExecutionMove(
+              conversationPlan,
+              combinedContext
+            ),
 
           shouldClarify:
             decision ===
@@ -1741,6 +2051,12 @@ function createReflectionEngine() {
 
           shouldRestoreContext:
             contextRestorationNeeded.value,
+
+          shouldYieldToExecution:
+            isExecutionMove(
+              conversationPlan,
+              combinedContext
+            ),
         },
 
         creatorState: {
@@ -1774,6 +2090,19 @@ function createReflectionEngine() {
           oneMeaningfulQuestionAtATime:
             true,
           conversationServesCreation: true,
+
+          /**
+           * v1.1:
+           * Reflection serves the creative process.
+           * It does not control it.
+           */
+          actionBeforeReflectionWhenRequested:
+            true,
+          reflectionMustNotBlockCreation:
+            true,
+          respectCreatorExperience: true,
+          creatorCanOverrideMentorDirection:
+            true,
         },
 
         contextSnapshot:
@@ -1789,6 +2118,8 @@ function createReflectionEngine() {
             thinkingMode,
             guidanceReceptivity,
             responseDepth,
+            conversationPlan,
+            context: combinedContext,
           }),
 
         status: "planned",
@@ -1849,11 +2180,25 @@ function createReflectionEngine() {
     );
   }
 
+  /**
+   * Convenience check for whether Reflection should step aside
+   * and allow an execution move to continue immediately.
+   */
+  function shouldYieldToExecution(plan) {
+    return Boolean(
+      plan?.reflection
+        ?.shouldYieldToExecution ||
+      plan?.decision ===
+        REFLECTION_DECISIONS.MOVE_FORWARD
+    );
+  }
+
   return {
     planReflection,
     shouldHoldSpace,
     shouldRestoreContext,
     shouldReleasePressure,
+    shouldYieldToExecution,
   };
 }
 
