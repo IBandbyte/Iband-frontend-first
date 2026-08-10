@@ -28,6 +28,11 @@
  * - How future specialist-agent memory signals may influence
  *   behaviour without taking authority away from the creator.
  *
+ * CreatorMemory.js remains the persistence authority.
+ * CreatorMemoryEngine interprets and plans memory behaviour.
+ * AdaptiveMentorEngine orchestrates that intelligence with the
+ * other Mentor systems.
+ *
  * Core philosophy:
  * - Protect the creator.
  * - Present behaviour leads.
@@ -47,7 +52,7 @@ import createReflectionEngine from "./ReflectionEngine";
 import createProgressionEngine from "./ProgressionEngine";
 import createCreatorMemoryEngine from "./CreatorMemoryEngine";
 
-const ADAPTIVE_MENTOR_ENGINE_VERSION = "2.1.0";
+const ADAPTIVE_MENTOR_ENGINE_VERSION = "2.2.0";
 
 const MENTOR_ROLES = Object.freeze({
   LISTENER: "listener",
@@ -95,40 +100,75 @@ const MEMORY_POLICIES = Object.freeze({
   DO_NOT_USE: "do-not-use",
   INFORM_SILENTLY: "inform-silently",
   CAPTURE_ONLY: "capture-only",
-  RECALL_WITH_PERMISSION: "recall-with-permission",
-  CAPTURE_AND_RECALL: "capture-and-recall",
+
+  RECALL_WITH_PERMISSION:
+    "recall-with-permission",
+
+  CAPTURE_AND_RECALL:
+    "capture-and-recall",
+
   RESTORE_CONTEXT: "restore-context",
-  PRESERVE_HANDOFF: "preserve-handoff",
+
+  PRESERVE_HANDOFF:
+    "preserve-handoff",
+
   FORGET_ONLY: "forget-only",
+
   FORGET_REQUIRES_CLARIFICATION:
     "forget-requires-clarification",
 });
 
 const ACTION_PRIORITIES = Object.freeze({
   SAFETY: 100,
-  CREATOR_EXPLICIT_DIRECTION: 90,
+
+  CREATOR_EXPLICIT_DIRECTION:
+    90,
+
   MEMORY_FORGET: 88,
-  MEMORY_FORGET_CLARIFICATION: 87,
+
+  MEMORY_FORGET_CLARIFICATION:
+    87,
+
   HOLD_SPACE: 80,
+
   PROTECT_FLOW: 75,
+
   RELEASE_PRESSURE: 70,
-  RESTORE_PROJECT_CONTEXT: 68,
+
+  RESTORE_PROJECT_CONTEXT:
+    68,
+
   MOVE_TO_ACTION: 65,
+
   MEMORY_RECALL: 55,
+
   REFLECTION: 50,
+
   EXPLORATION: 40,
+
   LEARNING: 35,
+
   GENERAL_LISTENING: 20,
 });
 
 const ADAPTIVE_ACTIONS = Object.freeze({
   WAIT: "wait",
-  ACKNOWLEDGE_BRIEFLY: "acknowledge-briefly",
-  LISTEN_AND_INVITE: "listen-and-invite",
-  REFLECT_GENTLY: "reflect-gently",
-  RELEASE_PRESSURE: "release-pressure",
 
-  RESTORE_CONTEXT: "restore-context",
+  ACKNOWLEDGE_BRIEFLY:
+    "acknowledge-briefly",
+
+  LISTEN_AND_INVITE:
+    "listen-and-invite",
+
+  REFLECT_GENTLY:
+    "reflect-gently",
+
+  RELEASE_PRESSURE:
+    "release-pressure",
+
+  RESTORE_CONTEXT:
+    "restore-context",
+
   RESTORE_PROJECT_CONTEXT:
     "restore-project-context",
 
@@ -144,7 +184,8 @@ const ADAPTIVE_ACTIONS = Object.freeze({
   APPLY_FORGET_REQUEST:
     "apply-forget-request",
 
-  ASK_ONE_QUESTION: "ask-one-question",
+  ASK_ONE_QUESTION:
+    "ask-one-question",
 
   OFFER_ONE_RECOMMENDATION:
     "offer-one-recommendation",
@@ -180,14 +221,28 @@ const ADAPTIVE_ACTIONS = Object.freeze({
 const ADAPTATION_SIGNALS = Object.freeze({
   BUILD_MODE: "build-mode",
   FLOW_MODE: "flow-mode",
-  EXPLORATION_MODE: "exploration-mode",
-  LEARNING_MODE: "learning-mode",
-  REFLECTION_MODE: "reflection-mode",
-  RECOVERY_MODE: "recovery-mode",
-  INCUBATION_MODE: "incubation-mode",
 
-  HIGH_MOMENTUM: "high-momentum",
-  LOW_ENERGY: "low-energy",
+  EXPLORATION_MODE:
+    "exploration-mode",
+
+  LEARNING_MODE:
+    "learning-mode",
+
+  REFLECTION_MODE:
+    "reflection-mode",
+
+  RECOVERY_MODE:
+    "recovery-mode",
+
+  INCUBATION_MODE:
+    "incubation-mode",
+
+  HIGH_MOMENTUM:
+    "high-momentum",
+
+  LOW_ENERGY:
+    "low-energy",
+
   INFORMATION_OVERLOAD:
     "information-overload",
 
@@ -237,90 +292,133 @@ const ADAPTATION_SIGNALS = Object.freeze({
     "creator-not-finished",
 });
 
-const DEFAULT_ADAPTIVE_CONTEXT = Object.freeze({
-  creatorId: null,
-  creatorJourney: "guide",
-  creatorType: null,
-  projectType: null,
+const DEFAULT_ADAPTIVE_CONTEXT =
+  Object.freeze({
+    creatorId: null,
+    creatorJourney: "guide",
+    creatorType: null,
+    projectType: null,
 
-  creatorProfile: null,
-  creatorMemoryContext: null,
+    creatorProfile: null,
 
-  activeProject: null,
-  activeProjectId: null,
-  activeIdea: null,
-  activeStage: null,
-  activeScene: null,
-  activeCharacter: null,
-  activeAsset: null,
+    creatorMemoryContext: null,
+    memoryContext: null,
 
-  sessionId: null,
-  sessionStartedAt: null,
+    activeProject: null,
+    activeProjectId: null,
+    activeIdea: null,
+    activeStage: null,
+    activeScene: null,
+    activeCharacter: null,
+    activeAsset: null,
 
-  thinkingMode: null,
-  creatorEnergy: null,
-  momentum: null,
-  guidanceWindow: null,
-  informationSaturation: null,
+    sessionId: null,
+    sessionStartedAt: null,
 
-  creatorExplicitlyAskedForGuidance: false,
-  creatorExplicitlyAskedToContinue: false,
-  creatorExplicitlyAskedForNextStep: false,
-  creatorExplicitlyAskedToPause: false,
-  creatorExplicitlyAskedToStop: false,
-  creatorExplicitlyAskedToCreate: false,
+    thinkingMode: null,
+    creatorEnergy: null,
+    momentum: null,
+    guidanceWindow: null,
+    informationSaturation: null,
 
-  creatorExplicitlyAskedToRemember: false,
-  creatorExplicitlyAskedNotToRemember: false,
-  creatorExplicitlyAskedToRevisit: false,
+    creatorExplicitlyAskedForGuidance:
+      false,
 
-  preferredResponseDepth: null,
-  preferredGuidanceStyle: null,
-  preferredMentorRole: null,
+    creatorExplicitlyAskedToContinue:
+      false,
 
-  recentCreatorMessages: [],
-  recentMentorMessages: [],
-  recentConversations: [],
+    creatorExplicitlyAskedForNextStep:
+      false,
 
-  existingMemories: [],
-  existingProjectMemories: [],
-  existingPatterns: [],
-  existingObservations: [],
+    creatorExplicitlyAskedToPause:
+      false,
 
-  memorySignals: [],
-  projectMemorySignals: [],
+    creatorExplicitlyAskedToStop:
+      false,
 
-  captureSessionHandoff: false,
-  sessionHandoff: null,
+    creatorExplicitlyAskedToCreate:
+      false,
 
-  sourceAgent: null,
-  sourceSystem: null,
+    creatorExplicitlyAskedToRemember:
+      false,
 
-  targetMemoryIds: [],
+    creatorExplicitlyAskedNotToRemember:
+      false,
 
-  minimumCreationContextReady: false,
-  requiredInformationComplete: false,
-  projectReadyToGenerate: false,
-  projectReadyToRefine: false,
-  projectReadyToPublish: false,
+    creatorExplicitlyAskedToRevisit:
+      false,
 
-  currentTimestamp: null,
-});
+    preferredResponseDepth:
+      null,
 
-/**
- * Returns the current ISO timestamp.
- */
+    preferredGuidanceStyle:
+      null,
+
+    preferredMentorRole:
+      null,
+
+    preferredCommunicationPace:
+      null,
+
+    preferredVoiceProfile:
+      null,
+
+    preferredChannel:
+      null,
+
+    recentCreatorMessages: [],
+    recentMentorMessages: [],
+    recentConversations: [],
+
+    existingMemories: [],
+    existingProjectMemories: [],
+    existingPatterns: [],
+    existingObservations: [],
+
+    deferredMemories: [],
+    milestones: [],
+
+    memorySignals: [],
+    projectMemorySignals: [],
+
+    captureSessionHandoff:
+      false,
+
+    sessionHandoff:
+      null,
+
+    sourceAgent: null,
+    sourceSystem: null,
+
+    targetMemoryIds: [],
+
+    minimumCreationContextReady:
+      false,
+
+    requiredInformationComplete:
+      false,
+
+    projectReadyToGenerate:
+      false,
+
+    projectReadyToRefine:
+      false,
+
+    projectReadyToPublish:
+      false,
+
+    currentTimestamp: null,
+  });
+
 function createTimestamp() {
   return new Date().toISOString();
 }
 
-/**
- * Creates a lightweight unique identifier.
- */
 function createAdaptivePlanId() {
-  const randomValue = Math.random()
-    .toString(36)
-    .slice(2, 10);
+  const randomValue =
+    Math.random()
+      .toString(36)
+      .slice(2, 10);
 
   return (
     `adaptive-mentor-plan-` +
@@ -328,11 +426,10 @@ function createAdaptivePlanId() {
   );
 }
 
-/**
- * Safely clones plain data.
- */
 function cloneValue(value) {
-  if (value === undefined) {
+  if (
+    value === undefined
+  ) {
     return undefined;
   }
 
@@ -341,28 +438,22 @@ function cloneValue(value) {
   );
 }
 
-/**
- * Produces a clean string.
- */
 function cleanString(value) {
-  return typeof value === "string"
+  return typeof value ===
+    "string"
     ? value.trim()
     : "";
 }
 
-/**
- * Converts an optional value to an array.
- */
 function asArray(value) {
   return Array.isArray(value)
     ? value
     : [];
 }
 
-/**
- * Returns unique meaningful values.
- */
-function uniqueValues(values = []) {
+function uniqueValues(
+  values = []
+) {
   return [
     ...new Set(
       values.filter(
@@ -375,19 +466,21 @@ function uniqueValues(values = []) {
   ];
 }
 
-/**
- * Safely reads nested values.
- */
 function getNestedValue(
   value,
   path,
   fallback = null
 ) {
-  const keys = path.split(".");
+  const keys =
+    path.split(".");
 
-  let currentValue = value;
+  let currentValue =
+    value;
 
-  for (const key of keys) {
+  for (
+    const key
+    of keys
+  ) {
     if (
       currentValue === null ||
       currentValue === undefined ||
@@ -407,9 +500,6 @@ function getNestedValue(
   );
 }
 
-/**
- * Determines whether one of the supplied values is present.
- */
 function includesValue(
   value,
   possibilities = []
@@ -419,15 +509,13 @@ function includesValue(
   );
 }
 
-/**
- * Returns the active project id where available.
- */
 function getProjectId(
   context = {}
 ) {
   if (
     cleanString(
-      context?.activeProjectId
+      context
+        ?.activeProjectId
     )
   ) {
     return cleanString(
@@ -436,8 +524,9 @@ function getProjectId(
   }
 
   if (
-    typeof context?.activeProject ===
-    "string"
+    typeof context
+      ?.activeProject ===
+      "string"
   ) {
     return (
       cleanString(
@@ -449,7 +538,9 @@ function getProjectId(
 
   return (
     cleanString(
-      context?.activeProject?.id
+      context
+        ?.activeProject
+        ?.id
     ) ||
     cleanString(
       context
@@ -460,48 +551,137 @@ function getProjectId(
   );
 }
 
+function hasMeaningfulMemoryContext(
+  memoryContext
+) {
+  if (
+    !memoryContext ||
+    typeof memoryContext !==
+      "object"
+  ) {
+    return false;
+  }
+
+  return Boolean(
+    memoryContext
+      ?.activeProject ||
+    memoryContext
+      ?.creatorProfile ||
+    memoryContext
+      ?.journey ||
+    memoryContext
+      ?.relationship ||
+    memoryContext
+      ?.conversationCount >
+      0 ||
+    memoryContext
+      ?.hasSharedIdea ||
+    asArray(
+      memoryContext
+        ?.existingMemories
+    ).length > 0 ||
+    asArray(
+      memoryContext
+        ?.existingPatterns
+    ).length > 0 ||
+    asArray(
+      memoryContext
+        ?.knownPatterns
+    ).length > 0 ||
+    asArray(
+      memoryContext
+        ?.existingObservations
+    ).length > 0 ||
+    asArray(
+      memoryContext
+        ?.recentConversations
+    ).length > 0
+  );
+}
+
 /**
- * Safely reads the compact engine context exposed by
- * CreatorMemory.js.
+ * Reads CreatorMemory's richest available context.
  *
- * Memory failure must never prevent the Mentor from
- * continuing the current conversation.
+ * getMemoryContext() is the modern v2 contract.
+ * createEngineContext() remains supported for backwards
+ * compatibility.
  */
 function readCreatorMemoryContext(
   memory
 ) {
-  if (
-    !memory ||
-    typeof memory.createEngineContext !==
-      "function"
-  ) {
+  if (!memory) {
     return null;
   }
 
   try {
-    return cloneValue(
-      memory.createEngineContext()
-    );
+    if (
+      typeof memory
+        .getMemoryContext ===
+        "function"
+    ) {
+      const context =
+        memory
+          .getMemoryContext();
+
+      if (
+        context &&
+        typeof context ===
+          "object"
+      ) {
+        return cloneValue(
+          context
+        );
+      }
+    }
+
+    if (
+      typeof memory
+        .createEngineContext ===
+        "function"
+    ) {
+      return cloneValue(
+        memory
+          .createEngineContext()
+      );
+    }
   } catch (error) {
     console.warn(
       "AdaptiveMentorEngine memory context error:",
       error
     );
-
-    return null;
   }
+
+  return null;
 }
 
-/**
- * Safely reads recent conversations from CreatorMemory.js.
- */
 function readRecentMemoryConversations(
   memory,
+  memoryContext,
   limit = 10
 ) {
+  const contextConversations =
+    asArray(
+      memoryContext
+        ?.recentConversations
+    );
+
+  if (
+    contextConversations
+      .length > 0
+  ) {
+    return cloneValue(
+      contextConversations
+        .slice(
+          0,
+          limit
+        )
+    );
+  }
+
   if (
     !memory ||
-    typeof memory.getRecentConversations !==
+    typeof memory
+      .getRecentConversations !==
       "function"
   ) {
     return [];
@@ -509,9 +689,10 @@ function readRecentMemoryConversations(
 
   try {
     return asArray(
-      memory.getRecentConversations(
-        limit
-      )
+      memory
+        .getRecentConversations(
+          limit
+        )
     );
   } catch (error) {
     console.warn(
@@ -523,33 +704,66 @@ function readRecentMemoryConversations(
   }
 }
 
+function resolveCommunicationPreferences(
+  memoryContext
+) {
+  return (
+    memoryContext
+      ?.communicationPreferences ||
+    memoryContext
+      ?.creatorProfile
+      ?.communicationPreferences ||
+    {}
+  );
+}
+
 /**
- * Builds the context used by all specialist engines.
+ * Builds the context used by every specialist engine.
  *
  * Precedence:
  * 1. Explicit current-turn context.
- * 2. CreatorMemory compact engine context.
+ * 2. Rich CreatorMemory context.
  * 3. Adaptive defaults.
  *
- * This ensures present creator direction always overrides
- * historical memory.
+ * Present creator behaviour therefore always wins over memory.
  */
 function createMemoryAwareContext({
   context = {},
   memory = null,
 } = {}) {
   const explicitContext =
-    cloneValue(context) || {};
+    cloneValue(
+      context
+    ) || {};
 
-  const memoryContext =
+  const suppliedMemoryContext =
+    explicitContext
+      ?.creatorMemoryContext ||
+    explicitContext
+      ?.memoryContext ||
+    null;
+
+  const storedMemoryContext =
     readCreatorMemoryContext(
       memory
     );
 
+  const memoryContext =
+    suppliedMemoryContext ||
+    storedMemoryContext ||
+    null;
+
   const memoryProfile =
+    explicitContext
+      ?.creatorProfile ||
     memoryContext
       ?.creatorProfile ||
     null;
+
+  const communicationPreferences =
+    resolveCommunicationPreferences(
+      memoryContext
+    );
 
   const rememberedProject =
     memoryContext
@@ -561,20 +775,59 @@ function createMemoryAwareContext({
       rememberedProject?.id
     ) ||
     cleanString(
-      rememberedProject?.projectId
+      rememberedProject
+        ?.projectId
+    ) ||
+    cleanString(
+      memoryContext
+        ?.journey
+        ?.activeProjectId
     ) ||
     null;
 
   const recentConversations =
     readRecentMemoryConversations(
       memory,
+      memoryContext,
       10
     );
 
   const rememberedPatterns =
     asArray(
       memoryContext
+        ?.existingPatterns ||
+      memoryContext
         ?.knownPatterns
+    );
+
+  const rememberedObservations =
+    asArray(
+      memoryContext
+        ?.existingObservations
+    );
+
+  const rememberedMemories =
+    asArray(
+      memoryContext
+        ?.existingMemories
+    );
+
+  const rememberedProjectMemories =
+    asArray(
+      memoryContext
+        ?.existingProjectMemories
+    );
+
+  const deferredMemories =
+    asArray(
+      memoryContext
+        ?.deferredMemories
+    );
+
+  const milestones =
+    asArray(
+      memoryContext
+        ?.milestones
     );
 
   const memoryDerivedContext = {
@@ -584,6 +837,8 @@ function createMemoryAwareContext({
     creatorMemoryContext:
       memoryContext,
 
+    memoryContext,
+
     activeProject:
       rememberedProject,
 
@@ -592,8 +847,21 @@ function createMemoryAwareContext({
 
     recentConversations,
 
+    existingMemories:
+      rememberedMemories,
+
+    existingProjectMemories:
+      rememberedProjectMemories,
+
     existingPatterns:
       rememberedPatterns,
+
+    existingObservations:
+      rememberedObservations,
+
+    deferredMemories,
+
+    milestones,
 
     creatorType:
       asArray(
@@ -602,18 +870,65 @@ function createMemoryAwareContext({
       )[0] ||
       null,
 
+    preferredResponseDepth:
+      communicationPreferences
+        ?.preferredResponseDepth ||
+      null,
+
+    preferredGuidanceStyle:
+      communicationPreferences
+        ?.preferredGuidanceStyle ||
+      null,
+
+    preferredMentorRole:
+      communicationPreferences
+        ?.preferredMentorRole ||
+      null,
+
+    preferredCommunicationPace:
+      communicationPreferences
+        ?.preferredCommunicationPace ||
+      null,
+
+    preferredVoiceProfile:
+      communicationPreferences
+        ?.preferredVoiceProfile ||
+      null,
+
+    preferredChannel:
+      communicationPreferences
+        ?.preferredChannel ||
+      null,
+
     recentStage:
+      memoryContext
+        ?.journey
+        ?.recentStage ||
       memoryContext
         ?.recentStage ||
       null,
 
     recentEmotionalState:
       memoryContext
+        ?.journey
+        ?.recentEmotionalState ||
+      memoryContext
         ?.recentEmotionalState ||
       null,
+
+    interactionCount:
+      memoryContext
+        ?.relationship
+        ?.interactionCount ||
+      memoryContext
+        ?.counts
+        ?.conversations ||
+      memoryContext
+        ?.conversationCount ||
+      0,
   };
 
-  return {
+  const resolvedContext = {
     ...cloneValue(
       DEFAULT_ADAPTIVE_CONTEXT
     ),
@@ -631,6 +946,8 @@ function createMemoryAwareContext({
 
     creatorMemoryContext:
       memoryContext,
+
+    memoryContext,
 
     activeProject:
       explicitContext
@@ -659,6 +976,32 @@ function createMemoryAwareContext({
             recentConversations
           ),
 
+    existingMemories:
+      asArray(
+        explicitContext
+          .existingMemories
+      ).length > 0
+        ? cloneValue(
+            explicitContext
+              .existingMemories
+          )
+        : cloneValue(
+            rememberedMemories
+          ),
+
+    existingProjectMemories:
+      asArray(
+        explicitContext
+          .existingProjectMemories
+      ).length > 0
+        ? cloneValue(
+            explicitContext
+              .existingProjectMemories
+          )
+        : cloneValue(
+            rememberedProjectMemories
+          ),
+
     existingPatterns:
       asArray(
         explicitContext
@@ -672,16 +1015,96 @@ function createMemoryAwareContext({
             rememberedPatterns
           ),
 
+    existingObservations:
+      asArray(
+        explicitContext
+          .existingObservations
+      ).length > 0
+        ? cloneValue(
+            explicitContext
+              .existingObservations
+          )
+        : cloneValue(
+            rememberedObservations
+          ),
+
+    deferredMemories:
+      asArray(
+        explicitContext
+          .deferredMemories
+      ).length > 0
+        ? cloneValue(
+            explicitContext
+              .deferredMemories
+          )
+        : cloneValue(
+            deferredMemories
+          ),
+
+    milestones:
+      asArray(
+        explicitContext
+          .milestones
+      ).length > 0
+        ? cloneValue(
+            explicitContext
+              .milestones
+          )
+        : cloneValue(
+            milestones
+          ),
+
+    preferredResponseDepth:
+      explicitContext
+        .preferredResponseDepth ??
+      memoryDerivedContext
+        .preferredResponseDepth ??
+      null,
+
+    preferredGuidanceStyle:
+      explicitContext
+        .preferredGuidanceStyle ??
+      memoryDerivedContext
+        .preferredGuidanceStyle ??
+      null,
+
+    preferredMentorRole:
+      explicitContext
+        .preferredMentorRole ??
+      memoryDerivedContext
+        .preferredMentorRole ??
+      null,
+
+    preferredCommunicationPace:
+      explicitContext
+        .preferredCommunicationPace ??
+      memoryDerivedContext
+        .preferredCommunicationPace ??
+      null,
+
+    preferredVoiceProfile:
+      explicitContext
+        .preferredVoiceProfile ??
+      memoryDerivedContext
+        .preferredVoiceProfile ??
+      null,
+
+    preferredChannel:
+      explicitContext
+        .preferredChannel ??
+      memoryDerivedContext
+        .preferredChannel ??
+      null,
+
     currentTimestamp:
       explicitContext
         .currentTimestamp ||
       createTimestamp(),
   };
+
+  return resolvedContext;
 }
 
-/**
- * Adds a scored candidate action.
- */
 function addCandidateAction(
   candidates,
   {
@@ -701,94 +1124,98 @@ function addCandidateAction(
     priority,
     reason,
     source,
+
     metadata:
-      cloneValue(metadata),
+      cloneValue(
+        metadata
+      ),
   });
 }
 
-/**
- * Determines whether a memory plan contains
- * instructions that may preserve new information.
- */
 function memoryPlanHasCaptureInstructions(
   memoryPlan
 ) {
   return asArray(
-    memoryPlan?.instructions
+    memoryPlan
+      ?.instructions
   ).some(
-    (instruction) =>
-      instruction?.action !==
-        "forget-memory"
+    (instruction) => {
+      const action =
+        cleanString(
+          instruction
+            ?.action
+        );
+
+      return (
+        action &&
+        action !==
+          "forget-memory"
+      );
+    }
   );
 }
 
-/**
- * Determines whether the memory plan contains
- * project-scoped candidates.
- */
 function memoryPlanHasProjectMemory(
   memoryPlan
 ) {
   return asArray(
-    memoryPlan?.candidates
-  ).some((item) => {
-    const candidate =
-      item?.candidate ||
-      item;
+    memoryPlan
+      ?.candidates
+  ).some(
+    (item) => {
+      const candidate =
+        item
+          ?.candidate ||
+        item;
 
-    return (
-      candidate?.scope ===
-        "project" ||
-      candidate?.projectId
-    );
-  });
+      return Boolean(
+        candidate?.scope ===
+          "project" ||
+        candidate
+          ?.projectId
+      );
+    }
+  );
 }
 
-/**
- * Determines whether the memory plan contains
- * session handoff information.
- */
 function memoryPlanHasSessionHandoff(
   memoryPlan
 ) {
   return asArray(
-    memoryPlan?.candidates
-  ).some((item) => {
-    const candidate =
-      item?.candidate ||
-      item;
+    memoryPlan
+      ?.candidates
+  ).some(
+    (item) => {
+      const candidate =
+        item
+          ?.candidate ||
+        item;
 
-    return (
-      candidate?.category ===
-      "session-handoff"
-    );
-  });
+      return (
+        candidate
+          ?.category ===
+        "session-handoff"
+      );
+    }
+  );
 }
 
-/**
- * Determines whether future specialist agents
- * supplied structured memory signals.
- */
 function contextHasSpecialistMemorySignals(
   context
 ) {
   return Boolean(
     context?.sourceAgent ||
-      asArray(
-        context?.memorySignals
-      ).length >
-        0 ||
-      asArray(
-        context
-          ?.projectMemorySignals
-      ).length >
-        0
+    asArray(
+      context
+        ?.memorySignals
+    ).length > 0 ||
+    asArray(
+      context
+        ?.projectMemorySignals
+    ).length > 0
   );
 }
 
-/**
- * Extracts adaptation signals from all specialist plans.
- */
 function collectAdaptationSignals({
   context,
   conversationPlan,
@@ -1038,7 +1465,9 @@ function collectAdaptationSignals({
   }
 
   if (
-    getProjectId(context)
+    getProjectId(
+      context
+    )
   ) {
     signals.push(
       ADAPTATION_SIGNALS
@@ -1057,23 +1486,9 @@ function collectAdaptationSignals({
   }
 
   if (
-    context
-      ?.creatorMemoryContext &&
-    (
+    hasMeaningfulMemoryContext(
       context
-        .creatorMemoryContext
-        .hasSharedIdea ||
-      context
-        .creatorMemoryContext
-        .activeProject ||
-      asArray(
-        context
-          .creatorMemoryContext
-          .knownPatterns
-      ).length > 0 ||
-      context
-        .creatorMemoryContext
-        .conversationCount > 0
+        ?.creatorMemoryContext
     )
   ) {
     signals.push(
@@ -1161,9 +1576,6 @@ function collectAdaptationSignals({
   );
 }
 
-/**
- * Produces candidate actions from specialist-engine decisions.
- */
 function collectCandidateActions({
   context,
   conversationPlan,
@@ -1260,7 +1672,8 @@ function collectCandidateActions({
 
         metadata: {
           forgetPlan:
-            memoryPlan?.forget ||
+            memoryPlan
+              ?.forget ||
             null,
         },
       }
@@ -1290,7 +1703,8 @@ function collectCandidateActions({
 
         metadata: {
           forgetPlan:
-            memoryPlan?.forget ||
+            memoryPlan
+              ?.forget ||
             null,
         },
       }
@@ -1310,7 +1724,8 @@ function collectCandidateActions({
       candidates,
       {
         action:
-          ADAPTIVE_ACTIONS.WAIT,
+          ADAPTIVE_ACTIONS
+            .WAIT,
 
         priority:
           ACTION_PRIORITIES
@@ -1448,7 +1863,8 @@ function collectCandidateActions({
 
         metadata: {
           recall:
-            memoryPlan?.recall ||
+            memoryPlan
+              ?.recall ||
             null,
         },
       }
@@ -1787,9 +2203,6 @@ function collectCandidateActions({
   );
 }
 
-/**
- * Applies conflict-resolution rules to candidate actions.
- */
 function resolvePrimaryAction({
   candidates,
   signals,
@@ -1855,6 +2268,52 @@ function resolvePrimaryAction({
   }
 
   if (
+    context
+      ?.creatorExplicitlyAskedToStop
+  ) {
+    const stopCandidate =
+      candidates.find(
+        (candidate) =>
+          candidate.action ===
+          ADAPTIVE_ACTIONS
+            .END_POSITIVELY
+      );
+
+    if (stopCandidate) {
+      return stopCandidate;
+    }
+  }
+
+  if (
+    context
+      ?.creatorExplicitlyAskedToPause
+  ) {
+    const handoffCandidate =
+      candidates.find(
+        (candidate) =>
+          candidate.action ===
+          ADAPTIVE_ACTIONS
+            .PRESERVE_SESSION_HANDOFF
+      );
+
+    if (handoffCandidate) {
+      return handoffCandidate;
+    }
+
+    const pauseCandidate =
+      candidates.find(
+        (candidate) =>
+          candidate.action ===
+          ADAPTIVE_ACTIONS
+            .SAVE_AND_PAUSE
+      );
+
+    if (pauseCandidate) {
+      return pauseCandidate;
+    }
+  }
+
+  if (
     signals.includes(
       ADAPTATION_SIGNALS
         .CREATOR_NOT_FINISHED
@@ -1862,7 +2321,8 @@ function resolvePrimaryAction({
   ) {
     return {
       action:
-        ADAPTIVE_ACTIONS.WAIT,
+        ADAPTIVE_ACTIONS
+          .WAIT,
 
       priority:
         ACTION_PRIORITIES
@@ -1924,6 +2384,9 @@ function resolvePrimaryAction({
 
               ADAPTIVE_ACTIONS
                 .MOVE_TO_REFINEMENT,
+
+              ADAPTIVE_ACTIONS
+                .MOVE_TO_PUBLISHING,
             ]
           )
       );
@@ -2000,27 +2463,23 @@ function resolvePrimaryAction({
 }
 
 /**
- * Chooses the Mentor's active role.
+ * Immediate behavioural requirements are resolved before
+ * remembered role preference.
+ *
+ * A remembered preference may guide normal conversation, but it
+ * must never turn a required WAIT, FORGET, HANDOFF or BUILD action
+ * into the wrong Mentor role.
  */
 function chooseMentorRole({
   primaryAction,
   signals,
   context,
 }) {
-  if (
-    context
-      ?.preferredMentorRole
-  ) {
-    return (
-      context
-        .preferredMentorRole
-    );
-  }
-
   switch (
     primaryAction.action
   ) {
-    case ADAPTIVE_ACTIONS.WAIT:
+    case ADAPTIVE_ACTIONS
+      .WAIT:
       return (
         MENTOR_ROLES
           .QUIET_COMPANION
@@ -2086,6 +2545,9 @@ function chooseMentorRole({
 
     case ADAPTIVE_ACTIONS
       .PRESERVE_SESSION_HANDOFF:
+
+    case ADAPTIVE_ACTIONS
+      .SAVE_AND_PAUSE:
       return (
         MENTOR_ROLES
           .FACILITATOR
@@ -2095,6 +2557,22 @@ function chooseMentorRole({
       break;
   }
 
+  const preferredRole =
+    cleanString(
+      context
+        ?.preferredMentorRole
+    );
+
+  if (
+    Object.values(
+      MENTOR_ROLES
+    ).includes(
+      preferredRole
+    )
+  ) {
+    return preferredRole;
+  }
+
   if (
     signals.includes(
       ADAPTATION_SIGNALS
@@ -2102,36 +2580,23 @@ function chooseMentorRole({
     )
   ) {
     return (
-      MENTOR_ROLES.GUIDE
+      MENTOR_ROLES
+        .GUIDE
     );
   }
 
   return (
-    MENTOR_ROLES.LISTENER
+    MENTOR_ROLES
+      .LISTENER
   );
 }
 
-/**
- * Chooses the current leadership stance.
- */
 function chooseLeadershipStance({
   role,
   primaryAction,
   signals,
   context,
 }) {
-  if (
-    context
-      ?.creatorExplicitlyAskedForGuidance ||
-    context
-      ?.creatorExplicitlyAskedForNextStep
-  ) {
-    return (
-      LEADERSHIP_STANCES
-        .LEAD
-    );
-  }
-
   if (
     primaryAction.action ===
     ADAPTIVE_ACTIONS.WAIT
@@ -2148,11 +2613,26 @@ function chooseLeadershipStance({
         .CLARIFY_FORGET_REQUEST ||
     primaryAction.action ===
       ADAPTIVE_ACTIONS
-        .APPLY_FORGET_REQUEST
+        .APPLY_FORGET_REQUEST ||
+    primaryAction.action ===
+      ADAPTIVE_ACTIONS
+        .END_POSITIVELY
   ) {
     return (
       LEADERSHIP_STANCES
         .HAND_BACK_CONTROL
+    );
+  }
+
+  if (
+    context
+      ?.creatorExplicitlyAskedForGuidance ||
+    context
+      ?.creatorExplicitlyAskedForNextStep
+  ) {
+    return (
+      LEADERSHIP_STANCES
+        .LEAD
     );
   }
 
@@ -2206,26 +2686,12 @@ function chooseLeadershipStance({
     );
   }
 
-  if (
-    primaryAction.action ===
-      ADAPTIVE_ACTIONS
-        .END_POSITIVELY
-  ) {
-    return (
-      LEADERSHIP_STANCES
-        .HAND_BACK_CONTROL
-    );
-  }
-
   return (
     LEADERSHIP_STANCES
       .WALK_BESIDE
   );
 }
 
-/**
- * Chooses the amount of Mentor intervention.
- */
 function chooseInterventionLevel({
   primaryAction,
   signals,
@@ -2235,7 +2701,8 @@ function chooseInterventionLevel({
     ADAPTIVE_ACTIONS.WAIT
   ) {
     return (
-      INTERVENTION_LEVELS.NONE
+      INTERVENTION_LEVELS
+        .NONE
     );
   }
 
@@ -2257,6 +2724,12 @@ function chooseInterventionLevel({
 
         ADAPTIVE_ACTIONS
           .PRESERVE_SESSION_HANDOFF,
+
+        ADAPTIVE_ACTIONS
+          .SAVE_AND_PAUSE,
+
+        ADAPTIVE_ACTIONS
+          .END_POSITIVELY,
       ]
     )
   ) {
@@ -2316,7 +2789,12 @@ function chooseInterventionLevel({
 }
 
 /**
- * Chooses final response depth.
+ * Critical present-moment behaviour is resolved before any
+ * remembered response-depth preference.
+ *
+ * This prevents a stored "detailed" preference from turning a
+ * build-mode next step, silence, forget confirmation or handoff
+ * into an unnecessarily long response.
  */
 function chooseResponseDepth({
   primaryAction,
@@ -2326,21 +2804,12 @@ function chooseResponseDepth({
   progressionPlan,
 }) {
   if (
-    context
-      ?.preferredResponseDepth
-  ) {
-    return (
-      context
-        .preferredResponseDepth
-    );
-  }
-
-  if (
     primaryAction.action ===
     ADAPTIVE_ACTIONS.WAIT
   ) {
     return (
-      RESPONSE_DEPTHS.SILENT
+      RESPONSE_DEPTHS
+        .SILENT
     );
   }
 
@@ -2361,10 +2830,22 @@ function chooseResponseDepth({
           .MOVE_TO_CREATION,
 
         ADAPTIVE_ACTIONS
+          .MOVE_TO_REFINEMENT,
+
+        ADAPTIVE_ACTIONS
+          .MOVE_TO_PUBLISHING,
+
+        ADAPTIVE_ACTIONS
           .APPLY_FORGET_REQUEST,
 
         ADAPTIVE_ACTIONS
           .PRESERVE_SESSION_HANDOFF,
+
+        ADAPTIVE_ACTIONS
+          .SAVE_AND_PAUSE,
+
+        ADAPTIVE_ACTIONS
+          .END_POSITIVELY,
       ]
     )
   ) {
@@ -2380,7 +2861,8 @@ function chooseResponseDepth({
       .CLARIFY_FORGET_REQUEST
   ) {
     return (
-      RESPONSE_DEPTHS.SHORT
+      RESPONSE_DEPTHS
+        .SHORT
     );
   }
 
@@ -2398,8 +2880,25 @@ function chooseResponseDepth({
         .MINIMAL
   ) {
     return (
-      RESPONSE_DEPTHS.SHORT
+      RESPONSE_DEPTHS
+        .SHORT
     );
+  }
+
+  const preferredDepth =
+    cleanString(
+      context
+        ?.preferredResponseDepth
+    );
+
+  if (
+    Object.values(
+      RESPONSE_DEPTHS
+    ).includes(
+      preferredDepth
+    )
+  ) {
+    return preferredDepth;
   }
 
   const progressionLength =
@@ -2420,6 +2919,26 @@ function chooseResponseDepth({
   }
 
   if (
+    progressionLength ===
+    "medium"
+  ) {
+    return (
+      RESPONSE_DEPTHS
+        .MEDIUM
+    );
+  }
+
+  if (
+    progressionLength ===
+    "minimal"
+  ) {
+    return (
+      RESPONSE_DEPTHS
+        .ONE_LINE
+    );
+  }
+
+  if (
     signals.includes(
       ADAPTATION_SIGNALS
         .EXPLORATION_MODE
@@ -2434,18 +2953,17 @@ function chooseResponseDepth({
     )
   ) {
     return (
-      RESPONSE_DEPTHS.MEDIUM
+      RESPONSE_DEPTHS
+        .MEDIUM
     );
   }
 
   return (
-    RESPONSE_DEPTHS.SHORT
+    RESPONSE_DEPTHS
+      .SHORT
   );
 }
 
-/**
- * Chooses final question behaviour.
- */
 function chooseQuestionPolicy({
   primaryAction,
   signals,
@@ -2500,7 +3018,8 @@ function chooseQuestionPolicy({
   ) {
     return {
       policy:
-        QUESTION_POLICIES.NONE,
+        QUESTION_POLICIES
+          .NONE,
 
       maximumQuestions: 0,
     };
@@ -2518,18 +3037,34 @@ function chooseQuestionPolicy({
   ) {
     return {
       policy:
-        QUESTION_POLICIES.NONE,
+        QUESTION_POLICIES
+          .NONE,
 
       maximumQuestions: 0,
     };
   }
 
   const plannedMaximum =
-    getNestedValue(
-      progressionPlan,
-      "progression.maximumQuestions",
-      1
+    Number(
+      getNestedValue(
+        progressionPlan,
+        "progression.maximumQuestions",
+        1
+      )
     );
+
+  const safeMaximum =
+    Number.isFinite(
+      plannedMaximum
+    )
+      ? Math.max(
+          0,
+          Math.min(
+            plannedMaximum,
+            1
+          )
+        )
+      : 1;
 
   if (
     primaryAction.action ===
@@ -2556,10 +3091,7 @@ function chooseQuestionPolicy({
           .ONE_OPTIONAL,
 
       maximumQuestions:
-        Math.min(
-          plannedMaximum,
-          1
-        ),
+        safeMaximum,
     };
   }
 
@@ -2569,16 +3101,10 @@ function chooseQuestionPolicy({
         .CREATOR_LED,
 
     maximumQuestions:
-      Math.min(
-        plannedMaximum,
-        1
-      ),
+      safeMaximum,
   };
 }
 
-/**
- * Chooses how memory may influence the response.
- */
 function chooseMemoryPolicy({
   memoryPlan,
   signals,
@@ -2586,7 +3112,8 @@ function chooseMemoryPolicy({
 }) {
   const hasInstructions =
     asArray(
-      memoryPlan?.instructions
+      memoryPlan
+        ?.instructions
     ).length > 0;
 
   const shouldRecall =
@@ -2633,9 +3160,14 @@ function chooseMemoryPolicy({
     primaryAction.action ===
       ADAPTIVE_ACTIONS
         .PRESERVE_SESSION_HANDOFF ||
-    signals.includes(
-      ADAPTATION_SIGNALS
-        .SESSION_HANDOFF_AVAILABLE
+    (
+      primaryAction.action ===
+        ADAPTIVE_ACTIONS
+          .SAVE_AND_PAUSE &&
+      signals.includes(
+        ADAPTATION_SIGNALS
+          .SESSION_HANDOFF_AVAILABLE
+      )
     )
   ) {
     return (
@@ -2706,9 +3238,6 @@ function chooseMemoryPolicy({
   );
 }
 
-/**
- * Combines response guidance from all specialist engines.
- */
 function combineResponseGuidance({
   primaryAction,
   role,
@@ -2758,12 +3287,19 @@ function combineResponseGuidance({
     `Primary adaptive action: ${primaryAction.action}.`,
 
     "Demonstrate understanding before introducing a new direction.",
+
     "Prefer the creator's present state over historical assumptions.",
+
     "Use remembered preferences as guidance, not fixed rules.",
+
     "Treat project decisions as scoped truth until the creator changes them.",
-    "Do not expose internal specialist-agent machinery unless it helps the creator.",
+
+    "Do not expose internal specialist-agent machinery in ordinary creator-facing conversation.",
+
     "Do not maximise response length.",
+
     "Do not compete with the creator for control of the conversation.",
+
     "Leave the creator with greater clarity, confidence or momentum.",
   ];
 
@@ -2775,7 +3311,9 @@ function combineResponseGuidance({
   ) {
     guidance.push(
       "Use long-term creator memory only when it improves continuity, reduces repetition or protects momentum.",
+
       "Present creator direction overrides remembered preferences and historical patterns.",
+
       "Do not mention remembered information merely to demonstrate that memory exists."
     );
   }
@@ -2788,6 +3326,7 @@ function combineResponseGuidance({
   ) {
     guidance.push(
       "Specialist-agent observations may inform the response, but should not be presented as unquestionable project truth.",
+
       "Creator corrections override specialist-agent assumptions."
     );
   }
@@ -2800,6 +3339,7 @@ function combineResponseGuidance({
   ) {
     guidance.push(
       "Use project-scoped memory to reduce repeated questions.",
+
       "Do not allow information from another project to bleed into the active project."
     );
   }
@@ -2811,8 +3351,11 @@ function combineResponseGuidance({
   ) {
     guidance.push(
       "Acknowledge the thought without opening a long discussion.",
+
       "Preserve enough context to revisit it later.",
+
       "Return to the previous task smoothly.",
+
       "Do not make the memory capture itself the focus of the conversation."
     );
   }
@@ -2824,8 +3367,11 @@ function combineResponseGuidance({
   ) {
     guidance.push(
       "Recall only the minimum information needed for continuity.",
+
       "Explain briefly why remembered context is relevant when useful.",
+
       "Allow the creator to correct remembered project facts immediately.",
+
       "If the memory was previously deferred, let the creator decline and continue."
     );
   }
@@ -2837,7 +3383,9 @@ function combineResponseGuidance({
   ) {
     guidance.push(
       "Ask only the minimum clarification necessary to identify the memory to forget.",
+
       "Do not delete or alter memory until the target is unambiguous.",
+
       "Do not turn the clarification into a wider discussion."
     );
   }
@@ -2849,20 +3397,29 @@ function combineResponseGuidance({
   ) {
     guidance.push(
       "Respect the creator's explicit forget request.",
-      "Acknowledge completion briefly after the persistence layer confirms it.",
+
+      "Acknowledge completion briefly only after the persistence layer confirms it.",
+
       "Do not recreate the deleted conclusion from inference alone."
     );
   }
 
   if (
     primaryAction.action ===
-    ADAPTIVE_ACTIONS
-      .PRESERVE_SESSION_HANDOFF
+      ADAPTIVE_ACTIONS
+        .PRESERVE_SESSION_HANDOFF ||
+    memoryPolicy ===
+      MEMORY_POLICIES
+        .PRESERVE_HANDOFF
   ) {
     guidance.push(
       "Preserve where the creator stopped, what was last completed and the most useful next step.",
+
       "Do not introduce another task while the creator is leaving.",
-      "Make the future return feel easy rather than unfinished."
+
+      "Make the future return feel easy rather than unfinished.",
+
+      "Do not claim the return point was persisted unless CreatorMemory confirms it."
     );
   }
 
@@ -2873,7 +3430,9 @@ function combineResponseGuidance({
   ) {
     guidance.push(
       "Restore only the landmarks needed to continue.",
+
       "Mention the last meaningful decision, current position and next useful step.",
+
       "Do not dump the full project history."
     );
   }
@@ -2885,7 +3444,9 @@ function combineResponseGuidance({
   ) {
     guidance.push(
       "Do not reopen completed philosophy or architecture discussions.",
+
       "Provide the next concrete task immediately.",
+
       "Follow the creator's established build workflow."
     );
   }
@@ -2897,7 +3458,9 @@ function combineResponseGuidance({
   ) {
     guidance.push(
       "Treat the available context as sufficient for a first version.",
+
       "Allow discovery to continue through creation.",
+
       "Do not require perfect clarity before beginning."
     );
   }
@@ -2907,9 +3470,6 @@ function combineResponseGuidance({
   );
 }
 
-/**
- * Combines guard rails from all specialist engines.
- */
 function combineGuardRails({
   conversationPlan,
   reflectionPlan,
@@ -2942,25 +3502,41 @@ function combineGuardRails({
     ),
 
     "Do not diagnose the creator.",
+
     "Do not claim certainty about the creator's internal state.",
+
     "Do not use personalisation to manipulate engagement.",
+
     "Do not surface memory merely to demonstrate recall.",
+
     "Do not interrupt active flow with optional information.",
+
     "Do not use historical behaviour to override explicit present direction.",
+
+    "Do not let a remembered response preference override a required present-moment behaviour.",
+
+    "Do not let a remembered Mentor-role preference override a required present-moment role.",
+
     "Do not imitate the creator's language unnaturally.",
+
     "Do not produce multiple next steps when one is sufficient.",
+
     "Do not make the creator dependent on the Mentor.",
+
     "Do not treat agreement as the goal; useful alignment is the goal.",
+
     "Do not allow specialist agents to silently overwrite creator-approved project truth.",
+
     "Do not mix project-scoped memory across different projects.",
+
     "Do not execute an ambiguous forget request.",
+
     "Do not treat memory recall as permission to derail the creator's current task.",
+
+    "Do not claim memory persistence, deletion or session-handoff success unless CreatorMemory confirms it.",
   ]);
 }
 
-/**
- * Builds execution instructions for the future response layer.
- */
 function createExecutionPlan({
   primaryAction,
   role,
@@ -3045,6 +3621,16 @@ function createExecutionPlan({
       MEMORY_POLICIES
         .FORGET_REQUIRES_CLARIFICATION;
 
+  const shouldPreserveSessionHandoff =
+    Boolean(
+      primaryAction.action ===
+        ADAPTIVE_ACTIONS
+          .PRESERVE_SESSION_HANDOFF ||
+      memoryPolicy ===
+        MEMORY_POLICIES
+          .PRESERVE_HANDOFF
+    );
+
   return {
     action:
       primaryAction.action,
@@ -3069,8 +3655,10 @@ function createExecutionPlan({
         {
           responseDelayMs: 0,
           silenceWindowMs: 0,
+
           allowCreatorToContinue:
             false,
+
           canCancelResponseIfCreatorContinues:
             true,
         }
@@ -3106,13 +3694,7 @@ function createExecutionPlan({
 
     shouldRecallMemory,
 
-    shouldPreserveSessionHandoff:
-      primaryAction.action ===
-        ADAPTIVE_ACTIONS
-          .PRESERVE_SESSION_HANDOFF ||
-      memoryPolicy ===
-        MEMORY_POLICIES
-          .PRESERVE_HANDOFF,
+    shouldPreserveSessionHandoff,
 
     shouldApplyForget,
 
@@ -3176,9 +3758,6 @@ function createExecutionPlan({
   };
 }
 
-/**
- * Produces a concise adaptive decision summary.
- */
 function createDecisionSummary({
   primaryAction,
   role,
@@ -3201,9 +3780,6 @@ function createDecisionSummary({
   );
 }
 
-/**
- * Creates a safe fallback adaptive plan.
- */
 function createFallbackAdaptivePlan({
   message,
   context,
@@ -3221,7 +3797,9 @@ function createFallbackAdaptivePlan({
 
     input: {
       message:
-        cleanString(message),
+        cleanString(
+          message
+        ),
     },
 
     primaryAction: {
@@ -3244,7 +3822,8 @@ function createFallbackAdaptivePlan({
 
     behaviour: {
       role:
-        MENTOR_ROLES.LISTENER,
+        MENTOR_ROLES
+          .LISTENER,
 
       leadershipStance:
         LEADERSHIP_STANCES
@@ -3277,7 +3856,8 @@ function createFallbackAdaptivePlan({
           .ACKNOWLEDGE_BRIEFLY,
 
       MentorRole:
-        MENTOR_ROLES.LISTENER,
+        MENTOR_ROLES
+          .LISTENER,
 
       leadershipStance:
         LEADERSHIP_STANCES
@@ -3335,8 +3915,10 @@ function createFallbackAdaptivePlan({
       timing: {
         responseDelayMs: 600,
         silenceWindowMs: 0,
+
         allowCreatorToContinue:
           false,
+
         canCancelResponseIfCreatorContinues:
           true,
       },
@@ -3345,7 +3927,8 @@ function createFallbackAdaptivePlan({
       recallPlan: null,
       forgetPlan: null,
 
-      creatorMemoryContext: null,
+      creatorMemoryContext:
+        null,
 
       projectMemory: {
         activeProjectId:
@@ -3359,7 +3942,8 @@ function createFallbackAdaptivePlan({
         hasSessionHandoff:
           false,
 
-        sourceAgent: null,
+        sourceAgent:
+          null,
 
         specialistSignalsPresent:
           false,
@@ -3376,24 +3960,38 @@ function createFallbackAdaptivePlan({
 
     responseGuidance: [
       "Use a short, warm acknowledgement.",
+
       "Do not introduce multiple new directions.",
+
       "Ask no more than one question.",
+
       "Keep the creator in ownership.",
+
       "Do not make new memory assumptions while adaptive planning is unavailable.",
     ],
 
     guardRails: [
       "Do not diagnose.",
+
       "Do not make assumptions from unavailable context.",
+
       "Do not overwhelm the creator.",
+
       "Do not execute memory deletion from fallback state.",
     ],
 
     creatorProtocol: {
-      protectTheCreator: true,
-      creatorOwnsTheIdea: true,
-      presentBehaviourLeads: true,
-      memoryMustProtectAutonomy: true,
+      protectTheCreator:
+        true,
+
+      creatorOwnsTheIdea:
+        true,
+
+      presentBehaviourLeads:
+        true,
+
+      memoryMustProtectAutonomy:
+        true,
     },
 
     specialistPlans: {
@@ -3404,7 +4002,9 @@ function createFallbackAdaptivePlan({
     },
 
     contextSnapshot:
-      cloneValue(context),
+      cloneValue(
+        context
+      ),
 
     decisionSummary:
       "Adaptive planning failed. Use minimal listening behaviour.",
@@ -3427,9 +4027,6 @@ function createFallbackAdaptivePlan({
   };
 }
 
-/**
- * Creates the Adaptive Mentor Engine service.
- */
 function createAdaptiveMentorEngine({
   conversationPlanner = null,
   reflectionEngine = null,
@@ -3438,7 +4035,8 @@ function createAdaptiveMentorEngine({
   memory = null,
 } = {}) {
   let activeMemory =
-    memory;
+    memory ||
+    null;
 
   const resolvedConversationPlanner =
     conversationPlanner ||
@@ -3459,9 +4057,6 @@ function createAdaptiveMentorEngine({
     creatorMemoryEngine ||
     createCreatorMemoryEngine();
 
-  /**
-   * Produces one unified Mentor behaviour plan.
-   */
   function planMentorBehaviour({
     message = "",
     context = {},
@@ -3474,6 +4069,7 @@ function createAdaptiveMentorEngine({
       const combinedContext =
         createMemoryAwareContext({
           context,
+
           memory:
             activeMemory,
         });
@@ -3761,6 +4357,9 @@ function createAdaptiveMentorEngine({
           creatorCorrectionsOverrideMemory:
             true,
 
+          rememberedPreferencesDoNotOverridePresentBehaviour:
+            true,
+
           specialistAgentsMayInform:
             true,
 
@@ -3774,6 +4373,9 @@ function createAdaptiveMentorEngine({
             true,
 
           ambiguousForgetRequestsRequireClarification:
+            true,
+
+          persistenceClaimsRequireVerification:
             true,
 
           conversationServesCreation:
@@ -3862,10 +4464,14 @@ function createAdaptiveMentorEngine({
           memoryAvailable:
             memoryPlanHasProjectMemory(
               resolvedMemoryPlan
-            ),
+            ) ||
+            asArray(
+              combinedContext
+                ?.existingProjectMemories
+            ).length > 0,
 
           longTermMemoryAvailable:
-            Boolean(
+            hasMeaningfulMemoryContext(
               combinedContext
                 ?.creatorMemoryContext
             ),
@@ -3919,15 +4525,26 @@ function createAdaptiveMentorEngine({
   }
 
   /**
-   * Applies memory instructions using CreatorMemory.js.
+   * Applies approved memory instructions.
    *
-   * CreatorMemoryEngine remains responsible for deciding
-   * which instructions are immediately executable and which
-   * require a future project-memory adapter.
+   * CreatorMemory.js is the persistence authority.
+   *
+   * Modern path:
+   * Adaptive plan instructions → CreatorMemory.applyMemoryInstructions()
+   *
+   * Compatibility path:
+   * CreatorMemoryEngine.applyMemoryPlan()
    */
   function applyMemoryPlan(
     plan
   ) {
+    const instructions =
+      asArray(
+        plan
+          ?.execution
+          ?.memoryInstructions
+      );
+
     if (
       !activeMemory
     ) {
@@ -3935,16 +4552,78 @@ function createAdaptiveMentorEngine({
         applied: [],
 
         skipped:
-          plan
-            ?.execution
-            ?.memoryInstructions ||
-          [],
+          instructions.map(
+            (instruction) => ({
+              instruction:
+                cloneValue(
+                  instruction
+                ),
+
+              reason:
+                "No Creator Memory service is connected.",
+            })
+          ),
 
         errors: [],
 
         reason:
           "No Creator Memory service is connected.",
       };
+    }
+
+    if (
+      instructions.length ===
+      0
+    ) {
+      return {
+        applied: [],
+        skipped: [],
+        errors: [],
+
+        reason:
+          "No memory instructions required execution.",
+      };
+    }
+
+    /**
+     * CreatorMemory is the final persistence boundary.
+     *
+     * Prefer its generic instruction contract so the behavioural
+     * engine does not need to understand storage implementation.
+     */
+    if (
+      typeof activeMemory
+        .applyMemoryInstructions ===
+        "function"
+    ) {
+      try {
+        return (
+          activeMemory
+            .applyMemoryInstructions(
+              instructions
+            )
+        );
+      } catch (error) {
+        return {
+          applied: [],
+          skipped: [],
+
+          errors: [
+            {
+              instruction:
+                null,
+
+              error:
+                error instanceof Error
+                  ? error.message
+                  : String(error),
+            },
+          ],
+
+          reason:
+            "Creator Memory instruction execution failed.",
+        };
+      }
     }
 
     const memoryPlan =
@@ -3957,29 +4636,89 @@ function createAdaptiveMentorEngine({
     ) {
       return {
         applied: [],
-        skipped: [],
+
+        skipped:
+          instructions.map(
+            (instruction) => ({
+              instruction:
+                cloneValue(
+                  instruction
+                ),
+
+              reason:
+                "No Creator Memory plan was available for compatibility execution.",
+            })
+          ),
+
         errors: [],
+
         reason:
           "No Creator Memory plan was available.",
       };
     }
 
-    return (
-      resolvedCreatorMemoryEngine
-        .applyMemoryPlan({
-          plan:
-            memoryPlan,
+    if (
+      typeof resolvedCreatorMemoryEngine
+        .applyMemoryPlan ===
+        "function"
+    ) {
+      try {
+        return (
+          resolvedCreatorMemoryEngine
+            .applyMemoryPlan({
+              plan:
+                memoryPlan,
 
-          memory:
-            activeMemory,
-        })
-    );
+              memory:
+                activeMemory,
+            })
+        );
+      } catch (error) {
+        return {
+          applied: [],
+          skipped: [],
+
+          errors: [
+            {
+              instruction:
+                null,
+
+              error:
+                error instanceof Error
+                  ? error.message
+                  : String(error),
+            },
+          ],
+
+          reason:
+            "Creator Memory compatibility execution failed.",
+        };
+      }
+    }
+
+    return {
+      applied: [],
+
+      skipped:
+        instructions.map(
+          (instruction) => ({
+            instruction:
+              cloneValue(
+                instruction
+              ),
+
+            reason:
+              "No compatible Creator Memory execution method is available.",
+          })
+        ),
+
+      errors: [],
+
+      reason:
+        "Memory execution is unavailable.",
+    };
   }
 
-  /**
-   * Creates a standalone recall plan using the
-   * richer CreatorMemoryEngine recall architecture.
-   */
   function planMemoryRecall({
     message = "",
     context = {},
@@ -3995,6 +4734,7 @@ function createAdaptiveMentorEngine({
         timing: "not-now",
         memory: null,
         memories: [],
+
         reason:
           "Creator Memory recall planning is unavailable.",
       };
@@ -4003,6 +4743,7 @@ function createAdaptiveMentorEngine({
     const combinedContext =
       createMemoryAwareContext({
         context,
+
         memory:
           activeMemory,
       });
@@ -4011,15 +4752,13 @@ function createAdaptiveMentorEngine({
       resolvedCreatorMemoryEngine
         .planRecall({
           message,
+
           context:
             combinedContext,
         })
     );
   }
 
-  /**
-   * Creates a session-handoff memory plan.
-   */
   function planSessionHandoff({
     handoff = {},
     context = {},
@@ -4032,6 +4771,7 @@ function createAdaptiveMentorEngine({
       return {
         candidates: [],
         instructions: [],
+
         status:
           "unavailable",
       };
@@ -4040,6 +4780,7 @@ function createAdaptiveMentorEngine({
     const combinedContext =
       createMemoryAwareContext({
         context,
+
         memory:
           activeMemory,
       });
@@ -4048,6 +4789,7 @@ function createAdaptiveMentorEngine({
       resolvedCreatorMemoryEngine
         .planSessionHandoff({
           handoff,
+
           context:
             combinedContext,
         })
@@ -4055,18 +4797,16 @@ function createAdaptiveMentorEngine({
   }
 
   /**
-   * Returns the compact long-term memory context currently
-   * available to the Adaptive Mentor.
+   * Returns the richest CreatorMemory context available.
    */
   function getMemoryContext() {
-    return readCreatorMemoryContext(
-      activeMemory
+    return (
+      readCreatorMemoryContext(
+        activeMemory
+      )
     );
   }
 
-  /**
-   * Replaces the connected Creator Memory service.
-   */
   function setMemory(
     nextMemory
   ) {
@@ -4183,9 +4923,6 @@ function createAdaptiveMentorEngine({
   };
 }
 
-/**
- * Convenience method for one-off adaptive planning.
- */
 function planMentorBehaviour({
   message = "",
   context = {},
@@ -4215,15 +4952,19 @@ function planMentorBehaviour({
 
 export {
   ADAPTIVE_MENTOR_ENGINE_VERSION,
+
   MENTOR_ROLES,
   LEADERSHIP_STANCES,
   INTERVENTION_LEVELS,
   RESPONSE_DEPTHS,
   QUESTION_POLICIES,
   MEMORY_POLICIES,
+
   ACTION_PRIORITIES,
+
   ADAPTIVE_ACTIONS,
   ADAPTATION_SIGNALS,
+
   createAdaptiveMentorEngine,
   planMentorBehaviour,
 };
