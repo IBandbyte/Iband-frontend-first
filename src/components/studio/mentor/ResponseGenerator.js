@@ -14,11 +14,12 @@
  *
  * Responsibilities:
  * - Accept a creator message and conversation context.
+ * - Hydrate that context from CreatorMemory before reasoning.
  * - Produce one unified Adaptive Mentor behaviour plan.
  * - Convert that plan into a response blueprint.
  * - Produce a communication voice plan.
- * - Execute memory operations at the correct lifecycle point.
- * - Separate memory truth from generated language.
+ * - Execute approved memory operations at the correct lifecycle point.
+ * - Verify memory truth before generated language may claim success.
  * - Apply communication intelligence to the provider request.
  * - Execute the blueprint through a supplied response provider.
  * - Validate and normalise the generated response.
@@ -30,14 +31,13 @@
  * - Recover safely when a provider or specialist engine fails.
  *
  * This file does not own:
- * - Long-term storage.
  * - Model credentials.
  * - Network requests.
  * - UI rendering.
  * - Speech synthesis.
  * - Specialist-agent routing.
  *
- * Those responsibilities are supplied through adapters.
+ * CreatorMemory remains the persistence authority.
  *
  * Core principles:
  * - Protect the Creator.
@@ -46,6 +46,7 @@
  * - Communication performance must not alter meaning.
  * - Never fabricate successful memory storage.
  * - Never fabricate successful memory deletion.
+ * - Never fabricate successful session handoff persistence.
  * - Never generate speech when silence is the correct response.
  * - A provider executes the blueprint; it does not redesign it.
  * - Specialist agents contribute intelligence, not separate voices.
@@ -57,11 +58,13 @@
 import createAdaptiveMentorEngine from "./AdaptiveMentorEngine";
 import createResponseComposer from "./ResponseComposer";
 import createCommunicationVoiceEngine from "./CommunicationVoiceEngine";
+import createCreatorMemory from "./CreatorMemory";
 
-const RESPONSE_GENERATOR_VERSION = "2.0.0";
+const RESPONSE_GENERATOR_VERSION = "2.1.0";
 
 const GENERATION_STATUSES = Object.freeze({
   IDLE: "idle",
+  HYDRATING_MEMORY: "hydrating-memory",
   PLANNING: "planning",
   COMPOSING: "composing",
 
@@ -84,6 +87,9 @@ const GENERATION_STATUSES = Object.freeze({
 
 const GENERATION_STAGES = Object.freeze({
   INITIALISE: "initialise",
+
+  HYDRATE_MEMORY:
+    "hydrate-memory",
 
   PLAN_BEHAVIOUR:
     "plan-behaviour",
@@ -170,6 +176,9 @@ const DEFAULT_GENERATOR_OPTIONS =
         .BEFORE_GENERATION,
 
     applyMemoryAutomatically:
+      true,
+
+    hydrateContextFromMemory:
       true,
 
     useDeterministicFallback:
@@ -312,6 +321,9 @@ const DEFAULT_GENERATION_CONTEXT =
     existingProjectMemories: [],
     existingPatterns: [],
     existingObservations: [],
+
+    creatorProfile: null,
+    memoryContext: null,
 
     memorySignals: [],
     projectMemorySignals: [],
@@ -481,6 +493,14 @@ function getNestedValue(
   );
 }
 
+function isPlainObject(value) {
+  return Boolean(
+    value &&
+    typeof value === "object" &&
+    !Array.isArray(value)
+  );
+}
+
 function isResponseProvider(
   provider
 ) {
@@ -501,6 +521,28 @@ function isResponseProvider(
           .executeBlueprint ===
           "function"
       )
+  );
+}
+
+function isMemoryService(
+  memory
+) {
+  return Boolean(
+    memory &&
+    typeof memory === "object" &&
+    (
+      typeof memory
+        .getMemoryContext ===
+        "function" ||
+
+      typeof memory
+        .applyMemoryInstructions ===
+        "function" ||
+
+      typeof memory
+        .getState ===
+        "function"
+    )
   );
 }
 
@@ -565,6 +607,84 @@ function resolveGenerationContext(
     ...cloneValue(
       context
     ),
+
+    recentCreatorMessages:
+      asArray(
+        context
+          ?.recentCreatorMessages
+      ),
+
+    recentMentorMessages:
+      asArray(
+        context
+          ?.recentMentorMessages
+      ),
+
+    recentConversations:
+      asArray(
+        context
+          ?.recentConversations
+      ),
+
+    existingMemories:
+      asArray(
+        context
+          ?.existingMemories
+      ),
+
+    existingProjectMemories:
+      asArray(
+        context
+          ?.existingProjectMemories
+      ),
+
+    existingPatterns:
+      asArray(
+        context
+          ?.existingPatterns
+      ),
+
+    existingObservations:
+      asArray(
+        context
+          ?.existingObservations
+      ),
+
+    memorySignals:
+      asArray(
+        context
+          ?.memorySignals
+      ),
+
+    projectMemorySignals:
+      asArray(
+        context
+          ?.projectMemorySignals
+      ),
+
+    establishedVocabulary:
+      asArray(
+        context
+          ?.establishedVocabulary
+      ),
+
+    sharedMeanings:
+      asArray(
+        context
+          ?.sharedMeanings
+      ),
+
+    sharedRituals:
+      asArray(
+        context
+          ?.sharedRituals
+      ),
+
+    sharedJokes:
+      asArray(
+        context
+          ?.sharedJokes
+      ),
 
     currentTimestamp:
       context
@@ -763,23 +883,299 @@ function getProjectId(
   return null;
 }
 
+function getMemoryContextSafely(
+  memory
+) {
+  if (
+    !isMemoryService(
+      memory
+    ) ||
+    typeof memory
+      .getMemoryContext !==
+      "function"
+  ) {
+    return null;
+  }
+
+  try {
+    const result =
+      memory
+        .getMemoryContext();
+
+    return (
+      result &&
+      typeof result ===
+        "object"
+        ? result
+        : null
+    );
+  } catch (error) {
+    console.warn(
+      "ResponseGenerator memory context hydration error:",
+      error
+    );
+
+    return null;
+  }
+}
+
+function mergeMemoryContext({
+  context,
+  memoryContext,
+}) {
+  const suppliedContext =
+    resolveGenerationContext(
+      context
+    );
+
+  if (
+    !memoryContext ||
+    typeof memoryContext !==
+      "object"
+  ) {
+    return suppliedContext;
+  }
+
+  const memoryCommunicationPreferences =
+    memoryContext
+      ?.communicationPreferences ||
+    memoryContext
+      ?.creatorProfile
+      ?.communicationPreferences ||
+    {};
+
+  const memoryJourney =
+    memoryContext
+      ?.journey ||
+    {};
+
+  const memoryRelationship =
+    memoryContext
+      ?.relationship ||
+    {};
+
+  const activeProject =
+    suppliedContext
+      .activeProject ||
+    memoryContext
+      ?.activeProject ||
+    null;
+
+  const activeProjectId =
+    suppliedContext
+      .activeProjectId ||
+    activeProject?.id ||
+    activeProject
+      ?.projectId ||
+    memoryJourney
+      ?.activeProjectId ||
+    null;
+
+  const existingMemories =
+    suppliedContext
+      .existingMemories
+      .length > 0
+      ? suppliedContext
+          .existingMemories
+      : asArray(
+          memoryContext
+            ?.existingMemories
+        );
+
+  const existingProjectMemories =
+    suppliedContext
+      .existingProjectMemories
+      .length > 0
+      ? suppliedContext
+          .existingProjectMemories
+      : asArray(
+          memoryContext
+            ?.existingProjectMemories
+        );
+
+  const existingPatterns =
+    suppliedContext
+      .existingPatterns
+      .length > 0
+      ? suppliedContext
+          .existingPatterns
+      : asArray(
+          memoryContext
+            ?.existingPatterns ||
+          memoryContext
+            ?.patterns
+        );
+
+  const existingObservations =
+    suppliedContext
+      .existingObservations
+      .length > 0
+      ? suppliedContext
+          .existingObservations
+      : asArray(
+          memoryContext
+            ?.existingObservations ||
+          memoryContext
+            ?.observations
+        );
+
+  const recentConversations =
+    suppliedContext
+      .recentConversations
+      .length > 0
+      ? suppliedContext
+          .recentConversations
+      : asArray(
+          memoryContext
+            ?.recentConversations
+        );
+
+  return {
+    ...suppliedContext,
+
+    creatorProfile:
+      suppliedContext
+        .creatorProfile ||
+      memoryContext
+        ?.creatorProfile ||
+      null,
+
+    memoryContext:
+      cloneValue(
+        memoryContext
+      ),
+
+    activeProject,
+
+    activeProjectId,
+
+    activeIdea:
+      suppliedContext
+        .activeIdea ||
+      memoryContext
+        ?.activeIdea ||
+      null,
+
+    existingMemories,
+
+    existingProjectMemories,
+
+    existingPatterns,
+
+    existingObservations,
+
+    recentConversations,
+
+    interactionCount:
+      suppliedContext
+        .interactionCount ||
+      memoryRelationship
+        ?.interactionCount ||
+      memoryJourney
+        ?.conversationCount ||
+      0,
+
+    relationshipStage:
+      suppliedContext
+        .relationshipStage ||
+      memoryRelationship
+        ?.stage ||
+      null,
+
+    preferredResponseDepth:
+      suppliedContext
+        .preferredResponseDepth ||
+      memoryCommunicationPreferences
+        ?.preferredResponseDepth ||
+      null,
+
+    preferredGuidanceStyle:
+      suppliedContext
+        .preferredGuidanceStyle ||
+      memoryCommunicationPreferences
+        ?.preferredGuidanceStyle ||
+      null,
+
+    preferredMentorRole:
+      suppliedContext
+        .preferredMentorRole ||
+      memoryCommunicationPreferences
+        ?.preferredMentorRole ||
+      null,
+
+    preferredCommunicationPace:
+      suppliedContext
+        .preferredCommunicationPace ||
+      memoryCommunicationPreferences
+        ?.preferredCommunicationPace ||
+      null,
+
+    preferredVoiceProfile:
+      suppliedContext
+        .preferredVoiceProfile ||
+      memoryCommunicationPreferences
+        ?.preferredVoiceProfile ||
+      null,
+
+    preferredChannel:
+      suppliedContext
+        .preferredChannel ||
+      memoryCommunicationPreferences
+        ?.preferredChannel ||
+      null,
+
+    currentTimestamp:
+      suppliedContext
+        .currentTimestamp ||
+      createTimestamp(),
+  };
+}
+
 function classifyMemoryInstruction(
   instruction
 ) {
-  const text =
+  const action =
+    normaliseText(
+      instruction?.action
+    );
+
+  const preferredTargetMethod =
+    normaliseText(
+      instruction
+        ?.preferredTargetMethod
+    );
+
+  const targetMethod =
+    normaliseText(
+      instruction
+        ?.targetMethod
+    );
+
+  const category =
+    normaliseText(
+      instruction?.category ||
+      instruction
+        ?.payload
+        ?.category
+    );
+
+  const combined =
     normaliseText(
       [
-        instruction?.action,
-        instruction?.category,
-        instruction?.targetMethod,
-        instruction?.payload?.category,
-        instruction?.payload?.status,
+        action,
+        preferredTargetMethod,
+        targetMethod,
+        category,
       ]
         .filter(Boolean)
         .join(" ")
     );
 
   if (
+    action ===
+      "forget-memory" ||
+    preferredTargetMethod ===
+      "forgetmemory" ||
     [
       "forget",
       "delete",
@@ -787,7 +1183,7 @@ function classifyMemoryInstruction(
       "erase",
     ].some(
       (value) =>
-        text.includes(
+        combined.includes(
           value
         )
     )
@@ -799,11 +1195,14 @@ function classifyMemoryInstruction(
   }
 
   if (
-    text.includes(
+    action ===
+      "save-session-handoff" ||
+    category ===
+      "session-handoff" ||
+    preferredTargetMethod ===
+      "savesessionhandoff" ||
+    combined.includes(
       "session-handoff"
-    ) ||
-    text.includes(
-      "handoff"
     )
   ) {
     return (
@@ -814,14 +1213,23 @@ function classifyMemoryInstruction(
 
   if (
     [
-      "update",
+      "reinforce-memory",
+      "weaken-memory",
+      "supersede-memory",
+      "archive-as-history",
+      "resolve-thread",
+      "update-profile",
+    ].includes(action) ||
+    [
       "reinforce",
       "supersede",
       "weaken",
       "archive",
+      "resolve",
+      "update",
     ].some(
       (value) =>
-        text.includes(
+        combined.includes(
           value
         )
     )
@@ -834,6 +1242,13 @@ function classifyMemoryInstruction(
 
   if (
     [
+      "capture-observation",
+      "save-pattern",
+      "save-project-memory",
+      "save-deferred-topic",
+      "hold-for-more-evidence",
+    ].includes(action) ||
+    [
       "save",
       "capture",
       "observation",
@@ -841,7 +1256,7 @@ function classifyMemoryInstruction(
       "remember",
     ].some(
       (value) =>
-        text.includes(
+        combined.includes(
           value
         )
     )
@@ -899,6 +1314,20 @@ function getMemoryExecutionIntent(
   };
 }
 
+function getMemoryInstructions(
+  adaptivePlan
+) {
+  return asArray(
+    adaptivePlan
+      ?.execution
+      ?.memoryInstructions ||
+    adaptivePlan
+      ?.specialistPlans
+      ?.memory
+      ?.instructions
+  );
+}
+
 function shouldExecuteMemoryOperations({
   adaptivePlan,
   options,
@@ -935,10 +1364,17 @@ function shouldExecuteMemoryOperations({
     return false;
   }
 
+  const instructions =
+    getMemoryInstructions(
+      adaptivePlan
+    );
+
   return Boolean(
     intent.shouldCapture ||
-    intent.shouldPreserveSessionHandoff ||
-    intent.shouldApplyForget
+    intent
+      .shouldPreserveSessionHandoff ||
+    intent.shouldApplyForget ||
+    instructions.length > 0
   );
 }
 
@@ -950,20 +1386,12 @@ function shouldForceMemoryBeforeGeneration({
       adaptivePlan
     );
 
-  /**
-   * Forget confirmation must never be generated before
-   * deletion has either succeeded or failed.
-   */
   if (
     intent.shouldApplyForget
   ) {
     return true;
   }
 
-  /**
-   * A session handoff is most useful when the persistence
-   * result is known before the Mentor says goodbye.
-   */
   if (
     intent
       .shouldPreserveSessionHandoff
@@ -1087,6 +1515,11 @@ function createMemoryApplicationSummary({
           item?.reason
         ).includes(
           "pending"
+        ) ||
+        normaliseText(
+          item?.reason
+        ).includes(
+          "adapter"
         )
     );
 
@@ -1143,50 +1576,53 @@ function createMemoryApplicationSummary({
     }
   );
 
+  const attemptedInstructions = [
+    ...applied,
+    ...skipped,
+    ...errors,
+  ];
+
+  const attemptedTypes =
+    attemptedInstructions.map(
+      (item) =>
+        classifyMemoryInstruction(
+          item?.instruction
+        )
+    );
+
   const intent =
     getMemoryExecutionIntent(
       adaptivePlan
     );
 
-  const successful =
-    errors.length === 0 &&
-    applied.length > 0;
-
   const captureSuccessful =
     operationBuckets
       .capture
-      .length > 0 ||
-    (
-      intent.shouldCapture &&
-      successful &&
-      operationBuckets
-        .forget
-        .length === 0
-    );
+      .length > 0;
+
+  const updateSuccessful =
+    operationBuckets
+      .update
+      .length > 0;
 
   const forgetSuccessful =
     operationBuckets
       .forget
-      .length > 0 ||
-    (
-      intent.shouldApplyForget &&
-      successful &&
-      applied.length > 0
-    );
+      .length > 0;
 
   const handoffSuccessful =
     operationBuckets
       .sessionHandoff
-      .length > 0 ||
-    (
-      intent
-        .shouldPreserveSessionHandoff &&
-      successful &&
-      applied.length > 0
-    );
+      .length > 0;
+
+  const successful =
+    errors.length === 0 &&
+    applied.length > 0;
 
   return {
-    attempted: true,
+    attempted:
+      attemptedInstructions
+        .length > 0,
 
     applied:
       cloneValue(
@@ -1211,7 +1647,11 @@ function createMemoryApplicationSummary({
     operations: {
       capture: {
         attempted:
-          intent.shouldCapture,
+          intent.shouldCapture ||
+          attemptedTypes.includes(
+            MEMORY_OPERATION_TYPES
+              .CAPTURE
+          ),
 
         successful:
           captureSuccessful,
@@ -1224,7 +1664,11 @@ function createMemoryApplicationSummary({
 
       forget: {
         attempted:
-          intent.shouldApplyForget,
+          intent.shouldApplyForget ||
+          attemptedTypes.includes(
+            MEMORY_OPERATION_TYPES
+              .FORGET
+          ),
 
         successful:
           forgetSuccessful,
@@ -1238,7 +1682,11 @@ function createMemoryApplicationSummary({
       sessionHandoff: {
         attempted:
           intent
-            .shouldPreserveSessionHandoff,
+            .shouldPreserveSessionHandoff ||
+          attemptedTypes.includes(
+            MEMORY_OPERATION_TYPES
+              .SESSION_HANDOFF
+          ),
 
         successful:
           handoffSuccessful,
@@ -1251,14 +1699,13 @@ function createMemoryApplicationSummary({
 
       update: {
         attempted:
-          operationBuckets
-            .update
-            .length > 0,
+          attemptedTypes.includes(
+            MEMORY_OPERATION_TYPES
+              .UPDATE
+          ),
 
         successful:
-          operationBuckets
-            .update
-            .length > 0,
+          updateSuccessful,
 
         count:
           operationBuckets
@@ -1268,9 +1715,10 @@ function createMemoryApplicationSummary({
 
       unknown: {
         attempted:
-          operationBuckets
-            .unknown
-            .length > 0,
+          attemptedTypes.includes(
+            MEMORY_OPERATION_TYPES
+              .UNKNOWN
+          ),
 
         successful:
           operationBuckets
@@ -1293,7 +1741,8 @@ function createMemoryApplicationSummary({
 
     canClaimStorageSuccess:
       Boolean(
-        captureSuccessful
+        captureSuccessful ||
+        updateSuccessful
       ),
 
     canClaimDeletionSuccess:
@@ -1318,6 +1767,7 @@ function createProviderRequest({
   context,
   adaptivePlan,
   blueprint,
+  communicationPlan,
   options,
   memoryApplication,
 }) {
@@ -1352,6 +1802,11 @@ function createProviderRequest({
     blueprint:
       cloneValue(
         blueprint
+      ),
+
+    communicationPlan:
+      cloneValue(
+        communicationPlan
       ),
 
     project: {
@@ -1719,7 +2174,12 @@ function resolveSectionSourceText(
           value?.summary ||
           value?.title ||
           value?.description ||
-          value?.value ||
+          (
+            typeof value?.value ===
+              "string"
+              ? value.value
+              : ""
+          ) ||
           ""
         );
       })
@@ -1733,7 +2193,12 @@ function resolveSectionSourceText(
     sourceData.summary ||
     sourceData.description ||
     sourceData.title ||
-    sourceData.value ||
+    (
+      typeof sourceData.value ===
+        "string"
+        ? sourceData.value
+        : ""
+    ) ||
     ""
   );
 }
@@ -1746,16 +2211,22 @@ function resolveRecallMemoryText(
       ?.memory
       ?.recallPlan;
 
-  const memories =
+  const rankedMemories =
     asArray(
       recallPlan
         ?.memories
     );
 
+  const rankedMemory =
+    rankedMemories[0]
+      ?.memory ||
+    rankedMemories[0] ||
+    null;
+
   const memory =
     recallPlan
       ?.memory ||
-    memories[0] ||
+    rankedMemory ||
     null;
 
   return cleanString(
@@ -1873,7 +2344,7 @@ function renderMemoryRecall({
 
   if (!memoryText) {
     return (
-      "Something we discussed earlier is relevant here, so I’ll use only the part that helps us continue."
+      "Something we established earlier is useful here, so I’ll use only the part that helps us continue."
     );
   }
 
@@ -1937,16 +2408,26 @@ function renderProjectContext({
       context
         ?.activeStage
         ?.name ||
-      context
-        ?.activeStage ||
+      (
+        typeof context
+          ?.activeStage ===
+          "string"
+          ? context.activeStage
+          : ""
+      ) ||
       sourceData
         ?.activeStage
         ?.title ||
       sourceData
         ?.activeStage
         ?.name ||
-      sourceData
-        ?.activeStage ||
+      (
+        typeof sourceData
+          ?.activeStage ===
+          "string"
+          ? sourceData.activeStage
+          : ""
+      ) ||
       ""
     );
 
@@ -2406,27 +2887,22 @@ function renderBlueprintDeterministically({
       blueprint?.sections
     );
 
-  const renderedSections =
-    sections
-      .map(
-        (section) =>
-          renderSectionDeterministically({
-            section,
-            message,
-            blueprint,
-            context,
-            memoryApplication,
-          })
-      )
-      .map(
-        cleanString
-      )
-      .filter(Boolean);
-
-  return (
-    renderedSections
-      .join("\n\n")
-  );
+  return sections
+    .map(
+      (section) =>
+        renderSectionDeterministically({
+          section,
+          message,
+          blueprint,
+          context,
+          memoryApplication,
+        })
+    )
+    .map(
+      cleanString
+    )
+    .filter(Boolean)
+    .join("\n\n");
 }
 
 function createValidationIssue({
@@ -2514,6 +2990,8 @@ function detectsStorageSuccessClaim(
     "its saved in memory",
     "i've remembered that",
     "ive remembered that",
+    "i've stored that",
+    "ive stored that",
   ];
 
   return phrases.some(
@@ -2556,6 +3034,34 @@ function detectsDeletionSuccessClaim(
   );
 }
 
+function detectsHandoffSuccessClaim(
+  text
+) {
+  const normalised =
+    normaliseText(
+      text
+    );
+
+  const phrases = [
+    "your place is saved",
+    "i've saved our place",
+    "ive saved our place",
+    "i saved our place",
+    "the handoff is saved",
+    "i've saved where we stopped",
+    "ive saved where we stopped",
+    "i've saved your return point",
+    "ive saved your return point",
+  ];
+
+  return phrases.some(
+    (phrase) =>
+      normalised.includes(
+        phrase
+      )
+  );
+}
+
 function detectsAgentExposure(
   text
 ) {
@@ -2574,6 +3080,11 @@ function detectsAgentExposure(
     "specialist agent says",
     "according to the story agent",
     "according to the continuity agent",
+    "adaptive mentor engine says",
+    "creator memory engine says",
+    "response composer says",
+    "progression engine says",
+    "reflection engine says",
   ];
 
   return phrases.some(
@@ -2794,6 +3305,28 @@ function validateGeneratedResponse({
   }
 
   if (
+    detectsHandoffSuccessClaim(
+      cleanedText
+    ) &&
+    !memoryApplication
+      ?.canClaimHandoffSuccess
+  ) {
+    issues.push(
+      createValidationIssue({
+        code:
+          "UNVERIFIED_SESSION_HANDOFF_CLAIM",
+
+        severity:
+          VALIDATION_SEVERITIES
+            .ERROR,
+
+        message:
+          "The response claims the creator's return position was saved without persistence confirmation.",
+      })
+    );
+  }
+
+  if (
     detectsAgentExposure(
       cleanedText
     )
@@ -2808,7 +3341,7 @@ function validateGeneratedResponse({
             .ERROR,
 
         message:
-          "The response exposed internal specialist-agent machinery.",
+          "The response exposed internal Mentor machinery.",
       })
     );
   }
@@ -2941,6 +3474,7 @@ function createCompletedResponse({
   blueprint,
   communicationPlan,
   memoryApplication,
+  memoryContext,
   provider,
   providerExecution,
   validation,
@@ -3041,6 +3575,11 @@ function createCompletedResponse({
     memory:
       cloneValue(
         memoryApplication
+      ),
+
+    memoryContext:
+      cloneValue(
+        memoryContext
       ),
 
     project: {
@@ -3298,6 +3837,7 @@ function createFailureResponse({
   blueprint = null,
   communicationPlan = null,
   memoryApplication = null,
+  memoryContext = null,
 }) {
   const isCancelled =
     error?.name ===
@@ -3356,6 +3896,11 @@ function createFailureResponse({
         createEmptyMemoryApplicationSummary({
           adaptivePlan,
         })
+      ),
+
+    memoryContext:
+      cloneValue(
+        memoryContext
       ),
 
     error: {
@@ -3422,11 +3967,33 @@ function createResponseGenerator({
   communicationVoiceEngine = null,
   responseProvider = null,
   memory = null,
+  memoryFactory = null,
+  creatorId = null,
   defaultOptions = {},
   onLifecycleEvent = null,
 } = {}) {
+  const ownsAdaptiveMentorEngine =
+    !adaptiveMentorEngine;
+
+  const resolvedMemoryFactory =
+    typeof memoryFactory ===
+      "function"
+      ? memoryFactory
+      : (options = {}) =>
+          createCreatorMemory(
+            options
+          );
+
   let activeMemory =
     memory ||
+    resolvedMemoryFactory({
+      creatorId:
+        creatorId ||
+        null,
+    });
+
+  let activeMemoryCreatorId =
+    creatorId ||
     null;
 
   let activeResponseProvider =
@@ -3438,7 +4005,7 @@ function createResponseGenerator({
       defaultOptions
     );
 
-  const resolvedAdaptiveMentorEngine =
+  let activeAdaptiveMentorEngine =
     adaptiveMentorEngine ||
     createAdaptiveMentorEngine({
       memory:
@@ -3484,7 +4051,136 @@ function createResponseGenerator({
     }
   }
 
-  function applyMemoryOperations({
+  function bindMemoryToAdaptiveEngine() {
+    if (
+      typeof activeAdaptiveMentorEngine
+        ?.setMemory ===
+      "function"
+    ) {
+      activeAdaptiveMentorEngine
+        .setMemory(
+          activeMemory
+        );
+
+      return;
+    }
+
+    if (
+      ownsAdaptiveMentorEngine
+    ) {
+      activeAdaptiveMentorEngine =
+        createAdaptiveMentorEngine({
+          memory:
+            activeMemory,
+        });
+    }
+  }
+
+  function ensureMemoryForContext(
+    context = {}
+  ) {
+    const requestedCreatorId =
+      cleanString(
+        context?.creatorId
+      ) ||
+      null;
+
+    if (
+      activeMemory &&
+      (
+        !requestedCreatorId ||
+        requestedCreatorId ===
+          activeMemoryCreatorId
+      )
+    ) {
+      return activeMemory;
+    }
+
+    if (
+      requestedCreatorId &&
+      requestedCreatorId !==
+        activeMemoryCreatorId
+    ) {
+      activeMemory =
+        resolvedMemoryFactory({
+          creatorId:
+            requestedCreatorId,
+        });
+
+      activeMemoryCreatorId =
+        requestedCreatorId;
+
+      bindMemoryToAdaptiveEngine();
+    }
+
+    return activeMemory;
+  }
+
+  async function executeMemoryOperations(
+    adaptivePlan
+  ) {
+    if (
+      typeof activeAdaptiveMentorEngine
+        ?.applyMemoryPlan ===
+      "function"
+    ) {
+      const result =
+        await Promise.resolve(
+          activeAdaptiveMentorEngine
+            .applyMemoryPlan(
+              adaptivePlan
+            )
+        );
+
+      if (
+        result &&
+        typeof result ===
+          "object"
+      ) {
+        return result;
+      }
+    }
+
+    const instructions =
+      getMemoryInstructions(
+        adaptivePlan
+      );
+
+    if (
+      activeMemory &&
+      typeof activeMemory
+        .applyMemoryInstructions ===
+        "function"
+    ) {
+      return Promise.resolve(
+        activeMemory
+          .applyMemoryInstructions(
+            instructions
+          )
+      );
+    }
+
+    return {
+      applied: [],
+      skipped:
+        instructions.map(
+          (instruction) => ({
+            instruction:
+              cloneValue(
+                instruction
+              ),
+
+            reason:
+              "No compatible memory executor is available.",
+          })
+        ),
+      errors: [],
+      reason:
+        "Memory execution unavailable.",
+    };
+  }
+
+  async function applyMemoryOperations({
     adaptivePlan,
     options,
   }) {
@@ -3536,18 +4232,57 @@ function createResponseGenerator({
       );
     }
 
-    const result =
-      resolvedAdaptiveMentorEngine
-        .applyMemoryPlan(
+    if (
+      !activeMemory
+    ) {
+      return (
+        createEmptyMemoryApplicationSummary({
+          adaptivePlan,
+
+          reason:
+            "No CreatorMemory service is available.",
+        })
+      );
+    }
+
+    try {
+      const result =
+        await executeMemoryOperations(
           adaptivePlan
         );
 
-    return (
-      createMemoryApplicationSummary({
-        result,
-        adaptivePlan,
-      })
-    );
+      return (
+        createMemoryApplicationSummary({
+          result,
+          adaptivePlan,
+        })
+      );
+    } catch (error) {
+      return (
+        createMemoryApplicationSummary({
+          adaptivePlan,
+
+          result: {
+            applied: [],
+            skipped: [],
+            errors: [
+              {
+                instruction:
+                  null,
+
+                error:
+                  error instanceof Error
+                    ? error.message
+                    : String(error),
+              },
+            ],
+
+            reason:
+              "Memory execution failed.",
+          },
+        })
+      );
+    }
   }
 
   function shouldApplyBeforeGeneration({
@@ -3644,11 +4379,6 @@ function createResponseGenerator({
         ),
       });
 
-    const resolvedContext =
-      resolveGenerationContext(
-        context
-      );
-
     let currentAdaptivePlan =
       adaptivePlan;
 
@@ -3657,6 +4387,14 @@ function createResponseGenerator({
 
     let currentCommunicationPlan =
       communicationPlan;
+
+    let currentMemoryContext =
+      null;
+
+    let resolvedContext =
+      resolveGenerationContext(
+        context
+      );
 
     let memoryApplication =
       createEmptyMemoryApplicationSummary();
@@ -3693,6 +4431,48 @@ function createResponseGenerator({
         );
       }
 
+      ensureMemoryForContext(
+        resolvedContext
+      );
+
+      if (
+        resolvedOptions
+          .hydrateContextFromMemory &&
+        activeMemory
+      ) {
+        publishLifecycleEvent(
+          lifecycle,
+          {
+            stage:
+              GENERATION_STAGES
+                .HYDRATE_MEMORY,
+
+            status:
+              GENERATION_STATUSES
+                .HYDRATING_MEMORY,
+
+            message:
+              "Hydrating Mentor context from CreatorMemory.",
+          }
+        );
+
+        currentMemoryContext =
+          getMemoryContextSafely(
+            activeMemory
+          );
+
+        resolvedContext =
+          mergeMemoryContext({
+            context:
+              resolvedContext,
+
+            memoryContext:
+              currentMemoryContext,
+          });
+      }
+
+      bindMemoryToAdaptiveEngine();
+
       if (
         !currentAdaptivePlan
       ) {
@@ -3718,7 +4498,7 @@ function createResponseGenerator({
         );
 
         currentAdaptivePlan =
-          resolvedAdaptiveMentorEngine
+          activeAdaptiveMentorEngine
             .planMentorBehaviour({
               message,
 
@@ -3790,13 +4570,6 @@ function createResponseGenerator({
         );
       }
 
-      /**
-       * Memory work may still be required even when the
-       * correct conversational response is silence.
-       *
-       * Therefore memory is considered before returning
-       * an intentional-silence result.
-       */
       if (
         shouldApplyBeforeGeneration({
           adaptivePlan:
@@ -3828,13 +4601,19 @@ function createResponseGenerator({
         );
 
         memoryApplication =
-          applyMemoryOperations({
+          await applyMemoryOperations({
             adaptivePlan:
               currentAdaptivePlan,
 
             options:
               resolvedOptions,
           });
+
+        currentMemoryContext =
+          getMemoryContextSafely(
+            activeMemory
+          ) ||
+          currentMemoryContext;
       }
 
       const shouldRemainSilent =
@@ -3846,11 +4625,6 @@ function createResponseGenerator({
       if (
         shouldRemainSilent
       ) {
-        /**
-         * If ordinary capture is configured for AFTER_GENERATION,
-         * silence is effectively the generated response, so apply
-         * the remaining operation before finalising.
-         */
         if (
           shouldApplyAfterGeneration({
             adaptivePlan:
@@ -3884,13 +4658,19 @@ function createResponseGenerator({
           );
 
           memoryApplication =
-            applyMemoryOperations({
+            await applyMemoryOperations({
               adaptivePlan:
                 currentAdaptivePlan,
 
               options:
                 resolvedOptions,
             });
+
+          currentMemoryContext =
+            getMemoryContextSafely(
+              activeMemory
+            ) ||
+            currentMemoryContext;
         }
 
         publishLifecycleEvent(
@@ -3951,6 +4731,9 @@ function createResponseGenerator({
               currentCommunicationPlan,
 
             memoryApplication,
+
+            memoryContext:
+              currentMemoryContext,
 
             provider:
               describeProvider(
@@ -4081,6 +4864,9 @@ function createResponseGenerator({
 
             blueprint:
               currentBlueprint,
+
+            communicationPlan:
+              currentCommunicationPlan,
 
             options:
               resolvedOptions,
@@ -4234,7 +5020,7 @@ function createResponseGenerator({
         );
 
         memoryApplication =
-          applyMemoryOperations({
+          await applyMemoryOperations({
             adaptivePlan:
               currentAdaptivePlan,
 
@@ -4242,11 +5028,19 @@ function createResponseGenerator({
               resolvedOptions,
           });
 
+        currentMemoryContext =
+          getMemoryContextSafely(
+            activeMemory
+          ) ||
+          currentMemoryContext;
+
         /**
-         * The generated response is deliberately not rewritten
-         * to claim memory success after an AFTER_GENERATION save.
+         * Text is deliberately not rewritten after an
+         * AFTER_GENERATION save.
          *
-         * Persistence truth must never be retroactively invented.
+         * Language generated before persistence confirmation
+         * must never retroactively claim that persistence
+         * succeeded.
          */
       }
 
@@ -4498,6 +5292,9 @@ function createResponseGenerator({
 
           memoryApplication,
 
+          memoryContext:
+            currentMemoryContext,
+
           provider:
             providerDescription,
 
@@ -4565,6 +5362,9 @@ function createResponseGenerator({
             currentCommunicationPlan,
 
           memoryApplication,
+
+          memoryContext:
+            currentMemoryContext,
         })
       );
     }
@@ -4578,14 +5378,33 @@ function createResponseGenerator({
     communicationPlan = null,
     voiceProfile = null,
   } = {}) {
-    const resolvedContext =
+    let resolvedContext =
       resolveGenerationContext(
         context
       );
 
+    ensureMemoryForContext(
+      resolvedContext
+    );
+
+    const memoryContext =
+      getMemoryContextSafely(
+        activeMemory
+      );
+
+    resolvedContext =
+      mergeMemoryContext({
+        context:
+          resolvedContext,
+
+        memoryContext,
+      });
+
+    bindMemoryToAdaptiveEngine();
+
     const resolvedAdaptivePlan =
       adaptivePlan ||
-      resolvedAdaptiveMentorEngine
+      activeAdaptiveMentorEngine
         .planMentorBehaviour({
           message,
 
@@ -4639,6 +5458,11 @@ function createResponseGenerator({
       communicationPlan:
         resolvedCommunicationPlan,
 
+      memoryContext:
+        cloneValue(
+          memoryContext
+        ),
+
       memoryIntent,
 
       shouldRemainSilent:
@@ -4670,20 +5494,27 @@ function createResponseGenerator({
     };
   }
 
-  function applyMemoryPlan(
+  async function applyMemoryPlan(
     adaptivePlan
   ) {
     const result =
-      resolvedAdaptiveMentorEngine
-        .applyMemoryPlan(
-          adaptivePlan
-        );
+      await executeMemoryOperations(
+        adaptivePlan
+      );
 
     return (
       createMemoryApplicationSummary({
         result,
         adaptivePlan,
       })
+    );
+  }
+
+  function refreshMemoryContext() {
+    return cloneValue(
+      getMemoryContextSafely(
+        activeMemory
+      )
     );
   }
 
@@ -4731,20 +5562,26 @@ function createResponseGenerator({
   function setMemory(
     nextMemory
   ) {
+    if (
+      nextMemory !== null &&
+      nextMemory !== undefined &&
+      !isMemoryService(
+        nextMemory
+      )
+    ) {
+      throw new TypeError(
+        "Memory must expose the CreatorMemory service contract."
+      );
+    }
+
     activeMemory =
       nextMemory ||
       null;
 
-    if (
-      typeof resolvedAdaptiveMentorEngine
-        .setMemory ===
-      "function"
-    ) {
-      resolvedAdaptiveMentorEngine
-        .setMemory(
-          activeMemory
-        );
-    }
+    activeMemoryCreatorId =
+      null;
+
+    bindMemoryToAdaptiveEngine();
 
     return activeMemory;
   }
@@ -4781,7 +5618,7 @@ function createResponseGenerator({
   function getServices() {
     return {
       adaptiveMentorEngine:
-        resolvedAdaptiveMentorEngine,
+        activeAdaptiveMentorEngine,
 
       responseComposer:
         resolvedResponseComposer,
@@ -4803,6 +5640,7 @@ function createResponseGenerator({
     previewResponsePlan,
 
     applyMemoryPlan,
+    refreshMemoryContext,
 
     setResponseProvider,
     getResponseProvider,
