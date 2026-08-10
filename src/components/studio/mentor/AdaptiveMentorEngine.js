@@ -20,6 +20,7 @@
  * - How much information should be provided.
  * - Whether another question should be asked.
  * - Whether memory should be captured or recalled.
+ * - Whether memory instructions are authorised for execution.
  * - Whether project context should be restored.
  * - Whether a session handoff should be preserved.
  * - Whether a stored session handoff should restore continuity.
@@ -34,34 +35,43 @@
  * AdaptiveMentorEngine orchestrates that intelligence with the
  * other Mentor systems.
  *
- * Version 2.3 completes the live memory orchestration bridge:
+ * Version 2.4 aligns Adaptive Mentor with the modern v2.3
+ * Conversation, Reflection, Progression and Creator Memory stack:
  *
- * - Current explicit project identity is passed into
- *   CreatorMemory.getMemoryContext({ projectId }).
- * - Present project context outranks stale persisted project state.
- * - Project-scoped memory is filtered again before specialist use.
- * - Explicit null and empty current-turn values remain authoritative.
- * - CreatorMemoryEngine receives the live CreatorMemory service.
- * - setMemory() propagates to every memory-aware specialist.
- * - Stored session handoffs can trigger project restoration.
- * - Project restoration is now a real adaptive action.
- * - Build and flow behaviour cannot be made verbose by an old
- *   remembered detailed-response preference.
- * - Memory execution receives an Adaptive-level project-boundary
- *   preflight before CreatorMemory performs final validation.
- * - Persistence result reporting is preserved accurately.
+ * - Supports ProgressionEngine v2.3 yield-to-execution.
+ * - Supports ProgressionEngine v2.3 yield-to-memory-action.
+ * - Supports wait-for-memory-clarification.
+ * - Supports preserve-handoff as a first-class progression state.
+ * - Supports acknowledge-detour as a first-class progression state.
+ * - Explicit creator direction remains dominant.
+ * - Current project identity remains authoritative.
+ * - Stored project continuity cannot cross project boundaries.
+ * - Memory planning and memory execution authorisation are separated.
+ * - Memory-control operations suspend unrelated creative progression.
+ * - Forget clarification cannot accidentally execute persistence.
+ * - CreatorMemory execution receives project-boundary preflight.
+ * - Build, flow and high-momentum execution cannot be made verbose by
+ *   remembered response preferences.
+ * - Reflection may yield cleanly to execution without being reintroduced
+ *   by Adaptive conflict resolution.
+ * - Session handoffs can be planned, preserved and restored without
+ *   claiming persistence before CreatorMemory confirms it.
+ * - Specialist-agent signals remain advisory evidence.
+ * - Persistence results preserve full, partial, failed and no-op states.
  *
  * Core philosophy:
  * - Protect the creator.
  * - Present behaviour leads.
  * - Long-term memory informs.
  * - Project truth is shared, scoped and revisable.
+ * - Creator-confirmed truth outranks inference.
  * - Conversation exists in service of creation.
  * - Match the creator's rhythm before attempting to guide it.
  * - Meet first. Lead second.
  * - Never interrupt flow merely because more help is available.
  * - The creator remains the authority on their own experience.
  * - Specialist agents may inform the Mentor, but do not own truth.
+ * - Planning does not equal permission to persist.
  * - Complexity belongs behind the conversation.
  */
 
@@ -70,280 +80,448 @@ import createReflectionEngine from "./ReflectionEngine";
 import createProgressionEngine from "./ProgressionEngine";
 import createCreatorMemoryEngine from "./CreatorMemoryEngine";
 
-const ADAPTIVE_MENTOR_ENGINE_VERSION = "2.3.0";
+const ADAPTIVE_MENTOR_ENGINE_VERSION =
+  "2.4.0";
 
 const MENTOR_ROLES = Object.freeze({
   LISTENER: "listener",
+
   GUIDE: "guide",
-  COLLABORATOR: "collaborator",
+
+  COLLABORATOR:
+    "collaborator",
+
   TEACHER: "teacher",
+
   REFLECTOR: "reflector",
-  CREATIVE_DIRECTOR: "creative-director",
-  FACILITATOR: "facilitator",
-  QUIET_COMPANION: "quiet-companion",
+
+  CREATIVE_DIRECTOR:
+    "creative-director",
+
+  FACILITATOR:
+    "facilitator",
+
+  QUIET_COMPANION:
+    "quiet-companion",
 });
 
-const LEADERSHIP_STANCES = Object.freeze({
-  LEAD: "lead",
-  FOLLOW: "follow",
-  WALK_BESIDE: "walk-beside",
-  HOLD_POSITION: "hold-position",
-  HAND_BACK_CONTROL: "hand-back-control",
-});
+const LEADERSHIP_STANCES =
+  Object.freeze({
+    LEAD: "lead",
 
-const INTERVENTION_LEVELS = Object.freeze({
-  NONE: "none",
-  MINIMAL: "minimal",
-  LIGHT: "light",
-  MODERATE: "moderate",
-  DEEP: "deep",
-});
+    FOLLOW: "follow",
 
-const RESPONSE_DEPTHS = Object.freeze({
-  SILENT: "silent",
-  ONE_LINE: "one-line",
-  SHORT: "short",
-  MEDIUM: "medium",
-  DETAILED: "detailed",
-});
+    WALK_BESIDE:
+      "walk-beside",
 
-const QUESTION_POLICIES = Object.freeze({
-  NONE: "none",
-  ONE_OPTIONAL: "one-optional",
-  ONE_REQUIRED: "one-required",
-  CREATOR_LED: "creator-led",
-});
+    HOLD_POSITION:
+      "hold-position",
 
-const MEMORY_POLICIES = Object.freeze({
-  DO_NOT_USE: "do-not-use",
-  INFORM_SILENTLY: "inform-silently",
-  CAPTURE_ONLY: "capture-only",
+    HAND_BACK_CONTROL:
+      "hand-back-control",
+  });
 
-  RECALL_WITH_PERMISSION:
-    "recall-with-permission",
+const INTERVENTION_LEVELS =
+  Object.freeze({
+    NONE: "none",
 
-  CAPTURE_AND_RECALL:
-    "capture-and-recall",
+    MINIMAL: "minimal",
 
-  RESTORE_CONTEXT: "restore-context",
+    LIGHT: "light",
 
-  PRESERVE_HANDOFF:
-    "preserve-handoff",
+    MODERATE: "moderate",
 
-  FORGET_ONLY: "forget-only",
+    DEEP: "deep",
+  });
 
-  FORGET_REQUIRES_CLARIFICATION:
-    "forget-requires-clarification",
-});
+const RESPONSE_DEPTHS =
+  Object.freeze({
+    SILENT: "silent",
 
-const ACTION_PRIORITIES = Object.freeze({
-  SAFETY: 100,
+    ONE_LINE: "one-line",
 
-  CREATOR_EXPLICIT_DIRECTION:
-    90,
+    SHORT: "short",
 
-  MEMORY_FORGET: 88,
+    MEDIUM: "medium",
 
-  MEMORY_FORGET_CLARIFICATION:
-    87,
+    DETAILED: "detailed",
+  });
 
-  HOLD_SPACE: 80,
+const QUESTION_POLICIES =
+  Object.freeze({
+    NONE: "none",
 
-  PROTECT_FLOW: 75,
+    ONE_OPTIONAL:
+      "one-optional",
 
-  RELEASE_PRESSURE: 70,
+    ONE_REQUIRED:
+      "one-required",
 
-  RESTORE_PROJECT_CONTEXT:
-    68,
+    CREATOR_LED:
+      "creator-led",
+  });
 
-  MOVE_TO_ACTION: 65,
+const MEMORY_POLICIES =
+  Object.freeze({
+    DO_NOT_USE:
+      "do-not-use",
 
-  MEMORY_RECALL: 55,
+    INFORM_SILENTLY:
+      "inform-silently",
 
-  REFLECTION: 50,
+    CAPTURE_ONLY:
+      "capture-only",
 
-  EXPLORATION: 40,
+    RECALL_WITH_PERMISSION:
+      "recall-with-permission",
 
-  LEARNING: 35,
+    CAPTURE_AND_RECALL:
+      "capture-and-recall",
 
-  GENERAL_LISTENING: 20,
-});
+    RESTORE_CONTEXT:
+      "restore-context",
 
-const ADAPTIVE_ACTIONS = Object.freeze({
-  WAIT: "wait",
+    PRESERVE_HANDOFF:
+      "preserve-handoff",
 
-  ACKNOWLEDGE_BRIEFLY:
-    "acknowledge-briefly",
+    FORGET_ONLY:
+      "forget-only",
 
-  LISTEN_AND_INVITE:
-    "listen-and-invite",
+    FORGET_REQUIRES_CLARIFICATION:
+      "forget-requires-clarification",
 
-  REFLECT_GENTLY:
-    "reflect-gently",
+    MEMORY_ACTION_ONLY:
+      "memory-action-only",
+  });
 
-  RELEASE_PRESSURE:
-    "release-pressure",
+const MEMORY_EXECUTION_POLICIES =
+  Object.freeze({
+    BLOCK:
+      "block",
 
-  RESTORE_CONTEXT:
-    "restore-context",
+    ALLOW_CAPTURE:
+      "allow-capture",
 
-  RESTORE_PROJECT_CONTEXT:
-    "restore-project-context",
+    ALLOW_FORGET:
+      "allow-forget",
 
-  CAPTURE_AND_CONTINUE:
-    "capture-and-continue",
+    ALLOW_HANDOFF:
+      "allow-handoff",
 
-  RECALL_WITH_PERMISSION:
-    "recall-with-permission",
+    ALLOW_MEMORY_ACTION:
+      "allow-memory-action",
 
-  CLARIFY_FORGET_REQUEST:
-    "clarify-forget-request",
+    ALLOW_ALL_PLANNED:
+      "allow-all-planned",
+  });
 
-  APPLY_FORGET_REQUEST:
-    "apply-forget-request",
+const ACTION_PRIORITIES =
+  Object.freeze({
+    SAFETY: 100,
 
-  ASK_ONE_QUESTION:
-    "ask-one-question",
+    CREATOR_EXPLICIT_DIRECTION:
+      95,
 
-  OFFER_ONE_RECOMMENDATION:
-    "offer-one-recommendation",
+    MEMORY_FORGET:
+      92,
 
-  TEACH_ONE_CONCEPT:
-    "teach-one-concept",
+    MEMORY_FORGET_CLARIFICATION:
+      91,
 
-  CONTINUE_BRAINSTORMING:
-    "continue-brainstorming",
+    MEMORY_CONTROL:
+      90,
 
-  MOVE_TO_CREATION:
-    "move-to-creation",
+    HOLD_SPACE: 85,
 
-  MOVE_TO_NEXT_TASK:
-    "move-to-next-task",
+    PROTECT_FLOW: 80,
 
-  MOVE_TO_REFINEMENT:
-    "move-to-refinement",
+    RELEASE_PRESSURE: 75,
 
-  MOVE_TO_PUBLISHING:
-    "move-to-publishing",
+    RESTORE_PROJECT_CONTEXT:
+      72,
 
-  SAVE_AND_PAUSE:
-    "save-and-pause",
+    MOVE_TO_ACTION: 70,
 
-  PRESERVE_SESSION_HANDOFF:
-    "preserve-session-handoff",
+    MEMORY_RECALL: 55,
 
-  END_POSITIVELY:
-    "end-positively",
-});
+    REFLECTION: 50,
 
-const ADAPTATION_SIGNALS = Object.freeze({
-  BUILD_MODE: "build-mode",
-  FLOW_MODE: "flow-mode",
+    EXPLORATION: 40,
 
-  EXPLORATION_MODE:
-    "exploration-mode",
+    LEARNING: 35,
 
-  LEARNING_MODE:
-    "learning-mode",
+    GENERAL_LISTENING: 20,
+  });
 
-  REFLECTION_MODE:
-    "reflection-mode",
+const ADAPTIVE_ACTIONS =
+  Object.freeze({
+    WAIT: "wait",
 
-  RECOVERY_MODE:
-    "recovery-mode",
+    ACKNOWLEDGE_BRIEFLY:
+      "acknowledge-briefly",
 
-  INCUBATION_MODE:
-    "incubation-mode",
+    LISTEN_AND_INVITE:
+      "listen-and-invite",
 
-  HIGH_MOMENTUM:
-    "high-momentum",
+    REFLECT_GENTLY:
+      "reflect-gently",
 
-  LOW_ENERGY:
-    "low-energy",
+    RELEASE_PRESSURE:
+      "release-pressure",
 
-  INFORMATION_OVERLOAD:
-    "information-overload",
+    RESTORE_CONTEXT:
+      "restore-context",
 
-  GUIDANCE_REQUESTED:
-    "guidance-requested",
+    RESTORE_PROJECT_CONTEXT:
+      "restore-project-context",
 
-  GUIDANCE_NOT_WANTED:
-    "guidance-not-wanted",
+    CAPTURE_AND_CONTINUE:
+      "capture-and-continue",
 
-  BRIEF_DETOUR:
-    "brief-detour",
+    RECALL_WITH_PERMISSION:
+      "recall-with-permission",
 
-  DEFERRED_TOPIC:
-    "deferred-topic",
+    CLARIFY_FORGET_REQUEST:
+      "clarify-forget-request",
 
-  RECALL_AVAILABLE:
-    "recall-available",
+    APPLY_FORGET_REQUEST:
+      "apply-forget-request",
 
-  PROJECT_MEMORY_AVAILABLE:
-    "project-memory-available",
+    EXECUTE_MEMORY_ACTION:
+      "execute-memory-action",
 
-  PROJECT_CONTEXT_AVAILABLE:
-    "project-context-available",
+    ASK_ONE_QUESTION:
+      "ask-one-question",
 
-  SESSION_HANDOFF_AVAILABLE:
-    "session-handoff-available",
+    OFFER_ONE_RECOMMENDATION:
+      "offer-one-recommendation",
 
-  STORED_SESSION_HANDOFF_AVAILABLE:
-    "stored-session-handoff-available",
+    TEACH_ONE_CONCEPT:
+      "teach-one-concept",
 
-  MEMORY_CAPTURE_AVAILABLE:
-    "memory-capture-available",
+    CONTINUE_BRAINSTORMING:
+      "continue-brainstorming",
 
-  CREATOR_MEMORY_CONNECTED:
-    "creator-memory-connected",
+    MOVE_TO_CREATION:
+      "move-to-creation",
 
-  CREATOR_MEMORY_CONTEXT_AVAILABLE:
-    "creator-memory-context-available",
+    MOVE_TO_NEXT_TASK:
+      "move-to-next-task",
 
-  FORGET_REQUEST:
-    "forget-request",
+    MOVE_TO_REFINEMENT:
+      "move-to-refinement",
 
-  FORGET_REQUIRES_CLARIFICATION:
-    "forget-requires-clarification",
+    MOVE_TO_PUBLISHING:
+      "move-to-publishing",
 
-  SPECIALIST_MEMORY_SIGNAL:
-    "specialist-memory-signal",
+    YIELD_TO_EXECUTION:
+      "yield-to-execution",
 
-  CREATOR_NOT_FINISHED:
-    "creator-not-finished",
-});
+    SAVE_AND_PAUSE:
+      "save-and-pause",
+
+    PRESERVE_SESSION_HANDOFF:
+      "preserve-session-handoff",
+
+    END_POSITIVELY:
+      "end-positively",
+  });
+
+const ADAPTATION_SIGNALS =
+  Object.freeze({
+    BUILD_MODE:
+      "build-mode",
+
+    FLOW_MODE:
+      "flow-mode",
+
+    EXPLORATION_MODE:
+      "exploration-mode",
+
+    LEARNING_MODE:
+      "learning-mode",
+
+    REFLECTION_MODE:
+      "reflection-mode",
+
+    RECOVERY_MODE:
+      "recovery-mode",
+
+    INCUBATION_MODE:
+      "incubation-mode",
+
+    HIGH_MOMENTUM:
+      "high-momentum",
+
+    LOW_ENERGY:
+      "low-energy",
+
+    INFORMATION_OVERLOAD:
+      "information-overload",
+
+    GUIDANCE_REQUESTED:
+      "guidance-requested",
+
+    GUIDANCE_NOT_WANTED:
+      "guidance-not-wanted",
+
+    BRIEF_DETOUR:
+      "brief-detour",
+
+    DEFERRED_TOPIC:
+      "deferred-topic",
+
+    RECALL_AVAILABLE:
+      "recall-available",
+
+    PROJECT_MEMORY_AVAILABLE:
+      "project-memory-available",
+
+    PROJECT_CONTEXT_AVAILABLE:
+      "project-context-available",
+
+    SESSION_HANDOFF_AVAILABLE:
+      "session-handoff-available",
+
+    STORED_SESSION_HANDOFF_AVAILABLE:
+      "stored-session-handoff-available",
+
+    MEMORY_CAPTURE_AVAILABLE:
+      "memory-capture-available",
+
+    MEMORY_ACTION_PENDING:
+      "memory-action-pending",
+
+    CREATOR_MEMORY_CONNECTED:
+      "creator-memory-connected",
+
+    CREATOR_MEMORY_CONTEXT_AVAILABLE:
+      "creator-memory-context-available",
+
+    FORGET_REQUEST:
+      "forget-request",
+
+    FORGET_REQUIRES_CLARIFICATION:
+      "forget-requires-clarification",
+
+    SPECIALIST_MEMORY_SIGNAL:
+      "specialist-memory-signal",
+
+    CREATOR_NOT_FINISHED:
+      "creator-not-finished",
+
+    PROGRESSION_YIELDS_TO_EXECUTION:
+      "progression-yields-to-execution",
+
+    PROGRESSION_YIELDS_TO_MEMORY:
+      "progression-yields-to-memory",
+
+    PROGRESSION_PRESERVES_HANDOFF:
+      "progression-preserves-handoff",
+
+    PROGRESSION_ACKNOWLEDGES_DETOUR:
+      "progression-acknowledges-detour",
+
+    MEMORY_CLARIFICATION_REQUIRED:
+      "memory-clarification-required",
+
+    PROJECT_CORRECTION_ACTIVE:
+      "project-correction-active",
+  });
+
+const MEMORY_CONTROL_ACTIONS =
+  Object.freeze([
+    "forget-memory",
+
+    "reinforce-memory",
+
+    "supersede-memory",
+
+    "archive-memory",
+
+    "weaken-memory",
+
+    "resolve-thread",
+  ]);
+
+const EXECUTION_ADAPTIVE_ACTIONS =
+  Object.freeze([
+    ADAPTIVE_ACTIONS
+      .MOVE_TO_CREATION,
+
+    ADAPTIVE_ACTIONS
+      .MOVE_TO_NEXT_TASK,
+
+    ADAPTIVE_ACTIONS
+      .MOVE_TO_REFINEMENT,
+
+    ADAPTIVE_ACTIONS
+      .MOVE_TO_PUBLISHING,
+
+    ADAPTIVE_ACTIONS
+      .YIELD_TO_EXECUTION,
+  ]);
 
 const DEFAULT_ADAPTIVE_CONTEXT =
   Object.freeze({
     creatorId: null,
-    creatorJourney: "guide",
+
+    creatorJourney:
+      "guide",
+
     creatorType: null,
+
+    creatorExperience:
+      null,
+
     projectType: null,
 
     creatorProfile: null,
 
-    creatorMemoryConnected: false,
-    creatorMemoryContext: null,
+    creatorMemoryConnected:
+      false,
+
+    creatorMemoryContext:
+      null,
+
     memoryContext: null,
 
     activeProject: null,
+
     activeProjectId: null,
+
     activeIdea: null,
+
     activeStage: null,
+
     activeScene: null,
+
     activeCharacter: null,
+
     activeAsset: null,
 
     sessionId: null,
+
     sessionStartedAt: null,
 
     thinkingMode: null,
+
     creatorEnergy: null,
+
     momentum: null,
+
     guidanceWindow: null,
-    informationSaturation: null,
+
+    informationSaturation:
+      null,
 
     creatorExplicitlyAskedForGuidance:
+      false,
+
+    creatorExplicitlyAskedForHelp:
+      false,
+
+    creatorExplicitlyAskedForExplanation:
       false,
 
     creatorExplicitlyAskedToContinue:
@@ -385,23 +563,37 @@ const DEFAULT_ADAPTIVE_CONTEXT =
     preferredVoiceProfile:
       null,
 
-    preferredChannel:
-      null,
+    preferredChannel: null,
 
-    recentCreatorMessages: [],
-    recentMentorMessages: [],
-    recentConversations: [],
+    recentCreatorMessages:
+      [],
 
-    existingMemories: [],
-    existingProjectMemories: [],
+    recentMentorMessages:
+      [],
+
+    recentConversations:
+      [],
+
+    existingMemories:
+      [],
+
+    existingProjectMemories:
+      [],
+
     existingPatterns: [],
-    existingObservations: [],
 
-    deferredMemories: [],
+    existingObservations:
+      [],
+
+    deferredMemories:
+      [],
+
     milestones: [],
 
     memorySignals: [],
-    projectMemorySignals: [],
+
+    projectMemorySignals:
+      [],
 
     captureSessionHandoff:
       false,
@@ -410,9 +602,32 @@ const DEFAULT_ADAPTIVE_CONTEXT =
       null,
 
     sourceAgent: null,
+
     sourceSystem: null,
 
-    targetMemoryIds: [],
+    targetMemoryIds:
+      [],
+
+    memoryAction: null,
+
+    memoryActionPending:
+      false,
+
+    memoryPersistencePending:
+      false,
+
+    forgetRequested:
+      false,
+
+    forgetRequiresClarification:
+      false,
+
+    briefDetour: false,
+
+    deferredTopic: false,
+
+    correctionSignal:
+      false,
 
     minimumCreationContextReady:
       false,
@@ -429,11 +644,13 @@ const DEFAULT_ADAPTIVE_CONTEXT =
     projectReadyToPublish:
       false,
 
-    currentTimestamp: null,
+    currentTimestamp:
+      null,
   });
 
 function createTimestamp() {
-  return new Date().toISOString();
+  return new Date()
+    .toISOString();
 }
 
 function createAdaptivePlanId() {
@@ -448,27 +665,39 @@ function createAdaptivePlanId() {
   );
 }
 
-function cloneValue(value) {
+function cloneValue(
+  value
+) {
   if (
     value === undefined
   ) {
     return undefined;
   }
 
-  return JSON.parse(
-    JSON.stringify(value)
-  );
+  try {
+    return JSON.parse(
+      JSON.stringify(value)
+    );
+  } catch {
+    return value;
+  }
 }
 
-function cleanString(value) {
+function cleanString(
+  value
+) {
   return typeof value ===
     "string"
     ? value.trim()
     : "";
 }
 
-function asArray(value) {
-  return Array.isArray(value)
+function asArray(
+  value
+) {
+  return Array.isArray(
+    value
+  )
     ? value
     : [];
 }
@@ -478,12 +707,13 @@ function uniqueValues(
 ) {
   return [
     ...new Set(
-      values.filter(
-        (value) =>
-          value !== null &&
-          value !== undefined &&
-          value !== ""
-      )
+      asArray(values)
+        .filter(
+          (value) =>
+            value !== null &&
+            value !== undefined &&
+            value !== ""
+        )
     ),
   ];
 }
@@ -519,8 +749,10 @@ function getNestedValue(
     of keys
   ) {
     if (
-      currentValue === null ||
-      currentValue === undefined ||
+      currentValue ===
+        null ||
+      currentValue ===
+        undefined ||
       typeof currentValue !==
         "object"
     ) {
@@ -541,23 +773,25 @@ function includesValue(
   value,
   possibilities = []
 ) {
-  return possibilities.includes(
-    value
+  return (
+    possibilities
+      .includes(
+        value
+      )
   );
 }
 
 function getProjectId(
   context = {}
 ) {
-  if (
+  const explicit =
     cleanString(
       context
         ?.activeProjectId
-    )
-  ) {
-    return cleanString(
-      context.activeProjectId
     );
+
+  if (explicit) {
+    return explicit;
   }
 
   if (
@@ -567,7 +801,8 @@ function getProjectId(
   ) {
     return (
       cleanString(
-        context.activeProject
+        context
+          .activeProject
       ) ||
       null
     );
@@ -599,7 +834,8 @@ function getExplicitProjectId(
   ) {
     return (
       cleanString(
-        context.activeProjectId
+        context
+          .activeProjectId
       ) ||
       null
     );
@@ -612,7 +848,8 @@ function getExplicitProjectId(
     )
   ) {
     if (
-      context.activeProject ===
+      context
+        .activeProject ===
       null
     ) {
       return null;
@@ -625,7 +862,8 @@ function getExplicitProjectId(
     ) {
       return (
         cleanString(
-          context.activeProject
+          context
+            .activeProject
         ) ||
         null
       );
@@ -649,23 +887,33 @@ function getExplicitProjectId(
   return null;
 }
 
-function getMemoryEntryProjectId(
+function getMemoryEntryProjectIds(
   entry
 ) {
-  return (
+  return uniqueValues([
     cleanString(
-      entry?.projectId
-    ) ||
+      entry
+        ?.projectId
+    ),
+
     cleanString(
       entry
         ?.relatedProjectId
-    ) ||
+    ),
+
     cleanString(
-      entry?.metadata
+      entry
+        ?.metadata
         ?.projectId
-    ) ||
-    null
-  );
+    ),
+
+    ...asArray(
+      entry
+        ?.relatedProjectIds
+    ).map(
+      cleanString
+    ),
+  ].filter(Boolean));
 }
 
 function isMemoryEntryRelevantToProject(
@@ -676,55 +924,46 @@ function isMemoryEntryRelevantToProject(
     return false;
   }
 
-  const directProjectId =
-    getMemoryEntryProjectId(
+  const projectIds =
+    getMemoryEntryProjectIds(
       entry
     );
 
-  if (directProjectId) {
-    return Boolean(
-      projectId &&
-      directProjectId ===
-        projectId
-    );
-  }
-
-  const relatedProjectIds =
-    asArray(
-      entry
-        ?.relatedProjectIds
-    )
-      .map(cleanString)
-      .filter(Boolean);
-
+  /**
+   * Truly creator/global entries have no project identity
+   * and remain available regardless of active project.
+   */
   if (
-    relatedProjectIds
-      .length > 0
+    projectIds.length ===
+      0
   ) {
-    return Boolean(
-      projectId &&
-      relatedProjectIds
-        .includes(
-          projectId
-        )
-    );
+    return true;
   }
 
-  return true;
+  if (!projectId) {
+    return false;
+  }
+
+  return (
+    projectIds.includes(
+      projectId
+    )
+  );
 }
 
 function filterMemoryEntriesForProject(
   entries,
   projectId
 ) {
-  return asArray(entries)
-    .filter(
-      (entry) =>
-        isMemoryEntryRelevantToProject(
-          entry,
-          projectId
-        )
-    );
+  return asArray(
+    entries
+  ).filter(
+    (entry) =>
+      isMemoryEntryRelevantToProject(
+        entry,
+        projectId
+      )
+  );
 }
 
 function hasMeaningfulMemoryContext(
@@ -786,9 +1025,8 @@ function hasMeaningfulMemoryContext(
 /**
  * Reads CreatorMemory's richest available context.
  *
- * The current explicit project id is passed into the modern
- * v2 memory contract so CreatorMemory can enforce project
- * isolation before returning context.
+ * Explicit current project identity is supplied before
+ * persistence is read.
  */
 function readCreatorMemoryContext(
   memory,
@@ -808,9 +1046,13 @@ function readCreatorMemoryContext(
     ) {
       const context =
         memory
-          .getMemoryContext({
-            projectId,
-          });
+          .getMemoryContext(
+            projectId
+              ? {
+                  projectId,
+                }
+              : {}
+          );
 
       if (
         context &&
@@ -916,12 +1158,6 @@ function resolveCommunicationPreferences(
   );
 }
 
-/**
- * Returns current-turn property when explicitly supplied,
- * even when the supplied value is null or an empty array.
- *
- * This is essential to the "present behaviour leads" rule.
- */
 function resolveExplicitOrRemembered({
   explicitContext,
   key,
@@ -935,13 +1171,15 @@ function resolveExplicitOrRemembered({
     )
   ) {
     return cloneValue(
-      explicitContext[key]
+      explicitContext[
+        key
+      ]
     );
   }
 
   if (
     rememberedValue !==
-    undefined
+      undefined
   ) {
     return cloneValue(
       rememberedValue
@@ -954,14 +1192,13 @@ function resolveExplicitOrRemembered({
 }
 
 /**
- * Builds the context used by every specialist engine.
+ * Builds one shared context for every specialist.
  *
  * Precedence:
- * 1. Explicit current-turn context.
- * 2. Project-filtered CreatorMemory context.
- * 3. Adaptive defaults.
  *
- * Present creator behaviour therefore always wins over memory.
+ * 1. Explicit present-turn context.
+ * 2. Correctly scoped CreatorMemory context.
+ * 3. Adaptive defaults.
  */
 function createMemoryAwareContext({
   context = {},
@@ -1005,13 +1242,6 @@ function createMemoryAwareContext({
       }
     );
 
-  /**
-   * When a live memory service exists it is preferred for
-   * project-scoped data because it can enforce the current
-   * v2.2 persistence boundary.
-   *
-   * Supplied memory remains useful when no service is connected.
-   */
   const rawMemoryContext =
     storedMemoryContext ||
     suppliedMemoryContext ||
@@ -1549,19 +1779,24 @@ function createMemoryAwareContext({
       createTimestamp(),
   };
 
+  const finalProjectId =
+    getProjectId(
+      resolvedContext
+    );
+
+  resolvedContext
+    .activeProjectId =
+    finalProjectId;
+
   /**
-   * Final project filter after the explicit context merge.
-   *
-   * Explicit current arrays are authoritative, but project-bound
-   * items are still prohibited from bleeding across projects.
+   * Final isolation pass after present-turn context wins.
    */
   resolvedContext
     .existingMemories =
     filterMemoryEntriesForProject(
       resolvedContext
         .existingMemories,
-      resolvedContext
-        .activeProjectId
+      finalProjectId
     );
 
   resolvedContext
@@ -1569,8 +1804,7 @@ function createMemoryAwareContext({
     filterMemoryEntriesForProject(
       resolvedContext
         .existingProjectMemories,
-      resolvedContext
-        .activeProjectId
+      finalProjectId
     );
 
   resolvedContext
@@ -1578,8 +1812,7 @@ function createMemoryAwareContext({
     filterMemoryEntriesForProject(
       resolvedContext
         .existingPatterns,
-      resolvedContext
-        .activeProjectId
+      finalProjectId
     );
 
   resolvedContext
@@ -1587,8 +1820,7 @@ function createMemoryAwareContext({
     filterMemoryEntriesForProject(
       resolvedContext
         .existingObservations,
-      resolvedContext
-        .activeProjectId
+      finalProjectId
     );
 
   resolvedContext
@@ -1596,8 +1828,7 @@ function createMemoryAwareContext({
     filterMemoryEntriesForProject(
       resolvedContext
         .deferredMemories,
-      resolvedContext
-        .activeProjectId
+      finalProjectId
     );
 
   resolvedContext
@@ -1605,8 +1836,7 @@ function createMemoryAwareContext({
     filterMemoryEntriesForProject(
       resolvedContext
         .milestones,
-      resolvedContext
-        .activeProjectId
+      finalProjectId
     );
 
   resolvedContext
@@ -1614,8 +1844,7 @@ function createMemoryAwareContext({
     filterMemoryEntriesForProject(
       resolvedContext
         .recentConversations,
-      resolvedContext
-        .activeProjectId
+      finalProjectId
     );
 
   if (
@@ -1624,8 +1853,7 @@ function createMemoryAwareContext({
     !isMemoryEntryRelevantToProject(
       resolvedContext
         .sessionHandoff,
-      resolvedContext
-        .activeProjectId
+      finalProjectId
     )
   ) {
     resolvedContext
@@ -1652,8 +1880,11 @@ function addCandidateAction(
 
   candidates.push({
     action,
+
     priority,
+
     reason,
+
     source,
 
     metadata:
@@ -1686,6 +1917,22 @@ function memoryPlanHasCaptureInstructions(
   );
 }
 
+function memoryPlanHasForgetInstructions(
+  memoryPlan
+) {
+  return asArray(
+    memoryPlan
+      ?.instructions
+  ).some(
+    (instruction) =>
+      cleanString(
+        instruction
+          ?.action
+      ) ===
+      "forget-memory"
+  );
+}
+
 function memoryPlanHasProjectMemory(
   memoryPlan
 ) {
@@ -1700,7 +1947,8 @@ function memoryPlanHasProjectMemory(
         item;
 
       return Boolean(
-        candidate?.scope ===
+        candidate
+          ?.scope ===
           "project" ||
         candidate
           ?.projectId
@@ -1763,7 +2011,8 @@ function contextHasSpecialistMemorySignals(
   context
 ) {
   return Boolean(
-    context?.sourceAgent ||
+    context
+      ?.sourceAgent ||
     asArray(
       context
         ?.memorySignals
@@ -1788,28 +2037,32 @@ function collectAdaptationSignals({
     getNestedValue(
       reflectionPlan,
       "creatorState.thinkingMode.value",
-      context?.thinkingMode
+      context
+        ?.thinkingMode
     );
 
   const creatorEnergy =
     getNestedValue(
       progressionPlan,
       "creatorState.creatorEnergy.value",
-      context?.creatorEnergy
+      context
+        ?.creatorEnergy
     );
 
   const momentum =
     getNestedValue(
       progressionPlan,
       "creatorState.momentum.value",
-      context?.momentum
+      context
+        ?.momentum
     );
 
   const guidanceWindow =
     getNestedValue(
       progressionPlan,
       "creatorState.guidanceWindow.value",
-      context?.guidanceWindow
+      context
+        ?.guidanceWindow
     );
 
   const informationSaturation =
@@ -1827,8 +2080,22 @@ function collectAdaptationSignals({
       true
     );
 
+  const progressionDecision =
+    cleanString(
+      progressionPlan
+        ?.decision
+    );
+
+  const progressionCorrection =
+    getNestedValue(
+      progressionPlan,
+      "creatorState.correctionState.value",
+      false
+    );
+
   if (
-    thinkingMode === "build"
+    thinkingMode ===
+    "build"
   ) {
     signals.push(
       ADAPTATION_SIGNALS
@@ -1837,7 +2104,8 @@ function collectAdaptationSignals({
   }
 
   if (
-    thinkingMode === "flow"
+    thinkingMode ===
+    "flow"
   ) {
     signals.push(
       ADAPTATION_SIGNALS
@@ -1943,6 +2211,8 @@ function collectAdaptationSignals({
   if (
     context
       ?.creatorExplicitlyAskedForGuidance ||
+    context
+      ?.creatorExplicitlyAskedForHelp ||
     guidanceWindow ===
       "wide-open"
   ) {
@@ -1954,7 +2224,7 @@ function collectAdaptationSignals({
 
   if (
     guidanceWindow ===
-    "closed-for-now"
+      "closed-for-now"
   ) {
     signals.push(
       ADAPTATION_SIGNALS
@@ -1967,7 +2237,14 @@ function collectAdaptationSignals({
       memoryPlan,
       "detections.briefDetour.value",
       false
-    )
+    ) ||
+    getNestedValue(
+      progressionPlan,
+      "creatorState.briefDetour.value",
+      false
+    ) ||
+    progressionDecision ===
+      "acknowledge-detour"
   ) {
     signals.push(
       ADAPTATION_SIGNALS
@@ -2116,11 +2393,93 @@ function collectAdaptationSignals({
   }
 
   if (
-    appearsFinished === false
+    appearsFinished ===
+      false
   ) {
     signals.push(
       ADAPTATION_SIGNALS
         .CREATOR_NOT_FINISHED
+    );
+  }
+
+  if (
+    progressionDecision ===
+      "yield-to-execution"
+  ) {
+    signals.push(
+      ADAPTATION_SIGNALS
+        .PROGRESSION_YIELDS_TO_EXECUTION
+    );
+  }
+
+  if (
+    progressionDecision ===
+      "yield-to-memory-action"
+  ) {
+    signals.push(
+      ADAPTATION_SIGNALS
+        .PROGRESSION_YIELDS_TO_MEMORY
+    );
+  }
+
+  if (
+    progressionDecision ===
+      "preserve-handoff"
+  ) {
+    signals.push(
+      ADAPTATION_SIGNALS
+        .PROGRESSION_PRESERVES_HANDOFF
+    );
+  }
+
+  if (
+    progressionDecision ===
+      "acknowledge-detour"
+  ) {
+    signals.push(
+      ADAPTATION_SIGNALS
+        .PROGRESSION_ACKNOWLEDGES_DETOUR
+    );
+  }
+
+  if (
+    progressionDecision ===
+      "wait-for-memory-clarification"
+  ) {
+    signals.push(
+      ADAPTATION_SIGNALS
+        .MEMORY_CLARIFICATION_REQUIRED
+    );
+  }
+
+  if (
+    progressionCorrection ||
+    context
+      ?.correctionSignal
+  ) {
+    signals.push(
+      ADAPTATION_SIGNALS
+        .PROJECT_CORRECTION_ACTIVE
+    );
+  }
+
+  const memoryControlState =
+    getNestedValue(
+      progressionPlan,
+      "creatorState.memoryControlState.value",
+      false
+    );
+
+  if (
+    memoryControlState ||
+    context
+      ?.memoryActionPending ||
+    context
+      ?.memoryPersistencePending
+  ) {
+    signals.push(
+      ADAPTATION_SIGNALS
+        .MEMORY_ACTION_PENDING
     );
   }
 
@@ -2161,10 +2520,12 @@ function collectCandidateActions({
   const candidates = [];
 
   const reflectionDecision =
-    reflectionPlan?.decision;
+    reflectionPlan
+      ?.decision;
 
   const progressionDecision =
-    progressionPlan?.decision;
+    progressionPlan
+      ?.decision;
 
   const conversationAction =
     getNestedValue(
@@ -2173,30 +2534,9 @@ function collectCandidateActions({
       null
     );
 
-  if (
-    context
-      ?.creatorExplicitlyAskedToPause
-  ) {
-    addCandidateAction(
-      candidates,
-      {
-        action:
-          ADAPTIVE_ACTIONS
-            .SAVE_AND_PAUSE,
-
-        priority:
-          ACTION_PRIORITIES
-            .CREATOR_EXPLICIT_DIRECTION,
-
-        reason:
-          "The creator explicitly requested a pause.",
-
-        source:
-          "context",
-      }
-    );
-  }
-
+  /**
+   * Explicit creator boundaries are highest.
+   */
   if (
     context
       ?.creatorExplicitlyAskedToStop
@@ -2222,9 +2562,40 @@ function collectCandidateActions({
   }
 
   if (
+    context
+      ?.creatorExplicitlyAskedToPause
+  ) {
+    addCandidateAction(
+      candidates,
+      {
+        action:
+          ADAPTIVE_ACTIONS
+            .SAVE_AND_PAUSE,
+
+        priority:
+          ACTION_PRIORITIES
+            .CREATOR_EXPLICIT_DIRECTION,
+
+        reason:
+          "The creator explicitly requested a pause.",
+
+        source:
+          "context",
+      }
+    );
+  }
+
+  /**
+   * Forget operations outrank ordinary progression.
+   */
+  if (
     signals.includes(
       ADAPTATION_SIGNALS
         .FORGET_REQUIRES_CLARIFICATION
+    ) ||
+    signals.includes(
+      ADAPTATION_SIGNALS
+        .MEMORY_CLARIFICATION_REQUIRED
     )
   ) {
     addCandidateAction(
@@ -2239,10 +2610,10 @@ function collectCandidateActions({
             .MEMORY_FORGET_CLARIFICATION,
 
         reason:
-          "The creator asked to forget something, but the intended memory is not unambiguous.",
+          "A memory-control request requires one unambiguous target before persistence may continue.",
 
         source:
-          "creator-memory-engine",
+          "memory-orchestration",
 
         metadata: {
           forgetPlan:
@@ -2285,6 +2656,40 @@ function collectCandidateActions({
     );
   }
 
+  /**
+   * Progression v2.3 may explicitly yield to a non-forget
+   * memory action.
+   */
+  if (
+    signals.includes(
+      ADAPTATION_SIGNALS
+        .PROGRESSION_YIELDS_TO_MEMORY
+    ) &&
+    !signals.includes(
+      ADAPTATION_SIGNALS
+        .FORGET_REQUIRES_CLARIFICATION
+    )
+  ) {
+    addCandidateAction(
+      candidates,
+      {
+        action:
+          ADAPTIVE_ACTIONS
+            .EXECUTE_MEMORY_ACTION,
+
+        priority:
+          ACTION_PRIORITIES
+            .MEMORY_CONTROL,
+
+        reason:
+          "Progression has yielded to the active memory-control operation.",
+
+        source:
+          "progression-engine",
+      }
+    );
+  }
+
   if (
     includesValue(
       reflectionDecision,
@@ -2316,7 +2721,7 @@ function collectCandidateActions({
 
   if (
     reflectionDecision ===
-    "release-pressure"
+      "release-pressure"
   ) {
     addCandidateAction(
       candidates,
@@ -2340,7 +2745,7 @@ function collectCandidateActions({
 
   if (
     reflectionDecision ===
-    "restore-context"
+      "restore-context"
   ) {
     addCandidateAction(
       candidates,
@@ -2363,11 +2768,53 @@ function collectCandidateActions({
   }
 
   /**
+   * Progression's execution yield is deliberate.
+   * Adaptive must not reinsert reflection in front of it.
+   */
+  if (
+    signals.includes(
+      ADAPTATION_SIGNALS
+        .PROGRESSION_YIELDS_TO_EXECUTION
+    )
+  ) {
+    addCandidateAction(
+      candidates,
+      {
+        action:
+          ADAPTIVE_ACTIONS
+            .YIELD_TO_EXECUTION,
+
+        priority:
+          ACTION_PRIORITIES
+            .MOVE_TO_ACTION,
+
+        reason:
+          "Progression has explicitly cleared the orchestration path for execution.",
+
+        source:
+          "progression-engine",
+
+        metadata: {
+          progressionTarget:
+            getNestedValue(
+              progressionPlan,
+              "progression.primaryAction",
+              null
+            ),
+
+          conversationMentorMove:
+            getNestedValue(
+              conversationPlan,
+              "conversation.mentorMove",
+              null
+            ),
+        },
+      }
+    );
+  }
+
+  /**
    * Stored project handoff restoration.
-   *
-   * A handoff is not surfaced merely because it exists.
-   * The creator must be actively continuing, requesting the next
-   * step, or asking for guidance inside the same project.
    */
   if (
     signals.includes(
@@ -2380,7 +2827,9 @@ function collectCandidateActions({
       context
         ?.creatorExplicitlyAskedForNextStep ||
       context
-        ?.creatorExplicitlyAskedForGuidance
+        ?.creatorExplicitlyAskedForGuidance ||
+      progressionDecision ===
+        "restore-context"
     )
   ) {
     addCandidateAction(
@@ -2395,7 +2844,7 @@ function collectCandidateActions({
             .RESTORE_PROJECT_CONTEXT,
 
         reason:
-          "A stored session handoff can restore the creator's exact project position without repeating earlier work.",
+          "A stored session handoff can restore the creator's project position without repeating earlier work.",
 
         source:
           "creator-memory",
@@ -2417,7 +2866,11 @@ function collectCandidateActions({
 
   if (
     reflectionDecision ===
-    "reflect"
+      "reflect" &&
+    !signals.includes(
+      ADAPTATION_SIGNALS
+        .PROGRESSION_YIELDS_TO_EXECUTION
+    )
   ) {
     addCandidateAction(
       candidates,
@@ -2457,10 +2910,13 @@ function collectCandidateActions({
             .PROTECT_FLOW,
 
         reason:
-          "The creator appears to want the thought captured without opening a long discussion.",
+          "The creator appears to want the thought captured without opening another workstream.",
 
         source:
-          "creator-memory-engine",
+          progressionDecision ===
+            "acknowledge-detour"
+            ? "progression-engine"
+            : "creator-memory-engine",
       }
     );
   }
@@ -2499,9 +2955,15 @@ function collectCandidateActions({
   }
 
   if (
-    signals.includes(
-      ADAPTATION_SIGNALS
-        .SESSION_HANDOFF_AVAILABLE
+    (
+      signals.includes(
+        ADAPTATION_SIGNALS
+          .SESSION_HANDOFF_AVAILABLE
+      ) ||
+      signals.includes(
+        ADAPTATION_SIGNALS
+          .PROGRESSION_PRESERVES_HANDOFF
+      )
     ) &&
     (
       context
@@ -2509,7 +2971,9 @@ function collectCandidateActions({
       progressionDecision ===
         "save-and-return-later" ||
       progressionDecision ===
-        "pause-session"
+        "pause-session" ||
+      progressionDecision ===
+        "preserve-handoff"
     )
   ) {
     addCandidateAction(
@@ -2524,10 +2988,13 @@ function collectCandidateActions({
             .CREATOR_EXPLICIT_DIRECTION,
 
         reason:
-          "The creator is pausing and the current project position can be preserved for a clean return.",
+          "The creator is leaving or pausing and the project position should be preserved for a clean return.",
 
         source:
-          "creator-memory-engine",
+          progressionDecision ===
+            "preserve-handoff"
+            ? "progression-engine"
+            : "creator-memory-engine",
       }
     );
   }
@@ -2705,6 +3172,90 @@ function collectCandidateActions({
       );
       break;
 
+    case "preserve-handoff":
+      addCandidateAction(
+        candidates,
+        {
+          action:
+            ADAPTIVE_ACTIONS
+              .PRESERVE_SESSION_HANDOFF,
+
+          priority:
+            ACTION_PRIORITIES
+              .CREATOR_EXPLICIT_DIRECTION,
+
+          reason:
+            "Progression explicitly requested preservation of the session handoff.",
+
+          source:
+            "progression-engine",
+        }
+      );
+      break;
+
+    case "acknowledge-detour":
+      addCandidateAction(
+        candidates,
+        {
+          action:
+            ADAPTIVE_ACTIONS
+              .CAPTURE_AND_CONTINUE,
+
+          priority:
+            ACTION_PRIORITIES
+              .PROTECT_FLOW,
+
+          reason:
+            "The detour should be acknowledged without opening another workstream.",
+
+          source:
+            "progression-engine",
+        }
+      );
+      break;
+
+    case "yield-to-memory-action":
+      addCandidateAction(
+        candidates,
+        {
+          action:
+            ADAPTIVE_ACTIONS
+              .EXECUTE_MEMORY_ACTION,
+
+          priority:
+            ACTION_PRIORITIES
+              .MEMORY_CONTROL,
+
+          reason:
+            "Progression explicitly yielded to the memory-control pipeline.",
+
+          source:
+            "progression-engine",
+        }
+      );
+      break;
+
+    case "wait-for-memory-clarification":
+      addCandidateAction(
+        candidates,
+        {
+          action:
+            ADAPTIVE_ACTIONS
+              .CLARIFY_FORGET_REQUEST,
+
+          priority:
+            ACTION_PRIORITIES
+              .MEMORY_FORGET_CLARIFICATION,
+
+          reason:
+            "Progression blocked unrelated work until the memory target is clarified.",
+
+          source:
+            "progression-engine",
+        }
+      );
+      break;
+
     case "end-session-positively":
       addCandidateAction(
         candidates,
@@ -2754,7 +3305,7 @@ function collectCandidateActions({
 
   if (
     conversationAction ===
-    "ask-one-question"
+      "ask-one-question"
   ) {
     addCandidateAction(
       candidates,
@@ -2768,7 +3319,7 @@ function collectCandidateActions({
             .GENERAL_LISTENING,
 
         reason:
-          "The conversation planner recommends one meaningful question.",
+          "Conversation Planner recommends one meaningful question.",
 
         source:
           "conversation-planner",
@@ -2778,7 +3329,7 @@ function collectCandidateActions({
 
   if (
     conversationAction ===
-    "listen"
+      "listen"
   ) {
     addCandidateAction(
       candidates,
@@ -2801,7 +3352,8 @@ function collectCandidateActions({
   }
 
   if (
-    candidates.length === 0
+    candidates.length ===
+      0
   ) {
     addCandidateAction(
       candidates,
@@ -2824,9 +3376,9 @@ function collectCandidateActions({
   }
 
   return candidates.sort(
-    (a, b) =>
-      b.priority -
-      a.priority
+    (left, right) =>
+      right.priority -
+      left.priority
   );
 }
 
@@ -2856,44 +3408,9 @@ function resolvePrimaryAction({
     };
   }
 
-  if (
-    signals.includes(
-      ADAPTATION_SIGNALS
-        .FORGET_REQUIRES_CLARIFICATION
-    )
-  ) {
-    const forgetCandidate =
-      candidates.find(
-        (candidate) =>
-          candidate.action ===
-          ADAPTIVE_ACTIONS
-            .CLARIFY_FORGET_REQUEST
-      );
-
-    if (forgetCandidate) {
-      return forgetCandidate;
-    }
-  }
-
-  if (
-    signals.includes(
-      ADAPTATION_SIGNALS
-        .FORGET_REQUEST
-    )
-  ) {
-    const forgetCandidate =
-      candidates.find(
-        (candidate) =>
-          candidate.action ===
-          ADAPTIVE_ACTIONS
-            .APPLY_FORGET_REQUEST
-      );
-
-    if (forgetCandidate) {
-      return forgetCandidate;
-    }
-  }
-
+  /**
+   * Explicit stop remains absolute.
+   */
   if (
     context
       ?.creatorExplicitlyAskedToStop
@@ -2911,6 +3428,60 @@ function resolvePrimaryAction({
     }
   }
 
+  /**
+   * Forget clarification must block all destructive work.
+   */
+  if (
+    signals.includes(
+      ADAPTATION_SIGNALS
+        .FORGET_REQUIRES_CLARIFICATION
+    ) ||
+    signals.includes(
+      ADAPTATION_SIGNALS
+        .MEMORY_CLARIFICATION_REQUIRED
+    )
+  ) {
+    const clarificationCandidate =
+      candidates.find(
+        (candidate) =>
+          candidate.action ===
+          ADAPTIVE_ACTIONS
+            .CLARIFY_FORGET_REQUEST
+      );
+
+    if (
+      clarificationCandidate
+    ) {
+      return (
+        clarificationCandidate
+      );
+    }
+  }
+
+  if (
+    signals.includes(
+      ADAPTATION_SIGNALS
+        .FORGET_REQUEST
+    )
+  ) {
+    const forgetCandidate =
+      candidates.find(
+        (candidate) =>
+          candidate.action ===
+          ADAPTIVE_ACTIONS
+            .APPLY_FORGET_REQUEST
+      );
+
+    if (
+      forgetCandidate
+    ) {
+      return forgetCandidate;
+    }
+  }
+
+  /**
+   * Explicit pause prefers a real handoff when available.
+   */
   if (
     context
       ?.creatorExplicitlyAskedToPause
@@ -2923,7 +3494,9 @@ function resolvePrimaryAction({
             .PRESERVE_SESSION_HANDOFF
       );
 
-    if (handoffCandidate) {
+    if (
+      handoffCandidate
+    ) {
       return handoffCandidate;
     }
 
@@ -2935,15 +3508,54 @@ function resolvePrimaryAction({
             .SAVE_AND_PAUSE
       );
 
-    if (pauseCandidate) {
+    if (
+      pauseCandidate
+    ) {
       return pauseCandidate;
     }
   }
 
+  /**
+   * Active memory-control operations deliberately suspend
+   * unrelated creative progression.
+   */
+  if (
+    signals.includes(
+      ADAPTATION_SIGNALS
+        .PROGRESSION_YIELDS_TO_MEMORY
+    ) ||
+    signals.includes(
+      ADAPTATION_SIGNALS
+        .MEMORY_ACTION_PENDING
+    )
+  ) {
+    const memoryCandidate =
+      candidates.find(
+        (candidate) =>
+          candidate.action ===
+          ADAPTIVE_ACTIONS
+            .EXECUTE_MEMORY_ACTION
+      );
+
+    if (
+      memoryCandidate
+    ) {
+      return memoryCandidate;
+    }
+  }
+
+  /**
+   * A creator who has not finished still gets the floor unless
+   * a stronger explicit creator instruction already won.
+   */
   if (
     signals.includes(
       ADAPTATION_SIGNALS
         .CREATOR_NOT_FINISHED
+    ) &&
+    !signals.includes(
+      ADAPTATION_SIGNALS
+        .PROGRESSION_YIELDS_TO_EXECUTION
     )
   ) {
     return {
@@ -2961,6 +3573,31 @@ function resolvePrimaryAction({
       source:
         "adaptive-conflict-resolution",
     };
+  }
+
+  /**
+   * Progression's explicit execution yield prevents lower
+   * reflection/recall candidates from reclaiming the turn.
+   */
+  if (
+    signals.includes(
+      ADAPTATION_SIGNALS
+        .PROGRESSION_YIELDS_TO_EXECUTION
+    )
+  ) {
+    const executionCandidate =
+      candidates.find(
+        (candidate) =>
+          candidate.action ===
+          ADAPTIVE_ACTIONS
+            .YIELD_TO_EXECUTION
+      );
+
+    if (
+      executionCandidate
+    ) {
+      return executionCandidate;
+    }
   }
 
   if (
@@ -3000,22 +3637,10 @@ function resolvePrimaryAction({
     const moveCandidate =
       candidates.find(
         (candidate) =>
-          includesValue(
-            candidate.action,
-            [
-              ADAPTIVE_ACTIONS
-                .MOVE_TO_CREATION,
-
-              ADAPTIVE_ACTIONS
-                .MOVE_TO_NEXT_TASK,
-
-              ADAPTIVE_ACTIONS
-                .MOVE_TO_REFINEMENT,
-
-              ADAPTIVE_ACTIONS
-                .MOVE_TO_PUBLISHING,
-            ]
-          )
+          EXECUTION_ADAPTIVE_ACTIONS
+            .includes(
+              candidate.action
+            )
       );
 
     if (
@@ -3066,6 +3691,12 @@ function resolvePrimaryAction({
 
         ADAPTIVE_ACTIONS
           .APPLY_FORGET_REQUEST,
+
+        ADAPTIVE_ACTIONS
+          .EXECUTE_MEMORY_ACTION,
+
+        ADAPTIVE_ACTIONS
+          .YIELD_TO_EXECUTION,
       ]
     )
   ) {
@@ -3111,13 +3742,17 @@ function chooseMentorRole({
       .RESTORE_CONTEXT:
 
     case ADAPTIVE_ACTIONS
-      .RESTORE_PROJECT_CONTEXT:
-
-    case ADAPTIVE_ACTIONS
       .RELEASE_PRESSURE:
       return (
         MENTOR_ROLES
           .REFLECTOR
+      );
+
+    case ADAPTIVE_ACTIONS
+      .RESTORE_PROJECT_CONTEXT:
+      return (
+        MENTOR_ROLES
+          .FACILITATOR
       );
 
     case ADAPTIVE_ACTIONS
@@ -3138,6 +3773,9 @@ function chooseMentorRole({
 
     case ADAPTIVE_ACTIONS
       .MOVE_TO_PUBLISHING:
+
+    case ADAPTIVE_ACTIONS
+      .YIELD_TO_EXECUTION:
       return (
         MENTOR_ROLES
           .CREATIVE_DIRECTOR
@@ -3163,6 +3801,9 @@ function chooseMentorRole({
       .APPLY_FORGET_REQUEST:
 
     case ADAPTIVE_ACTIONS
+      .EXECUTE_MEMORY_ACTION:
+
+    case ADAPTIVE_ACTIONS
       .PRESERVE_SESSION_HANDOFF:
 
     case ADAPTIVE_ACTIONS
@@ -3176,10 +3817,6 @@ function chooseMentorRole({
       break;
   }
 
-  /**
-   * Build mode is a present behavioural requirement.
-   * It takes precedence over a remembered role preference.
-   */
   if (
     signals.includes(
       ADAPTATION_SIGNALS
@@ -3234,7 +3871,7 @@ function chooseLeadershipStance({
 }) {
   if (
     primaryAction.action ===
-    ADAPTIVE_ACTIONS.WAIT
+      ADAPTIVE_ACTIONS.WAIT
   ) {
     return (
       LEADERSHIP_STANCES
@@ -3243,15 +3880,22 @@ function chooseLeadershipStance({
   }
 
   if (
-    primaryAction.action ===
-      ADAPTIVE_ACTIONS
-        .CLARIFY_FORGET_REQUEST ||
-    primaryAction.action ===
-      ADAPTIVE_ACTIONS
-        .APPLY_FORGET_REQUEST ||
-    primaryAction.action ===
-      ADAPTIVE_ACTIONS
-        .END_POSITIVELY
+    includesValue(
+      primaryAction.action,
+      [
+        ADAPTIVE_ACTIONS
+          .CLARIFY_FORGET_REQUEST,
+
+        ADAPTIVE_ACTIONS
+          .APPLY_FORGET_REQUEST,
+
+        ADAPTIVE_ACTIONS
+          .EXECUTE_MEMORY_ACTION,
+
+        ADAPTIVE_ACTIONS
+          .END_POSITIVELY,
+      ]
+    )
   ) {
     return (
       LEADERSHIP_STANCES
@@ -3272,25 +3916,13 @@ function chooseLeadershipStance({
   }
 
   if (
-    includesValue(
-      primaryAction.action,
-      [
-        ADAPTIVE_ACTIONS
-          .MOVE_TO_CREATION,
-
-        ADAPTIVE_ACTIONS
-          .MOVE_TO_NEXT_TASK,
-
-        ADAPTIVE_ACTIONS
-          .MOVE_TO_REFINEMENT,
-
-        ADAPTIVE_ACTIONS
-          .MOVE_TO_PUBLISHING,
-
-        ADAPTIVE_ACTIONS
-          .TEACH_ONE_CONCEPT,
-      ]
-    )
+    EXECUTION_ADAPTIVE_ACTIONS
+      .includes(
+        primaryAction.action
+      ) ||
+    primaryAction.action ===
+      ADAPTIVE_ACTIONS
+        .TEACH_ONE_CONCEPT
   ) {
     return (
       LEADERSHIP_STANCES
@@ -3312,8 +3944,8 @@ function chooseLeadershipStance({
 
   if (
     role ===
-    MENTOR_ROLES
-      .COLLABORATOR
+      MENTOR_ROLES
+        .COLLABORATOR
   ) {
     return (
       LEADERSHIP_STANCES
@@ -3333,7 +3965,7 @@ function chooseInterventionLevel({
 }) {
   if (
     primaryAction.action ===
-    ADAPTIVE_ACTIONS.WAIT
+      ADAPTIVE_ACTIONS.WAIT
   ) {
     return (
       INTERVENTION_LEVELS
@@ -3355,7 +3987,13 @@ function chooseInterventionLevel({
           .MOVE_TO_NEXT_TASK,
 
         ADAPTIVE_ACTIONS
+          .YIELD_TO_EXECUTION,
+
+        ADAPTIVE_ACTIONS
           .APPLY_FORGET_REQUEST,
+
+        ADAPTIVE_ACTIONS
+          .EXECUTE_MEMORY_ACTION,
 
         ADAPTIVE_ACTIONS
           .PRESERVE_SESSION_HANDOFF,
@@ -3427,10 +4065,6 @@ function chooseInterventionLevel({
   );
 }
 
-/**
- * Critical present-moment behaviour is resolved before any
- * remembered response-depth preference.
- */
 function chooseResponseDepth({
   primaryAction,
   interventionLevel,
@@ -3440,7 +4074,7 @@ function chooseResponseDepth({
 }) {
   if (
     primaryAction.action ===
-    ADAPTIVE_ACTIONS.WAIT
+      ADAPTIVE_ACTIONS.WAIT
   ) {
     return (
       RESPONSE_DEPTHS
@@ -3471,7 +4105,13 @@ function chooseResponseDepth({
           .MOVE_TO_PUBLISHING,
 
         ADAPTIVE_ACTIONS
+          .YIELD_TO_EXECUTION,
+
+        ADAPTIVE_ACTIONS
           .APPLY_FORGET_REQUEST,
+
+        ADAPTIVE_ACTIONS
+          .EXECUTE_MEMORY_ACTION,
 
         ADAPTIVE_ACTIONS
           .PRESERVE_SESSION_HANDOFF,
@@ -3492,8 +4132,8 @@ function chooseResponseDepth({
 
   if (
     primaryAction.action ===
-    ADAPTIVE_ACTIONS
-      .CLARIFY_FORGET_REQUEST
+      ADAPTIVE_ACTIONS
+        .CLARIFY_FORGET_REQUEST
   ) {
     return (
       RESPONSE_DEPTHS
@@ -3502,8 +4142,7 @@ function chooseResponseDepth({
   }
 
   /**
-   * Build, flow and high-momentum states outrank remembered
-   * "detailed" preferences.
+   * Current workload outranks remembered depth.
    */
   if (
     signals.includes(
@@ -3559,34 +4198,41 @@ function chooseResponseDepth({
       null
     );
 
-  if (
-    progressionLength ===
-    "detailed"
+  switch (
+    progressionLength
   ) {
-    return (
-      RESPONSE_DEPTHS
-        .DETAILED
-    );
-  }
+    case "silent":
+      return (
+        RESPONSE_DEPTHS
+          .SILENT
+      );
 
-  if (
-    progressionLength ===
-    "medium"
-  ) {
-    return (
-      RESPONSE_DEPTHS
-        .MEDIUM
-    );
-  }
+    case "detailed":
+      return (
+        RESPONSE_DEPTHS
+          .DETAILED
+      );
 
-  if (
-    progressionLength ===
-    "minimal"
-  ) {
-    return (
-      RESPONSE_DEPTHS
-        .ONE_LINE
-    );
+    case "medium":
+      return (
+        RESPONSE_DEPTHS
+          .MEDIUM
+      );
+
+    case "minimal":
+      return (
+        RESPONSE_DEPTHS
+          .ONE_LINE
+      );
+
+    case "short":
+      return (
+        RESPONSE_DEPTHS
+          .SHORT
+      );
+
+    default:
+      break;
   }
 
   if (
@@ -3622,8 +4268,8 @@ function chooseQuestionPolicy({
 }) {
   if (
     primaryAction.action ===
-    ADAPTIVE_ACTIONS
-      .CLARIFY_FORGET_REQUEST
+      ADAPTIVE_ACTIONS
+        .CLARIFY_FORGET_REQUEST
   ) {
     return {
       policy:
@@ -3654,6 +4300,9 @@ function chooseQuestionPolicy({
           .MOVE_TO_PUBLISHING,
 
         ADAPTIVE_ACTIONS
+          .YIELD_TO_EXECUTION,
+
+        ADAPTIVE_ACTIONS
           .SAVE_AND_PAUSE,
 
         ADAPTIVE_ACTIONS
@@ -3661,6 +4310,9 @@ function chooseQuestionPolicy({
 
         ADAPTIVE_ACTIONS
           .APPLY_FORGET_REQUEST,
+
+        ADAPTIVE_ACTIONS
+          .EXECUTE_MEMORY_ACTION,
 
         ADAPTIVE_ACTIONS
           .END_POSITIVELY,
@@ -3719,8 +4371,8 @@ function chooseQuestionPolicy({
 
   if (
     primaryAction.action ===
-    ADAPTIVE_ACTIONS
-      .ASK_ONE_QUESTION
+      ADAPTIVE_ACTIONS
+        .ASK_ONE_QUESTION
   ) {
     return {
       policy:
@@ -3733,8 +4385,8 @@ function chooseQuestionPolicy({
 
   if (
     primaryAction.action ===
-    ADAPTIVE_ACTIONS
-      .CONTINUE_BRAINSTORMING
+      ADAPTIVE_ACTIONS
+        .CONTINUE_BRAINSTORMING
   ) {
     return {
       policy:
@@ -3804,6 +4456,17 @@ function chooseMemoryPolicy({
     return (
       MEMORY_POLICIES
         .FORGET_ONLY
+    );
+  }
+
+  if (
+    primaryAction.action ===
+      ADAPTIVE_ACTIONS
+        .EXECUTE_MEMORY_ACTION
+  ) {
+    return (
+      MEMORY_POLICIES
+        .MEMORY_ACTION_ONLY
     );
   }
 
@@ -3889,6 +4552,72 @@ function chooseMemoryPolicy({
   );
 }
 
+function chooseMemoryExecutionPolicy({
+  memoryPolicy,
+  primaryAction,
+}) {
+  switch (
+    memoryPolicy
+  ) {
+    case MEMORY_POLICIES
+      .FORGET_REQUIRES_CLARIFICATION:
+      return (
+        MEMORY_EXECUTION_POLICIES
+          .BLOCK
+      );
+
+    case MEMORY_POLICIES
+      .FORGET_ONLY:
+      return (
+        MEMORY_EXECUTION_POLICIES
+          .ALLOW_FORGET
+      );
+
+    case MEMORY_POLICIES
+      .PRESERVE_HANDOFF:
+      return (
+        MEMORY_EXECUTION_POLICIES
+          .ALLOW_HANDOFF
+      );
+
+    case MEMORY_POLICIES
+      .MEMORY_ACTION_ONLY:
+      return (
+        MEMORY_EXECUTION_POLICIES
+          .ALLOW_MEMORY_ACTION
+      );
+
+    case MEMORY_POLICIES
+      .CAPTURE_ONLY:
+
+    case MEMORY_POLICIES
+      .CAPTURE_AND_RECALL:
+      return (
+        MEMORY_EXECUTION_POLICIES
+          .ALLOW_CAPTURE
+      );
+
+    default:
+      break;
+  }
+
+  if (
+    primaryAction.action ===
+      ADAPTIVE_ACTIONS
+        .CLARIFY_FORGET_REQUEST
+  ) {
+    return (
+      MEMORY_EXECUTION_POLICIES
+        .BLOCK
+    );
+  }
+
+  return (
+    MEMORY_EXECUTION_POLICIES
+      .BLOCK
+  );
+}
+
 function combineResponseGuidance({
   primaryAction,
   role,
@@ -3897,6 +4626,7 @@ function combineResponseGuidance({
   responseDepth,
   questionPolicy,
   memoryPolicy,
+  memoryExecutionPolicy,
   conversationPlan,
   reflectionPlan,
   progressionPlan,
@@ -3904,46 +4634,55 @@ function combineResponseGuidance({
   signals,
 }) {
   const guidance = [
-    ...(
+    ...asArray(
       conversationPlan
-        ?.responseGuidance ||
-      []
+        ?.responseGuidance
     ),
 
-    ...(
+    ...asArray(
       reflectionPlan
-        ?.responseGuidance ||
-      []
+        ?.responseGuidance
     ),
 
-    ...(
+    ...asArray(
       progressionPlan
-        ?.responseGuidance ||
-      []
+        ?.responseGuidance
     ),
 
-    ...(
+    ...asArray(
       memoryPlan
-        ?.responseGuidance ||
-      []
+        ?.responseGuidance
     ),
 
     `Active Mentor role: ${role}.`,
+
     `Leadership stance: ${leadershipStance}.`,
+
     `Intervention level: ${interventionLevel}.`,
+
     `Response depth: ${responseDepth}.`,
+
     `Question policy: ${questionPolicy.policy}.`,
+
     `Maximum questions: ${questionPolicy.maximumQuestions}.`,
+
     `Memory policy: ${memoryPolicy}.`,
+
+    `Memory execution policy: ${memoryExecutionPolicy}.`,
+
     `Primary adaptive action: ${primaryAction.action}.`,
 
-    "Demonstrate understanding before introducing a new direction.",
+    "Demonstrate understanding before introducing a new direction when the current action requires conversation.",
 
     "Prefer the creator's present state over historical assumptions.",
 
     "Use remembered preferences as guidance, not fixed rules.",
 
     "Treat project decisions as scoped truth until the creator changes them.",
+
+    "Creator corrections override remembered or specialist assumptions.",
+
+    "Planning a memory instruction does not by itself authorise persistence.",
 
     "Do not expose internal specialist-agent machinery in ordinary creator-facing conversation.",
 
@@ -3953,6 +4692,21 @@ function combineResponseGuidance({
 
     "Leave the creator with greater clarity, confidence or momentum.",
   ];
+
+  if (
+    signals.includes(
+      ADAPTATION_SIGNALS
+        .PROGRESSION_YIELDS_TO_EXECUTION
+    )
+  ) {
+    guidance.push(
+      "Progression has explicitly yielded to execution.",
+
+      "Do not reinsert reflection, recall, teaching or another planning question before the requested action.",
+
+      "Move directly into the execution path."
+    );
+  }
 
   if (
     signals.includes(
@@ -3996,9 +4750,22 @@ function combineResponseGuidance({
   }
 
   if (
+    signals.includes(
+      ADAPTATION_SIGNALS
+        .PROJECT_CORRECTION_ACTIVE
+    )
+  ) {
+    guidance.push(
+      "A creator correction is active.",
+
+      "Use the corrected current project truth rather than the superseded remembered assumption."
+    );
+  }
+
+  if (
     primaryAction.action ===
-    ADAPTIVE_ACTIONS
-      .CAPTURE_AND_CONTINUE
+      ADAPTIVE_ACTIONS
+        .CAPTURE_AND_CONTINUE
   ) {
     guidance.push(
       "Acknowledge the thought without opening a long discussion.",
@@ -4013,8 +4780,8 @@ function combineResponseGuidance({
 
   if (
     primaryAction.action ===
-    ADAPTIVE_ACTIONS
-      .RECALL_WITH_PERMISSION
+      ADAPTIVE_ACTIONS
+        .RECALL_WITH_PERMISSION
   ) {
     guidance.push(
       "Recall only the minimum information needed for continuity.",
@@ -4029,13 +4796,13 @@ function combineResponseGuidance({
 
   if (
     primaryAction.action ===
-    ADAPTIVE_ACTIONS
-      .CLARIFY_FORGET_REQUEST
+      ADAPTIVE_ACTIONS
+        .CLARIFY_FORGET_REQUEST
   ) {
     guidance.push(
       "Ask only the minimum clarification necessary to identify the memory to forget.",
 
-      "Do not delete or alter memory until the target is unambiguous.",
+      "Do not execute any destructive memory instruction while the target remains ambiguous.",
 
       "Do not turn the clarification into a wider discussion."
     );
@@ -4043,15 +4810,29 @@ function combineResponseGuidance({
 
   if (
     primaryAction.action ===
-    ADAPTIVE_ACTIONS
-      .APPLY_FORGET_REQUEST
+      ADAPTIVE_ACTIONS
+        .APPLY_FORGET_REQUEST
   ) {
     guidance.push(
       "Respect the creator's explicit forget request.",
 
-      "Acknowledge completion briefly only after the persistence layer confirms it.",
+      "Do not claim deletion succeeded until CreatorMemory confirms it.",
 
       "Do not recreate the deleted conclusion from inference alone."
+    );
+  }
+
+  if (
+    primaryAction.action ===
+      ADAPTIVE_ACTIONS
+        .EXECUTE_MEMORY_ACTION
+  ) {
+    guidance.push(
+      "Complete the pending memory-control operation before unrelated creative progression.",
+
+      "CreatorMemory remains the final persistence authority.",
+
+      "Resume ordinary progression only after the operation resolves."
     );
   }
 
@@ -4076,8 +4857,8 @@ function combineResponseGuidance({
 
   if (
     primaryAction.action ===
-    ADAPTIVE_ACTIONS
-      .RESTORE_PROJECT_CONTEXT
+      ADAPTIVE_ACTIONS
+        .RESTORE_PROJECT_CONTEXT
   ) {
     guidance.push(
       "Restore only the landmarks needed to continue.",
@@ -4086,30 +4867,31 @@ function combineResponseGuidance({
 
       "Mention the last meaningful decision, current position and next useful step.",
 
-      "Do not dump the full project history.",
-
-      "After successful restoration, the handoff may be marked resumed by the project workflow."
+      "Do not dump the full project history."
     );
   }
 
   if (
     primaryAction.action ===
-    ADAPTIVE_ACTIONS
-      .MOVE_TO_NEXT_TASK
+      ADAPTIVE_ACTIONS
+        .MOVE_TO_NEXT_TASK ||
+    primaryAction.action ===
+      ADAPTIVE_ACTIONS
+        .YIELD_TO_EXECUTION
   ) {
     guidance.push(
       "Do not reopen completed philosophy or architecture discussions.",
 
-      "Provide the next concrete task immediately.",
+      "Provide or execute the next concrete task immediately.",
 
-      "Follow the creator's established build workflow."
+      "Follow the creator's established working mode."
     );
   }
 
   if (
     primaryAction.action ===
-    ADAPTIVE_ACTIONS
-      .MOVE_TO_CREATION
+      ADAPTIVE_ACTIONS
+        .MOVE_TO_CREATION
   ) {
     guidance.push(
       "Treat the available context as sufficient for a first version.",
@@ -4132,28 +4914,24 @@ function combineGuardRails({
   memoryPlan,
 }) {
   return uniqueValues([
-    ...(
+    ...asArray(
       conversationPlan
-        ?.guardRails ||
-      []
+        ?.guardRails
     ),
 
-    ...(
+    ...asArray(
       reflectionPlan
-        ?.guardRails ||
-      []
+        ?.guardRails
     ),
 
-    ...(
+    ...asArray(
       progressionPlan
-        ?.guardRails ||
-      []
+        ?.guardRails
     ),
 
-    ...(
+    ...asArray(
       memoryPlan
-        ?.guardRails ||
-      []
+        ?.guardRails
     ),
 
     "Do not diagnose the creator.",
@@ -4168,7 +4946,7 @@ function combineGuardRails({
 
     "Do not use historical behaviour to override explicit present direction.",
 
-    "Do not let a remembered response preference override a required present-moment behaviour.",
+    "Do not let a remembered response preference override required present-moment behaviour.",
 
     "Do not let a remembered Mentor-role preference override a required present-moment role.",
 
@@ -4188,9 +4966,15 @@ function combineGuardRails({
 
     "Do not execute an ambiguous forget request.",
 
+    "Do not execute memory instructions merely because they were planned.",
+
     "Do not treat memory recall as permission to derail the creator's current task.",
 
     "Do not execute a project-scoped persistence instruction against a different active project.",
+
+    "Do not let optional reflection reclaim the turn after Progression explicitly yields to execution.",
+
+    "Do not allow unrelated creative progression while a blocking memory-control operation is unresolved.",
 
     "Do not claim memory persistence, deletion or session-handoff success unless CreatorMemory confirms it.",
   ]);
@@ -4204,6 +4988,7 @@ function createExecutionPlan({
   responseDepth,
   questionPolicy,
   memoryPolicy,
+  memoryExecutionPolicy,
   reflectionPlan,
   progressionPlan,
   memoryPlan,
@@ -4303,6 +5088,23 @@ function createExecutionPlan({
       ADAPTIVE_ACTIONS
         .RESTORE_PROJECT_CONTEXT;
 
+  const shouldExecuteMemoryInstructions =
+    memoryExecutionPolicy !==
+      MEMORY_EXECUTION_POLICIES
+        .BLOCK &&
+    memoryInstructions.length >
+      0;
+
+  const shouldYieldToExecution =
+    primaryAction.action ===
+      ADAPTIVE_ACTIONS
+        .YIELD_TO_EXECUTION;
+
+  const shouldExecuteMemoryAction =
+    primaryAction.action ===
+      ADAPTIVE_ACTIONS
+        .EXECUTE_MEMORY_ACTION;
+
   return {
     action:
       primaryAction.action,
@@ -4320,12 +5122,15 @@ function createExecutionPlan({
 
     memoryPolicy,
 
+    memoryExecutionPolicy,
+
     timing:
       cloneValue(
         reflectionPlan
           ?.timing ||
         {
           responseDelayMs: 0,
+
           silenceWindowMs: 0,
 
           allowCreatorToContinue:
@@ -4338,33 +5143,30 @@ function createExecutionPlan({
 
     shouldGenerateResponse:
       primaryAction.action !==
-      ADAPTIVE_ACTIONS.WAIT,
+      ADAPTIVE_ACTIONS
+        .WAIT,
 
     shouldWait:
       primaryAction.action ===
-      ADAPTIVE_ACTIONS.WAIT,
+      ADAPTIVE_ACTIONS
+        .WAIT,
 
     shouldMoveForward:
-      includesValue(
-        primaryAction.action,
-        [
-          ADAPTIVE_ACTIONS
-            .MOVE_TO_CREATION,
+      EXECUTION_ADAPTIVE_ACTIONS
+        .includes(
+          primaryAction
+            .action
+        ),
 
-          ADAPTIVE_ACTIONS
-            .MOVE_TO_NEXT_TASK,
-
-          ADAPTIVE_ACTIONS
-            .MOVE_TO_REFINEMENT,
-
-          ADAPTIVE_ACTIONS
-            .MOVE_TO_PUBLISHING,
-        ]
-      ),
+    shouldYieldToExecution,
 
     shouldCaptureMemory,
 
     shouldRecallMemory,
+
+    shouldExecuteMemoryInstructions,
+
+    shouldExecuteMemoryAction,
 
     shouldRestoreProjectContext,
 
@@ -4443,6 +5245,11 @@ function createExecutionPlan({
         "progression.primaryAction",
         null
       ),
+
+    progressionDecision:
+      progressionPlan
+        ?.decision ||
+      null,
   };
 }
 
@@ -4452,6 +5259,8 @@ function createDecisionSummary({
   leadershipStance,
   interventionLevel,
   responseDepth,
+  memoryPolicy,
+  memoryExecutionPolicy,
   signals,
 }) {
   return (
@@ -4460,6 +5269,7 @@ function createDecisionSummary({
     `using a ${leadershipStance} stance with ` +
     `${interventionLevel} intervention and ` +
     `${responseDepth} response depth. ` +
+    `Memory policy is ${memoryPolicy}; execution policy is ${memoryExecutionPolicy}. ` +
     `Active signals: ${
       signals.length > 0
         ? signals.join(", ")
@@ -4474,15 +5284,22 @@ function createMemoryExecutionResult({
   errors = [],
   reason = null,
   status = null,
+  executionPolicy = null,
 } = {}) {
   const safeApplied =
-    asArray(applied);
+    asArray(
+      applied
+    );
 
   const safeSkipped =
-    asArray(skipped);
+    asArray(
+      skipped
+    );
 
   const safeErrors =
-    asArray(errors);
+    asArray(
+      errors
+    );
 
   const appliedCount =
     safeApplied.length;
@@ -4536,7 +5353,9 @@ function createMemoryExecutionResult({
     ) {
       resolvedStatus =
         "partially-successful";
-    } else if (failed) {
+    } else if (
+      failed
+    ) {
       resolvedStatus =
         "failed";
     } else {
@@ -4562,8 +5381,11 @@ function createMemoryExecutionResult({
       ),
 
     attemptedCount,
+
     appliedCount,
+
     skippedCount,
+
     errorCount,
 
     successful:
@@ -4571,29 +5393,144 @@ function createMemoryExecutionResult({
       partiallySuccessful,
 
     fullySuccessful,
+
     partiallySuccessful,
+
     failed,
+
     noOp,
 
     status:
       resolvedStatus,
 
     reason,
+
+    executionPolicy,
   };
 }
 
 /**
- * Performs an Adaptive-level project boundary preflight.
+ * Restricts instructions according to Adaptive's execution
+ * authorisation.
+ */
+function filterInstructionsByExecutionPolicy({
+  instructions,
+  executionPolicy,
+}) {
+  const executable = [];
+
+  const skipped = [];
+
+  asArray(
+    instructions
+  ).forEach(
+    (instruction) => {
+      const action =
+        cleanString(
+          instruction
+            ?.action
+        );
+
+      const category =
+        cleanString(
+          instruction
+            ?.category
+        );
+
+      const allowed =
+        (() => {
+          switch (
+            executionPolicy
+          ) {
+            case MEMORY_EXECUTION_POLICIES
+              .ALLOW_ALL_PLANNED:
+              return true;
+
+            case MEMORY_EXECUTION_POLICIES
+              .ALLOW_CAPTURE:
+              return (
+                action !==
+                  "forget-memory" &&
+                category !==
+                  "forget-memory"
+              );
+
+            case MEMORY_EXECUTION_POLICIES
+              .ALLOW_FORGET:
+              return (
+                action ===
+                  "forget-memory"
+              );
+
+            case MEMORY_EXECUTION_POLICIES
+              .ALLOW_HANDOFF:
+              return (
+                action ===
+                  "save-session-handoff" ||
+                category ===
+                  "session-handoff"
+              );
+
+            case MEMORY_EXECUTION_POLICIES
+              .ALLOW_MEMORY_ACTION:
+              return (
+                MEMORY_CONTROL_ACTIONS
+                  .includes(
+                    action
+                  ) ||
+                action ===
+                  "capture-observation" ||
+                action ===
+                  "reinforce-memory" ||
+                action ===
+                  "supersede-memory"
+              );
+
+            default:
+              return false;
+          }
+        })();
+
+      if (allowed) {
+        executable.push(
+          instruction
+        );
+
+        return;
+      }
+
+      skipped.push({
+        instruction:
+          cloneValue(
+            instruction
+          ),
+
+        reason:
+          "adaptive-memory-execution-not-authorised",
+
+        executionPolicy,
+      });
+    }
+  );
+
+  return {
+    executable,
+
+    skipped,
+  };
+}
+
+/**
+ * Adaptive project-boundary preflight.
  *
- * CreatorMemory remains the final persistence authority.
- * This check prevents a stale adaptive plan from dispatching a
- * project-scoped instruction into another active project.
+ * CreatorMemory remains final persistence authority.
  */
 function preflightMemoryInstructions({
   instructions,
   activeProjectId,
 }) {
   const executable = [];
+
   const skipped = [];
 
   asArray(
@@ -4631,10 +5568,13 @@ function preflightMemoryInstructions({
           .map(
             cleanString
           )
-          .filter(Boolean);
+          .filter(
+            Boolean
+          );
 
       const isProjectScoped =
-        scope === "project" ||
+        scope ===
+          "project" ||
         Boolean(
           instructionProjectId
         ) ||
@@ -4711,6 +5651,7 @@ function preflightMemoryInstructions({
 
   return {
     executable,
+
     skipped,
   };
 }
@@ -4783,6 +5724,10 @@ function createFallbackAdaptivePlan({
       memoryPolicy:
         MEMORY_POLICIES
           .DO_NOT_USE,
+
+      memoryExecutionPolicy:
+        MEMORY_EXECUTION_POLICIES
+          .BLOCK,
     },
 
     execution: {
@@ -4818,6 +5763,10 @@ function createFallbackAdaptivePlan({
         MEMORY_POLICIES
           .DO_NOT_USE,
 
+      memoryExecutionPolicy:
+        MEMORY_EXECUTION_POLICIES
+          .BLOCK,
+
       shouldGenerateResponse:
         true,
 
@@ -4827,10 +5776,19 @@ function createFallbackAdaptivePlan({
       shouldMoveForward:
         false,
 
+      shouldYieldToExecution:
+        false,
+
       shouldCaptureMemory:
         false,
 
       shouldRecallMemory:
+        false,
+
+      shouldExecuteMemoryInstructions:
+        false,
+
+      shouldExecuteMemoryAction:
         false,
 
       shouldRestoreProjectContext:
@@ -4852,6 +5810,7 @@ function createFallbackAdaptivePlan({
 
       timing: {
         responseDelayMs: 600,
+
         silenceWindowMs: 0,
 
         allowCreatorToContinue:
@@ -4861,8 +5820,11 @@ function createFallbackAdaptivePlan({
           true,
       },
 
-      memoryInstructions: [],
+      memoryInstructions:
+        [],
+
       recallPlan: null,
+
       forgetPlan: null,
 
       creatorMemoryContext:
@@ -4898,6 +5860,9 @@ function createFallbackAdaptivePlan({
 
       progressionTarget:
         null,
+
+      progressionDecision:
+        null,
     },
 
     signals: [],
@@ -4911,7 +5876,7 @@ function createFallbackAdaptivePlan({
 
       "Keep the creator in ownership.",
 
-      "Do not make new memory assumptions while adaptive planning is unavailable.",
+      "Do not execute memory instructions from fallback state.",
     ],
 
     guardRails: [
@@ -4924,6 +5889,8 @@ function createFallbackAdaptivePlan({
       "Do not execute memory deletion from fallback state.",
 
       "Do not execute project-scoped memory without an active project boundary.",
+
+      "Do not claim persistence success from fallback state.",
     ],
 
     creatorProtocol: {
@@ -4938,12 +5905,18 @@ function createFallbackAdaptivePlan({
 
       memoryMustProtectAutonomy:
         true,
+
+      planningDoesNotAuthorisePersistence:
+        true,
     },
 
     specialistPlans: {
       conversation: null,
+
       reflection: null,
+
       progression: null,
+
       memory: null,
     },
 
@@ -4999,11 +5972,6 @@ function createAdaptiveMentorEngine({
     progressionEngine ||
     createProgressionEngine();
 
-  /**
-   * v2.3:
-   * CreatorMemoryEngine receives the same live persistence service
-   * as the orchestration layer.
-   */
   const resolvedCreatorMemoryEngine =
     creatorMemoryEngine ||
     createCreatorMemoryEngine({
@@ -5011,8 +5979,21 @@ function createAdaptiveMentorEngine({
         activeMemory,
     });
 
+  /**
+   * Supplied specialists must share the same memory authority.
+   */
   if (
-    creatorMemoryEngine &&
+    typeof resolvedConversationPlanner
+      .setMemory ===
+      "function"
+  ) {
+    resolvedConversationPlanner
+      .setMemory(
+        activeMemory
+      );
+  }
+
+  if (
     typeof resolvedCreatorMemoryEngine
       .setMemory ===
       "function"
@@ -5141,6 +6122,7 @@ function createAdaptiveMentorEngine({
       const role =
         chooseMentorRole({
           primaryAction,
+
           signals,
 
           context:
@@ -5150,7 +6132,9 @@ function createAdaptiveMentorEngine({
       const leadershipStance =
         chooseLeadershipStance({
           role,
+
           primaryAction,
+
           signals,
 
           context:
@@ -5160,13 +6144,16 @@ function createAdaptiveMentorEngine({
       const interventionLevel =
         chooseInterventionLevel({
           primaryAction,
+
           signals,
         });
 
       const responseDepth =
         chooseResponseDepth({
           primaryAction,
+
           interventionLevel,
+
           signals,
 
           context:
@@ -5179,6 +6166,7 @@ function createAdaptiveMentorEngine({
       const questionPolicy =
         chooseQuestionPolicy({
           primaryAction,
+
           signals,
 
           progressionPlan:
@@ -5191,18 +6179,34 @@ function createAdaptiveMentorEngine({
             resolvedMemoryPlan,
 
           signals,
+
+          primaryAction,
+        });
+
+      const memoryExecutionPolicy =
+        chooseMemoryExecutionPolicy({
+          memoryPolicy,
+
           primaryAction,
         });
 
       const responseGuidance =
         combineResponseGuidance({
           primaryAction,
+
           role,
+
           leadershipStance,
+
           interventionLevel,
+
           responseDepth,
+
           questionPolicy,
+
           memoryPolicy,
+
+          memoryExecutionPolicy,
 
           conversationPlan:
             resolvedConversationPlan,
@@ -5237,12 +6241,20 @@ function createAdaptiveMentorEngine({
       const execution =
         createExecutionPlan({
           primaryAction,
+
           role,
+
           leadershipStance,
+
           interventionLevel,
+
           responseDepth,
+
           questionPolicy,
+
           memoryPolicy,
+
+          memoryExecutionPolicy,
 
           reflectionPlan:
             resolvedReflectionPlan,
@@ -5283,11 +6295,18 @@ function createAdaptiveMentorEngine({
 
         behaviour: {
           role,
+
           leadershipStance,
+
           interventionLevel,
+
           responseDepth,
+
           questionPolicy,
+
           memoryPolicy,
+
+          memoryExecutionPolicy,
         },
 
         execution,
@@ -5320,7 +6339,13 @@ function createAdaptiveMentorEngine({
           projectMemoryIsScoped:
             true,
 
+          currentProjectIdentityIsAuthoritative:
+            true,
+
           projectTruthMayEvolve:
+            true,
+
+          creatorConfirmedTruthOutranksInference:
             true,
 
           creatorCorrectionsOverrideMemory:
@@ -5347,10 +6372,22 @@ function createAdaptiveMentorEngine({
           ambiguousForgetRequestsRequireClarification:
             true,
 
+          memoryControlBlocksUnrelatedProgression:
+            true,
+
+          planningDoesNotAuthorisePersistence:
+            true,
+
           persistenceClaimsRequireVerification:
             true,
 
           adaptivePersistenceUsesProjectPreflight:
+            true,
+
+          reflectionMayYieldToExecution:
+            true,
+
+          progressionIsFinalTrafficController:
             true,
 
           conversationServesCreation:
@@ -5418,6 +6455,13 @@ function createAdaptiveMentorEngine({
               combinedContext
             ),
 
+          activeProject:
+            cloneValue(
+              combinedContext
+                ?.activeProject ||
+              null
+            ),
+
           activeStage:
             cloneValue(
               combinedContext
@@ -5434,6 +6478,12 @@ function createAdaptiveMentorEngine({
             cloneValue(
               combinedContext
                 ?.activeCharacter
+            ),
+
+          activeAsset:
+            cloneValue(
+              combinedContext
+                ?.activeAsset
             ),
 
           memoryAvailable:
@@ -5465,6 +6515,12 @@ function createAdaptiveMentorEngine({
             contextHasSpecialistMemorySignals(
               combinedContext
             ),
+
+          correctionActive:
+            signals.includes(
+              ADAPTATION_SIGNALS
+                .PROJECT_CORRECTION_ACTIVE
+            ),
         },
 
         contextSnapshot:
@@ -5475,10 +6531,19 @@ function createAdaptiveMentorEngine({
         decisionSummary:
           createDecisionSummary({
             primaryAction,
+
             role,
+
             leadershipStance,
+
             interventionLevel,
+
             responseDepth,
+
+            memoryPolicy,
+
+            memoryExecutionPolicy,
+
             signals,
           }),
 
@@ -5497,7 +6562,9 @@ function createAdaptiveMentorEngine({
       return (
         createFallbackAdaptivePlan({
           message,
+
           context,
+
           error,
         })
       );
@@ -5505,17 +6572,15 @@ function createAdaptiveMentorEngine({
   }
 
   /**
-   * Applies approved memory instructions.
+   * Applies only memory instructions authorised by the
+   * Adaptive execution plan.
    *
-   * CreatorMemory.js is the final persistence authority.
+   * Pipeline:
    *
-   * Modern path:
-   * Adaptive plan instructions
-   * → Adaptive project preflight
-   * → CreatorMemory.applyMemoryInstructions()
-   *
-   * Compatibility path:
-   * CreatorMemoryEngine.applyMemoryPlan()
+   * Adaptive plan
+   * → execution authorisation
+   * → project-boundary preflight
+   * → CreatorMemory persistence validation
    */
   function applyMemoryPlan(
     plan
@@ -5526,6 +6591,15 @@ function createAdaptiveMentorEngine({
           ?.execution
           ?.memoryInstructions
       );
+
+    const executionPolicy =
+      cleanString(
+        plan
+          ?.execution
+          ?.memoryExecutionPolicy
+      ) ||
+      MEMORY_EXECUTION_POLICIES
+        .BLOCK;
 
     if (
       !activeMemory
@@ -5547,13 +6621,46 @@ function createAdaptiveMentorEngine({
 
           reason:
             "No Creator Memory service is connected.",
+
+          executionPolicy,
+        })
+      );
+    }
+
+    if (
+      executionPolicy ===
+        MEMORY_EXECUTION_POLICIES
+          .BLOCK
+    ) {
+      return (
+        createMemoryExecutionResult({
+          skipped:
+            instructions.map(
+              (instruction) => ({
+                instruction:
+                  cloneValue(
+                    instruction
+                  ),
+
+                reason:
+                  "Adaptive plan did not authorise memory execution.",
+              })
+            ),
+
+          reason:
+            "Adaptive memory execution policy blocked persistence.",
+
+          status:
+            "no-op",
+
+          executionPolicy,
         })
       );
     }
 
     if (
       instructions.length ===
-      0
+        0
     ) {
       return (
         createMemoryExecutionResult({
@@ -5562,6 +6669,43 @@ function createAdaptiveMentorEngine({
 
           status:
             "empty",
+
+          executionPolicy,
+        })
+      );
+    }
+
+    const policyFilter =
+      filterInstructionsByExecutionPolicy({
+        instructions,
+
+        executionPolicy,
+      });
+
+    const authorisedInstructions =
+      policyFilter
+        .executable;
+
+    const policySkipped =
+      policyFilter
+        .skipped;
+
+    if (
+      authorisedInstructions
+        .length === 0
+    ) {
+      return (
+        createMemoryExecutionResult({
+          skipped:
+            policySkipped,
+
+          reason:
+            "No memory instructions were authorised by the Adaptive execution policy.",
+
+          status:
+            "no-op",
+
+          executionPolicy,
         })
       );
     }
@@ -5576,16 +6720,22 @@ function createAdaptiveMentorEngine({
 
     const preflight =
       preflightMemoryInstructions({
-        instructions,
+        instructions:
+          authorisedInstructions,
 
         activeProjectId,
       });
 
     const executableInstructions =
-      preflight.executable;
+      preflight
+        .executable;
 
-    const preflightSkipped =
-      preflight.skipped;
+    const preflightSkipped = [
+      ...policySkipped,
+
+      ...preflight
+        .skipped,
+    ];
 
     if (
       executableInstructions
@@ -5597,13 +6747,12 @@ function createAdaptiveMentorEngine({
             preflightSkipped,
 
           reason:
-            preflightSkipped
-              .length > 0
-              ? "Adaptive memory preflight blocked all persistence instructions."
-              : "No executable memory instructions remained.",
+            "Adaptive memory preflight blocked all persistence instructions.",
 
           status:
             "no-op",
+
+          executionPolicy,
         })
       );
     }
@@ -5642,12 +6791,16 @@ function createAdaptiveMentorEngine({
               [],
 
             reason:
-              result?.reason ||
+              result
+                ?.reason ||
               null,
 
             status:
-              result?.status ||
+              result
+                ?.status ||
               null,
+
+            executionPolicy,
           })
         );
       } catch (error) {
@@ -5673,6 +6826,8 @@ function createAdaptiveMentorEngine({
 
             status:
               "failed",
+
+            executionPolicy,
           })
         );
       }
@@ -5683,7 +6838,9 @@ function createAdaptiveMentorEngine({
         ?.specialistPlans
         ?.memory;
 
-    if (!memoryPlan) {
+    if (
+      !memoryPlan
+    ) {
       return (
         createMemoryExecutionResult({
           skipped: [
@@ -5708,6 +6865,8 @@ function createAdaptiveMentorEngine({
 
           status:
             "no-op",
+
+          executionPolicy,
         })
       );
     }
@@ -5761,12 +6920,16 @@ function createAdaptiveMentorEngine({
               [],
 
             reason:
-              result?.reason ||
+              result
+                ?.reason ||
               null,
 
             status:
-              result?.status ||
+              result
+                ?.status ||
               null,
+
+            executionPolicy,
           })
         );
       } catch (error) {
@@ -5792,6 +6955,8 @@ function createAdaptiveMentorEngine({
 
             status:
               "failed",
+
+            executionPolicy,
           })
         );
       }
@@ -5821,6 +6986,8 @@ function createAdaptiveMentorEngine({
 
         status:
           "no-op",
+
+        executionPolicy,
       })
     );
   }
@@ -5832,13 +6999,20 @@ function createAdaptiveMentorEngine({
     if (
       typeof resolvedCreatorMemoryEngine
         .planRecall !==
-      "function"
+        "function"
     ) {
       return {
-        shouldRecall: false,
-        priority: "none",
-        timing: "not-now",
+        shouldRecall:
+          false,
+
+        priority:
+          "none",
+
+        timing:
+          "not-now",
+
         memory: null,
+
         memories: [],
 
         reason:
@@ -5872,10 +7046,11 @@ function createAdaptiveMentorEngine({
     if (
       typeof resolvedCreatorMemoryEngine
         .planSessionHandoff !==
-      "function"
+        "function"
     ) {
       return {
         candidates: [],
+
         instructions: [],
 
         status:
@@ -5902,12 +7077,6 @@ function createAdaptiveMentorEngine({
     );
   }
 
-  /**
-   * Returns the richest CreatorMemory context available.
-   *
-   * An optional project id ensures callers can request the
-   * correctly scoped context directly.
-   */
   function getMemoryContext({
     projectId = null,
   } = {}) {
@@ -5926,9 +7095,8 @@ function createAdaptiveMentorEngine({
   }
 
   /**
-   * Connects or replaces the shared persistence service.
-   *
-   * Every memory-aware specialist must follow the same service.
+   * Replaces the persistence authority for every memory-aware
+   * specialist.
    */
   function setMemory(
     nextMemory
@@ -5940,7 +7108,7 @@ function createAdaptiveMentorEngine({
     if (
       typeof resolvedConversationPlanner
         .setMemory ===
-      "function"
+        "function"
     ) {
       resolvedConversationPlanner
         .setMemory(
@@ -5951,7 +7119,7 @@ function createAdaptiveMentorEngine({
     if (
       typeof resolvedCreatorMemoryEngine
         .setMemory ===
-      "function"
+        "function"
     ) {
       resolvedCreatorMemoryEngine
         .setMemory(
@@ -5986,6 +7154,16 @@ function createAdaptiveMentorEngine({
     );
   }
 
+  function shouldYieldToExecution(
+    plan
+  ) {
+    return Boolean(
+      plan
+        ?.execution
+        ?.shouldYieldToExecution
+    );
+  }
+
   function shouldCaptureMemory(
     plan
   ) {
@@ -6003,6 +7181,26 @@ function createAdaptiveMentorEngine({
       plan
         ?.execution
         ?.shouldRecallMemory
+    );
+  }
+
+  function shouldExecuteMemoryInstructions(
+    plan
+  ) {
+    return Boolean(
+      plan
+        ?.execution
+        ?.shouldExecuteMemoryInstructions
+    );
+  }
+
+  function shouldExecuteMemoryAction(
+    plan
+  ) {
+    return Boolean(
+      plan
+        ?.execution
+        ?.shouldExecuteMemoryAction
     );
   }
 
@@ -6050,20 +7248,37 @@ function createAdaptiveMentorEngine({
     planMentorBehaviour,
 
     applyMemoryPlan,
+
     planMemoryRecall,
+
     planSessionHandoff,
 
     setMemory,
+
     getMemory,
+
     getMemoryContext,
 
     shouldWait,
+
     shouldMoveForward,
+
+    shouldYieldToExecution,
+
     shouldCaptureMemory,
+
     shouldRecallMemory,
+
+    shouldExecuteMemoryInstructions,
+
+    shouldExecuteMemoryAction,
+
     shouldRestoreProjectContext,
+
     shouldPreserveSessionHandoff,
+
     shouldApplyForget,
+
     shouldClarifyForget,
   };
 }
@@ -6086,10 +7301,15 @@ function planMentorBehaviour({
     engine
       .planMentorBehaviour({
         message,
+
         context,
+
         conversationPlan,
+
         reflectionPlan,
+
         progressionPlan,
+
         memoryPlan,
       })
   );
@@ -6099,18 +7319,27 @@ export {
   ADAPTIVE_MENTOR_ENGINE_VERSION,
 
   MENTOR_ROLES,
+
   LEADERSHIP_STANCES,
+
   INTERVENTION_LEVELS,
+
   RESPONSE_DEPTHS,
+
   QUESTION_POLICIES,
+
   MEMORY_POLICIES,
+
+  MEMORY_EXECUTION_POLICIES,
 
   ACTION_PRIORITIES,
 
   ADAPTIVE_ACTIONS,
+
   ADAPTATION_SIGNALS,
 
   createAdaptiveMentorEngine,
+
   planMentorBehaviour,
 };
 
