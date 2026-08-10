@@ -21,6 +21,26 @@
  * - Provide safe context to the Adaptive Mentor pipeline.
  * - Apply approved memory instructions from CreatorMemoryEngine.
  *
+ * Version 2.2 hardens the live persistence contract:
+ *
+ * - Explicit current project identity outranks previously active
+ *   persistent project state.
+ * - Creator, project, entity and session boundaries are enforced.
+ * - Creator-confirmed truth cannot be silently overwritten by a
+ *   weaker specialist-agent or inferred signal.
+ * - Conflicting lower-authority evidence may reinforce evidence
+ *   without replacing established truth.
+ * - Temporary guidance cannot silently become a permanent profile
+ *   preference.
+ * - Project memory and recall remain isolated to their project.
+ * - Session handoffs require a real project boundary.
+ * - Ambiguous destructive forgetting is refused.
+ * - Raw secrets, credentials, tokens and passwords are rejected
+ *   from creative memory.
+ * - Persistence reports full, partial, failed and empty execution
+ *   states accurately.
+ * - Existing v2.1 memory migrates additively without data loss.
+ *
  * Version 2 continues to use browser localStorage.
  *
  * The public persistence contract is intentionally storage-agnostic.
@@ -37,11 +57,13 @@
  * - Memory may evolve without erasing useful history.
  * - Forget requests must be explicit and unambiguous.
  * - Never fabricate successful memory persistence.
+ * - Never persist raw credentials as creative memory.
  */
 
-const CREATOR_MEMORY_VERSION = "2.1.0";
+const CREATOR_MEMORY_VERSION = "2.2.0";
 
-const DEFAULT_STORAGE_KEY = "iband.creator-memory";
+const DEFAULT_STORAGE_KEY =
+  "iband.creator-memory";
 
 const MEMORY_ENTRY_TYPES = Object.freeze({
   IDEA: "idea",
@@ -63,37 +85,41 @@ const IDEA_STATUSES = Object.freeze({
   ACTIVE: "active",
   DEVELOPING: "developing",
   PAUSED: "paused",
-  INSPIRATION_DRAWER: "inspiration-drawer",
+  INSPIRATION_DRAWER:
+    "inspiration-drawer",
   COMPLETED: "completed",
   ARCHIVED: "archived",
 });
 
-const PROJECT_STATUSES = Object.freeze({
-  IDEA: "idea",
-  PLANNING: "planning",
-  CREATING: "creating",
-  REFINING: "refining",
-  SAVED: "saved",
-  PUBLISHED: "published",
-  PAUSED: "paused",
-  COMPLETED: "completed",
-  ARCHIVED: "archived",
-});
+const PROJECT_STATUSES =
+  Object.freeze({
+    IDEA: "idea",
+    PLANNING: "planning",
+    CREATING: "creating",
+    REFINING: "refining",
+    SAVED: "saved",
+    PUBLISHED: "published",
+    PAUSED: "paused",
+    COMPLETED: "completed",
+    ARCHIVED: "archived",
+  });
 
-const PATTERN_STATUSES = Object.freeze({
-  EMERGING: "emerging",
-  REPEATED: "repeated",
-  CONFIRMED: "confirmed",
-  REJECTED: "rejected",
-});
+const PATTERN_STATUSES =
+  Object.freeze({
+    EMERGING: "emerging",
+    REPEATED: "repeated",
+    CONFIRMED: "confirmed",
+    REJECTED: "rejected",
+  });
 
-const MEMORY_IMPORTANCE = Object.freeze({
-  LOW: "low",
-  MEDIUM: "medium",
-  HIGH: "high",
-  CORE: "core",
-  CRITICAL: "critical",
-});
+const MEMORY_IMPORTANCE =
+  Object.freeze({
+    LOW: "low",
+    MEDIUM: "medium",
+    HIGH: "high",
+    CORE: "core",
+    CRITICAL: "critical",
+  });
 
 const MEMORY_STATUSES = Object.freeze({
   ACTIVE: "active",
@@ -121,14 +147,15 @@ const MEMORY_SCOPES = Object.freeze({
   GLOBAL: "global",
 });
 
-const MEMORY_HORIZONS = Object.freeze({
-  MOMENT: "moment",
-  SESSION: "session",
-  SHORT_TERM: "short-term",
-  LONG_TERM: "long-term",
-  HISTORICAL: "historical",
-  UNDECIDED: "undecided",
-});
+const MEMORY_HORIZONS =
+  Object.freeze({
+    MOMENT: "moment",
+    SESSION: "session",
+    SHORT_TERM: "short-term",
+    LONG_TERM: "long-term",
+    HISTORICAL: "historical",
+    UNDECIDED: "undecided",
+  });
 
 const MEMORY_SOURCES = Object.freeze({
   CREATOR: "creator",
@@ -137,164 +164,195 @@ const MEMORY_SOURCES = Object.freeze({
   INFERRED: "inferred",
   IMPORTED: "imported",
   PROJECT_STATE: "project-state",
-  SPECIALIST_AGENT: "specialist-agent",
+  SPECIALIST_AGENT:
+    "specialist-agent",
   UNKNOWN: "unknown",
 });
 
-const MEMORY_CERTAINTY = Object.freeze({
-  EXPLICIT: "explicit",
-  CONFIRMED: "confirmed",
-  OBSERVED: "observed",
-  INFERRED: "inferred",
-  UNKNOWN: "unknown",
-});
+const MEMORY_CERTAINTY =
+  Object.freeze({
+    EXPLICIT: "explicit",
+    CONFIRMED: "confirmed",
+    OBSERVED: "observed",
+    INFERRED: "inferred",
+    UNKNOWN: "unknown",
+  });
 
-const DEFERRED_MEMORY_STATUSES = Object.freeze({
-  WAITING: "waiting",
-  READY: "ready",
-  RECALLED: "recalled",
-  DISMISSED: "dismissed",
-  ARCHIVED: "archived",
-});
+const DEFERRED_MEMORY_STATUSES =
+  Object.freeze({
+    WAITING: "waiting",
+    READY: "ready",
+    RECALLED: "recalled",
+    DISMISSED: "dismissed",
+    ARCHIVED: "archived",
+  });
 
-const SESSION_HANDOFF_STATUSES = Object.freeze({
-  ACTIVE: "active",
-  RESUMED: "resumed",
-  SUPERSEDED: "superseded",
-  ARCHIVED: "archived",
-});
-
-const DEFAULT_CREATOR_PROFILE = Object.freeze({
-  id: null,
-
-  displayName: "",
-  creatorName: "",
-
-  preferredMentorName: "The Creator",
-  preferredTone: "warm",
-
-  creatorTypes: [],
-  interests: [],
-  goals: [],
-  values: [],
-  creativeStrengths: [],
-  confidenceNotes: [],
-
-  communicationPreferences: {
-    oneQuestionAtATime: true,
-    conciseGuidance: false,
-    permissionBeforePerspective: true,
-    encouragementBeforeCorrection: true,
-
-    preferredResponseDepth: null,
-    preferredGuidanceStyle: null,
-    preferredMentorRole: null,
-    preferredCommunicationPace: null,
-    preferredVoiceProfile: null,
-    preferredChannel: null,
-  },
-
-  mentorLearning: {},
-});
-
-const DEFAULT_MEMORY_STATE = Object.freeze({
-  version: CREATOR_MEMORY_VERSION,
-
-  creatorProfile: DEFAULT_CREATOR_PROFILE,
-
-  ideas: [],
-  projects: [],
-  projectMemories: [],
-  sessionHandoffs: [],
-  conversations: [],
-  observations: [],
-  patterns: [],
-  milestones: [],
-  reflections: [],
-  deferredMemories: [],
-
-  journey: {
-    conversationCount: 0,
-
-    completedProjectCount: 0,
-    publishedProjectCount: 0,
-
-    savedIdeaCount: 0,
-    inspirationDrawerCount: 0,
-
-    deferredMemoryCount: 0,
-    projectMemoryCount: 0,
-    sessionHandoffCount: 0,
-
-    firstSeenAt: null,
-    lastSeenAt: null,
-
-    recentStage: null,
-    recentEmotionalState: null,
-
-    activeProjectId: null,
-  },
-
-  metadata: {
-    createdAt: null,
-    updatedAt: null,
-
-    migratedFromVersion: null,
-  },
-});
+const SESSION_HANDOFF_STATUSES =
+  Object.freeze({
+    ACTIVE: "active",
+    RESUMED: "resumed",
+    SUPERSEDED: "superseded",
+    ARCHIVED: "archived",
+  });
 
 /**
- * Returns the current ISO timestamp.
+ * Higher values represent stronger authority.
+ *
+ * Creator confirmation must outrank project-state assumptions,
+ * specialist agents and inferred observations.
  */
+const MEMORY_AUTHORITY = Object.freeze({
+  CREATOR_CONFIRMED: 100,
+  CREATOR_EXPLICIT: 95,
+  PROJECT_CONFIRMED: 85,
+  SYSTEM_CONFIRMED: 80,
+  CREATOR_OBSERVED: 75,
+  IMPORTED: 65,
+  SPECIALIST_AGENT: 55,
+  MENTOR_OBSERVED: 50,
+  INFERRED: 35,
+  UNKNOWN: 20,
+});
+
+const DEFAULT_CREATOR_PROFILE =
+  Object.freeze({
+    id: null,
+
+    displayName: "",
+    creatorName: "",
+
+    preferredMentorName:
+      "The Creator",
+
+    preferredTone: "warm",
+
+    creatorTypes: [],
+    interests: [],
+    goals: [],
+    values: [],
+    creativeStrengths: [],
+    confidenceNotes: [],
+
+    communicationPreferences: {
+      oneQuestionAtATime: true,
+      conciseGuidance: false,
+      permissionBeforePerspective:
+        true,
+      encouragementBeforeCorrection:
+        true,
+
+      preferredResponseDepth: null,
+      preferredGuidanceStyle: null,
+      preferredMentorRole: null,
+      preferredCommunicationPace:
+        null,
+      preferredVoiceProfile: null,
+      preferredChannel: null,
+    },
+
+    mentorLearning: {},
+  });
+
+const DEFAULT_MEMORY_STATE =
+  Object.freeze({
+    version:
+      CREATOR_MEMORY_VERSION,
+
+    creatorProfile:
+      DEFAULT_CREATOR_PROFILE,
+
+    ideas: [],
+    projects: [],
+    projectMemories: [],
+    sessionHandoffs: [],
+    conversations: [],
+    observations: [],
+    patterns: [],
+    milestones: [],
+    reflections: [],
+    deferredMemories: [],
+
+    journey: {
+      conversationCount: 0,
+
+      completedProjectCount: 0,
+      publishedProjectCount: 0,
+
+      savedIdeaCount: 0,
+      inspirationDrawerCount: 0,
+
+      deferredMemoryCount: 0,
+      projectMemoryCount: 0,
+      sessionHandoffCount: 0,
+
+      firstSeenAt: null,
+      lastSeenAt: null,
+
+      recentStage: null,
+      recentEmotionalState: null,
+
+      activeProjectId: null,
+    },
+
+    metadata: {
+      createdAt: null,
+      updatedAt: null,
+
+      migratedFromVersion: null,
+    },
+  });
+
+/**
+ * ------------------------------------------------------------
+ * Core utilities
+ * ------------------------------------------------------------
+ */
+
 function createTimestamp() {
   return new Date().toISOString();
 }
 
-/**
- * Generates a lightweight unique identifier.
- */
-function createMemoryId(prefix = "memory") {
+function createMemoryId(
+  prefix = "memory"
+) {
   const randomValue = Math.random()
     .toString(36)
     .slice(2, 10);
 
-  return `${prefix}-${Date.now()}-${randomValue}`;
+  return (
+    `${prefix}-` +
+    `${Date.now()}-${randomValue}`
+  );
 }
 
-/**
- * Creates a deep clone suitable for plain memory objects.
- */
 function cloneValue(value) {
   if (value === undefined) {
     return undefined;
   }
 
-  return JSON.parse(JSON.stringify(value));
+  return JSON.parse(
+    JSON.stringify(value)
+  );
 }
 
-/**
- * Ensures a value is a usable string.
- */
 function normaliseString(value) {
   return typeof value === "string"
     ? value.trim()
     : "";
 }
 
-/**
- * Produces normalised comparison text.
- */
-function normaliseComparableText(value) {
+function normaliseComparableText(
+  value
+) {
   return normaliseString(value)
     .toLowerCase()
     .replace(/[’‘]/g, "'")
     .replace(/\s+/g, " ");
 }
 
-/**
- * Ensures a value is stored as a clean string array.
- */
-function normaliseStringArray(value) {
+function normaliseStringArray(
+  value
+) {
   if (!Array.isArray(value)) {
     return [];
   }
@@ -302,106 +360,146 @@ function normaliseStringArray(value) {
   return [
     ...new Set(
       value
-        .map(normaliseString)
+        .map((item) =>
+          typeof item === "string"
+            ? item.trim()
+            : ""
+        )
         .filter(Boolean)
     ),
   ];
 }
 
-/**
- * Returns a safe array.
- */
 function normaliseArray(value) {
   return Array.isArray(value)
     ? value
     : [];
 }
 
-/**
- * Prevents confidence values from moving outside 0–1.
- */
 function normaliseConfidence(
   value,
   fallback = 0.5
 ) {
-  const numericValue = Number(value);
+  const numericValue =
+    Number(value);
 
-  if (!Number.isFinite(numericValue)) {
+  if (
+    !Number.isFinite(
+      numericValue
+    )
+  ) {
     return fallback;
   }
 
   return Math.max(
     0,
-    Math.min(1, numericValue)
+    Math.min(
+      1,
+      numericValue
+    )
   );
 }
 
-/**
- * Returns a safe numeric count.
- */
 function normaliseCount(
   value,
   fallback = 0
 ) {
-  const numericValue = Number(value);
+  const numericValue =
+    Number(value);
 
-  if (!Number.isFinite(numericValue)) {
+  if (
+    !Number.isFinite(
+      numericValue
+    )
+  ) {
     return fallback;
   }
 
   return Math.max(
     0,
-    Math.floor(numericValue)
+    Math.floor(
+      numericValue
+    )
   );
 }
 
-/**
- * Returns a value only when it belongs to the supplied enum.
- */
 function normaliseEnumValue(
   value,
   enumObject,
   fallback
 ) {
-  return Object.values(enumObject).includes(value)
+  return Object.values(
+    enumObject
+  ).includes(value)
     ? value
     : fallback;
 }
 
-/**
- * Converts structured memory values into safe explanatory text.
- */
-function memoryValueToText(value) {
-  if (value === null || value === undefined) {
+function memoryValueToText(
+  value
+) {
+  if (
+    value === null ||
+    value === undefined
+  ) {
     return "";
   }
 
-  if (typeof value === "string") {
-    return normaliseString(value);
+  if (
+    typeof value ===
+    "string"
+  ) {
+    return normaliseString(
+      value
+    );
   }
 
   if (
-    typeof value === "number" ||
-    typeof value === "boolean"
+    typeof value ===
+      "number" ||
+    typeof value ===
+      "boolean"
   ) {
     return String(value);
   }
 
   try {
-    return JSON.stringify(value);
+    return JSON.stringify(
+      value
+    );
   } catch {
     return "";
   }
 }
 
-/**
- * Checks whether browser localStorage is available.
- */
+function valuesEquivalent(
+  left,
+  right
+) {
+  const leftText =
+    normaliseComparableText(
+      memoryValueToText(left)
+    );
+
+  const rightText =
+    normaliseComparableText(
+      memoryValueToText(right)
+    );
+
+  return (
+    Boolean(leftText) &&
+    leftText === rightText
+  );
+}
+
 function canUseLocalStorage() {
   try {
     return (
-      typeof window !== "undefined" &&
-      Boolean(window.localStorage)
+      typeof window !==
+        "undefined" &&
+      Boolean(
+        window.localStorage
+      )
     );
   } catch {
     return false;
@@ -409,85 +507,373 @@ function canUseLocalStorage() {
 }
 
 /**
- * Creates common provenance fields.
+ * ------------------------------------------------------------
+ * Secret / credential protection
+ * ------------------------------------------------------------
+ *
+ * Persistence receives a second defence even when an upstream
+ * intelligence layer fails to block sensitive content.
+ *
+ * The detector deliberately looks for credential-shaped material
+ * rather than merely rejecting any discussion containing the word
+ * "password".
  */
-function createMemoryProvenance({
-  source = MEMORY_SOURCES.CREATOR,
-  certainty = MEMORY_CERTAINTY.EXPLICIT,
-  confidence = 1,
-} = {}) {
+
+function detectSensitiveSecret(
+  value
+) {
+  const text =
+    memoryValueToText(value);
+
+  if (!text) {
+    return {
+      detected: false,
+      evidence: [],
+    };
+  }
+
+  const evidence = [];
+
+  const patterns = [
+    {
+      name:
+        "private-key-block",
+
+      pattern:
+        /-----BEGIN [A-Z ]*PRIVATE KEY-----/,
+    },
+
+    {
+      name:
+        "openai-style-secret",
+
+      pattern:
+        /\bsk-[A-Za-z0-9_-]{16,}\b/,
+    },
+
+    {
+      name:
+        "bearer-token",
+
+      pattern:
+        /\bBearer\s+[A-Za-z0-9._~+/-]{12,}=*\b/i,
+    },
+
+    {
+      name:
+        "api-key-assignment",
+
+      pattern:
+        /\b(?:api[_ -]?key|secret[_ -]?key|client[_ -]?secret)\s*[:=]\s*["']?[A-Za-z0-9._~+/-]{8,}/i,
+    },
+
+    {
+      name:
+        "password-assignment",
+
+      pattern:
+        /\b(?:password|passcode|pin)\s*[:=]\s*["']?[^\s"'`;]{4,}/i,
+    },
+
+    {
+      name:
+        "access-token-assignment",
+
+      pattern:
+        /\b(?:access[_ -]?token|refresh[_ -]?token|auth[_ -]?token)\s*[:=]\s*["']?[A-Za-z0-9._~+/-]{8,}=*/i,
+    },
+
+    {
+      name:
+        "seed-phrase",
+
+      pattern:
+        /\b(?:seed phrase|recovery phrase|mnemonic phrase)\s*[:=]\s*["']?[A-Za-z]+(?:\s+[A-Za-z]+){5,}/i,
+    },
+  ];
+
+  patterns.forEach(
+    ({ name, pattern }) => {
+      if (pattern.test(text)) {
+        evidence.push(name);
+      }
+    }
+  );
+
   return {
-    source: normaliseEnumValue(
-      source,
-      MEMORY_SOURCES,
-      MEMORY_SOURCES.UNKNOWN
-    ),
+    detected:
+      evidence.length > 0,
 
-    certainty: normaliseEnumValue(
-      certainty,
-      MEMORY_CERTAINTY,
-      MEMORY_CERTAINTY.UNKNOWN
-    ),
-
-    confidence: normaliseConfidence(
-      confidence,
-      1
-    ),
+    evidence,
   };
 }
 
+function containsSensitiveSecret(
+  ...values
+) {
+  return values.some(
+    (value) =>
+      detectSensitiveSecret(
+        value
+      ).detected
+  );
+}
+
 /**
- * Builds a fresh memory state.
+ * ------------------------------------------------------------
+ * Provenance and authority
+ * ------------------------------------------------------------
  */
+
+function createMemoryProvenance({
+  source =
+    MEMORY_SOURCES.CREATOR,
+
+  certainty =
+    MEMORY_CERTAINTY.EXPLICIT,
+
+  confidence = 1,
+} = {}) {
+  return {
+    source:
+      normaliseEnumValue(
+        source,
+        MEMORY_SOURCES,
+        MEMORY_SOURCES.UNKNOWN
+      ),
+
+    certainty:
+      normaliseEnumValue(
+        certainty,
+        MEMORY_CERTAINTY,
+        MEMORY_CERTAINTY.UNKNOWN
+      ),
+
+    confidence:
+      normaliseConfidence(
+        confidence,
+        1
+      ),
+  };
+}
+
+function getMemoryAuthority({
+  source,
+  certainty,
+} = {}) {
+  if (
+    source ===
+      MEMORY_SOURCES.CREATOR &&
+    certainty ===
+      MEMORY_CERTAINTY.CONFIRMED
+  ) {
+    return (
+      MEMORY_AUTHORITY
+        .CREATOR_CONFIRMED
+    );
+  }
+
+  if (
+    source ===
+      MEMORY_SOURCES.CREATOR &&
+    certainty ===
+      MEMORY_CERTAINTY.EXPLICIT
+  ) {
+    return (
+      MEMORY_AUTHORITY
+        .CREATOR_EXPLICIT
+    );
+  }
+
+  if (
+    source ===
+      MEMORY_SOURCES.PROJECT_STATE &&
+    certainty ===
+      MEMORY_CERTAINTY.CONFIRMED
+  ) {
+    return (
+      MEMORY_AUTHORITY
+        .PROJECT_CONFIRMED
+    );
+  }
+
+  if (
+    source ===
+      MEMORY_SOURCES.SYSTEM &&
+    certainty ===
+      MEMORY_CERTAINTY.CONFIRMED
+  ) {
+    return (
+      MEMORY_AUTHORITY
+        .SYSTEM_CONFIRMED
+    );
+  }
+
+  if (
+    source ===
+    MEMORY_SOURCES.CREATOR
+  ) {
+    return (
+      MEMORY_AUTHORITY
+        .CREATOR_OBSERVED
+    );
+  }
+
+  if (
+    source ===
+    MEMORY_SOURCES.IMPORTED
+  ) {
+    return (
+      MEMORY_AUTHORITY.IMPORTED
+    );
+  }
+
+  if (
+    source ===
+    MEMORY_SOURCES
+      .SPECIALIST_AGENT
+  ) {
+    return (
+      MEMORY_AUTHORITY
+        .SPECIALIST_AGENT
+    );
+  }
+
+  if (
+    source ===
+    MEMORY_SOURCES.MENTOR
+  ) {
+    return (
+      MEMORY_AUTHORITY
+        .MENTOR_OBSERVED
+    );
+  }
+
+  if (
+    source ===
+    MEMORY_SOURCES.INFERRED
+  ) {
+    return (
+      MEMORY_AUTHORITY.INFERRED
+    );
+  }
+
+  return (
+    MEMORY_AUTHORITY.UNKNOWN
+  );
+}
+
+function getEntryAuthority(
+  entry
+) {
+  return getMemoryAuthority({
+    source:
+      entry?.source,
+
+    certainty:
+      entry?.certainty,
+  });
+}
+
+/**
+ * Returns true when an incoming record is not allowed to
+ * silently replace existing truth.
+ */
+function shouldProtectExistingTruth({
+  existing,
+  incoming,
+}) {
+  if (
+    !existing ||
+    !incoming
+  ) {
+    return false;
+  }
+
+  const existingAuthority =
+    getEntryAuthority(existing);
+
+  const incomingAuthority =
+    getMemoryAuthority({
+      source:
+        incoming?.source,
+
+      certainty:
+        incoming?.certainty,
+    });
+
+  return (
+    incomingAuthority <
+    existingAuthority
+  );
+}
+
+/**
+ * ------------------------------------------------------------
+ * State creation / migration
+ * ------------------------------------------------------------
+ */
+
 function createDefaultMemoryState() {
-  const timestamp = createTimestamp();
+  const timestamp =
+    createTimestamp();
 
   return {
-    ...cloneValue(DEFAULT_MEMORY_STATE),
-
-    creatorProfile: cloneValue(
-      DEFAULT_CREATOR_PROFILE
+    ...cloneValue(
+      DEFAULT_MEMORY_STATE
     ),
+
+    creatorProfile:
+      cloneValue(
+        DEFAULT_CREATOR_PROFILE
+      ),
 
     journey: {
       ...cloneValue(
-        DEFAULT_MEMORY_STATE.journey
+        DEFAULT_MEMORY_STATE
+          .journey
       ),
 
-      firstSeenAt: timestamp,
-      lastSeenAt: timestamp,
+      firstSeenAt:
+        timestamp,
+
+      lastSeenAt:
+        timestamp,
     },
 
     metadata: {
       ...cloneValue(
-        DEFAULT_MEMORY_STATE.metadata
+        DEFAULT_MEMORY_STATE
+          .metadata
       ),
 
-      createdAt: timestamp,
-      updatedAt: timestamp,
+      createdAt:
+        timestamp,
+
+      updatedAt:
+        timestamp,
     },
   };
 }
 
-/**
- * Repairs incomplete or older memory structures.
- *
- * Migration remains deliberately additive.
- * Existing user memory survives upgrades.
- */
-function hydrateMemoryState(value) {
+function hydrateMemoryState(
+  value
+) {
   const fallback =
     createDefaultMemoryState();
 
   if (
     !value ||
-    typeof value !== "object"
+    typeof value !==
+      "object"
   ) {
     return fallback;
   }
 
   const previousVersion =
-    normaliseString(value.version);
+    normaliseString(
+      value.version
+    );
 
   return {
     ...fallback,
@@ -498,7 +884,8 @@ function hydrateMemoryState(value) {
 
     creatorProfile: {
       ...fallback.creatorProfile,
-      ...(value.creatorProfile || {}),
+      ...(value.creatorProfile ||
+        {}),
 
       communicationPreferences: {
         ...fallback
@@ -558,10 +945,14 @@ function hydrateMemoryState(value) {
     },
 
     ideas:
-      normaliseArray(value.ideas),
+      normaliseArray(
+        value.ideas
+      ),
 
     projects:
-      normaliseArray(value.projects),
+      normaliseArray(
+        value.projects
+      ),
 
     projectMemories:
       normaliseArray(
@@ -584,7 +975,9 @@ function hydrateMemoryState(value) {
       ),
 
     patterns:
-      normaliseArray(value.patterns),
+      normaliseArray(
+        value.patterns
+      ),
 
     milestones:
       normaliseArray(
@@ -619,33 +1012,34 @@ function hydrateMemoryState(value) {
               ?.migratedFromVersion ||
             null,
 
-      updatedAt: createTimestamp(),
+      updatedAt:
+        createTimestamp(),
     },
   };
 }
 
-/**
- * Safely parses persisted memory.
- */
 function parseMemoryState(
   serialisedValue
 ) {
   if (!serialisedValue) {
-    return createDefaultMemoryState();
+    return (
+      createDefaultMemoryState()
+    );
   }
 
   try {
     return hydrateMemoryState(
-      JSON.parse(serialisedValue)
+      JSON.parse(
+        serialisedValue
+      )
     );
   } catch {
-    return createDefaultMemoryState();
+    return (
+      createDefaultMemoryState()
+    );
   }
 }
 
-/**
- * Creates an in-memory storage adapter.
- */
 function createMemoryStorageAdapter(
   initialState = null
 ) {
@@ -663,7 +1057,10 @@ function createMemoryStorageAdapter(
       return storedValue;
     },
 
-    setItem(_key, value) {
+    setItem(
+      _key,
+      value
+    ) {
       storedValue = value;
     },
 
@@ -673,9 +1070,6 @@ function createMemoryStorageAdapter(
   };
 }
 
-/**
- * Returns browser storage when available.
- */
 function resolveStorageAdapter(
   storageAdapter
 ) {
@@ -687,49 +1081,49 @@ function resolveStorageAdapter(
     return window.localStorage;
   }
 
-  return createMemoryStorageAdapter();
+  return (
+    createMemoryStorageAdapter()
+  );
 }
 
-/**
- * Sorts memory entries newest first.
- */
 function sortNewestFirst(
   entries = []
 ) {
-  return [...entries].sort(
+  return [
+    ...entries,
+  ].sort(
     (a, b) => {
-      const timeA = new Date(
-        a.updatedAt ||
-          a.createdAt ||
-          0
-      ).getTime();
+      const timeA =
+        new Date(
+          a.updatedAt ||
+            a.createdAt ||
+            0
+        ).getTime();
 
-      const timeB = new Date(
-        b.updatedAt ||
-          b.createdAt ||
-          0
-      ).getTime();
+      const timeB =
+        new Date(
+          b.updatedAt ||
+            b.createdAt ||
+            0
+        ).getTime();
 
       return timeB - timeA;
     }
   );
 }
 
-/**
- * Finds an item by id.
- */
 function findById(
   entries,
   id
 ) {
-  return normaliseArray(entries).find(
-    (entry) => entry?.id === id
+  return normaliseArray(
+    entries
+  ).find(
+    (entry) =>
+      entry?.id === id
   );
 }
 
-/**
- * Determines whether a memory lifecycle state is historical.
- */
 function isHistoricalLifecycleStatus(
   status
 ) {
@@ -741,10 +1135,6 @@ function isHistoricalLifecycleStatus(
   ].includes(status);
 }
 
-/**
- * Determines whether an entry should remain out of active
- * Mentor context.
- */
 function isMemoryContextActive(
   entry
 ) {
@@ -764,20 +1154,28 @@ function isMemoryContextActive(
     [
       IDEA_STATUSES.ARCHIVED,
       PROJECT_STATUSES.ARCHIVED,
+
       DEFERRED_MEMORY_STATUSES
         .DISMISSED,
+
       DEFERRED_MEMORY_STATUSES
         .ARCHIVED,
+
       SESSION_HANDOFF_STATUSES
         .SUPERSEDED,
+
       SESSION_HANDOFF_STATUSES
         .ARCHIVED,
+
       PATTERN_STATUSES.REJECTED,
+
       MEMORY_STATUSES.SUPERSEDED,
       MEMORY_STATUSES.HISTORICAL,
       MEMORY_STATUSES.ARCHIVED,
       MEMORY_STATUSES.REJECTED,
-    ].includes(entry.status)
+    ].includes(
+      entry.status
+    )
   ) {
     return false;
   }
@@ -785,19 +1183,15 @@ function isMemoryContextActive(
   return true;
 }
 
-/**
- * Finds an item by stable memory key.
- *
- * When historical and current records share a key, the newest
- * current record wins.
- */
 function findByMemoryKey(
   entries,
   memoryKey,
   predicate = null
 ) {
   const cleanKey =
-    normaliseString(memoryKey);
+    normaliseString(
+      memoryKey
+    );
 
   if (!cleanKey) {
     return null;
@@ -821,7 +1215,9 @@ function findByMemoryKey(
           )
       );
 
-  if (matches.length === 0) {
+  if (
+    matches.length === 0
+  ) {
     return null;
   }
 
@@ -830,16 +1226,16 @@ function findByMemoryKey(
       isMemoryContextActive
     );
 
-  return sortNewestFirst(
-    activeMatches.length > 0
-      ? activeMatches
-      : matches
-  )[0] || null;
+  return (
+    sortNewestFirst(
+      activeMatches.length > 0
+        ? activeMatches
+        : matches
+    )[0] ||
+    null
+  );
 }
 
-/**
- * Extracts a project id from common memory shapes.
- */
 function getEntryProjectId(
   entry
 ) {
@@ -848,34 +1244,40 @@ function getEntryProjectId(
       entry?.projectId
     ) ||
     normaliseString(
-      entry?.relatedProjectId
+      entry
+        ?.relatedProjectId
     ) ||
     normaliseString(
-      entry?.metadata?.projectId
+      entry?.metadata
+        ?.projectId
     ) ||
     null
   );
 }
 
-/**
- * Resolves a project id from a project value.
- */
-function getProjectId(project) {
+function getProjectId(
+  project
+) {
   if (!project) {
     return null;
   }
 
   if (
-    typeof project === "string"
+    typeof project ===
+    "string"
   ) {
     return (
-      normaliseString(project) ||
+      normaliseString(
+        project
+      ) ||
       null
     );
   }
 
   return (
-    normaliseString(project.id) ||
+    normaliseString(
+      project.id
+    ) ||
     normaliseString(
       project.projectId
     ) ||
@@ -883,12 +1285,6 @@ function getProjectId(project) {
   );
 }
 
-/**
- * Checks whether memory belongs in the current project context.
- *
- * Unscoped creator memory is available everywhere.
- * Project-linked memory is available only to that project.
- */
 function isRelevantToProject(
   entry,
   projectId
@@ -898,12 +1294,15 @@ function isRelevantToProject(
   }
 
   const directProjectId =
-    getEntryProjectId(entry);
+    getEntryProjectId(
+      entry
+    );
 
   if (directProjectId) {
     return Boolean(
       projectId &&
-      directProjectId === projectId
+      directProjectId ===
+        projectId
     );
   }
 
@@ -913,7 +1312,8 @@ function isRelevantToProject(
     );
 
   if (
-    relatedProjectIds.length > 0
+    relatedProjectIds.length >
+    0
   ) {
     return Boolean(
       projectId &&
@@ -927,8 +1327,45 @@ function isRelevantToProject(
 }
 
 /**
- * Creates the public Creator Memory service.
+ * Validates that an explicit project-scoped memory has a
+ * real project boundary.
  */
+function hasValidProjectBoundary({
+  scope = null,
+  projectId = null,
+  relatedProjectIds = [],
+} = {}) {
+  const cleanProjectId =
+    normaliseString(
+      projectId
+    );
+
+  const cleanRelatedIds =
+    normaliseStringArray(
+      relatedProjectIds
+    );
+
+  if (
+    scope !==
+      MEMORY_SCOPES.PROJECT &&
+    !cleanProjectId &&
+    cleanRelatedIds.length === 0
+  ) {
+    return true;
+  }
+
+  return Boolean(
+    cleanProjectId ||
+    cleanRelatedIds.length > 0
+  );
+}
+
+/**
+ * ------------------------------------------------------------
+ * Creator Memory service
+ * ------------------------------------------------------------
+ */
+
 function createCreatorMemory({
   storageKey =
     DEFAULT_STORAGE_KEY,
@@ -943,20 +1380,26 @@ function createCreatorMemory({
     );
 
   const cleanCreatorId =
-    normaliseString(creatorId) ||
+    normaliseString(
+      creatorId
+    ) ||
     null;
 
   const resolvedStorageKey =
     cleanCreatorId
-      ? `${storageKey}.${cleanCreatorId}`
+      ? (
+          `${storageKey}.` +
+          `${cleanCreatorId}`
+        )
       : storageKey;
 
   let storedValue = null;
 
   try {
-    storedValue = storage.getItem(
-      resolvedStorageKey
-    );
+    storedValue =
+      storage.getItem(
+        resolvedStorageKey
+      );
   } catch (error) {
     throw new Error(
       "Creator Memory could not read persisted storage.",
@@ -967,205 +1410,308 @@ function createCreatorMemory({
   }
 
   let memoryState =
-    parseMemoryState(storedValue);
+    parseMemoryState(
+      storedValue
+    );
 
-  /**
-   * The service is creator-bound when creatorId is supplied.
-   * The profile cannot silently drift to another identity.
-   */
   if (cleanCreatorId) {
-    memoryState.creatorProfile.id =
+    memoryState
+      .creatorProfile
+      .id =
       cleanCreatorId;
   }
 
   let lastPersistedSnapshot =
-    cloneValue(memoryState);
+    cloneValue(
+      memoryState
+    );
 
-  /**
-   * Returns every collection that can contain
-   * individually addressable Mentor memory.
-   */
   function getMemoryCollections() {
     return [
       {
         name: "ideas",
-        entries: memoryState.ideas,
+        entries:
+          memoryState.ideas,
       },
 
       {
-        name: "projectMemories",
+        name:
+          "projectMemories",
+
         entries:
-          memoryState.projectMemories,
+          memoryState
+            .projectMemories,
       },
 
       {
-        name: "sessionHandoffs",
+        name:
+          "sessionHandoffs",
+
         entries:
-          memoryState.sessionHandoffs,
+          memoryState
+            .sessionHandoffs,
       },
 
       {
-        name: "observations",
+        name:
+          "observations",
+
         entries:
-          memoryState.observations,
+          memoryState
+            .observations,
       },
 
       {
         name: "patterns",
-        entries: memoryState.patterns,
+
+        entries:
+          memoryState.patterns,
       },
 
       {
         name: "milestones",
+
         entries:
-          memoryState.milestones,
+          memoryState
+            .milestones,
       },
 
       {
         name: "reflections",
+
         entries:
-          memoryState.reflections,
+          memoryState
+            .reflections,
       },
 
       {
-        name: "deferredMemories",
+        name:
+          "deferredMemories",
+
         entries:
-          memoryState.deferredMemories,
+          memoryState
+            .deferredMemories,
       },
 
       {
-        name: "conversations",
+        name:
+          "conversations",
+
         entries:
-          memoryState.conversations,
+          memoryState
+            .conversations,
       },
     ];
   }
 
   /**
-   * Finds a memory record across all persistent memory stores.
+   * Returns every exact record matching an id or memory key.
+   *
+   * This is intentionally different from findByMemoryKey().
+   * Destructive operations need to know whether a key is
+   * ambiguous rather than silently choosing one match.
    */
-  function findMemoryRecord({
+  function findMemoryRecords({
     memoryId = null,
     memoryKey = null,
   } = {}) {
     const cleanId =
-      normaliseString(memoryId);
+      normaliseString(
+        memoryId
+      );
 
     const cleanKey =
-      normaliseString(memoryKey);
+      normaliseString(
+        memoryKey
+      );
 
-    for (
-      const collection of
-      getMemoryCollections()
-    ) {
-      let index = -1;
+    const records = [];
 
-      if (cleanId) {
-        index =
-          collection.entries.findIndex(
-            (entry) =>
-              entry?.id === cleanId
-          );
-      } else if (cleanKey) {
-        const matchedEntry =
-          findByMemoryKey(
-            collection.entries,
-            cleanKey
-          );
+    getMemoryCollections()
+      .forEach(
+        (collection) => {
+          collection.entries
+            .forEach(
+              (
+                entry,
+                index
+              ) => {
+                const idMatches =
+                  cleanId &&
+                  entry?.id ===
+                    cleanId;
 
-        index = matchedEntry
-          ? collection.entries.findIndex(
-              (entry) =>
-                entry?.id ===
-                matchedEntry.id
-            )
-          : -1;
-      }
+                const keyMatches =
+                  cleanKey &&
+                  (
+                    entry
+                      ?.memoryKey ===
+                      cleanKey ||
+                    entry
+                      ?.metadata
+                      ?.memoryKey ===
+                      cleanKey
+                  );
 
-      if (index >= 0) {
-        return {
-          collectionName:
-            collection.name,
+                if (
+                  idMatches ||
+                  (
+                    !cleanId &&
+                    keyMatches
+                  )
+                ) {
+                  records.push({
+                    collectionName:
+                      collection.name,
 
-          collection:
-            collection.entries,
+                    collection:
+                      collection.entries,
 
-          index,
+                    index,
 
-          entry:
-            collection.entries[
-              index
-            ],
-        };
-      }
-    }
+                    entry,
+                  });
+                }
+              }
+            );
+        }
+      );
 
-    return null;
+    return records;
   }
 
-  /**
-   * Recalculates derived journey counters.
-   */
-  function recalculateJourneyCounts() {
-    memoryState.journey
-      .savedIdeaCount =
-      memoryState.ideas.filter(
-        (idea) =>
-          idea.status !==
-            IDEA_STATUSES
-              .ARCHIVED &&
-          idea.lifecycleStatus !==
-            MEMORY_STATUSES
-              .ARCHIVED &&
-          idea.lifecycleStatus !==
-            MEMORY_STATUSES
-              .SUPERSEDED
-      ).length;
+  function findMemoryRecord({
+    memoryId = null,
+    memoryKey = null,
+  } = {}) {
+    const records =
+      findMemoryRecords({
+        memoryId,
+        memoryKey,
+      });
 
-    memoryState.journey
-      .inspirationDrawerCount =
-      memoryState.ideas.filter(
-        (idea) =>
-          idea.status ===
-            IDEA_STATUSES
-              .INSPIRATION_DRAWER &&
+    if (
+      records.length === 0
+    ) {
+      return null;
+    }
+
+    if (
+      normaliseString(
+        memoryId
+      )
+    ) {
+      return records[0];
+    }
+
+    const activeRecords =
+      records.filter(
+        (record) =>
           isMemoryContextActive(
-            idea
+            record.entry
           )
-      ).length;
+      );
 
-    memoryState.journey
+    return (
+      sortNewestFirst(
+        (
+          activeRecords.length >
+          0
+            ? activeRecords
+            : records
+        ).map(
+          (record) => ({
+            ...record,
+            updatedAt:
+              record.entry
+                ?.updatedAt,
+
+            createdAt:
+              record.entry
+                ?.createdAt,
+          })
+        )
+      )[0] ||
+      null
+    );
+  }
+
+  function recalculateJourneyCounts() {
+    memoryState
+      .journey
+      .savedIdeaCount =
+      memoryState.ideas
+        .filter(
+          (idea) =>
+            idea.status !==
+              IDEA_STATUSES
+                .ARCHIVED &&
+            idea.lifecycleStatus !==
+              MEMORY_STATUSES
+                .ARCHIVED &&
+            idea.lifecycleStatus !==
+              MEMORY_STATUSES
+                .SUPERSEDED
+        )
+        .length;
+
+    memoryState
+      .journey
+      .inspirationDrawerCount =
+      memoryState.ideas
+        .filter(
+          (idea) =>
+            idea.status ===
+              IDEA_STATUSES
+                .INSPIRATION_DRAWER &&
+            isMemoryContextActive(
+              idea
+            )
+        )
+        .length;
+
+    memoryState
+      .journey
       .completedProjectCount =
-      memoryState.projects.filter(
-        (project) =>
-          project.status ===
-            PROJECT_STATUSES
-              .COMPLETED ||
-          project.status ===
+      memoryState.projects
+        .filter(
+          (project) =>
+            project.status ===
+              PROJECT_STATUSES
+                .COMPLETED ||
+            project.status ===
+              PROJECT_STATUSES
+                .PUBLISHED
+        )
+        .length;
+
+    memoryState
+      .journey
+      .publishedProjectCount =
+      memoryState.projects
+        .filter(
+          (project) =>
+            project.status ===
             PROJECT_STATUSES
               .PUBLISHED
-      ).length;
+        )
+        .length;
 
-    memoryState.journey
-      .publishedProjectCount =
-      memoryState.projects.filter(
-        (project) =>
-          project.status ===
-          PROJECT_STATUSES
-            .PUBLISHED
-      ).length;
-
-    memoryState.journey
+    memoryState
+      .journey
       .conversationCount =
-      memoryState.conversations
+      memoryState
+        .conversations
         .filter(
           isMemoryContextActive
         )
         .length;
 
-    memoryState.journey
+    memoryState
+      .journey
       .deferredMemoryCount =
-      memoryState.deferredMemories
+      memoryState
+        .deferredMemories
         .filter(
           (memory) =>
             ![
@@ -1183,17 +1729,21 @@ function createCreatorMemory({
         )
         .length;
 
-    memoryState.journey
+    memoryState
+      .journey
       .projectMemoryCount =
-      memoryState.projectMemories
+      memoryState
+        .projectMemories
         .filter(
           isMemoryContextActive
         )
         .length;
 
-    memoryState.journey
+    memoryState
+      .journey
       .sessionHandoffCount =
-      memoryState.sessionHandoffs
+      memoryState
+        .sessionHandoffs
         .filter(
           (handoff) =>
             handoff.status ===
@@ -1204,14 +1754,7 @@ function createCreatorMemory({
   }
 
   /**
-   * Persists current state.
-   *
-   * Persistence is verified by reading the serialized value back.
-   * If persistence fails, in-memory state is rolled back to the
-   * most recently confirmed persisted snapshot.
-   *
-   * This prevents the Mentor from believing memory was saved when
-   * it was not.
+   * Persistence is write-and-read verified.
    */
   function persist() {
     const previousSnapshot =
@@ -1228,19 +1771,27 @@ function createCreatorMemory({
       memoryState.version =
         CREATOR_MEMORY_VERSION;
 
-      memoryState.metadata.updatedAt =
+      memoryState
+        .metadata
+        .updatedAt =
         timestamp;
 
-      memoryState.journey.lastSeenAt =
+      memoryState
+        .journey
+        .lastSeenAt =
         timestamp;
 
       if (cleanCreatorId) {
-        memoryState.creatorProfile.id =
+        memoryState
+          .creatorProfile
+          .id =
           cleanCreatorId;
       }
 
       const serialisedState =
-        JSON.stringify(memoryState);
+        JSON.stringify(
+          memoryState
+        );
 
       storage.setItem(
         resolvedStorageKey,
@@ -1262,7 +1813,9 @@ function createCreatorMemory({
       }
 
       lastPersistedSnapshot =
-        cloneValue(memoryState);
+        cloneValue(
+          memoryState
+        );
 
       return getState();
     } catch (error) {
@@ -1279,12 +1832,28 @@ function createCreatorMemory({
   }
 
   function getState() {
-    return cloneValue(memoryState);
+    return cloneValue(
+      memoryState
+    );
   }
 
-  function replaceState(nextState) {
+  function replaceState(
+    nextState
+  ) {
+    if (
+      containsSensitiveSecret(
+        nextState
+      )
+    ) {
+      throw new Error(
+        "Creator Memory refused to import raw credentials or secrets."
+      );
+    }
+
     const previousState =
-      cloneValue(memoryState);
+      cloneValue(
+        memoryState
+      );
 
     memoryState =
       hydrateMemoryState(
@@ -1292,34 +1861,44 @@ function createCreatorMemory({
       );
 
     if (cleanCreatorId) {
-      memoryState.creatorProfile.id =
+      memoryState
+        .creatorProfile
+        .id =
         cleanCreatorId;
     }
 
     try {
       return persist();
     } catch (error) {
-      memoryState = previousState;
+      memoryState =
+        previousState;
+
       throw error;
     }
   }
 
   function resetMemory() {
     const previousState =
-      cloneValue(memoryState);
+      cloneValue(
+        memoryState
+      );
 
     memoryState =
       createDefaultMemoryState();
 
     if (cleanCreatorId) {
-      memoryState.creatorProfile.id =
+      memoryState
+        .creatorProfile
+        .id =
         cleanCreatorId;
     }
 
     try {
       return persist();
     } catch (error) {
-      memoryState = previousState;
+      memoryState =
+        previousState;
+
       throw error;
     }
   }
@@ -1342,12 +1921,16 @@ function createCreatorMemory({
       createDefaultMemoryState();
 
     if (cleanCreatorId) {
-      memoryState.creatorProfile.id =
+      memoryState
+        .creatorProfile
+        .id =
         cleanCreatorId;
     }
 
     lastPersistedSnapshot =
-      cloneValue(memoryState);
+      cloneValue(
+        memoryState
+      );
 
     return getState();
   }
@@ -1360,22 +1943,91 @@ function createCreatorMemory({
 
   function getCreatorProfile() {
     return cloneValue(
-      memoryState.creatorProfile
+      memoryState
+        .creatorProfile
+    );
+  }
+
+  /**
+   * Detects an update that represents only the current session.
+   *
+   * A temporary preference may guide the active response but must
+   * not silently become durable creator identity.
+   */
+  function isTemporaryProfileUpdate(
+    updates = {}
+  ) {
+    const learning =
+      updates
+        ?.mentorLearning ||
+      updates
+        ?.communicationPreferences
+        ?.mentorLearning ||
+      {};
+
+    return Boolean(
+      learning?.horizon ===
+        MEMORY_HORIZONS
+          .SESSION ||
+      learning?.scope ===
+        MEMORY_SCOPES
+          .SESSION ||
+      learning?.sessionSpecific ===
+        true ||
+      learning?.metadata
+        ?.sessionSpecific ===
+        true ||
+      updates?.metadata
+        ?.sessionSpecific ===
+        true
     );
   }
 
   function updateCreatorProfile(
     updates = {}
   ) {
+    if (
+      !updates ||
+      typeof updates !==
+        "object"
+    ) {
+      return getCreatorProfile();
+    }
+
+    if (
+      containsSensitiveSecret(
+        updates
+      )
+    ) {
+      return null;
+    }
+
+    /**
+     * Temporary session intelligence must not become permanent
+     * profile state.
+     */
+    if (
+      isTemporaryProfileUpdate(
+        updates
+      )
+    ) {
+      return null;
+    }
+
     memoryState.creatorProfile = {
-      ...memoryState.creatorProfile,
-      ...cloneValue(updates),
+      ...memoryState
+        .creatorProfile,
+
+      ...cloneValue(
+        updates
+      ),
 
       id:
         cleanCreatorId ||
         updates.id ||
         memoryState
-          .creatorProfile.id ||
+          .creatorProfile
+          .id ||
         null,
 
       communicationPreferences: {
@@ -1452,9 +2104,16 @@ function createCreatorMemory({
     }
 
     const cleanValue =
-      normaliseString(value);
+      normaliseString(
+        value
+      );
 
-    if (!cleanValue) {
+    if (
+      !cleanValue ||
+      containsSensitiveSecret(
+        cleanValue
+      )
+    ) {
       return getCreatorProfile();
     }
 
@@ -1462,7 +2121,8 @@ function createCreatorMemory({
       memoryState
         .creatorProfile[
           fieldName
-        ] || [];
+        ] ||
+      [];
 
     memoryState
       .creatorProfile[
@@ -1513,10 +2173,14 @@ function createCreatorMemory({
     metadata = {},
   } = {}) {
     const cleanTitle =
-      normaliseString(title);
+      normaliseString(
+        title
+      );
 
     const cleanContent =
-      normaliseString(content);
+      normaliseString(
+        content
+      );
 
     if (
       !cleanTitle &&
@@ -1525,11 +2189,29 @@ function createCreatorMemory({
       return null;
     }
 
+    if (
+      containsSensitiveSecret(
+        cleanTitle,
+        cleanContent,
+        metadata
+      )
+    ) {
+      return null;
+    }
+
+    const cleanProjectId =
+      normaliseString(
+        relatedProjectId
+      ) ||
+      null;
+
     const timestamp =
       createTimestamp();
 
     const resolvedMemoryKey =
-      normaliseString(memoryKey) ||
+      normaliseString(
+        memoryKey
+      ) ||
       normaliseString(
         metadata?.memoryKey
       ) ||
@@ -1539,7 +2221,12 @@ function createCreatorMemory({
       const existing =
         findByMemoryKey(
           memoryState.ideas,
-          resolvedMemoryKey
+          resolvedMemoryKey,
+          (entry) =>
+            getEntryProjectId(
+              entry
+            ) ===
+            cleanProjectId
         );
 
       if (
@@ -1567,7 +2254,8 @@ function createCreatorMemory({
             status,
             IDEA_STATUSES,
             existing.status ||
-              IDEA_STATUSES.ACTIVE
+              IDEA_STATUSES
+                .ACTIVE
           );
 
         existing.tags =
@@ -1575,7 +2263,10 @@ function createCreatorMemory({
             ...normaliseArray(
               existing.tags
             ),
-            ...normaliseArray(tags),
+
+            ...normaliseArray(
+              tags
+            ),
           ]);
 
         existing.importance =
@@ -1588,16 +2279,15 @@ function createCreatorMemory({
           );
 
         existing.relatedProjectId =
-          normaliseString(
-            relatedProjectId
-          ) ||
+          cleanProjectId ||
           existing
             .relatedProjectId ||
           null;
 
         existing.emotionalContext =
           emotionalContext ??
-          existing.emotionalContext ??
+          existing
+            .emotionalContext ??
           null;
 
         existing.confidence =
@@ -1606,19 +2296,22 @@ function createCreatorMemory({
               existing.confidence,
               0
             ),
+
             normaliseConfidence(
               confidence,
               0
             )
           );
 
-        existing.reinforcementCount =
+        existing
+          .reinforcementCount =
           normaliseCount(
             existing
               .reinforcementCount
           ) + 1;
 
-        existing.lastReinforcedAt =
+        existing
+          .lastReinforcedAt =
           timestamp;
 
         existing.lifecycleStatus =
@@ -1632,7 +2325,9 @@ function createCreatorMemory({
           ...(existing.metadata ||
             {}),
 
-          ...cloneValue(metadata),
+          ...cloneValue(
+            metadata
+          ),
 
           memoryKey:
             resolvedMemoryKey,
@@ -1647,13 +2342,17 @@ function createCreatorMemory({
     }
 
     const idea = {
-      id: createMemoryId("idea"),
+      id:
+        createMemoryId(
+          "idea"
+        ),
 
       memoryKey:
         resolvedMemoryKey,
 
       type:
-        MEMORY_ENTRY_TYPES.IDEA,
+        MEMORY_ENTRY_TYPES
+          .IDEA,
 
       title:
         cleanTitle ||
@@ -1684,42 +2383,51 @@ function createCreatorMemory({
       }),
 
       tags:
-        normaliseStringArray(tags),
+        normaliseStringArray(
+          tags
+        ),
 
       importance:
         normaliseEnumValue(
           importance,
           MEMORY_IMPORTANCE,
-          MEMORY_IMPORTANCE.MEDIUM
+          MEMORY_IMPORTANCE
+            .MEDIUM
         ),
 
       emotionalContext,
 
       relatedProjectId:
-        normaliseString(
-          relatedProjectId
-        ) ||
-        null,
+        cleanProjectId,
 
       reinforcementCount: 0,
       lastReinforcedAt: null,
 
       metadata: {
-        ...cloneValue(metadata),
+        ...cloneValue(
+          metadata
+        ),
 
         memoryKey:
           resolvedMemoryKey,
       },
 
-      createdAt: timestamp,
-      updatedAt: timestamp,
+      createdAt:
+        timestamp,
+
+      updatedAt:
+        timestamp,
     };
 
-    memoryState.ideas.push(idea);
+    memoryState.ideas.push(
+      idea
+    );
 
     persist();
 
-    return cloneValue(idea);
+    return cloneValue(
+      idea
+    );
   }
 
   function getIdeas({
@@ -1745,7 +2453,8 @@ function createCreatorMemory({
       ideas =
         ideas.filter(
           (idea) =>
-            idea.status === status
+            idea.status ===
+            status
         );
     }
 
@@ -1769,19 +2478,26 @@ function createCreatorMemory({
     }
 
     if (
-      Number.isInteger(limit) &&
+      Number.isInteger(
+        limit
+      ) &&
       limit >= 0
     ) {
-      ideas = ideas.slice(
-        0,
-        limit
-      );
+      ideas =
+        ideas.slice(
+          0,
+          limit
+        );
     }
 
-    return cloneValue(ideas);
+    return cloneValue(
+      ideas
+    );
   }
 
-  function getIdea(ideaId) {
+  function getIdea(
+    ideaId
+  ) {
     return cloneValue(
       findById(
         memoryState.ideas,
@@ -1805,8 +2521,18 @@ function createCreatorMemory({
       return null;
     }
 
+    if (
+      containsSensitiveSecret(
+        updates
+      )
+    ) {
+      return null;
+    }
+
     const safeUpdates =
-      cloneValue(updates);
+      cloneValue(
+        updates
+      );
 
     delete safeUpdates.id;
     delete safeUpdates.type;
@@ -1816,15 +2542,21 @@ function createCreatorMemory({
       idea,
       safeUpdates,
       {
-        id: idea.id,
+        id:
+          idea.id,
+
         type:
-          MEMORY_ENTRY_TYPES.IDEA,
+          MEMORY_ENTRY_TYPES
+            .IDEA,
+
         updatedAt:
           createTimestamp(),
       }
     );
 
-    if ("tags" in updates) {
+    if (
+      "tags" in updates
+    ) {
       idea.tags =
         normaliseStringArray(
           updates.tags
@@ -1832,7 +2564,8 @@ function createCreatorMemory({
     }
 
     if (
-      "confidence" in updates
+      "confidence" in
+      updates
     ) {
       idea.confidence =
         normaliseConfidence(
@@ -1841,19 +2574,24 @@ function createCreatorMemory({
         );
     }
 
-    if ("status" in updates) {
+    if (
+      "status" in updates
+    ) {
       idea.status =
         normaliseEnumValue(
           updates.status,
           IDEA_STATUSES,
           idea.status ||
-            IDEA_STATUSES.ACTIVE
+            IDEA_STATUSES
+              .ACTIVE
         );
     }
 
     persist();
 
-    return cloneValue(idea);
+    return cloneValue(
+      idea
+    );
   }
 
   function moveIdeaToInspirationDrawer(
@@ -1887,7 +2625,8 @@ function createCreatorMemory({
             .INSPIRATION_DRAWER,
 
         metadata: {
-          ...(idea.metadata || {}),
+          ...(idea.metadata ||
+            {}),
 
           drawerHistory: [
             ...drawerHistory,
@@ -1914,10 +2653,12 @@ function createCreatorMemory({
       ideaId,
       {
         status:
-          IDEA_STATUSES.ACTIVE,
+          IDEA_STATUSES
+            .ACTIVE,
 
         lifecycleStatus:
-          MEMORY_STATUSES.ACTIVE,
+          MEMORY_STATUSES
+            .ACTIVE,
       }
     );
   }
@@ -1955,9 +2696,18 @@ function createCreatorMemory({
     metadata = {},
   } = {}) {
     const cleanTitle =
-      normaliseString(title);
+      normaliseString(
+        title
+      );
 
-    if (!cleanTitle) {
+    if (
+      !cleanTitle ||
+      containsSensitiveSecret(
+        title,
+        description,
+        metadata
+      )
+    ) {
       return null;
     }
 
@@ -1981,7 +2731,8 @@ function createCreatorMemory({
         MEMORY_ENTRY_TYPES
           .PROJECT,
 
-      title: cleanTitle,
+      title:
+        cleanTitle,
 
       description:
         normaliseString(
@@ -2002,32 +2753,39 @@ function createCreatorMemory({
         ),
 
       tags:
-        normaliseStringArray(tags),
+        normaliseStringArray(
+          tags
+        ),
 
       metadata:
-        cloneValue(metadata),
+        cloneValue(
+          metadata
+        ),
 
-      createdAt: timestamp,
-      updatedAt: timestamp,
+      createdAt:
+        timestamp,
+
+      updatedAt:
+        timestamp,
 
       publishedAt:
         resolvedStatus ===
-        PROJECT_STATUSES
-          .PUBLISHED
+          PROJECT_STATUSES
+            .PUBLISHED
           ? timestamp
           : null,
 
       completedAt:
         resolvedStatus ===
-        PROJECT_STATUSES
-          .COMPLETED
+          PROJECT_STATUSES
+            .COMPLETED
           ? timestamp
           : null,
     };
 
-    memoryState.projects.push(
-      project
-    );
+    memoryState
+      .projects
+      .push(project);
 
     if (
       resolvedStatus ===
@@ -2045,7 +2803,9 @@ function createCreatorMemory({
 
     persist();
 
-    return cloneValue(project);
+    return cloneValue(
+      project
+    );
   }
 
   function getProjects({
@@ -2062,7 +2822,8 @@ function createCreatorMemory({
       projects =
         projects.filter(
           (project) =>
-            project.status === status
+            project.status ===
+            status
         );
     }
 
@@ -2076,7 +2837,9 @@ function createCreatorMemory({
     }
 
     if (
-      Number.isInteger(limit) &&
+      Number.isInteger(
+        limit
+      ) &&
       limit >= 0
     ) {
       projects =
@@ -2086,10 +2849,14 @@ function createCreatorMemory({
         );
     }
 
-    return cloneValue(projects);
+    return cloneValue(
+      projects
+    );
   }
 
-  function getProject(projectId) {
+  function getProject(
+    projectId
+  ) {
     return cloneValue(
       findById(
         memoryState.projects,
@@ -2113,8 +2880,18 @@ function createCreatorMemory({
       return null;
     }
 
+    if (
+      containsSensitiveSecret(
+        updates
+      )
+    ) {
+      return null;
+    }
+
     const safeUpdates =
-      cloneValue(updates);
+      cloneValue(
+        updates
+      );
 
     delete safeUpdates.id;
     delete safeUpdates.type;
@@ -2124,16 +2901,21 @@ function createCreatorMemory({
       project,
       safeUpdates,
       {
-        id: project.id,
+        id:
+          project.id,
+
         type:
           MEMORY_ENTRY_TYPES
             .PROJECT,
+
         updatedAt:
           createTimestamp(),
       }
     );
 
-    if ("tags" in updates) {
+    if (
+      "tags" in updates
+    ) {
       project.tags =
         normaliseStringArray(
           updates.tags
@@ -2150,13 +2932,16 @@ function createCreatorMemory({
         );
     }
 
-    if ("status" in updates) {
+    if (
+      "status" in updates
+    ) {
       project.status =
         normaliseEnumValue(
           updates.status,
           PROJECT_STATUSES,
           project.status ||
-            PROJECT_STATUSES.IDEA
+            PROJECT_STATUSES
+              .IDEA
         );
     }
 
@@ -2200,9 +2985,14 @@ function createCreatorMemory({
         .activeProjectId ===
         project.id &&
       [
-        PROJECT_STATUSES.PUBLISHED,
-        PROJECT_STATUSES.COMPLETED,
-        PROJECT_STATUSES.ARCHIVED,
+        PROJECT_STATUSES
+          .PUBLISHED,
+
+        PROJECT_STATUSES
+          .COMPLETED,
+
+        PROJECT_STATUSES
+          .ARCHIVED,
       ].includes(
         project.status
       )
@@ -2215,7 +3005,9 @@ function createCreatorMemory({
 
     persist();
 
-    return cloneValue(project);
+    return cloneValue(
+      project
+    );
   }
 
   function getActiveProject() {
@@ -2245,7 +3037,8 @@ function createCreatorMemory({
     if (
       !project ||
       project.status ===
-        PROJECT_STATUSES.ARCHIVED
+        PROJECT_STATUSES
+          .ARCHIVED
     ) {
       return null;
     }
@@ -2257,7 +3050,9 @@ function createCreatorMemory({
 
     persist();
 
-    return cloneValue(project);
+    return cloneValue(
+      project
+    );
   }
 
   /**
@@ -2273,6 +3068,14 @@ function createCreatorMemory({
       !candidate ||
       typeof candidate !==
         "object"
+    ) {
+      return null;
+    }
+
+    if (
+      containsSensitiveSecret(
+        candidate
+      )
     ) {
       return null;
     }
@@ -2296,8 +3099,24 @@ function createCreatorMemory({
       !projectId ||
       (
         !content &&
-        candidate.value == null
+        candidate.value ==
+          null
       )
+    ) {
+      return null;
+    }
+
+    /**
+     * Project memory may never be persisted outside a real
+     * project boundary.
+     */
+    if (
+      !hasValidProjectBoundary({
+        scope:
+          MEMORY_SCOPES.PROJECT,
+
+        projectId,
+      })
     ) {
       return null;
     }
@@ -2305,6 +3124,10 @@ function createCreatorMemory({
     const memoryKey =
       normaliseString(
         candidate.memoryKey
+      ) ||
+      normaliseString(
+        candidate.metadata
+          ?.memoryKey
       ) ||
       null;
 
@@ -2332,6 +3155,184 @@ function createCreatorMemory({
       ) {
         const timestamp =
           createTimestamp();
+
+        const incoming = {
+          source:
+            normaliseEnumValue(
+              candidate.source,
+              MEMORY_SOURCES,
+              MEMORY_SOURCES
+                .UNKNOWN
+            ),
+
+          certainty:
+            normaliseEnumValue(
+              candidate.certainty,
+              MEMORY_CERTAINTY,
+              MEMORY_CERTAINTY
+                .UNKNOWN
+            ),
+
+          value:
+            candidate.value,
+
+          content,
+        };
+
+        const existingValue =
+          existing.value !==
+          undefined
+            ? existing.value
+            : existing.content;
+
+        const incomingValue =
+          candidate.value !==
+          undefined
+            ? candidate.value
+            : content;
+
+        const sameTruth =
+          valuesEquivalent(
+            existingValue,
+            incomingValue
+          );
+
+        const protectsTruth =
+          !sameTruth &&
+          shouldProtectExistingTruth({
+            existing,
+            incoming,
+          });
+
+        /**
+         * A weaker signal can contribute evidence but may not
+         * replace stronger project truth.
+         */
+        if (protectsTruth) {
+          existing.evidence =
+            normaliseStringArray([
+              ...normaliseArray(
+                existing.evidence
+              ),
+
+              ...normaliseArray(
+                candidate.evidence
+              ),
+            ]);
+
+          existing.metadata = {
+            ...(existing.metadata ||
+              {}),
+
+            weakerConflictingSignals: [
+              ...normaliseArray(
+                existing.metadata
+                  ?.weakerConflictingSignals
+              ),
+
+              {
+                candidateId:
+                  candidate.id ||
+                  null,
+
+                content:
+                  content ||
+                  null,
+
+                value:
+                  cloneValue(
+                    candidate.value
+                  ),
+
+                source:
+                  incoming.source,
+
+                certainty:
+                  incoming.certainty,
+
+                confidence:
+                  normaliseConfidence(
+                    candidate.confidence,
+                    0.5
+                  ),
+
+                observedAt:
+                  timestamp,
+              },
+            ],
+
+            lastProtectedAt:
+              timestamp,
+          };
+
+          existing.updatedAt =
+            timestamp;
+
+          persist();
+
+          return cloneValue(
+            existing
+          );
+        }
+
+        /**
+         * saveProjectMemory is reinforcement, not silent
+         * supersession. A genuine changed truth should travel
+         * through supersedeMemory so historical truth survives.
+         */
+        if (!sameTruth) {
+          existing.evidence =
+            normaliseStringArray([
+              ...normaliseArray(
+                existing.evidence
+              ),
+
+              ...normaliseArray(
+                candidate.evidence
+              ),
+            ]);
+
+          existing.metadata = {
+            ...(existing.metadata ||
+              {}),
+
+            pendingConflict: {
+              candidateId:
+                candidate.id ||
+                null,
+
+              content:
+                content ||
+                null,
+
+              value:
+                cloneValue(
+                  candidate.value
+                ),
+
+              source:
+                incoming.source,
+
+              certainty:
+                incoming.certainty,
+
+              detectedAt:
+                timestamp,
+
+              requiresSupersession:
+                true,
+            },
+          };
+
+          existing.updatedAt =
+            timestamp;
+
+          persist();
+
+          return cloneValue(
+            existing
+          );
+        }
 
         existing.title =
           title ||
@@ -2384,13 +3385,15 @@ function createCreatorMemory({
             ),
           ]);
 
-        existing.reinforcementCount =
+        existing
+          .reinforcementCount =
           normaliseCount(
             existing
               .reinforcementCount
           ) + 1;
 
-        existing.lastReinforcedAt =
+        existing
+          .lastReinforcedAt =
           timestamp;
 
         existing.lifecycleStatus =
@@ -2416,10 +3419,13 @@ function createCreatorMemory({
         existing.metadata = {
           ...(existing.metadata ||
             {}),
+
           ...cloneValue(
             candidate.metadata ||
               {}
           ),
+
+          memoryKey,
         };
 
         persist();
@@ -2477,14 +3483,16 @@ function createCreatorMemory({
         normaliseEnumValue(
           candidate.importance,
           MEMORY_IMPORTANCE,
-          MEMORY_IMPORTANCE.MEDIUM
+          MEMORY_IMPORTANCE
+            .MEDIUM
         ),
 
       status:
         normaliseEnumValue(
           candidate.status,
           MEMORY_STATUSES,
-          MEMORY_STATUSES.EMERGING
+          MEMORY_STATUSES
+            .EMERGING
         ),
 
       lifecycleStatus:
@@ -2558,6 +3566,7 @@ function createCreatorMemory({
           candidate.recallPolicy ||
             {
               automatic: true,
+
               timing:
                 "next-relevant-moment",
             }
@@ -2577,24 +3586,30 @@ function createCreatorMemory({
         ) ||
         null,
 
-      supersededByMemoryId: null,
+      supersededByMemoryId:
+        null,
 
       history:
         normaliseArray(
           candidate.history
         ),
 
-      metadata:
-        cloneValue(
+      metadata: {
+        ...cloneValue(
           candidate.metadata ||
             {}
         ),
+
+        memoryKey,
+        projectId,
+      },
 
       createdAt:
         candidate.createdAt ||
         timestamp,
 
-      updatedAt: timestamp,
+      updatedAt:
+        timestamp,
     };
 
     memoryState
@@ -2603,7 +3618,9 @@ function createCreatorMemory({
 
     persist();
 
-    return cloneValue(memory);
+    return cloneValue(
+      memory
+    );
   }
 
   function getProjectMemories({
@@ -2643,7 +3660,8 @@ function createCreatorMemory({
       memories =
         memories.filter(
           (memory) =>
-            memory.status === status
+            memory.status ===
+            status
         );
     } else if (
       !includeHistorical
@@ -2673,7 +3691,9 @@ function createCreatorMemory({
     }
 
     if (
-      Number.isInteger(limit) &&
+      Number.isInteger(
+        limit
+      ) &&
       limit >= 0
     ) {
       memories =
@@ -2683,7 +3703,9 @@ function createCreatorMemory({
         );
     }
 
-    return cloneValue(memories);
+    return cloneValue(
+      memories
+    );
   }
 
   function getProjectMemory(
@@ -2716,8 +3738,18 @@ function createCreatorMemory({
       return null;
     }
 
+    if (
+      containsSensitiveSecret(
+        updates
+      )
+    ) {
+      return null;
+    }
+
     const safeUpdates =
-      cloneValue(updates);
+      cloneValue(
+        updates
+      );
 
     delete safeUpdates.id;
     delete safeUpdates.type;
@@ -2728,7 +3760,9 @@ function createCreatorMemory({
       memory,
       safeUpdates,
       {
-        id: memory.id,
+        id:
+          memory.id,
+
         type:
           MEMORY_ENTRY_TYPES
             .PROJECT_MEMORY,
@@ -2745,32 +3779,39 @@ function createCreatorMemory({
     );
 
     if (
-      "confidence" in updates
+      "confidence" in
+      updates
     ) {
       memory.confidence =
         normaliseConfidence(
           updates.confidence,
-
           memory.confidence ??
             0.5
         );
     }
 
-    if ("evidence" in updates) {
+    if (
+      "evidence" in
+      updates
+    ) {
       memory.evidence =
         normaliseStringArray(
           updates.evidence
         );
     }
 
-    if ("tags" in updates) {
+    if (
+      "tags" in updates
+    ) {
       memory.tags =
         normaliseStringArray(
           updates.tags
         );
     }
 
-    if ("status" in updates) {
+    if (
+      "status" in updates
+    ) {
       memory.status =
         normaliseEnumValue(
           updates.status,
@@ -2783,7 +3824,9 @@ function createCreatorMemory({
 
     persist();
 
-    return cloneValue(memory);
+    return cloneValue(
+      memory
+    );
   }
 
   /**
@@ -2803,11 +3846,22 @@ function createCreatorMemory({
       return null;
     }
 
+    if (
+      containsSensitiveSecret(
+        candidate
+      )
+    ) {
+      return null;
+    }
+
     const projectId =
       normaliseString(
         candidate.projectId
       );
 
+    /**
+     * Handoffs without projects are ambiguous and are refused.
+     */
     if (!projectId) {
       return null;
     }
@@ -2857,7 +3911,15 @@ function createCreatorMemory({
         normaliseString(
           candidate.memoryKey
         ) ||
-        null,
+        normaliseString(
+          candidate.metadata
+            ?.memoryKey
+        ) ||
+        (
+          `project::` +
+          `session-handoff::` +
+          `${projectId}`
+        ),
 
       category:
         normaliseString(
@@ -2896,7 +3958,8 @@ function createCreatorMemory({
         normaliseEnumValue(
           candidate.importance,
           MEMORY_IMPORTANCE,
-          MEMORY_IMPORTANCE.HIGH
+          MEMORY_IMPORTANCE
+            .HIGH
         ),
 
       status:
@@ -2952,6 +4015,7 @@ function createCreatorMemory({
         normaliseStringArray([
           "session-handoff",
           "resume-context",
+
           ...normaliseArray(
             candidate.tags
           ),
@@ -2962,6 +4026,7 @@ function createCreatorMemory({
           candidate.recallPolicy ||
             {
               automatic: true,
+
               timing:
                 "next-session",
             }
@@ -2973,14 +4038,20 @@ function createCreatorMemory({
       reinforcementCount: 0,
       lastReinforcedAt: null,
 
-      metadata:
-        cloneValue(
+      metadata: {
+        ...cloneValue(
           candidate.metadata ||
             {}
         ),
 
-      createdAt: timestamp,
-      updatedAt: timestamp,
+        projectId,
+      },
+
+      createdAt:
+        timestamp,
+
+      updatedAt:
+        timestamp,
     };
 
     memoryState
@@ -2989,7 +4060,9 @@ function createCreatorMemory({
 
     persist();
 
-    return cloneValue(handoff);
+    return cloneValue(
+      handoff
+    );
   }
 
   function getSessionHandoffs({
@@ -3017,7 +4090,8 @@ function createCreatorMemory({
       handoffs =
         handoffs.filter(
           (handoff) =>
-            handoff.status === status
+            handoff.status ===
+            status
         );
     } else if (
       !includeHistorical
@@ -3035,7 +4109,9 @@ function createCreatorMemory({
     }
 
     if (
-      Number.isInteger(limit) &&
+      Number.isInteger(
+        limit
+      ) &&
       limit >= 0
     ) {
       handoffs =
@@ -3045,15 +4121,27 @@ function createCreatorMemory({
         );
     }
 
-    return cloneValue(handoffs);
+    return cloneValue(
+      handoffs
+    );
   }
 
   function getLatestSessionHandoff(
     projectId
   ) {
+    const cleanProjectId =
+      normaliseString(
+        projectId
+      );
+
+    if (!cleanProjectId) {
+      return null;
+    }
+
     const handoffs =
       getSessionHandoffs({
-        projectId,
+        projectId:
+          cleanProjectId,
 
         status:
           SESSION_HANDOFF_STATUSES
@@ -3062,7 +4150,10 @@ function createCreatorMemory({
         limit: 1,
       });
 
-    return handoffs[0] || null;
+    return (
+      handoffs[0] ||
+      null
+    );
   }
 
   function markSessionHandoffResumed(
@@ -3088,7 +4179,8 @@ function createCreatorMemory({
         .RESUMED;
 
     handoff.lifecycleStatus =
-      MEMORY_STATUSES.RESOLVED;
+      MEMORY_STATUSES
+        .RESOLVED;
 
     handoff.resumedAt =
       timestamp;
@@ -3098,7 +4190,9 @@ function createCreatorMemory({
 
     persist();
 
-    return cloneValue(handoff);
+    return cloneValue(
+      handoff
+    );
   }
 
   /**
@@ -3121,15 +4215,34 @@ function createCreatorMemory({
     metadata = {},
   } = {}) {
     const cleanSummary =
-      normaliseString(summary);
+      normaliseString(
+        summary
+      );
+
+    const cleanCreatorMessage =
+      normaliseString(
+        creatorMessage
+      );
+
+    const cleanMentorResponse =
+      normaliseString(
+        mentorResponse
+      );
 
     if (
       !cleanSummary &&
-      !normaliseString(
-        creatorMessage
-      ) &&
-      !normaliseString(
-        mentorResponse
+      !cleanCreatorMessage &&
+      !cleanMentorResponse
+    ) {
+      return null;
+    }
+
+    if (
+      containsSensitiveSecret(
+        cleanSummary,
+        cleanCreatorMessage,
+        cleanMentorResponse,
+        metadata
       )
     ) {
       return null;
@@ -3155,14 +4268,10 @@ function createCreatorMemory({
         cleanSummary,
 
       creatorMessage:
-        normaliseString(
-          creatorMessage
-        ),
+        cleanCreatorMessage,
 
       mentorResponse:
-        normaliseString(
-          mentorResponse
-        ),
+        cleanMentorResponse,
 
       intent,
       emotionalState,
@@ -3192,10 +4301,15 @@ function createCreatorMemory({
       lastReinforcedAt: null,
 
       metadata:
-        cloneValue(metadata),
+        cloneValue(
+          metadata
+        ),
 
-      createdAt: timestamp,
-      updatedAt: timestamp,
+      createdAt:
+        timestamp,
+
+      updatedAt:
+        timestamp,
     };
 
     memoryState
@@ -3229,14 +4343,17 @@ function createCreatorMemory({
     limit = 10
   ) {
     const safeLimit =
-      Number.isInteger(limit) &&
+      Number.isInteger(
+        limit
+      ) &&
       limit >= 0
         ? limit
         : 10;
 
     return cloneValue(
       sortNewestFirst(
-        memoryState.conversations
+        memoryState
+          .conversations
       )
         .filter(
           isMemoryContextActive
@@ -3282,25 +4399,57 @@ function createCreatorMemory({
     metadata = {},
   } = {}) {
     const cleanText =
-      normaliseString(text);
+      normaliseString(
+        text
+      );
 
-    if (!cleanText) {
+    if (
+      !cleanText ||
+      containsSensitiveSecret(
+        cleanText,
+        metadata
+      )
+    ) {
       return null;
     }
 
     const resolvedMemoryKey =
-      normaliseString(memoryKey) ||
+      normaliseString(
+        memoryKey
+      ) ||
       normaliseString(
         metadata?.memoryKey
       ) ||
       null;
 
     const cleanProjectId =
-      normaliseString(projectId) ||
+      normaliseString(
+        projectId
+      ) ||
       normaliseString(
         metadata?.projectId
       ) ||
       null;
+
+    const resolvedScope =
+      normaliseEnumValue(
+        scope,
+        MEMORY_SCOPES,
+        cleanProjectId
+          ? MEMORY_SCOPES
+              .PROJECT
+          : MEMORY_SCOPES
+              .CREATOR
+      );
+
+    if (
+      resolvedScope ===
+        MEMORY_SCOPES
+          .PROJECT &&
+      !cleanProjectId
+    ) {
+      return null;
+    }
 
     const timestamp =
       createTimestamp();
@@ -3308,12 +4457,16 @@ function createCreatorMemory({
     if (resolvedMemoryKey) {
       const existing =
         findByMemoryKey(
-          memoryState.observations,
+          memoryState
+            .observations,
+
           resolvedMemoryKey,
+
           (entry) =>
             getEntryProjectId(
               entry
-            ) === cleanProjectId
+            ) ===
+            cleanProjectId
         );
 
       if (
@@ -3326,7 +4479,9 @@ function createCreatorMemory({
           cleanText;
 
         existing.category =
-          normaliseString(category) ||
+          normaliseString(
+            category
+          ) ||
           existing.category ||
           "general";
 
@@ -3335,6 +4490,7 @@ function createCreatorMemory({
             ...normaliseArray(
               existing.evidence
             ),
+
             ...normaliseArray(
               evidence
             ),
@@ -3346,6 +4502,7 @@ function createCreatorMemory({
               existing.confidence,
               0
             ),
+
             normaliseConfidence(
               confidence,
               0
@@ -3361,20 +4518,23 @@ function createCreatorMemory({
                 .MEDIUM
           );
 
-        existing.permissionToReflect =
+        existing
+          .permissionToReflect =
           Boolean(
             existing
               .permissionToReflect ||
             permissionToReflect
           );
 
-        existing.reinforcementCount =
+        existing
+          .reinforcementCount =
           normaliseCount(
             existing
               .reinforcementCount
           ) + 1;
 
-        existing.lastReinforcedAt =
+        existing
+          .lastReinforcedAt =
           timestamp;
 
         existing.lifecycleStatus =
@@ -3387,7 +4547,10 @@ function createCreatorMemory({
         existing.metadata = {
           ...(existing.metadata ||
             {}),
-          ...cloneValue(metadata),
+
+          ...cloneValue(
+            metadata
+          ),
 
           memoryKey:
             resolvedMemoryKey,
@@ -3420,10 +4583,13 @@ function createCreatorMemory({
       lifecycleStatus:
         MEMORY_STATUSES.ACTIVE,
 
-      text: cleanText,
+      text:
+        cleanText,
 
       category:
-        normaliseString(category) ||
+        normaliseString(
+          category
+        ) ||
         "general",
 
       evidence:
@@ -3440,7 +4606,8 @@ function createCreatorMemory({
         normaliseEnumValue(
           importance,
           MEMORY_IMPORTANCE,
-          MEMORY_IMPORTANCE.MEDIUM
+          MEMORY_IMPORTANCE
+            .MEDIUM
         ),
 
       status:
@@ -3462,17 +4629,12 @@ function createCreatorMemory({
         normaliseEnumValue(
           certainty,
           MEMORY_CERTAINTY,
-          MEMORY_CERTAINTY.UNKNOWN
+          MEMORY_CERTAINTY
+            .UNKNOWN
         ),
 
       scope:
-        normaliseEnumValue(
-          scope,
-          MEMORY_SCOPES,
-          cleanProjectId
-            ? MEMORY_SCOPES.PROJECT
-            : MEMORY_SCOPES.CREATOR
-        ),
+        resolvedScope,
 
       projectId:
         cleanProjectId,
@@ -3491,7 +4653,9 @@ function createCreatorMemory({
       creatorResponse: null,
 
       metadata: {
-        ...cloneValue(metadata),
+        ...cloneValue(
+          metadata
+        ),
 
         memoryKey:
           resolvedMemoryKey,
@@ -3500,8 +4664,11 @@ function createCreatorMemory({
           cleanProjectId,
       },
 
-      createdAt: timestamp,
-      updatedAt: timestamp,
+      createdAt:
+        timestamp,
+
+      updatedAt:
+        timestamp,
     };
 
     memoryState
@@ -3525,11 +4692,13 @@ function createCreatorMemory({
   } = {}) {
     let observations =
       sortNewestFirst(
-        memoryState.observations
+        memoryState
+          .observations
       ).filter(
         (observation) =>
           normaliseConfidence(
-            observation.confidence,
+            observation
+              .confidence,
             0
           ) >=
           normaliseConfidence(
@@ -3573,7 +4742,9 @@ function createCreatorMemory({
     }
 
     if (
-      Number.isInteger(limit) &&
+      Number.isInteger(
+        limit
+      ) &&
       limit >= 0
     ) {
       observations =
@@ -3594,7 +4765,9 @@ function createCreatorMemory({
   ) {
     const observation =
       findById(
-        memoryState.observations,
+        memoryState
+          .observations,
+
         observationId
       );
 
@@ -3602,8 +4775,18 @@ function createCreatorMemory({
       return null;
     }
 
+    if (
+      containsSensitiveSecret(
+        updates
+      )
+    ) {
+      return null;
+    }
+
     const safeUpdates =
-      cloneValue(updates);
+      cloneValue(
+        updates
+      );
 
     delete safeUpdates.id;
     delete safeUpdates.type;
@@ -3613,7 +4796,8 @@ function createCreatorMemory({
       observation,
       safeUpdates,
       {
-        id: observation.id,
+        id:
+          observation.id,
 
         type:
           MEMORY_ENTRY_TYPES
@@ -3624,7 +4808,10 @@ function createCreatorMemory({
       }
     );
 
-    if ("evidence" in updates) {
+    if (
+      "evidence" in
+      updates
+    ) {
       observation.evidence =
         normaliseStringArray(
           updates.evidence
@@ -3632,7 +4819,8 @@ function createCreatorMemory({
     }
 
     if (
-      "confidence" in updates
+      "confidence" in
+      updates
     ) {
       observation.confidence =
         normaliseConfidence(
@@ -3640,7 +4828,9 @@ function createCreatorMemory({
         );
     }
 
-    if ("status" in updates) {
+    if (
+      "status" in updates
+    ) {
       observation.status =
         normaliseEnumValue(
           updates.status,
@@ -3664,7 +4854,9 @@ function createCreatorMemory({
   ) {
     const observation =
       findById(
-        memoryState.observations,
+        memoryState
+          .observations,
+
         observationId
       );
 
@@ -3672,19 +4864,32 @@ function createCreatorMemory({
       return null;
     }
 
-    observation.reflectionCount =
+    if (
+      creatorResponse !== null &&
+      containsSensitiveSecret(
+        creatorResponse
+      )
+    ) {
+      return null;
+    }
+
+    observation
+      .reflectionCount =
       normaliseCount(
         observation
           .reflectionCount
       ) + 1;
 
-    observation.lastReflectedAt =
+    observation
+      .lastReflectedAt =
       createTimestamp();
 
     if (
-      creatorResponse !== null
+      creatorResponse !==
+      null
     ) {
-      observation.creatorResponse =
+      observation
+        .creatorResponse =
         normaliseString(
           creatorResponse
         );
@@ -3726,25 +4931,58 @@ function createCreatorMemory({
     metadata = {},
   } = {}) {
     const cleanName =
-      normaliseString(name);
+      normaliseString(
+        name
+      );
 
-    if (!cleanName) {
+    if (
+      !cleanName ||
+      containsSensitiveSecret(
+        cleanName,
+        description,
+        metadata
+      )
+    ) {
       return null;
     }
 
     const resolvedMemoryKey =
-      normaliseString(memoryKey) ||
+      normaliseString(
+        memoryKey
+      ) ||
       normaliseString(
         metadata?.memoryKey
       ) ||
       null;
 
     const cleanProjectId =
-      normaliseString(projectId) ||
+      normaliseString(
+        projectId
+      ) ||
       normaliseString(
         metadata?.projectId
       ) ||
       null;
+
+    const resolvedScope =
+      normaliseEnumValue(
+        scope,
+        MEMORY_SCOPES,
+        cleanProjectId
+          ? MEMORY_SCOPES
+              .PROJECT
+          : MEMORY_SCOPES
+              .CREATOR
+      );
+
+    if (
+      resolvedScope ===
+        MEMORY_SCOPES
+          .PROJECT &&
+      !cleanProjectId
+    ) {
+      return null;
+    }
 
     const timestamp =
       createTimestamp();
@@ -3753,11 +4991,14 @@ function createCreatorMemory({
       const existing =
         findByMemoryKey(
           memoryState.patterns,
+
           resolvedMemoryKey,
+
           (entry) =>
             getEntryProjectId(
               entry
-            ) === cleanProjectId
+            ) ===
+            cleanProjectId
         );
 
       if (
@@ -3776,7 +5017,9 @@ function createCreatorMemory({
           existing.description;
 
         existing.category =
-          normaliseString(category) ||
+          normaliseString(
+            category
+          ) ||
           existing.category ||
           "creative";
 
@@ -3785,6 +5028,7 @@ function createCreatorMemory({
             ...normaliseArray(
               existing.evidence
             ),
+
             ...normaliseArray(
               evidence
             ),
@@ -3796,26 +5040,30 @@ function createCreatorMemory({
               existing.confidence,
               0
             ),
+
             normaliseConfidence(
               confidence,
               0
             )
           );
 
-        existing.positiveReflection =
+        existing
+          .positiveReflection =
           normaliseString(
             positiveReflection
           ) ||
           existing
             .positiveReflection;
 
-        existing.reinforcementCount =
+        existing
+          .reinforcementCount =
           normaliseCount(
             existing
               .reinforcementCount
           ) + 1;
 
-        existing.lastReinforcedAt =
+        existing
+          .lastReinforcedAt =
           timestamp;
 
         existing.lifecycleStatus =
@@ -3828,7 +5076,10 @@ function createCreatorMemory({
         existing.metadata = {
           ...(existing.metadata ||
             {}),
-          ...cloneValue(metadata),
+
+          ...cloneValue(
+            metadata
+          ),
 
           memoryKey:
             resolvedMemoryKey,
@@ -3855,12 +5106,14 @@ function createCreatorMemory({
         resolvedMemoryKey,
 
       type:
-        MEMORY_ENTRY_TYPES.PATTERN,
+        MEMORY_ENTRY_TYPES
+          .PATTERN,
 
       lifecycleStatus:
         MEMORY_STATUSES.ACTIVE,
 
-      name: cleanName,
+      name:
+        cleanName,
 
       description:
         normaliseString(
@@ -3868,7 +5121,9 @@ function createCreatorMemory({
         ),
 
       category:
-        normaliseString(category) ||
+        normaliseString(
+          category
+        ) ||
         "creative",
 
       evidence:
@@ -3900,17 +5155,12 @@ function createCreatorMemory({
         normaliseEnumValue(
           certainty,
           MEMORY_CERTAINTY,
-          MEMORY_CERTAINTY.UNKNOWN
+          MEMORY_CERTAINTY
+            .UNKNOWN
         ),
 
       scope:
-        normaliseEnumValue(
-          scope,
-          MEMORY_SCOPES,
-          cleanProjectId
-            ? MEMORY_SCOPES.PROJECT
-            : MEMORY_SCOPES.CREATOR
-        ),
+        resolvedScope,
 
       projectId:
         cleanProjectId,
@@ -3924,7 +5174,9 @@ function createCreatorMemory({
       lastReinforcedAt: null,
 
       metadata: {
-        ...cloneValue(metadata),
+        ...cloneValue(
+          metadata
+        ),
 
         memoryKey:
           resolvedMemoryKey,
@@ -3933,17 +5185,22 @@ function createCreatorMemory({
           cleanProjectId,
       },
 
-      createdAt: timestamp,
-      updatedAt: timestamp,
+      createdAt:
+        timestamp,
+
+      updatedAt:
+        timestamp,
     };
 
-    memoryState.patterns.push(
-      pattern
-    );
+    memoryState
+      .patterns
+      .push(pattern);
 
     persist();
 
-    return cloneValue(pattern);
+    return cloneValue(
+      pattern
+    );
   }
 
   function getPatterns({
@@ -3984,7 +5241,9 @@ function createCreatorMemory({
     }
 
     if (
-      Number.isInteger(limit) &&
+      Number.isInteger(
+        limit
+      ) &&
       limit >= 0
     ) {
       patterns =
@@ -3994,7 +5253,9 @@ function createCreatorMemory({
         );
     }
 
-    return cloneValue(patterns);
+    return cloneValue(
+      patterns
+    );
   }
 
   /**
@@ -4030,10 +5291,14 @@ function createCreatorMemory({
     metadata = {},
   } = {}) {
     const cleanContent =
-      normaliseString(content);
+      normaliseString(
+        content
+      );
 
     const cleanTitle =
-      normaliseString(title);
+      normaliseString(
+        title
+      );
 
     if (
       !cleanContent &&
@@ -4042,8 +5307,42 @@ function createCreatorMemory({
       return null;
     }
 
+    if (
+      containsSensitiveSecret(
+        cleanContent,
+        cleanTitle,
+        metadata
+      )
+    ) {
+      return null;
+    }
+
+    const cleanRelatedProjectIds =
+      normaliseStringArray(
+        relatedProjectIds
+      );
+
+    const metadataScope =
+      normaliseString(
+        metadata?.scope
+      );
+
+    if (
+      metadataScope ===
+        MEMORY_SCOPES.PROJECT &&
+      cleanRelatedProjectIds
+        .length === 0 &&
+      !normaliseString(
+        metadata?.projectId
+      )
+    ) {
+      return null;
+    }
+
     const resolvedMemoryKey =
-      normaliseString(memoryKey) ||
+      normaliseString(
+        memoryKey
+      ) ||
       normaliseString(
         metadata?.memoryKey
       ) ||
@@ -4058,7 +5357,33 @@ function createCreatorMemory({
           memoryState
             .deferredMemories,
 
-          resolvedMemoryKey
+          resolvedMemoryKey,
+
+          (entry) => {
+            const existingIds =
+              normaliseStringArray(
+                entry
+                  .relatedProjectIds
+              );
+
+            if (
+              cleanRelatedProjectIds
+                .length === 0
+            ) {
+              return (
+                existingIds.length ===
+                0
+              );
+            }
+
+            return (
+              existingIds.some(
+                (id) =>
+                  cleanRelatedProjectIds
+                    .includes(id)
+              )
+            );
+          }
         );
 
       if (
@@ -4076,23 +5401,27 @@ function createCreatorMemory({
           existing.content;
 
         existing.category =
-          normaliseString(category) ||
+          normaliseString(
+            category
+          ) ||
           existing.category ||
           "general";
 
         existing.reason =
-          normaliseString(reason) ||
+          normaliseString(
+            reason
+          ) ||
           existing.reason;
 
-        existing.relatedProjectIds =
+        existing
+          .relatedProjectIds =
           normaliseStringArray([
             ...normaliseArray(
               existing
                 .relatedProjectIds
             ),
-            ...normaliseArray(
-              relatedProjectIds
-            ),
+
+            ...cleanRelatedProjectIds,
           ]);
 
         existing.relatedIdeaIds =
@@ -4101,6 +5430,7 @@ function createCreatorMemory({
               existing
                 .relatedIdeaIds
             ),
+
             ...normaliseArray(
               relatedIdeaIds
             ),
@@ -4112,6 +5442,7 @@ function createCreatorMemory({
               existing
                 .triggerTerms
             ),
+
             ...normaliseArray(
               triggerTerms
             ),
@@ -4122,7 +5453,10 @@ function createCreatorMemory({
             ...normaliseArray(
               existing.tags
             ),
-            ...normaliseArray(tags),
+
+            ...normaliseArray(
+              tags
+            ),
           ]);
 
         existing.confidence =
@@ -4131,19 +5465,22 @@ function createCreatorMemory({
               existing.confidence,
               0
             ),
+
             normaliseConfidence(
               confidence,
               0
             )
           );
 
-        existing.reinforcementCount =
+        existing
+          .reinforcementCount =
           normaliseCount(
             existing
               .reinforcementCount
           ) + 1;
 
-        existing.lastReinforcedAt =
+        existing
+          .lastReinforcedAt =
           timestamp;
 
         existing.lifecycleStatus =
@@ -4156,7 +5493,10 @@ function createCreatorMemory({
         existing.metadata = {
           ...(existing.metadata ||
             {}),
-          ...cloneValue(metadata),
+
+          ...cloneValue(
+            metadata
+          ),
 
           memoryKey:
             resolvedMemoryKey,
@@ -4193,11 +5533,15 @@ function createCreatorMemory({
         cleanContent,
 
       category:
-        normaliseString(category) ||
+        normaliseString(
+          category
+        ) ||
         "general",
 
       reason:
-        normaliseString(reason),
+        normaliseString(
+          reason
+        ),
 
       status:
         DEFERRED_MEMORY_STATUSES
@@ -4213,13 +5557,12 @@ function createCreatorMemory({
         normaliseEnumValue(
           importance,
           MEMORY_IMPORTANCE,
-          MEMORY_IMPORTANCE.MEDIUM
+          MEMORY_IMPORTANCE
+            .MEDIUM
         ),
 
       relatedProjectIds:
-        normaliseStringArray(
-          relatedProjectIds
-        ),
+        cleanRelatedProjectIds,
 
       relatedIdeaIds:
         normaliseStringArray(
@@ -4232,7 +5575,9 @@ function createCreatorMemory({
         ),
 
       tags:
-        normaliseStringArray(tags),
+        normaliseStringArray(
+          tags
+        ),
 
       recallCount: 0,
       reinforcementCount: 0,
@@ -4243,19 +5588,26 @@ function createCreatorMemory({
       dismissedAt: null,
 
       metadata: {
-        ...cloneValue(metadata),
+        ...cloneValue(
+          metadata
+        ),
 
         memoryKey:
           resolvedMemoryKey,
       },
 
-      createdAt: timestamp,
-      updatedAt: timestamp,
+      createdAt:
+        timestamp,
+
+      updatedAt:
+        timestamp,
     };
 
     memoryState
       .deferredMemories
-      .push(deferredMemory);
+      .push(
+        deferredMemory
+      );
 
     persist();
 
@@ -4298,7 +5650,8 @@ function createCreatorMemory({
       memories =
         memories.filter(
           (memory) =>
-            memory.status === status
+            memory.status ===
+            status
         );
     }
 
@@ -4312,7 +5665,9 @@ function createCreatorMemory({
     }
 
     if (
-      Number.isInteger(limit) &&
+      Number.isInteger(
+        limit
+      ) &&
       limit >= 0
     ) {
       memories =
@@ -4322,7 +5677,9 @@ function createCreatorMemory({
         );
     }
 
-    return cloneValue(memories);
+    return cloneValue(
+      memories
+    );
   }
 
   function getDeferredMemory(
@@ -4355,8 +5712,18 @@ function createCreatorMemory({
       return null;
     }
 
+    if (
+      containsSensitiveSecret(
+        updates
+      )
+    ) {
+      return null;
+    }
+
     const safeUpdates =
-      cloneValue(updates);
+      cloneValue(
+        updates
+      );
 
     delete safeUpdates.id;
     delete safeUpdates.type;
@@ -4401,18 +5768,21 @@ function createCreatorMemory({
     );
 
     if (
-      "confidence" in updates
+      "confidence" in
+      updates
     ) {
-      deferredMemory.confidence =
+      deferredMemory
+        .confidence =
         normaliseConfidence(
           updates.confidence,
-
           deferredMemory
             .confidence ?? 1
         );
     }
 
-    if ("status" in updates) {
+    if (
+      "status" in updates
+    ) {
       deferredMemory.status =
         normaliseEnumValue(
           updates.status,
@@ -4467,14 +5837,16 @@ function createCreatorMemory({
 
     deferredMemory.recallCount =
       normaliseCount(
-        deferredMemory.recallCount
+        deferredMemory
+          .recallCount
       ) + 1;
 
     deferredMemory.lastRecalledAt =
       timestamp;
 
     deferredMemory.recalledAt =
-      deferredMemory.recalledAt ||
+      deferredMemory
+        .recalledAt ||
       timestamp;
 
     deferredMemory.updatedAt =
@@ -4511,7 +5883,8 @@ function createCreatorMemory({
         .DISMISSED;
 
     deferredMemory.lifecycleStatus =
-      MEMORY_STATUSES.DISMISSED;
+      MEMORY_STATUSES
+        .DISMISSED;
 
     deferredMemory.dismissedAt =
       timestamp;
@@ -4521,7 +5894,9 @@ function createCreatorMemory({
         {}),
 
       dismissalReason:
-        normaliseString(reason),
+        normaliseString(
+          reason
+        ),
     };
 
     deferredMemory.updatedAt =
@@ -4546,8 +5921,16 @@ function createCreatorMemory({
         message
       );
 
+    const cleanProjectId =
+      normaliseString(
+        projectId
+      ) ||
+      null;
+
     const requestedTags =
-      normaliseStringArray(tags).map(
+      normaliseStringArray(
+        tags
+      ).map(
         normaliseComparableText
       );
 
@@ -4561,19 +5944,22 @@ function createCreatorMemory({
             ) &&
             isRelevantToProject(
               memory,
-              projectId
+              cleanProjectId
             )
         )
         .map(
           (memory) => {
-            let relevanceScore = 0;
+            let relevanceScore =
+              0;
 
             if (
-              projectId &&
+              cleanProjectId &&
               normaliseArray(
                 memory
                   .relatedProjectIds
-              ).includes(projectId)
+              ).includes(
+                cleanProjectId
+              )
             ) {
               relevanceScore += 4;
             }
@@ -4583,7 +5969,9 @@ function createCreatorMemory({
               normaliseArray(
                 memory
                   .relatedIdeaIds
-              ).includes(ideaId)
+              ).includes(
+                ideaId
+              )
             ) {
               relevanceScore += 4;
             }
@@ -4611,7 +5999,8 @@ function createCreatorMemory({
 
             const triggerTerms =
               normaliseArray(
-                memory.triggerTerms
+                memory
+                  .triggerTerms
               )
                 .map(
                   normaliseComparableText
@@ -4647,7 +6036,8 @@ function createCreatorMemory({
         )
         .filter(
           (candidate) =>
-            candidate.relevanceScore >
+            candidate
+              .relevanceScore >
             0
         )
         .sort(
@@ -4664,13 +6054,17 @@ function createCreatorMemory({
 
             return (
               new Date(
-                b.memory.updatedAt ||
-                  b.memory.createdAt ||
+                b.memory
+                  .updatedAt ||
+                  b.memory
+                    .createdAt ||
                   0
               ).getTime() -
               new Date(
-                a.memory.updatedAt ||
-                  a.memory.createdAt ||
+                a.memory
+                  .updatedAt ||
+                  a.memory
+                    .createdAt ||
                   0
               ).getTime()
             );
@@ -4678,7 +6072,9 @@ function createCreatorMemory({
         )
         .slice(
           0,
-          Number.isInteger(limit) &&
+          Number.isInteger(
+            limit
+          ) &&
             limit >= 0
             ? limit
             : 5
@@ -4708,14 +6104,25 @@ function createCreatorMemory({
     metadata = {},
   } = {}) {
     const cleanTitle =
-      normaliseString(title);
+      normaliseString(
+        title
+      );
 
-    if (!cleanTitle) {
+    if (
+      !cleanTitle ||
+      containsSensitiveSecret(
+        title,
+        description,
+        metadata
+      )
+    ) {
       return null;
     }
 
     const resolvedMemoryKey =
-      normaliseString(memoryKey) ||
+      normaliseString(
+        memoryKey
+      ) ||
       normaliseString(
         metadata?.memoryKey
       ) ||
@@ -4733,12 +6140,16 @@ function createCreatorMemory({
     if (resolvedMemoryKey) {
       const existing =
         findByMemoryKey(
-          memoryState.milestones,
+          memoryState
+            .milestones,
+
           resolvedMemoryKey,
+
           (entry) =>
             getEntryProjectId(
               entry
-            ) === cleanProjectId
+            ) ===
+            cleanProjectId
         );
 
       if (
@@ -4761,16 +6172,19 @@ function createCreatorMemory({
             significance,
             MEMORY_IMPORTANCE,
             existing.significance ||
-              MEMORY_IMPORTANCE.HIGH
+              MEMORY_IMPORTANCE
+                .HIGH
           );
 
-        existing.reinforcementCount =
+        existing
+          .reinforcementCount =
           normaliseCount(
             existing
               .reinforcementCount
           ) + 1;
 
-        existing.lastReinforcedAt =
+        existing
+          .lastReinforcedAt =
           timestamp;
 
         existing.lifecycleStatus =
@@ -4783,7 +6197,11 @@ function createCreatorMemory({
         existing.metadata = {
           ...(existing.metadata ||
             {}),
-          ...cloneValue(metadata),
+
+          ...cloneValue(
+            metadata
+          ),
+
           memoryKey:
             resolvedMemoryKey,
         };
@@ -4827,21 +6245,27 @@ function createCreatorMemory({
         normaliseEnumValue(
           significance,
           MEMORY_IMPORTANCE,
-          MEMORY_IMPORTANCE.HIGH
+          MEMORY_IMPORTANCE
+            .HIGH
         ),
 
       reinforcementCount: 0,
       lastReinforcedAt: null,
 
       metadata: {
-        ...cloneValue(metadata),
+        ...cloneValue(
+          metadata
+        ),
 
         memoryKey:
           resolvedMemoryKey,
       },
 
-      createdAt: timestamp,
-      updatedAt: timestamp,
+      createdAt:
+        timestamp,
+
+      updatedAt:
+        timestamp,
     };
 
     memoryState
@@ -4858,12 +6282,14 @@ function createCreatorMemory({
   function getMilestones(
     limit = null,
     {
-      includeHistorical = false,
+      includeHistorical =
+        false,
     } = {}
   ) {
     let milestones =
       sortNewestFirst(
-        memoryState.milestones
+        memoryState
+          .milestones
       );
 
     if (!includeHistorical) {
@@ -4874,7 +6300,9 @@ function createCreatorMemory({
     }
 
     if (
-      Number.isInteger(limit) &&
+      Number.isInteger(
+        limit
+      ) &&
       limit >= 0
     ) {
       milestones =
@@ -4903,14 +6331,24 @@ function createCreatorMemory({
     metadata = {},
   } = {}) {
     const cleanText =
-      normaliseString(text);
+      normaliseString(
+        text
+      );
 
-    if (!cleanText) {
+    if (
+      !cleanText ||
+      containsSensitiveSecret(
+        cleanText,
+        metadata
+      )
+    ) {
       return null;
     }
 
     const resolvedMemoryKey =
-      normaliseString(memoryKey) ||
+      normaliseString(
+        memoryKey
+      ) ||
       normaliseString(
         metadata?.memoryKey
       ) ||
@@ -4922,7 +6360,9 @@ function createCreatorMemory({
     if (resolvedMemoryKey) {
       const existing =
         findByMemoryKey(
-          memoryState.reflections,
+          memoryState
+            .reflections,
+
           resolvedMemoryKey
         );
 
@@ -4935,35 +6375,41 @@ function createCreatorMemory({
         existing.text =
           cleanText;
 
-        existing.relatedObservationIds =
+        existing
+          .relatedObservationIds =
           normaliseStringArray([
             ...normaliseArray(
               existing
                 .relatedObservationIds
             ),
+
             ...normaliseArray(
               relatedObservationIds
             ),
           ]);
 
-        existing.relatedProjectIds =
+        existing
+          .relatedProjectIds =
           normaliseStringArray([
             ...normaliseArray(
               existing
                 .relatedProjectIds
             ),
+
             ...normaliseArray(
               relatedProjectIds
             ),
           ]);
 
-        existing.reinforcementCount =
+        existing
+          .reinforcementCount =
           normaliseCount(
             existing
               .reinforcementCount
           ) + 1;
 
-        existing.lastReinforcedAt =
+        existing
+          .lastReinforcedAt =
           timestamp;
 
         existing.lifecycleStatus =
@@ -4976,7 +6422,10 @@ function createCreatorMemory({
         existing.metadata = {
           ...(existing.metadata ||
             {}),
-          ...cloneValue(metadata),
+
+          ...cloneValue(
+            metadata
+          ),
 
           memoryKey:
             resolvedMemoryKey,
@@ -5030,14 +6479,19 @@ function createCreatorMemory({
       lastReinforcedAt: null,
 
       metadata: {
-        ...cloneValue(metadata),
+        ...cloneValue(
+          metadata
+        ),
 
         memoryKey:
           resolvedMemoryKey,
       },
 
-      createdAt: timestamp,
-      updatedAt: timestamp,
+      createdAt:
+        timestamp,
+
+      updatedAt:
+        timestamp,
     };
 
     memoryState
@@ -5055,16 +6509,6 @@ function createCreatorMemory({
    * ----------------------------------------------------------
    * Memory Lifecycle
    * ----------------------------------------------------------
-   *
-   * Domain status and memory lifecycle are deliberately separate.
-   *
-   * Examples:
-   * - idea.status may remain "active"
-   * - handoff.status may remain "active"
-   * - lifecycleStatus may become "reinforced"
-   *
-   * Generic lifecycle operations must never corrupt a domain's
-   * own state machine.
    */
 
   function reinforceMemory({
@@ -5073,19 +6517,32 @@ function createCreatorMemory({
     memoryId = null,
     memoryKey = null,
   } = {}) {
+    if (
+      containsSensitiveSecret(
+        candidate
+      )
+    ) {
+      return null;
+    }
+
     const resolvedMemoryId =
-      normaliseString(memoryId) ||
+      normaliseString(
+        memoryId
+      ) ||
       normaliseString(
         existingMemory?.id
       );
 
     const resolvedMemoryKey =
-      normaliseString(memoryKey) ||
+      normaliseString(
+        memoryKey
+      ) ||
       normaliseString(
         candidate?.memoryKey
       ) ||
       normaliseString(
-        existingMemory?.memoryKey
+        existingMemory
+          ?.memoryKey
       );
 
     const record =
@@ -5104,7 +6561,8 @@ function createCreatorMemory({
     const timestamp =
       createTimestamp();
 
-    const entry = record.entry;
+    const entry =
+      record.entry;
 
     entry.reinforcementCount =
       normaliseCount(
@@ -5115,17 +6573,12 @@ function createCreatorMemory({
       timestamp;
 
     entry.lifecycleStatus =
-      MEMORY_STATUSES.REINFORCED;
+      MEMORY_STATUSES
+        .REINFORCED;
 
     entry.updatedAt =
       timestamp;
 
-    /**
-     * ProjectMemory.status itself represents evidence maturity,
-     * so reinforcing it may legitimately advance that status.
-     *
-     * All other domain objects keep their own status untouched.
-     */
     if (
       record.collectionName ===
         "projectMemories" &&
@@ -5156,13 +6609,16 @@ function createCreatorMemory({
           ),
 
           normaliseConfidence(
-            candidate.confidence,
+            candidate
+              .confidence,
             0
           )
         );
     }
 
-    if (candidate?.evidence) {
+    if (
+      candidate?.evidence
+    ) {
       entry.evidence =
         normaliseStringArray([
           ...normaliseArray(
@@ -5194,7 +6650,9 @@ function createCreatorMemory({
 
     persist();
 
-    return cloneValue(entry);
+    return cloneValue(
+      entry
+    );
   }
 
   function weakenMemory({
@@ -5235,7 +6693,8 @@ function createCreatorMemory({
     const timestamp =
       createTimestamp();
 
-    const entry = record.entry;
+    const entry =
+      record.entry;
 
     const reduction =
       normaliseConfidence(
@@ -5275,7 +6734,9 @@ function createCreatorMemory({
 
     persist();
 
-    return cloneValue(entry);
+    return cloneValue(
+      entry
+    );
   }
 
   function supersedeMemory({
@@ -5284,6 +6745,17 @@ function createCreatorMemory({
     memoryId = null,
     memoryKey = null,
   } = {}) {
+    if (
+      !candidate ||
+      typeof candidate !==
+        "object" ||
+      containsSensitiveSecret(
+        candidate
+      )
+    ) {
+      return null;
+    }
+
     const record =
       findMemoryRecord({
         memoryId:
@@ -5308,23 +6780,95 @@ function createCreatorMemory({
       return null;
     }
 
+    const oldEntry =
+      record.entry;
+
+    /**
+     * A weaker source is not allowed to supersede stronger truth.
+     */
     if (
-      !candidate ||
-      typeof candidate !==
-        "object"
+      shouldProtectExistingTruth({
+        existing:
+          oldEntry,
+
+        incoming:
+          candidate,
+      })
     ) {
-      return null;
+      oldEntry.evidence =
+        normaliseStringArray([
+          ...normaliseArray(
+            oldEntry.evidence
+          ),
+
+          ...normaliseArray(
+            candidate.evidence
+          ),
+        ]);
+
+      oldEntry.metadata = {
+        ...(oldEntry.metadata ||
+          {}),
+
+        rejectedSupersession: {
+          candidateId:
+            candidate.id ||
+            null,
+
+          source:
+            candidate.source ||
+            null,
+
+          certainty:
+            candidate.certainty ||
+            null,
+
+          rejectedAt:
+            createTimestamp(),
+
+          reason:
+            "Incoming memory had lower authority than existing truth.",
+        },
+      };
+
+      oldEntry.updatedAt =
+        createTimestamp();
+
+      persist();
+
+      return {
+        superseded: null,
+
+        replacement: null,
+
+        protected:
+          cloneValue(
+            oldEntry
+          ),
+
+        reason:
+          "existing-truth-has-higher-authority",
+      };
     }
 
     const timestamp =
       createTimestamp();
 
-    const oldEntry =
-      record.entry;
+    const oldLifecycleStatus =
+      oldEntry.lifecycleStatus;
 
-    /**
-     * Preserve historical truth without corrupting domain status.
-     */
+    const oldDomainStatus =
+      oldEntry.status;
+
+    const oldMetadata =
+      cloneValue(
+        oldEntry.metadata ||
+          {}
+      );
+
+    const oldSupersededAt =
+      oldEntry.supersededAt;
+
     oldEntry.lifecycleStatus =
       MEMORY_STATUSES
         .SUPERSEDED;
@@ -5367,14 +6911,72 @@ function createCreatorMemory({
       record.collectionName ===
         "projectMemories" ||
       candidate.scope ===
-        MEMORY_SCOPES.PROJECT ||
+        MEMORY_SCOPES
+          .PROJECT ||
       candidate.projectId
     ) {
+      const replacementProjectId =
+        normaliseString(
+          candidate.projectId
+        ) ||
+        getEntryProjectId(
+          oldEntry
+        );
+
+      if (
+        !replacementProjectId ||
+        (
+          getEntryProjectId(
+            oldEntry
+          ) &&
+          replacementProjectId !==
+            getEntryProjectId(
+              oldEntry
+            )
+        )
+      ) {
+        oldEntry.lifecycleStatus =
+          oldLifecycleStatus;
+
+        oldEntry.status =
+          oldDomainStatus;
+
+        oldEntry.metadata =
+          oldMetadata;
+
+        oldEntry.supersededAt =
+          oldSupersededAt;
+
+        return null;
+      }
+
+      /**
+       * Create the replacement under a distinct transitional key
+       * so saveProjectMemory does not interpret the historical
+       * entry as reinforcement.
+       */
+      const semanticKey =
+        candidate.memoryKey ||
+        oldEntry.memoryKey ||
+        null;
+
+      const replacementKey =
+        semanticKey
+          ? (
+              `${semanticKey}` +
+              `::replacement::` +
+              `${Date.now()}`
+            )
+          : null;
+
       newEntry =
         saveProjectMemory({
           ...cloneValue(
             candidate
           ),
+
+          projectId:
+            replacementProjectId,
 
           status:
             normaliseConfidence(
@@ -5387,9 +6989,7 @@ function createCreatorMemory({
                   .EMERGING,
 
           memoryKey:
-            candidate.memoryKey ||
-            oldEntry.memoryKey ||
-            null,
+            replacementKey,
 
           metadata: {
             ...cloneValue(
@@ -5397,10 +6997,48 @@ function createCreatorMemory({
                 {}
             ),
 
+            semanticMemoryKey:
+              semanticKey,
+
             supersedesMemoryId:
               oldEntry.id,
           },
         });
+
+      if (
+        newEntry &&
+        semanticKey
+      ) {
+        const storedReplacement =
+          findById(
+            memoryState
+              .projectMemories,
+
+            newEntry.id
+          );
+
+        if (storedReplacement) {
+          storedReplacement.memoryKey =
+            semanticKey;
+
+          storedReplacement.metadata = {
+            ...(storedReplacement
+              .metadata ||
+              {}),
+
+            memoryKey:
+              semanticKey,
+
+            semanticMemoryKey:
+              semanticKey,
+          };
+
+          newEntry =
+            cloneValue(
+              storedReplacement
+            );
+        }
+      }
     } else {
       const replacementText =
         normaliseString(
@@ -5447,6 +7085,10 @@ function createCreatorMemory({
               oldEntry.memoryKey ||
               null,
 
+            projectId:
+              candidate.projectId ||
+              null,
+
             scope:
               candidate.scope ||
               MEMORY_SCOPES
@@ -5475,17 +7117,17 @@ function createCreatorMemory({
     }
 
     if (!newEntry) {
-      /**
-       * The supersession did not complete.
-       * Restore the old record rather than leaving truth stranded.
-       */
       oldEntry.lifecycleStatus =
-        MEMORY_STATUSES.ACTIVE;
+        oldLifecycleStatus;
 
-      delete oldEntry.supersededAt;
+      oldEntry.status =
+        oldDomainStatus;
 
-      delete oldEntry.metadata
-        ?.historicalReason;
+      oldEntry.metadata =
+        oldMetadata;
+
+      oldEntry.supersededAt =
+        oldSupersededAt;
 
       return null;
     }
@@ -5500,10 +7142,14 @@ function createCreatorMemory({
 
     return {
       superseded:
-        cloneValue(oldEntry),
+        cloneValue(
+          oldEntry
+        ),
 
       replacement:
-        cloneValue(newEntry),
+        cloneValue(
+          newEntry
+        ),
     };
   }
 
@@ -5526,17 +7172,16 @@ function createCreatorMemory({
       createTimestamp();
 
     record.entry.lifecycleStatus =
-      MEMORY_STATUSES.ARCHIVED;
+      MEMORY_STATUSES
+        .ARCHIVED;
 
-    /**
-     * Use a domain-native archived status only where one exists.
-     */
     if (
       record.collectionName ===
       "ideas"
     ) {
       record.entry.status =
-        IDEA_STATUSES.ARCHIVED;
+        IDEA_STATUSES
+          .ARCHIVED;
     }
 
     if (
@@ -5544,7 +7189,8 @@ function createCreatorMemory({
       "projectMemories"
     ) {
       record.entry.status =
-        MEMORY_STATUSES.ARCHIVED;
+        MEMORY_STATUSES
+          .ARCHIVED;
     }
 
     if (
@@ -5576,7 +7222,9 @@ function createCreatorMemory({
         {}),
 
       archiveReason:
-        normaliseString(reason),
+        normaliseString(
+          reason
+        ),
     };
 
     persist();
@@ -5601,18 +7249,28 @@ function createCreatorMemory({
       return null;
     }
 
+    if (
+      containsSensitiveSecret(
+        resolution
+      )
+    ) {
+      return null;
+    }
+
     const timestamp =
       createTimestamp();
 
     record.entry.lifecycleStatus =
-      MEMORY_STATUSES.RESOLVED;
+      MEMORY_STATUSES
+        .RESOLVED;
 
     if (
       record.collectionName ===
       "projectMemories"
     ) {
       record.entry.status =
-        MEMORY_STATUSES.RESOLVED;
+        MEMORY_STATUSES
+          .RESOLVED;
     }
 
     record.entry.resolvedAt =
@@ -5641,18 +7299,25 @@ function createCreatorMemory({
   /**
    * Permanently removes one unambiguously identified memory.
    *
-   * This method does not perform fuzzy matching.
-   * Interpretation belongs to CreatorMemoryEngine.
+   * Exact memory id is always preferred.
+   *
+   * A memory key is accepted only when it uniquely identifies one
+   * record across every persistent memory collection. Historical
+   * duplicates therefore cannot cause an accidental deletion.
    */
   function forgetMemory({
     memoryId = null,
     memoryKey = null,
   } = {}) {
     const cleanMemoryId =
-      normaliseString(memoryId);
+      normaliseString(
+        memoryId
+      );
 
     const cleanMemoryKey =
-      normaliseString(memoryKey);
+      normaliseString(
+        memoryKey
+      );
 
     if (
       !cleanMemoryId &&
@@ -5669,16 +7334,20 @@ function createCreatorMemory({
       };
     }
 
-    const record =
-      findMemoryRecord({
+    const records =
+      findMemoryRecords({
         memoryId:
           cleanMemoryId,
 
         memoryKey:
-          cleanMemoryKey,
+          cleanMemoryId
+            ? null
+            : cleanMemoryKey,
       });
 
-    if (!record) {
+    if (
+      records.length === 0
+    ) {
       return {
         forgotten: false,
 
@@ -5694,6 +7363,52 @@ function createCreatorMemory({
           null,
       };
     }
+
+    if (
+      !cleanMemoryId &&
+      records.length !== 1
+    ) {
+      return {
+        forgotten: false,
+
+        reason:
+          "ambiguous-memory-key",
+
+        memoryId: null,
+
+        memoryKey:
+          cleanMemoryKey,
+
+        matchCount:
+          records.length,
+
+        matches:
+          records.map(
+            (record) => ({
+              memoryId:
+                record.entry
+                  ?.id ||
+                null,
+
+              collection:
+                record.collectionName,
+
+              lifecycleStatus:
+                record.entry
+                  ?.lifecycleStatus ||
+                null,
+
+              status:
+                record.entry
+                  ?.status ||
+                null,
+            })
+          ),
+      };
+    }
+
+    const record =
+      records[0];
 
     const removed =
       record.collection.splice(
@@ -5732,21 +7447,31 @@ function createCreatorMemory({
   function updateJourney(
     updates = {}
   ) {
+    if (
+      containsSensitiveSecret(
+        updates
+      )
+    ) {
+      return cloneValue(
+        memoryState.journey
+      );
+    }
+
     memoryState.journey = {
       ...memoryState.journey,
 
-      ...cloneValue(updates),
+      ...cloneValue(
+        updates
+      ),
 
       lastSeenAt:
         createTimestamp(),
     };
 
-    return persist().journey;
+    return persist()
+      .journey;
   }
 
-  /**
-   * Legacy compact context retained for compatibility.
-   */
   function createEngineContext() {
     recalculateJourneyCounts();
 
@@ -5764,7 +7489,8 @@ function createCreatorMemory({
           PATTERN_STATUSES
             .CONFIRMED,
 
-        minimumConfidence: 0.65,
+        minimumConfidence:
+          0.65,
       })
         .filter(
           (pattern) =>
@@ -5773,12 +7499,17 @@ function createCreatorMemory({
               activeProjectId
             )
         )
-        .slice(0, 10)
+        .slice(
+          0,
+          10
+        )
         .map(
           (pattern) => ({
-            id: pattern.id,
+            id:
+              pattern.id,
 
-            name: pattern.name,
+            name:
+              pattern.name,
 
             description:
               pattern.description,
@@ -5833,9 +7564,10 @@ function createCreatorMemory({
       activeProject,
 
       hasSharedIdea:
-        memoryState.ideas.some(
-          isMemoryContextActive
-        ),
+        memoryState.ideas
+          .some(
+            isMemoryContextActive
+          ),
 
       creatorProfile:
         getCreatorProfile(),
@@ -5843,11 +7575,16 @@ function createCreatorMemory({
   }
 
   /**
-   * Creates the richer context expected by CreatorMemoryEngine,
-   * AdaptiveMentorEngine and future specialist agents.
+   * Creates rich context for CreatorMemoryEngine.
    *
-   * Project-scoped material is filtered before it reaches the
-   * Mentor pipeline.
+   * IMPORTANT v2.2 RULE:
+   *
+   * The explicit projectId supplied by the CURRENT caller is
+   * authoritative. The previously active persisted project is only
+   * a fallback when no current project id was supplied.
+   *
+   * This prevents Project A memory from leaking into Project B when
+   * a creator has just switched projects.
    */
   function getMemoryContext({
     projectId = null,
@@ -5863,12 +7600,47 @@ function createCreatorMemory({
     const creatorProfile =
       getCreatorProfile();
 
-    const activeProject =
+    const explicitProjectId =
+      normaliseString(
+        projectId
+      ) ||
+      null;
+
+    const persistedActiveProject =
       getActiveProject();
 
+    const persistedProjectId =
+      getProjectId(
+        persistedActiveProject
+      );
+
     const resolvedProjectId =
-      normaliseString(projectId) ||
-      getProjectId(activeProject);
+      explicitProjectId ||
+      persistedProjectId ||
+      null;
+
+    /**
+     * If the caller explicitly requested another project, return
+     * that project rather than the stale persisted active project.
+     */
+    const activeProject =
+      explicitProjectId
+        ? (
+            getProject(
+              explicitProjectId
+            ) ||
+            {
+              id:
+                explicitProjectId,
+
+              projectId:
+                explicitProjectId,
+
+              transientContext:
+                true,
+            }
+          )
+        : persistedActiveProject;
 
     const recentConversations =
       getRecentConversations(
@@ -5967,11 +7739,6 @@ function createCreatorMemory({
           )
         : null;
 
-    /**
-     * General memory intentionally excludes project memories.
-     * Project-bound ideas, milestones and deferred memory are
-     * filtered to the current project before entering context.
-     */
     const contextIdeas =
       getIdeas()
         .filter(
@@ -5981,7 +7748,10 @@ function createCreatorMemory({
               resolvedProjectId
             )
         )
-        .slice(0, 20);
+        .slice(
+          0,
+          20
+        );
 
     const existingMemories = [
       ...contextIdeas,
@@ -5992,6 +7762,13 @@ function createCreatorMemory({
     return {
       creatorProfile,
 
+      creatorId:
+        normaliseString(
+          creatorProfile?.id
+        ) ||
+        cleanCreatorId ||
+        null,
+
       journey:
         cloneValue(
           memoryState.journey
@@ -6001,6 +7778,17 @@ function createCreatorMemory({
 
       activeProjectId:
         resolvedProjectId,
+
+      requestedProjectId:
+        explicitProjectId,
+
+      persistedActiveProjectId:
+        persistedProjectId,
+
+      projectContextWasExplicit:
+        Boolean(
+          explicitProjectId
+        ),
 
       recentConversations,
 
@@ -6053,7 +7841,8 @@ function createCreatorMemory({
             .conversationCount,
 
         projects:
-          memoryState.projects
+          memoryState
+            .projects
             .length,
 
         ideas:
@@ -6062,7 +7851,8 @@ function createCreatorMemory({
             .savedIdeaCount,
 
         projectMemories:
-          projectMemories.length,
+          projectMemories
+            .length,
 
         allProjectMemories:
           memoryState
@@ -6104,9 +7894,6 @@ function createCreatorMemory({
    * ----------------------------------------------------------
    * Generic Memory Instruction Contract
    * ----------------------------------------------------------
-   *
-   * CreatorMemoryEngine decides which operation is appropriate.
-   * CreatorMemory executes it.
    */
 
   function applyMemoryInstruction(
@@ -6119,8 +7906,10 @@ function createCreatorMemory({
     ) {
       return {
         applied: false,
+
         reason:
           "invalid-instruction",
+
         result: null,
       };
     }
@@ -6128,14 +7917,14 @@ function createCreatorMemory({
     const action =
       normaliseString(
         instruction.action ||
-          instruction.type
+        instruction.type
       );
 
     const targetMethod =
       normaliseString(
         instruction.targetMethod ||
-          instruction
-            .preferredTargetMethod
+        instruction
+          .preferredTargetMethod
       );
 
     const payload =
@@ -6144,6 +7933,60 @@ function createCreatorMemory({
         "object"
         ? instruction.payload
         : instruction;
+
+    /**
+     * Persistence-level secret barrier.
+     */
+    if (
+      containsSensitiveSecret(
+        payload
+      )
+    ) {
+      return {
+        applied: false,
+
+        reason:
+          "sensitive-secret-blocked",
+
+        result: null,
+      };
+    }
+
+    /**
+     * Persistence-level scope validation.
+     */
+    const instructionScope =
+      normaliseString(
+        instruction.scope ||
+        payload?.scope
+      );
+
+    const instructionProjectId =
+      normaliseString(
+        instruction.projectId ||
+        payload?.projectId ||
+        payload?.metadata
+          ?.projectId
+      );
+
+    if (
+      instructionScope ===
+        MEMORY_SCOPES.PROJECT &&
+      !instructionProjectId &&
+      normaliseStringArray(
+        payload
+          ?.relatedProjectIds
+      ).length === 0
+    ) {
+      return {
+        applied: false,
+
+        reason:
+          "project-boundary-required",
+
+        result: null,
+      };
+    }
 
     const directMethods = {
       saveIdea,
@@ -6174,15 +8017,22 @@ function createCreatorMemory({
       const result =
         directMethods[
           targetMethod
-        ](payload);
+        ](
+          payload
+        );
 
       const applied =
         targetMethod ===
-        "forgetMemory"
+          "forgetMemory"
           ? Boolean(
               result?.forgotten
             )
-          : Boolean(result);
+          : targetMethod ===
+              "supersedeMemory" &&
+            result?.reason ===
+              "existing-truth-has-higher-authority"
+            ? false
+            : Boolean(result);
 
       return {
         applied,
@@ -6190,7 +8040,10 @@ function createCreatorMemory({
         reason:
           applied
             ? null
-            : `${targetMethod}-not-applied`,
+            : (
+                result?.reason ||
+                `${targetMethod}-not-applied`
+              ),
 
         result,
       };
@@ -6200,7 +8053,9 @@ function createCreatorMemory({
       case "save-idea":
       case "capture-idea": {
         const result =
-          saveIdea(payload);
+          saveIdea(
+            payload
+          );
 
         return {
           applied:
@@ -6221,7 +8076,9 @@ function createCreatorMemory({
       case "save-deferred-topic": {
         const result =
           saveDeferredMemory({
-            ...cloneValue(payload),
+            ...cloneValue(
+              payload
+            ),
 
             relatedProjectIds:
               payload
@@ -6254,7 +8111,9 @@ function createCreatorMemory({
       case "capture-observation":
       case "hold-for-more-evidence": {
         const result =
-          addObservation(payload);
+          addObservation(
+            payload
+          );
 
         return {
           applied:
@@ -6272,7 +8131,9 @@ function createCreatorMemory({
       case "save-pattern":
       case "capture-pattern": {
         const result =
-          savePattern(payload);
+          savePattern(
+            payload
+          );
 
         return {
           applied:
@@ -6290,7 +8151,9 @@ function createCreatorMemory({
       case "save-reflection":
       case "capture-reflection": {
         const result =
-          saveReflection(payload);
+          saveReflection(
+            payload
+          );
 
         return {
           applied:
@@ -6308,7 +8171,9 @@ function createCreatorMemory({
       case "save-milestone":
       case "capture-milestone": {
         const result =
-          addMilestone(payload);
+          addMilestone(
+            payload
+          );
 
         return {
           applied:
@@ -6351,8 +8216,14 @@ function createCreatorMemory({
           );
 
         return {
-          applied: true,
-          reason: null,
+          applied:
+            Boolean(result),
+
+          reason:
+            result
+              ? null
+              : "profile-update-not-applied",
+
           result,
         };
       }
@@ -6416,7 +8287,9 @@ function createCreatorMemory({
 
       case "weaken-memory": {
         const result =
-          weakenMemory(payload);
+          weakenMemory(
+            payload
+          );
 
         return {
           applied:
@@ -6437,14 +8310,23 @@ function createCreatorMemory({
             payload
           );
 
+        const protectedTruth =
+          result?.reason ===
+          "existing-truth-has-higher-authority";
+
         return {
           applied:
-            Boolean(result),
+            Boolean(
+              result &&
+              !protectedTruth
+            ),
 
           reason:
-            result
-              ? null
-              : "memory-not-superseded",
+            protectedTruth
+              ? result.reason
+              : result
+                ? null
+                : "memory-not-superseded",
 
           result,
         };
@@ -6453,7 +8335,9 @@ function createCreatorMemory({
       case "archive-as-history":
       case "archive-memory": {
         const result =
-          archiveMemory(payload);
+          archiveMemory(
+            payload
+          );
 
         return {
           applied:
@@ -6470,7 +8354,9 @@ function createCreatorMemory({
 
       case "resolve-thread": {
         const result =
-          resolveThread(payload);
+          resolveThread(
+            payload
+          );
 
         return {
           applied:
@@ -6487,19 +8373,25 @@ function createCreatorMemory({
 
       case "forget-memory": {
         const result =
-          forgetMemory(payload);
+          forgetMemory(
+            payload
+          );
 
         return {
           applied:
             Boolean(
-              result?.forgotten
+              result
+                ?.forgotten
             ),
 
           reason:
-            result?.forgotten
+            result
+              ?.forgotten
               ? null
-              : result?.reason ||
-                "memory-not-forgotten",
+              : (
+                  result?.reason ||
+                  "memory-not-forgotten"
+                ),
 
           result,
         };
@@ -6509,7 +8401,7 @@ function createCreatorMemory({
         const result =
           markDeferredMemoryReady(
             payload.memoryId ||
-              payload.id
+            payload.id
           );
 
         return {
@@ -6529,7 +8421,7 @@ function createCreatorMemory({
         const result =
           markDeferredMemoryRecalled(
             payload.memoryId ||
-              payload.id
+            payload.id
           );
 
         return {
@@ -6549,9 +8441,10 @@ function createCreatorMemory({
         const result =
           dismissDeferredMemory(
             payload.memoryId ||
-              payload.id,
+            payload.id,
 
-            payload.reason || ""
+            payload.reason ||
+            ""
           );
 
         return {
@@ -6595,19 +8488,54 @@ function createCreatorMemory({
   }
 
   /**
-   * Applies several memory instructions and reports exactly
-   * what persisted.
+   * Applies several memory instructions and reports exactly what
+   * persisted.
+   *
+   * v2.2 distinguishes:
+   *
+   * - empty
+   * - fully-successful
+   * - partially-successful
+   * - failed
+   * - no-op
    */
   function applyMemoryInstructions(
     instructions = []
   ) {
+    const safeInstructions =
+      normaliseArray(
+        instructions
+      );
+
     const applied = [];
     const skipped = [];
     const errors = [];
 
-    normaliseArray(
-      instructions
-    ).forEach(
+    if (
+      safeInstructions.length ===
+      0
+    ) {
+      return {
+        applied,
+        skipped,
+        errors,
+
+        attemptedCount: 0,
+        appliedCount: 0,
+        skippedCount: 0,
+        errorCount: 0,
+
+        successful: true,
+        fullySuccessful: true,
+        partiallySuccessful: false,
+        failed: false,
+        noOp: true,
+
+        status: "empty",
+      };
+    }
+
+    safeInstructions.forEach(
       (instruction) => {
         try {
           const result =
@@ -6638,6 +8566,11 @@ function createCreatorMemory({
                 result.reason ||
                 "not-applied",
 
+              result:
+                cloneValue(
+                  result.result
+                ),
+
               requiresMemoryAdapterResolution:
                 result.reason ===
                 "unsupported-memory-action",
@@ -6659,32 +8592,80 @@ function createCreatorMemory({
       }
     );
 
+    const attemptedCount =
+      safeInstructions.length;
+
+    const appliedCount =
+      applied.length;
+
+    const skippedCount =
+      skipped.length;
+
+    const errorCount =
+      errors.length;
+
+    const fullySuccessful =
+      attemptedCount > 0 &&
+      appliedCount ===
+        attemptedCount &&
+      skippedCount === 0 &&
+      errorCount === 0;
+
+    const partiallySuccessful =
+      appliedCount > 0 &&
+      !fullySuccessful;
+
+    const failed =
+      appliedCount === 0 &&
+      errorCount > 0;
+
+    const noOp =
+      appliedCount === 0 &&
+      errorCount === 0;
+
+    const successful =
+      fullySuccessful ||
+      partiallySuccessful;
+
+    let status =
+      "no-op";
+
+    if (fullySuccessful) {
+      status =
+        "fully-successful";
+    } else if (
+      partiallySuccessful
+    ) {
+      status =
+        "partially-successful";
+    } else if (failed) {
+      status =
+        "failed";
+    }
+
     return {
       applied,
       skipped,
       errors,
 
-      successful:
-        errors.length === 0 &&
-        applied.length > 0,
+      attemptedCount,
+      appliedCount,
+      skippedCount,
+      errorCount,
 
-      fullySuccessful:
-        errors.length === 0 &&
-        skipped.length === 0 &&
-        applied.length > 0,
+      successful,
+      fullySuccessful,
+      partiallySuccessful,
+      failed,
+      noOp,
 
-      partiallySuccessful:
-        applied.length > 0 &&
-        (
-          skipped.length > 0 ||
-          errors.length > 0
-        ),
+      status,
     };
   }
 
   /**
    * ----------------------------------------------------------
-   * Portable memory
+   * Portable Memory
    * ----------------------------------------------------------
    */
 
@@ -6704,7 +8685,9 @@ function createCreatorMemory({
     };
   }
 
-  function importMemory(value) {
+  function importMemory(
+    value
+  ) {
     const importedState =
       value?.memory ||
       value;
@@ -6713,6 +8696,14 @@ function createCreatorMemory({
       !importedState ||
       typeof importedState !==
         "object"
+    ) {
+      return null;
+    }
+
+    if (
+      containsSensitiveSecret(
+        importedState
+      )
     ) {
       return null;
     }
@@ -6819,6 +8810,8 @@ export {
   MEMORY_HORIZONS,
   MEMORY_SOURCES,
   MEMORY_CERTAINTY,
+
+  MEMORY_AUTHORITY,
 
   DEFERRED_MEMORY_STATUSES,
   SESSION_HANDOFF_STATUSES,
