@@ -21,7 +21,29 @@
  * - Provide safe context to the Adaptive Mentor pipeline.
  * - Apply approved memory instructions from CreatorMemoryEngine.
  *
- * Version 2.2 hardens the live persistence contract:
+ * Version 2.3 hardens truth authority and execution reporting:
+ *
+ * - Missing certainty is inferred safely from provenance so a
+ *   creator-originated correction is not accidentally treated as
+ *   lower authority simply because an upstream planner omitted
+ *   its certainty field.
+ * - Creator-originated memory defaults to explicit certainty.
+ * - Confirmed project-state and system memory can carry confirmed
+ *   certainty when no stronger explicit value was supplied.
+ * - Specialist-agent and Mentor observations default to observed
+ *   certainty rather than masquerading as creator truth.
+ * - Direct project-memory updates may not silently overwrite
+ *   stronger established truth.
+ * - Reinforcement requires semantic truth equivalence before it
+ *   can increase confidence or reinforcement counts.
+ * - Conflicting reinforcement is recorded as evidence instead of
+ *   being mistaken for confirmation.
+ * - Batch instruction execution now distinguishes an intentional
+ *   no-op from instructions that were attempted but refused.
+ * - Rejected security, scope, authority and persistence operations
+ *   report "not-applied" rather than "no-op".
+ *
+ * Version 2.2 introduced:
  *
  * - Explicit current project identity outranks previously active
  *   persistent project state.
@@ -58,9 +80,11 @@
  * - Forget requests must be explicit and unambiguous.
  * - Never fabricate successful memory persistence.
  * - Never persist raw credentials as creative memory.
+ * - Reinforcement must represent agreement, not contradiction.
+ * - Persistence is the final authority boundary, not a passive store.
  */
 
-const CREATOR_MEMORY_VERSION = "2.2.0";
+const CREATOR_MEMORY_VERSION = "2.3.0";
 
 const DEFAULT_STORAGE_KEY =
   "iband.creator-memory";
@@ -625,29 +649,132 @@ function containsSensitiveSecret(
  * ------------------------------------------------------------
  */
 
-function createMemoryProvenance({
+/**
+ * Infers a safe certainty value when an upstream engine supplies
+ * provenance source but omits certainty.
+ *
+ * The inference is deliberately conservative:
+ *
+ * - Creator → explicit
+ * - Project state → confirmed
+ * - System → confirmed
+ * - Specialist agent → observed
+ * - Mentor → observed
+ * - Inferred → inferred
+ * - Imported / unknown → unknown
+ *
+ * Explicitly supplied certainty always wins.
+ */
+function inferMemoryCertainty({
+  source =
+    MEMORY_SOURCES.UNKNOWN,
+
+  certainty = null,
+} = {}) {
+  const resolvedSource =
+    normaliseEnumValue(
+      source,
+      MEMORY_SOURCES,
+      MEMORY_SOURCES.UNKNOWN
+    );
+
+  const suppliedCertainty =
+    normaliseEnumValue(
+      certainty,
+      MEMORY_CERTAINTY,
+      null
+    );
+
+  if (
+    suppliedCertainty &&
+    suppliedCertainty !==
+      MEMORY_CERTAINTY.UNKNOWN
+  ) {
+    return suppliedCertainty;
+  }
+
+  switch (resolvedSource) {
+    case MEMORY_SOURCES.CREATOR:
+      return (
+        MEMORY_CERTAINTY
+          .EXPLICIT
+      );
+
+    case MEMORY_SOURCES
+      .PROJECT_STATE:
+      return (
+        MEMORY_CERTAINTY
+          .CONFIRMED
+      );
+
+    case MEMORY_SOURCES.SYSTEM:
+      return (
+        MEMORY_CERTAINTY
+          .CONFIRMED
+      );
+
+    case MEMORY_SOURCES
+      .SPECIALIST_AGENT:
+      return (
+        MEMORY_CERTAINTY
+          .OBSERVED
+      );
+
+    case MEMORY_SOURCES.MENTOR:
+      return (
+        MEMORY_CERTAINTY
+          .OBSERVED
+      );
+
+    case MEMORY_SOURCES.INFERRED:
+      return (
+        MEMORY_CERTAINTY
+          .INFERRED
+      );
+
+    case MEMORY_SOURCES.IMPORTED:
+    case MEMORY_SOURCES.UNKNOWN:
+    default:
+      return (
+        suppliedCertainty ||
+        MEMORY_CERTAINTY
+          .UNKNOWN
+      );
+  }
+}
+
+/**
+ * Resolves one complete provenance record.
+ */
+function resolveMemoryProvenance({
   source =
     MEMORY_SOURCES.CREATOR,
 
-  certainty =
-    MEMORY_CERTAINTY.EXPLICIT,
+  certainty = null,
 
   confidence = 1,
 } = {}) {
+  const resolvedSource =
+    normaliseEnumValue(
+      source,
+      MEMORY_SOURCES,
+      MEMORY_SOURCES.UNKNOWN
+    );
+
+  const resolvedCertainty =
+    inferMemoryCertainty({
+      source:
+        resolvedSource,
+
+      certainty,
+    });
+
   return {
     source:
-      normaliseEnumValue(
-        source,
-        MEMORY_SOURCES,
-        MEMORY_SOURCES.UNKNOWN
-      ),
+      resolvedSource,
 
     certainty:
-      normaliseEnumValue(
-        certainty,
-        MEMORY_CERTAINTY,
-        MEMORY_CERTAINTY.UNKNOWN
-      ),
+      resolvedCertainty,
 
     confidence:
       normaliseConfidence(
@@ -657,14 +784,45 @@ function createMemoryProvenance({
   };
 }
 
+function createMemoryProvenance({
+  source =
+    MEMORY_SOURCES.CREATOR,
+
+  certainty =
+    MEMORY_CERTAINTY.EXPLICIT,
+
+  confidence = 1,
+} = {}) {
+  return (
+    resolveMemoryProvenance({
+      source,
+      certainty,
+      confidence,
+    })
+  );
+}
+
 function getMemoryAuthority({
   source,
   certainty,
 } = {}) {
+  const provenance =
+    resolveMemoryProvenance({
+      source:
+        source ||
+        MEMORY_SOURCES.UNKNOWN,
+
+      certainty:
+        certainty ||
+        null,
+
+      confidence: 1,
+    });
+
   if (
-    source ===
+    provenance.source ===
       MEMORY_SOURCES.CREATOR &&
-    certainty ===
+    provenance.certainty ===
       MEMORY_CERTAINTY.CONFIRMED
   ) {
     return (
@@ -674,9 +832,9 @@ function getMemoryAuthority({
   }
 
   if (
-    source ===
+    provenance.source ===
       MEMORY_SOURCES.CREATOR &&
-    certainty ===
+    provenance.certainty ===
       MEMORY_CERTAINTY.EXPLICIT
   ) {
     return (
@@ -686,9 +844,9 @@ function getMemoryAuthority({
   }
 
   if (
-    source ===
+    provenance.source ===
       MEMORY_SOURCES.PROJECT_STATE &&
-    certainty ===
+    provenance.certainty ===
       MEMORY_CERTAINTY.CONFIRMED
   ) {
     return (
@@ -698,9 +856,9 @@ function getMemoryAuthority({
   }
 
   if (
-    source ===
+    provenance.source ===
       MEMORY_SOURCES.SYSTEM &&
-    certainty ===
+    provenance.certainty ===
       MEMORY_CERTAINTY.CONFIRMED
   ) {
     return (
@@ -710,7 +868,7 @@ function getMemoryAuthority({
   }
 
   if (
-    source ===
+    provenance.source ===
     MEMORY_SOURCES.CREATOR
   ) {
     return (
@@ -720,7 +878,7 @@ function getMemoryAuthority({
   }
 
   if (
-    source ===
+    provenance.source ===
     MEMORY_SOURCES.IMPORTED
   ) {
     return (
@@ -729,7 +887,7 @@ function getMemoryAuthority({
   }
 
   if (
-    source ===
+    provenance.source ===
     MEMORY_SOURCES
       .SPECIALIST_AGENT
   ) {
@@ -740,7 +898,7 @@ function getMemoryAuthority({
   }
 
   if (
-    source ===
+    provenance.source ===
     MEMORY_SOURCES.MENTOR
   ) {
     return (
@@ -750,7 +908,7 @@ function getMemoryAuthority({
   }
 
   if (
-    source ===
+    provenance.source ===
     MEMORY_SOURCES.INFERRED
   ) {
     return (
@@ -805,6 +963,110 @@ function shouldProtectExistingTruth({
   return (
     incomingAuthority <
     existingAuthority
+  );
+}
+
+/**
+ * Returns the most meaningful truth-bearing value available.
+ */
+function getTruthValue(
+  entry
+) {
+  if (
+    !entry ||
+    typeof entry !==
+      "object"
+  ) {
+    return null;
+  }
+
+  if (
+    entry.value !==
+    undefined &&
+    entry.value !==
+    null
+  ) {
+    return entry.value;
+  }
+
+  if (
+    normaliseString(
+      entry.content
+    )
+  ) {
+    return entry.content;
+  }
+
+  if (
+    normaliseString(
+      entry.text
+    )
+  ) {
+    return entry.text;
+  }
+
+  if (
+    normaliseString(
+      entry.description
+    )
+  ) {
+    return entry.description;
+  }
+
+  return null;
+}
+
+/**
+ * Determines whether an incoming candidate actually agrees with
+ * the existing stored truth.
+ *
+ * Empty candidate truth is treated as neutral rather than as a
+ * contradiction so metadata-only reinforcement remains possible.
+ */
+function candidateTruthMatchesEntry({
+  entry,
+  candidate,
+}) {
+  if (
+    !entry ||
+    !candidate
+  ) {
+    return true;
+  }
+
+  const existingTruth =
+    getTruthValue(
+      entry
+    );
+
+  const incomingTruth =
+    getTruthValue(
+      candidate
+    );
+
+  if (
+    incomingTruth === null ||
+    incomingTruth === undefined ||
+    memoryValueToText(
+      incomingTruth
+    ) === ""
+  ) {
+    return true;
+  }
+
+  if (
+    existingTruth === null ||
+    existingTruth === undefined ||
+    memoryValueToText(
+      existingTruth
+    ) === ""
+  ) {
+    return true;
+  }
+
+  return valuesEquivalent(
+    existingTruth,
+    incomingTruth
   );
 }
 
@@ -1622,6 +1884,7 @@ function createCreatorMemory({
         ).map(
           (record) => ({
             ...record,
+
             updatedAt:
               record.entry
                 ?.updatedAt,
@@ -2002,10 +2265,6 @@ function createCreatorMemory({
       return null;
     }
 
-    /**
-     * Temporary session intelligence must not become permanent
-     * profile state.
-     */
     if (
       isTemporaryProfileUpdate(
         updates
@@ -3106,10 +3365,6 @@ function createCreatorMemory({
       return null;
     }
 
-    /**
-     * Project memory may never be persisted outside a real
-     * project boundary.
-     */
     if (
       !hasValidProjectBoundary({
         scope:
@@ -3120,6 +3375,20 @@ function createCreatorMemory({
     ) {
       return null;
     }
+
+    const provenance =
+      resolveMemoryProvenance({
+        source:
+          candidate.source ||
+          MEMORY_SOURCES.UNKNOWN,
+
+        certainty:
+          candidate.certainty,
+
+        confidence:
+          candidate.confidence ??
+          0.5,
+      });
 
     const memoryKey =
       normaliseString(
@@ -3158,20 +3427,10 @@ function createCreatorMemory({
 
         const incoming = {
           source:
-            normaliseEnumValue(
-              candidate.source,
-              MEMORY_SOURCES,
-              MEMORY_SOURCES
-                .UNKNOWN
-            ),
+            provenance.source,
 
           certainty:
-            normaliseEnumValue(
-              candidate.certainty,
-              MEMORY_CERTAINTY,
-              MEMORY_CERTAINTY
-                .UNKNOWN
-            ),
+            provenance.certainty,
 
           value:
             candidate.value,
@@ -3180,10 +3439,9 @@ function createCreatorMemory({
         };
 
         const existingValue =
-          existing.value !==
-          undefined
-            ? existing.value
-            : existing.content;
+          getTruthValue(
+            existing
+          );
 
         const incomingValue =
           candidate.value !==
@@ -3204,10 +3462,6 @@ function createCreatorMemory({
             incoming,
           });
 
-        /**
-         * A weaker signal can contribute evidence but may not
-         * replace stronger project truth.
-         */
         if (protectsTruth) {
           existing.evidence =
             normaliseStringArray([
@@ -3245,16 +3499,13 @@ function createCreatorMemory({
                   ),
 
                 source:
-                  incoming.source,
+                  provenance.source,
 
                 certainty:
-                  incoming.certainty,
+                  provenance.certainty,
 
                 confidence:
-                  normaliseConfidence(
-                    candidate.confidence,
-                    0.5
-                  ),
+                  provenance.confidence,
 
                 observedAt:
                   timestamp,
@@ -3276,9 +3527,11 @@ function createCreatorMemory({
         }
 
         /**
-         * saveProjectMemory is reinforcement, not silent
-         * supersession. A genuine changed truth should travel
-         * through supersedeMemory so historical truth survives.
+         * saveProjectMemory performs reinforcement, not historical
+         * supersession.
+         *
+         * Even an equal or stronger incoming source must travel
+         * through supersedeMemory when its truth differs.
          */
         if (!sameTruth) {
           existing.evidence =
@@ -3311,10 +3564,13 @@ function createCreatorMemory({
                 ),
 
               source:
-                incoming.source,
+                provenance.source,
 
               certainty:
-                incoming.certainty,
+                provenance.certainty,
+
+              confidence:
+                provenance.confidence,
 
               detectedAt:
                 timestamp,
@@ -3357,10 +3613,7 @@ function createCreatorMemory({
               0
             ),
 
-            normaliseConfidence(
-              candidate.confidence,
-              0
-            )
+            provenance.confidence
           );
 
         existing.evidence =
@@ -3499,10 +3752,7 @@ function createCreatorMemory({
         MEMORY_STATUSES.ACTIVE,
 
       confidence:
-        normaliseConfidence(
-          candidate.confidence,
-          0.5
-        ),
+        provenance.confidence,
 
       evidence:
         normaliseStringArray(
@@ -3510,18 +3760,10 @@ function createCreatorMemory({
         ),
 
       source:
-        normaliseEnumValue(
-          candidate.source,
-          MEMORY_SOURCES,
-          MEMORY_SOURCES.UNKNOWN
-        ),
+        provenance.source,
 
       certainty:
-        normaliseEnumValue(
-          candidate.certainty,
-          MEMORY_CERTAINTY,
-          MEMORY_CERTAINTY.UNKNOWN
-        ),
+        provenance.certainty,
 
       creatorId:
         normaliseString(
@@ -3722,6 +3964,15 @@ function createCreatorMemory({
     );
   }
 
+  /**
+   * Direct project-memory updates may patch metadata and maturity,
+   * but they may not use weaker provenance to overwrite stronger
+   * established truth.
+   *
+   * When a truth-bearing update conflicts with stronger memory,
+   * the attempted update is retained as evidence and the update
+   * itself is refused.
+   */
   function updateProjectMemory(
     memoryId,
     updates = {}
@@ -3739,10 +3990,166 @@ function createCreatorMemory({
     }
 
     if (
+      !updates ||
+      typeof updates !==
+        "object" ||
       containsSensitiveSecret(
         updates
       )
     ) {
+      return null;
+    }
+
+    const sourceWasProvided =
+      Object.prototype
+        .hasOwnProperty.call(
+          updates,
+          "source"
+        );
+
+    const certaintyWasProvided =
+      Object.prototype
+        .hasOwnProperty.call(
+          updates,
+          "certainty"
+        );
+
+    const contentWasProvided =
+      Object.prototype
+        .hasOwnProperty.call(
+          updates,
+          "content"
+        );
+
+    const valueWasProvided =
+      Object.prototype
+        .hasOwnProperty.call(
+          updates,
+          "value"
+        );
+
+    const truthWasProvided =
+      contentWasProvided ||
+      valueWasProvided;
+
+    const incomingProvenance =
+      resolveMemoryProvenance({
+        source:
+          sourceWasProvided
+            ? updates.source
+            : memory.source,
+
+        certainty:
+          certaintyWasProvided
+            ? updates.certainty
+            : memory.certainty,
+
+        confidence:
+          updates.confidence ??
+          memory.confidence ??
+          0.5,
+      });
+
+    const existingTruth =
+      getTruthValue(
+        memory
+      );
+
+    const incomingTruth =
+      valueWasProvided
+        ? updates.value
+        : contentWasProvided
+          ? updates.content
+          : existingTruth;
+
+    const truthChanges =
+      truthWasProvided &&
+      memoryValueToText(
+        incomingTruth
+      ) !== "" &&
+      memoryValueToText(
+        existingTruth
+      ) !== "" &&
+      !valuesEquivalent(
+        existingTruth,
+        incomingTruth
+      );
+
+    if (
+      truthChanges &&
+      shouldProtectExistingTruth({
+        existing:
+          memory,
+
+        incoming: {
+          source:
+            incomingProvenance
+              .source,
+
+          certainty:
+            incomingProvenance
+              .certainty,
+        },
+      })
+    ) {
+      const timestamp =
+        createTimestamp();
+
+      memory.evidence =
+        normaliseStringArray([
+          ...normaliseArray(
+            memory.evidence
+          ),
+
+          ...normaliseArray(
+            updates.evidence
+          ),
+        ]);
+
+      memory.metadata = {
+        ...(memory.metadata ||
+          {}),
+
+        rejectedDirectUpdate: {
+          content:
+            contentWasProvided
+              ? normaliseString(
+                  updates.content
+                )
+              : null,
+
+          value:
+            valueWasProvided
+              ? cloneValue(
+                  updates.value
+                )
+              : null,
+
+          source:
+            incomingProvenance
+              .source,
+
+          certainty:
+            incomingProvenance
+              .certainty,
+
+          confidence:
+            incomingProvenance
+              .confidence,
+
+          rejectedAt:
+            timestamp,
+
+          reason:
+            "Incoming project-memory update had lower authority than existing truth.",
+        },
+      };
+
+      memory.updatedAt =
+        timestamp;
+
+      persist();
+
       return null;
     }
 
@@ -3755,6 +4162,25 @@ function createCreatorMemory({
     delete safeUpdates.type;
     delete safeUpdates.projectId;
     delete safeUpdates.createdAt;
+
+    /**
+     * Normalise provenance rather than allowing raw source and
+     * certainty values to enter persistence.
+     */
+    if (sourceWasProvided) {
+      safeUpdates.source =
+        incomingProvenance
+          .source;
+    }
+
+    if (
+      sourceWasProvided ||
+      certaintyWasProvided
+    ) {
+      safeUpdates.certainty =
+        incomingProvenance
+          .certainty;
+    }
 
     Object.assign(
       memory,
@@ -3859,15 +4285,27 @@ function createCreatorMemory({
         candidate.projectId
       );
 
-    /**
-     * Handoffs without projects are ambiguous and are refused.
-     */
     if (!projectId) {
       return null;
     }
 
     const timestamp =
       createTimestamp();
+
+    const provenance =
+      resolveMemoryProvenance({
+        source:
+          candidate.source ||
+          MEMORY_SOURCES
+            .PROJECT_STATE,
+
+        certainty:
+          candidate.certainty,
+
+        confidence:
+          candidate.confidence ??
+          0.96,
+      });
 
     memoryState
       .sessionHandoffs
@@ -3970,10 +4408,7 @@ function createCreatorMemory({
         MEMORY_STATUSES.ACTIVE,
 
       confidence:
-        normaliseConfidence(
-          candidate.confidence,
-          0.96
-        ),
+        provenance.confidence,
 
       evidence:
         normaliseStringArray(
@@ -3981,20 +4416,10 @@ function createCreatorMemory({
         ),
 
       source:
-        normaliseEnumValue(
-          candidate.source,
-          MEMORY_SOURCES,
-          MEMORY_SOURCES
-            .PROJECT_STATE
-        ),
+        provenance.source,
 
       certainty:
-        normaliseEnumValue(
-          candidate.certainty,
-          MEMORY_CERTAINTY,
-          MEMORY_CERTAINTY
-            .CONFIRMED
-        ),
+        provenance.certainty,
 
       creatorId:
         normaliseString(
@@ -4413,6 +4838,13 @@ function createCreatorMemory({
       return null;
     }
 
+    const provenance =
+      resolveMemoryProvenance({
+        source,
+        certainty,
+        confidence,
+      });
+
     const resolvedMemoryKey =
       normaliseString(
         memoryKey
@@ -4503,10 +4935,7 @@ function createCreatorMemory({
               0
             ),
 
-            normaliseConfidence(
-              confidence,
-              0
-            )
+            provenance.confidence
           );
 
         existing.importance =
@@ -4598,9 +5027,7 @@ function createCreatorMemory({
         ),
 
       confidence:
-        normaliseConfidence(
-          confidence
-        ),
+        provenance.confidence,
 
       importance:
         normaliseEnumValue(
@@ -4619,19 +5046,10 @@ function createCreatorMemory({
         ),
 
       source:
-        normaliseEnumValue(
-          source,
-          MEMORY_SOURCES,
-          MEMORY_SOURCES.UNKNOWN
-        ),
+        provenance.source,
 
       certainty:
-        normaliseEnumValue(
-          certainty,
-          MEMORY_CERTAINTY,
-          MEMORY_CERTAINTY
-            .UNKNOWN
-        ),
+        provenance.certainty,
 
       scope:
         resolvedScope,
@@ -4946,6 +5364,13 @@ function createCreatorMemory({
       return null;
     }
 
+    const provenance =
+      resolveMemoryProvenance({
+        source,
+        certainty,
+        confidence,
+      });
+
     const resolvedMemoryKey =
       normaliseString(
         memoryKey
@@ -5041,10 +5466,7 @@ function createCreatorMemory({
               0
             ),
 
-            normaliseConfidence(
-              confidence,
-              0
-            )
+            provenance.confidence
           );
 
         existing
@@ -5132,9 +5554,7 @@ function createCreatorMemory({
         ),
 
       confidence:
-        normaliseConfidence(
-          confidence
-        ),
+        provenance.confidence,
 
       status:
         normaliseEnumValue(
@@ -5145,19 +5565,10 @@ function createCreatorMemory({
         ),
 
       source:
-        normaliseEnumValue(
-          source,
-          MEMORY_SOURCES,
-          MEMORY_SOURCES.UNKNOWN
-        ),
+        provenance.source,
 
       certainty:
-        normaliseEnumValue(
-          certainty,
-          MEMORY_CERTAINTY,
-          MEMORY_CERTAINTY
-            .UNKNOWN
-        ),
+        provenance.certainty,
 
       scope:
         resolvedScope,
@@ -5317,6 +5728,13 @@ function createCreatorMemory({
       return null;
     }
 
+    const provenance =
+      resolveMemoryProvenance({
+        source,
+        certainty,
+        confidence,
+      });
+
     const cleanRelatedProjectIds =
       normaliseStringArray(
         relatedProjectIds
@@ -5466,10 +5884,7 @@ function createCreatorMemory({
               0
             ),
 
-            normaliseConfidence(
-              confidence,
-              0
-            )
+            provenance.confidence
           );
 
         existing
@@ -5547,11 +5962,14 @@ function createCreatorMemory({
         DEFERRED_MEMORY_STATUSES
           .WAITING,
 
-      ...createMemoryProvenance({
-        source,
-        certainty,
-        confidence,
-      }),
+      source:
+        provenance.source,
+
+      certainty:
+        provenance.certainty,
+
+      confidence:
+        provenance.confidence,
 
       importance:
         normaliseEnumValue(
@@ -6511,6 +6929,13 @@ function createCreatorMemory({
    * ----------------------------------------------------------
    */
 
+  /**
+   * Reinforcement means the new evidence agrees with the stored
+   * truth.
+   *
+   * A conflicting candidate may be useful evidence, but it may not
+   * increase confidence or reinforcement count.
+   */
   function reinforceMemory({
     existingMemory = null,
     candidate = null,
@@ -6558,11 +6983,122 @@ function createCreatorMemory({
       return null;
     }
 
-    const timestamp =
-      createTimestamp();
-
     const entry =
       record.entry;
+
+    /**
+     * Defensive truth-equivalence gate.
+     *
+     * CreatorMemoryEngine should already classify reinforcement,
+     * but persistence must not trust that classification blindly.
+     */
+    if (
+      candidate &&
+      !candidateTruthMatchesEntry({
+        entry,
+        candidate,
+      })
+    ) {
+      const timestamp =
+        createTimestamp();
+
+      const incomingProvenance =
+        resolveMemoryProvenance({
+          source:
+            candidate.source ||
+            MEMORY_SOURCES.UNKNOWN,
+
+          certainty:
+            candidate.certainty,
+
+          confidence:
+            candidate.confidence ??
+            0.5,
+        });
+
+      const lowerAuthority =
+        shouldProtectExistingTruth({
+          existing:
+            entry,
+
+          incoming: {
+            source:
+              incomingProvenance
+                .source,
+
+            certainty:
+              incomingProvenance
+                .certainty,
+          },
+        });
+
+      entry.evidence =
+        normaliseStringArray([
+          ...normaliseArray(
+            entry.evidence
+          ),
+
+          ...normaliseArray(
+            candidate.evidence
+          ),
+        ]);
+
+      entry.metadata = {
+        ...(entry.metadata || {}),
+
+        conflictingReinforcement: {
+          candidateId:
+            candidate.id ||
+            null,
+
+          content:
+            normaliseString(
+              candidate.content
+            ) ||
+            null,
+
+          value:
+            cloneValue(
+              candidate.value
+            ),
+
+          source:
+            incomingProvenance
+              .source,
+
+          certainty:
+            incomingProvenance
+              .certainty,
+
+          confidence:
+            incomingProvenance
+              .confidence,
+
+          detectedAt:
+            timestamp,
+
+          lowerAuthority,
+
+          requiresSupersession:
+            !lowerAuthority,
+
+          reason:
+            lowerAuthority
+              ? "Conflicting lower-authority evidence cannot reinforce stronger truth."
+              : "Conflicting truth cannot be treated as reinforcement and requires supersession analysis.",
+        },
+      };
+
+      entry.updatedAt =
+        timestamp;
+
+      persist();
+
+      return null;
+    }
+
+    const timestamp =
+      createTimestamp();
 
     entry.reinforcementCount =
       normaliseCount(
@@ -6784,15 +7320,50 @@ function createCreatorMemory({
       record.entry;
 
     /**
-     * A weaker source is not allowed to supersede stronger truth.
+     * Resolve inferred provenance before comparing authority.
+     *
+     * This is important for creator corrections supplied by
+     * CreatorMemoryEngine without an explicit certainty field.
      */
+    const resolvedCandidateProvenance =
+      resolveMemoryProvenance({
+        source:
+          candidate.source ||
+          MEMORY_SOURCES.UNKNOWN,
+
+        certainty:
+          candidate.certainty,
+
+        confidence:
+          candidate.confidence ??
+          0.5,
+      });
+
+    const resolvedCandidate = {
+      ...cloneValue(
+        candidate
+      ),
+
+      source:
+        resolvedCandidateProvenance
+          .source,
+
+      certainty:
+        resolvedCandidateProvenance
+          .certainty,
+
+      confidence:
+        resolvedCandidateProvenance
+          .confidence,
+    };
+
     if (
       shouldProtectExistingTruth({
         existing:
           oldEntry,
 
         incoming:
-          candidate,
+          resolvedCandidate,
       })
     ) {
       oldEntry.evidence =
@@ -6802,7 +7373,8 @@ function createCreatorMemory({
           ),
 
           ...normaliseArray(
-            candidate.evidence
+            resolvedCandidate
+              .evidence
           ),
         ]);
 
@@ -6812,15 +7384,17 @@ function createCreatorMemory({
 
         rejectedSupersession: {
           candidateId:
-            candidate.id ||
+            resolvedCandidate.id ||
             null,
 
           source:
-            candidate.source ||
+            resolvedCandidate
+              .source ||
             null,
 
           certainty:
-            candidate.certainty ||
+            resolvedCandidate
+              .certainty ||
             null,
 
           rejectedAt:
@@ -6910,14 +7484,15 @@ function createCreatorMemory({
     if (
       record.collectionName ===
         "projectMemories" ||
-      candidate.scope ===
+      resolvedCandidate.scope ===
         MEMORY_SCOPES
           .PROJECT ||
-      candidate.projectId
+      resolvedCandidate.projectId
     ) {
       const replacementProjectId =
         normaliseString(
-          candidate.projectId
+          resolvedCandidate
+            .projectId
         ) ||
         getEntryProjectId(
           oldEntry
@@ -6950,13 +7525,9 @@ function createCreatorMemory({
         return null;
       }
 
-      /**
-       * Create the replacement under a distinct transitional key
-       * so saveProjectMemory does not interpret the historical
-       * entry as reinforcement.
-       */
       const semanticKey =
-        candidate.memoryKey ||
+        resolvedCandidate
+          .memoryKey ||
         oldEntry.memoryKey ||
         null;
 
@@ -6972,7 +7543,7 @@ function createCreatorMemory({
       newEntry =
         saveProjectMemory({
           ...cloneValue(
-            candidate
+            resolvedCandidate
           ),
 
           projectId:
@@ -6980,7 +7551,8 @@ function createCreatorMemory({
 
           status:
             normaliseConfidence(
-              candidate.confidence,
+              resolvedCandidate
+                .confidence,
               0
             ) >= 0.86
               ? MEMORY_STATUSES
@@ -6993,7 +7565,8 @@ function createCreatorMemory({
 
           metadata: {
             ...cloneValue(
-              candidate.metadata ||
+              resolvedCandidate
+                .metadata ||
                 {}
             ),
 
@@ -7042,10 +7615,12 @@ function createCreatorMemory({
     } else {
       const replacementText =
         normaliseString(
-          candidate.content
+          resolvedCandidate
+            .content
         ) ||
         memoryValueToText(
-          candidate.value
+          resolvedCandidate
+            .value
         );
 
       if (replacementText) {
@@ -7055,15 +7630,18 @@ function createCreatorMemory({
               replacementText,
 
             category:
-              candidate.category ||
+              resolvedCandidate
+                .category ||
               "general",
 
             evidence:
-              candidate.evidence ||
+              resolvedCandidate
+                .evidence ||
               [],
 
             confidence:
-              candidate.confidence ??
+              resolvedCandidate
+                .confidence ??
               0.7,
 
             status:
@@ -7071,32 +7649,36 @@ function createCreatorMemory({
                 .EMERGING,
 
             source:
-              candidate.source ||
+              resolvedCandidate
+                .source ||
               MEMORY_SOURCES
                 .CREATOR,
 
             certainty:
-              candidate.certainty ||
-              MEMORY_CERTAINTY
-                .OBSERVED,
+              resolvedCandidate
+                .certainty,
 
             memoryKey:
-              candidate.memoryKey ||
+              resolvedCandidate
+                .memoryKey ||
               oldEntry.memoryKey ||
               null,
 
             projectId:
-              candidate.projectId ||
+              resolvedCandidate
+                .projectId ||
               null,
 
             scope:
-              candidate.scope ||
+              resolvedCandidate
+                .scope ||
               MEMORY_SCOPES
                 .CREATOR,
 
             metadata: {
               ...cloneValue(
-                candidate.metadata ||
+                resolvedCandidate
+                  .metadata ||
                   {}
               ),
 
@@ -7104,12 +7686,14 @@ function createCreatorMemory({
                 oldEntry.id,
 
               horizon:
-                candidate.horizon ||
+                resolvedCandidate
+                  .horizon ||
                 null,
 
               value:
                 cloneValue(
-                  candidate.value
+                  resolvedCandidate
+                    .value
                 ),
             },
           });
@@ -7577,7 +8161,7 @@ function createCreatorMemory({
   /**
    * Creates rich context for CreatorMemoryEngine.
    *
-   * IMPORTANT v2.2 RULE:
+   * IMPORTANT:
    *
    * The explicit projectId supplied by the CURRENT caller is
    * authoritative. The previously active persisted project is only
@@ -7619,10 +8203,6 @@ function createCreatorMemory({
       persistedProjectId ||
       null;
 
-    /**
-     * If the caller explicitly requested another project, return
-     * that project rather than the stale persisted active project.
-     */
     const activeProject =
       explicitProjectId
         ? (
@@ -7934,9 +8514,6 @@ function createCreatorMemory({
         ? instruction.payload
         : instruction;
 
-    /**
-     * Persistence-level secret barrier.
-     */
     if (
       containsSensitiveSecret(
         payload
@@ -7952,9 +8529,6 @@ function createCreatorMemory({
       };
     }
 
-    /**
-     * Persistence-level scope validation.
-     */
     const instructionScope =
       normaliseString(
         instruction.scope ||
@@ -8279,7 +8853,7 @@ function createCreatorMemory({
           reason:
             result
               ? null
-              : "memory-not-found",
+              : "memory-not-reinforced",
 
           result,
         };
@@ -8488,16 +9062,39 @@ function createCreatorMemory({
   }
 
   /**
+   * Returns whether a skipped result represents a deliberate no-op
+   * rather than an attempted persistence action that was refused.
+   */
+  function isIntentionalNoOpReason(
+    reason
+  ) {
+    return [
+      "instruction-intentionally-ignored",
+    ].includes(
+      normaliseString(
+        reason
+      )
+    );
+  }
+
+  /**
    * Applies several memory instructions and reports exactly what
    * persisted.
    *
-   * v2.2 distinguishes:
+   * v2.3 distinguishes:
    *
    * - empty
    * - fully-successful
    * - partially-successful
+   * - not-applied
    * - failed
    * - no-op
+   *
+   * "no-op" is reserved for deliberate non-persistence.
+   *
+   * A rejected credential, missing project boundary, unsupported
+   * action, authority refusal or another attempted-but-refused
+   * operation is "not-applied".
    */
   function applyMemoryInstructions(
     instructions = []
@@ -8530,6 +9127,7 @@ function createCreatorMemory({
         partiallySuccessful: false,
         failed: false,
         noOp: true,
+        notApplied: false,
 
         status: "empty",
       };
@@ -8569,6 +9167,11 @@ function createCreatorMemory({
               result:
                 cloneValue(
                   result.result
+                ),
+
+              intentionalNoOp:
+                isIntentionalNoOpReason(
+                  result.reason
                 ),
 
               requiresMemoryAdapterResolution:
@@ -8619,16 +9222,32 @@ function createCreatorMemory({
       appliedCount === 0 &&
       errorCount > 0;
 
+    const allSkippedAreIntentional =
+      skippedCount > 0 &&
+      skipped.every(
+        (item) =>
+          item.intentionalNoOp ===
+          true
+      );
+
     const noOp =
       appliedCount === 0 &&
-      errorCount === 0;
+      errorCount === 0 &&
+      skippedCount > 0 &&
+      allSkippedAreIntentional;
+
+    const notApplied =
+      appliedCount === 0 &&
+      errorCount === 0 &&
+      skippedCount > 0 &&
+      !allSkippedAreIntentional;
 
     const successful =
       fullySuccessful ||
       partiallySuccessful;
 
     let status =
-      "no-op";
+      "not-applied";
 
     if (fullySuccessful) {
       status =
@@ -8641,6 +9260,14 @@ function createCreatorMemory({
     } else if (failed) {
       status =
         "failed";
+    } else if (noOp) {
+      status =
+        "no-op";
+    } else if (
+      notApplied
+    ) {
+      status =
+        "not-applied";
     }
 
     return {
@@ -8658,6 +9285,7 @@ function createCreatorMemory({
       partiallySuccessful,
       failed,
       noOp,
+      notApplied,
 
       status,
     };
