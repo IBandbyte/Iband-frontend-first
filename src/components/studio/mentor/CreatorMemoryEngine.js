@@ -5,42 +5,25 @@
  * layer for iBand's AI Mentor — The Creator.
  *
  * This engine sits between:
- *
  * - The creator's present conversation.
  * - AdaptiveMentorEngine.
  * - Specialist creator agents.
  * - CreatorMemory.js.
  *
- * CreatorMemoryEngine decides:
- * - What may be worth remembering.
- * - What kind of memory it may be.
- * - Which scope it belongs to:
- *   creator, project, entity, session or relationship.
- * - Whether it is temporary, long-term or historical.
- * - How confident the Mentor should be.
- * - Whether a previous memory is being reinforced.
- * - Whether a contradiction is temporary, uncertain or a genuine
- *   creator-approved correction.
- * - Whether a topic should be deferred instead of explored now.
- * - When a deferred or relevant memory may be useful again.
- * - How project decisions, continuity facts, unresolved threads,
- *   milestones, current position and session handoffs are represented.
- * - How specialist-agent memory signals enter the shared memory layer.
- * - How explicit forget requests are resolved safely.
- *
- * CreatorMemory.js remains responsible for persistence.
- *
- * Version 2.1 introduces the live persistence bridge:
- *
- * - CreatorMemoryEngine can be connected directly to CreatorMemory.js.
- * - Existing memory context can be loaded automatically through
- *   CreatorMemory.getMemoryContext().
- * - Memory plans can execute through
- *   CreatorMemory.applyMemoryInstructions().
- * - Direct method execution remains available as a compatibility
- *   fallback.
- * - Project-memory, handoff, reinforcement, supersession and forgetting
- *   now have stable persistence contracts ready for CreatorMemory.js.
+ * Version 2.2 hardens the live persistence bridge and memory
+ * interpretation contract:
+ * - Current project identity is supplied before persistent project
+ *   context is loaded.
+ * - Project, creator, entity and session scope boundaries are enforced.
+ * - Creator corrections outrank specialist-agent assumptions.
+ * - Unknown specialist signals remain evidence until classified.
+ * - Temporary preferences cannot silently become permanent profile
+ *   preferences.
+ * - Recall respects lifecycle state and active project boundaries.
+ * - Explicit forgetting requires safe, unambiguous resolution.
+ * - Secrets and credentials are blocked from creative memory.
+ * - Persistence execution distinguishes full, partial and failed writes.
+ * - Memory contracts align with CreatorMemory.js v2.1.
  *
  * Core principles:
  * - Protect the Creator.
@@ -58,7 +41,7 @@
  * - Complexity belongs behind the conversation.
  */
 
-const CREATOR_MEMORY_ENGINE_VERSION = "2.1.0";
+const CREATOR_MEMORY_ENGINE_VERSION = "2.2.0";
 
 const MEMORY_CATEGORIES = Object.freeze({
   CREATIVE_IDENTITY: "creative-identity",
@@ -66,56 +49,42 @@ const MEMORY_CATEGORIES = Object.freeze({
   THINKING_PREFERENCE: "thinking-preference",
   GUIDANCE_PREFERENCE: "guidance-preference",
   LEARNING_PREFERENCE: "learning-preference",
-  COMMUNICATION_PREFERENCE:
-    "communication-preference",
-  RESPONSE_DEPTH_PREFERENCE:
-    "response-depth-preference",
+  COMMUNICATION_PREFERENCE: "communication-preference",
+  RESPONSE_DEPTH_PREFERENCE: "response-depth-preference",
 
   CREATIVE_PROCESS: "creative-process",
-  CREATIVE_ENTRY_POINT:
-    "creative-entry-point",
-  CREATIVE_NAVIGATION_STYLE:
-    "creative-navigation-style",
+  CREATIVE_ENTRY_POINT: "creative-entry-point",
+  CREATIVE_NAVIGATION_STYLE: "creative-navigation-style",
   CREATIVE_TEMPO: "creative-tempo",
-  CREATIVE_VOCABULARY:
-    "creative-vocabulary",
+  CREATIVE_VOCABULARY: "creative-vocabulary",
   CREATIVE_RITUAL: "creative-ritual",
   SHARED_MEANING: "shared-meaning",
 
   SWEET_SPOT: "sweet-spot",
   STRETCH_ZONE: "stretch-zone",
 
-  CONFIDENCE_SIGNAL:
-    "confidence-signal",
-  MOMENTUM_SIGNAL:
-    "momentum-signal",
-  COGNITIVE_LOAD_SIGNAL:
-    "cognitive-load-signal",
+  CONFIDENCE_SIGNAL: "confidence-signal",
+  MOMENTUM_SIGNAL: "momentum-signal",
+  COGNITIVE_LOAD_SIGNAL: "cognitive-load-signal",
 
-  AUTOMATIC_SKILL:
-    "automatic-skill",
-  DEVELOPING_SKILL:
-    "developing-skill",
+  AUTOMATIC_SKILL: "automatic-skill",
+  DEVELOPING_SKILL: "developing-skill",
   GROWTH_SIGNAL: "growth-signal",
 
-  HISTORICAL_IDENTITY:
-    "historical-identity",
+  HISTORICAL_IDENTITY: "historical-identity",
   CURRENT_STATE: "current-state",
 
   BRIEF_DETOUR: "brief-detour",
   DEFERRED_TOPIC: "deferred-topic",
 
-  INSPIRATION_SOURCE:
-    "inspiration-source",
+  INSPIRATION_SOURCE: "inspiration-source",
   CREATIVE_SPARK: "creative-spark",
 
   PROJECT_CONTEXT: "project-context",
   PROJECT_IDENTITY: "project-identity",
   PROJECT_DECISION: "project-decision",
-  PROJECT_PREFERENCE:
-    "project-preference",
-  PROJECT_CONSTRAINT:
-    "project-constraint",
+  PROJECT_PREFERENCE: "project-preference",
+  PROJECT_CONSTRAINT: "project-constraint",
 
   STORY_FACT: "story-fact",
   CHARACTER_FACT: "character-fact",
@@ -124,15 +93,12 @@ const MEMORY_CATEGORIES = Object.freeze({
   CONTINUITY_FACT: "continuity-fact",
   ASSET_FACT: "asset-fact",
 
-  UNRESOLVED_THREAD:
-    "unresolved-thread",
-  PROJECT_MILESTONE:
-    "project-milestone",
+  UNRESOLVED_THREAD: "unresolved-thread",
+  PROJECT_MILESTONE: "project-milestone",
   CURRENT_POSITION: "current-position",
   SESSION_HANDOFF: "session-handoff",
 
-  RELATIONSHIP_CONTEXT:
-    "relationship-context",
+  RELATIONSHIP_CONTEXT: "relationship-context",
 
   UNKNOWN: "unknown",
 });
@@ -147,6 +113,10 @@ const MEMORY_HORIZONS = Object.freeze({
 });
 
 const MEMORY_STATUSES = Object.freeze({
+  ACTIVE: "active",
+  DEFERRED: "deferred",
+  CONFIRMED: "confirmed",
+  DISMISSED: "dismissed",
   CANDIDATE: "candidate",
   EMERGING: "emerging",
   REINFORCED: "reinforced",
@@ -171,62 +141,59 @@ const MEMORY_IMPORTANCE = Object.freeze({
   LOW: "low",
   MEDIUM: "medium",
   HIGH: "high",
+  CORE: "core",
   CRITICAL: "critical",
 });
 
 const MEMORY_SOURCES = Object.freeze({
   CREATOR: "creator",
   MENTOR: "mentor",
+  SYSTEM: "system",
+  INFERRED: "inferred",
+  IMPORTED: "imported",
   PROJECT_STATE: "project-state",
   SPECIALIST_AGENT: "specialist-agent",
-  SYSTEM: "system",
-  IMPORTED: "imported",
+  UNKNOWN: "unknown",
+});
+
+const MEMORY_CERTAINTY = Object.freeze({
+  EXPLICIT: "explicit",
+  CONFIRMED: "confirmed",
+  OBSERVED: "observed",
+  INFERRED: "inferred",
   UNKNOWN: "unknown",
 });
 
 const MEMORY_ACTIONS = Object.freeze({
   IGNORE: "ignore",
 
-  CAPTURE_OBSERVATION:
-    "capture-observation",
+  CAPTURE_OBSERVATION: "capture-observation",
 
   SAVE_PATTERN: "save-pattern",
 
-  UPDATE_PROFILE:
-    "update-profile",
+  UPDATE_PROFILE: "update-profile",
 
-  SAVE_PROJECT_MEMORY:
-    "save-project-memory",
+  SAVE_PROJECT_MEMORY: "save-project-memory",
 
-  SAVE_SESSION_HANDOFF:
-    "save-session-handoff",
+  SAVE_SESSION_HANDOFF: "save-session-handoff",
 
-  REINFORCE_MEMORY:
-    "reinforce-memory",
+  REINFORCE_MEMORY: "reinforce-memory",
 
-  WEAKEN_MEMORY:
-    "weaken-memory",
+  WEAKEN_MEMORY: "weaken-memory",
 
-  SUPERSEDE_MEMORY:
-    "supersede-memory",
+  SUPERSEDE_MEMORY: "supersede-memory",
 
-  ARCHIVE_AS_HISTORY:
-    "archive-as-history",
+  ARCHIVE_AS_HISTORY: "archive-as-history",
 
-  SAVE_DEFERRED_TOPIC:
-    "save-deferred-memory",
+  SAVE_DEFERRED_TOPIC: "save-deferred-memory",
 
-  REVISIT_DEFERRED_TOPIC:
-    "revisit-deferred-topic",
+  REVISIT_DEFERRED_TOPIC: "revisit-deferred-topic",
 
-  RESOLVE_THREAD:
-    "resolve-thread",
+  RESOLVE_THREAD: "resolve-thread",
 
-  FORGET_MEMORY:
-    "forget-memory",
+  FORGET_MEMORY: "forget-memory",
 
-  HOLD_FOR_MORE_EVIDENCE:
-    "hold-for-more-evidence",
+  HOLD_FOR_MORE_EVIDENCE: "hold-for-more-evidence",
 });
 
 const RECALL_PRIORITIES = Object.freeze({
@@ -239,156 +206,133 @@ const RECALL_PRIORITIES = Object.freeze({
 
 const RECALL_TIMINGS = Object.freeze({
   NOT_NOW: "not-now",
-  LATER_THIS_SESSION:
-    "later-this-session",
-  NEXT_RELEVANT_MOMENT:
-    "next-relevant-moment",
+  LATER_THIS_SESSION: "later-this-session",
+  NEXT_RELEVANT_MOMENT: "next-relevant-moment",
   NEXT_SESSION: "next-session",
-  WHEN_CREATOR_IS_READY:
-    "when-creator-is-ready",
-  WHEN_TOPIC_RECURS:
-    "when-topic-recurs",
-  NEVER_AUTOMATICALLY:
-    "never-automatically",
+  WHEN_CREATOR_IS_READY: "when-creator-is-ready",
+  WHEN_TOPIC_RECURS: "when-topic-recurs",
+  NEVER_AUTOMATICALLY: "never-automatically",
 });
 
 const EVIDENCE_TYPES = Object.freeze({
-  EXPLICIT_STATEMENT:
-    "explicit-statement",
+  EXPLICIT_STATEMENT: "explicit-statement",
 
-  REPEATED_LANGUAGE:
-    "repeated-language",
+  REPEATED_LANGUAGE: "repeated-language",
 
-  REPEATED_BEHAVIOUR:
-    "repeated-behaviour",
+  REPEATED_BEHAVIOUR: "repeated-behaviour",
 
-  SESSION_PATTERN:
-    "session-pattern",
+  SESSION_PATTERN: "session-pattern",
 
-  CORRECTION_FROM_CREATOR:
-    "correction-from-creator",
+  CORRECTION_FROM_CREATOR: "correction-from-creator",
 
-  CREATOR_CONFIRMATION:
-    "creator-confirmation",
+  CREATOR_CONFIRMATION: "creator-confirmation",
 
-  CREATOR_REJECTION:
-    "creator-rejection",
+  CREATOR_REJECTION: "creator-rejection",
 
-  PROJECT_OUTCOME:
-    "project-outcome",
+  PROJECT_OUTCOME: "project-outcome",
 
-  PROJECT_STATE:
-    "project-state",
+  PROJECT_STATE: "project-state",
 
-  AGENT_OBSERVATION:
-    "agent-observation",
+  AGENT_OBSERVATION: "agent-observation",
 
-  TEMPORARY_STATE:
-    "temporary-state",
+  TEMPORARY_STATE: "temporary-state",
 
   UNKNOWN: "unknown",
 });
 
-const PROJECT_MEMORY_CATEGORIES =
-  Object.freeze([
-    MEMORY_CATEGORIES.PROJECT_CONTEXT,
-    MEMORY_CATEGORIES.PROJECT_IDENTITY,
-    MEMORY_CATEGORIES.PROJECT_DECISION,
-    MEMORY_CATEGORIES.PROJECT_PREFERENCE,
-    MEMORY_CATEGORIES.PROJECT_CONSTRAINT,
+const PROJECT_MEMORY_CATEGORIES = Object.freeze([
+  MEMORY_CATEGORIES.PROJECT_CONTEXT,
+  MEMORY_CATEGORIES.PROJECT_IDENTITY,
+  MEMORY_CATEGORIES.PROJECT_DECISION,
+  MEMORY_CATEGORIES.PROJECT_PREFERENCE,
+  MEMORY_CATEGORIES.PROJECT_CONSTRAINT,
 
-    MEMORY_CATEGORIES.STORY_FACT,
-    MEMORY_CATEGORIES.CHARACTER_FACT,
-    MEMORY_CATEGORIES.SCENE_FACT,
-    MEMORY_CATEGORIES.WORLD_FACT,
-    MEMORY_CATEGORIES.CONTINUITY_FACT,
-    MEMORY_CATEGORIES.ASSET_FACT,
+  MEMORY_CATEGORIES.STORY_FACT,
+  MEMORY_CATEGORIES.CHARACTER_FACT,
+  MEMORY_CATEGORIES.SCENE_FACT,
+  MEMORY_CATEGORIES.WORLD_FACT,
+  MEMORY_CATEGORIES.CONTINUITY_FACT,
+  MEMORY_CATEGORIES.ASSET_FACT,
 
-    MEMORY_CATEGORIES.UNRESOLVED_THREAD,
-    MEMORY_CATEGORIES.PROJECT_MILESTONE,
-    MEMORY_CATEGORIES.CURRENT_POSITION,
-    MEMORY_CATEGORIES.SESSION_HANDOFF,
-  ]);
+  MEMORY_CATEGORIES.UNRESOLVED_THREAD,
+  MEMORY_CATEGORIES.PROJECT_MILESTONE,
+  MEMORY_CATEGORIES.CURRENT_POSITION,
+  MEMORY_CATEGORIES.SESSION_HANDOFF,
+]);
 
-const PROFILE_MEMORY_CATEGORIES =
-  Object.freeze([
-    MEMORY_CATEGORIES.GUIDANCE_PREFERENCE,
-    MEMORY_CATEGORIES.LEARNING_PREFERENCE,
-    MEMORY_CATEGORIES
-      .COMMUNICATION_PREFERENCE,
-    MEMORY_CATEGORIES
-      .RESPONSE_DEPTH_PREFERENCE,
-  ]);
+const PROFILE_MEMORY_CATEGORIES = Object.freeze([
+  MEMORY_CATEGORIES.GUIDANCE_PREFERENCE,
+  MEMORY_CATEGORIES.LEARNING_PREFERENCE,
+  MEMORY_CATEGORIES.COMMUNICATION_PREFERENCE,
+  MEMORY_CATEGORIES.RESPONSE_DEPTH_PREFERENCE,
+]);
 
-const DESTRUCTIVE_MEMORY_ACTIONS =
-  Object.freeze([
-    MEMORY_ACTIONS.FORGET_MEMORY,
-  ]);
+const DESTRUCTIVE_MEMORY_ACTIONS = Object.freeze([
+  MEMORY_ACTIONS.FORGET_MEMORY,
+]);
 
-const DEFAULT_MEMORY_CONTEXT =
-  Object.freeze({
-    creatorId: null,
-    creatorJourney: "guide",
-    creatorType: null,
-    projectType: null,
+const DEFAULT_MEMORY_CONTEXT = Object.freeze({
+  creatorId: null,
+  creatorJourney: "guide",
+  creatorType: null,
+  projectType: null,
 
-    activeProject: null,
-    activeProjectId: null,
-    activeIdea: null,
+  activeProject: null,
+  activeProjectId: null,
+  activeIdea: null,
 
-    activeStage: null,
-    activeScene: null,
-    activeCharacter: null,
-    activeAsset: null,
+  activeStage: null,
+  activeScene: null,
+  activeCharacter: null,
+  activeAsset: null,
 
-    sessionId: null,
-    sessionStartedAt: null,
+  sessionId: null,
+  sessionStartedAt: null,
 
-    conversationMode: null,
-    thinkingMode: null,
-    creatorEnergy: null,
-    momentum: null,
-    guidanceWindow: null,
-    informationSaturation: null,
+  conversationMode: null,
+  thinkingMode: null,
+  creatorEnergy: null,
+  momentum: null,
+  guidanceWindow: null,
+  informationSaturation: null,
 
-    creatorMessageCount: 0,
-    mentorMessageCount: 0,
+  creatorMessageCount: 0,
+  mentorMessageCount: 0,
 
-    recentCreatorMessages: [],
-    recentMentorMessages: [],
-    recentConversations: [],
+  recentCreatorMessages: [],
+  recentMentorMessages: [],
+  recentConversations: [],
 
-    existingMemories: [],
-    existingProjectMemories: [],
-    existingPatterns: [],
-    existingObservations: [],
+  existingMemories: [],
+  existingProjectMemories: [],
+  existingPatterns: [],
+  existingObservations: [],
+  deferredMemories: [],
+  milestones: [],
 
-    creatorProfile: null,
+  creatorProfile: null,
 
-    memorySignals: [],
-    projectMemorySignals: [],
+  memorySignals: [],
+  projectMemorySignals: [],
 
-    sessionHandoff: null,
-    captureSessionHandoff: false,
+  sessionHandoff: null,
+  captureSessionHandoff: false,
 
-    sourceAgent: null,
-    sourceSystem: null,
+  sourceAgent: null,
+  sourceSystem: null,
 
-    targetMemoryIds: [],
+  targetMemoryIds: [],
 
-    includeHistoricalRecall: false,
+  includeHistoricalRecall: false,
 
-    creatorExplicitlyAskedToRemember:
-      false,
+  creatorExplicitlyAskedToRemember: false,
 
-    creatorExplicitlyAskedNotToRemember:
-      false,
+  creatorExplicitlyAskedNotToRemember: false,
 
-    creatorExplicitlyAskedToRevisit:
-      false,
+  creatorExplicitlyAskedToRevisit: false,
 
-    currentTimestamp: null,
-  });
+  currentTimestamp: null,
+});
 
 /**
  * Returns the current ISO timestamp.
@@ -407,10 +351,7 @@ function createMemoryPlanId(
     .toString(36)
     .slice(2, 10);
 
-  return (
-    `${prefix}-` +
-    `${Date.now()}-${randomValue}`
-  );
+  return `${prefix}-${Date.now()}-${randomValue}`;
 }
 
 /**
@@ -539,49 +480,23 @@ function includesAny(
 }
 
 /**
- * Converts messages to searchable text.
- */
-function extractMessageText(
-  messages = []
-) {
-  return asArray(messages)
-    .map((message) => {
-      if (
-        typeof message ===
-        "string"
-      ) {
-        return message;
-      }
-
-      return (
-        message?.content ||
-        message?.text ||
-        message?.summary ||
-        ""
-      );
-    })
-    .filter(Boolean)
-    .join(" ");
-}
-
-/**
  * Finds the active project id.
  */
 function getProjectId(
   context = {}
 ) {
-  if (
+  const explicit =
     cleanString(
       context?.activeProjectId
-    )
-  ) {
-    return cleanString(
-      context.activeProjectId
     );
+
+  if (explicit) {
+    return explicit;
   }
 
   if (
-    typeof context?.activeProject ===
+    typeof context
+      ?.activeProject ===
     "string"
   ) {
     return (
@@ -597,7 +512,8 @@ function getProjectId(
       context?.activeProject?.id
     ) ||
     cleanString(
-      context?.activeProject
+      context
+        ?.activeProject
         ?.projectId
     ) ||
     null
@@ -617,6 +533,7 @@ function getEntityIdentity(
         fallbackType,
 
       entityId: null,
+
       entityName: null,
     };
   }
@@ -737,40 +654,44 @@ function calculateTextSimilarity(
 /**
  * Checks known enum values.
  */
-function isKnownCategory(
-  category
-) {
+function isKnownCategory(value) {
   return Object.values(
     MEMORY_CATEGORIES
-  ).includes(category);
+  ).includes(value);
 }
 
-function isKnownHorizon(
-  horizon
-) {
+function isKnownHorizon(value) {
   return Object.values(
     MEMORY_HORIZONS
-  ).includes(horizon);
+  ).includes(value);
 }
 
-function isKnownScope(
-  scope
-) {
+function isKnownScope(value) {
   return Object.values(
     MEMORY_SCOPES
-  ).includes(scope);
+  ).includes(value);
 }
 
-function isKnownImportance(
-  importance
-) {
+function isKnownImportance(value) {
   return Object.values(
     MEMORY_IMPORTANCE
-  ).includes(importance);
+  ).includes(value);
+}
+
+function isKnownSource(value) {
+  return Object.values(
+    MEMORY_SOURCES
+  ).includes(value);
+}
+
+function isKnownCertainty(value) {
+  return Object.values(
+    MEMORY_CERTAINTY
+  ).includes(value);
 }
 
 /**
- * Determines whether a candidate is project-scoped.
+ * Determines whether a category is project-scoped.
  */
 function isProjectMemoryCategory(
   category
@@ -878,14 +799,6 @@ function resolveDefaultScope(
   category
 ) {
   if (
-    category ===
-    MEMORY_CATEGORIES
-      .SESSION_HANDOFF
-  ) {
-    return MEMORY_SCOPES.PROJECT;
-  }
-
-  if (
     isProjectMemoryCategory(
       category
     )
@@ -894,12 +807,13 @@ function resolveDefaultScope(
   }
 
   if (
-    category ===
+    [
       MEMORY_CATEGORIES
-        .RELATIONSHIP_CONTEXT ||
-    category ===
+        .RELATIONSHIP_CONTEXT,
+
       MEMORY_CATEGORIES
-        .SHARED_MEANING
+        .SHARED_MEANING,
+    ].includes(category)
   ) {
     return (
       MEMORY_SCOPES
@@ -1023,6 +937,56 @@ function resolveDefaultImportance(
 }
 
 /**
+ * Produces stable searchable text for either scalar
+ * or structured memory values.
+ */
+function serialiseMemoryValue(
+  value,
+  fallback = ""
+) {
+  if (
+    typeof value ===
+    "string"
+  ) {
+    return normaliseText(
+      value
+    );
+  }
+
+  if (
+    value === null ||
+    value === undefined
+  ) {
+    return normaliseText(
+      fallback
+    );
+  }
+
+  if (
+    [
+      "number",
+      "boolean",
+    ].includes(
+      typeof value
+    )
+  ) {
+    return String(value);
+  }
+
+  try {
+    return normaliseText(
+      JSON.stringify(
+        value
+      )
+    );
+  } catch {
+    return normaliseText(
+      fallback
+    );
+  }
+}
+
+/**
  * Creates a stable semantic memory key.
  */
 function buildMemoryKey({
@@ -1034,13 +998,22 @@ function buildMemoryKey({
   entityId,
   value,
   content,
+  metadata = {},
 }) {
-  const valueText =
-    normaliseText(
-      typeof value ===
-      "string"
-        ? value
-        : content
+  const suppliedKey =
+    cleanString(
+      metadata?.semanticKey ||
+      metadata?.memoryKey
+    );
+
+  if (suppliedKey) {
+    return suppliedKey;
+  }
+
+  const semanticText =
+    serialiseMemoryValue(
+      value,
+      content
     )
       .split(" ")
       .slice(0, 14)
@@ -1065,181 +1038,227 @@ function buildMemoryKey({
     entityId ||
       "no-entity-id",
 
-    valueText ||
+    semanticText ||
       "no-value",
   ].join("::");
 }
 
 /**
- * Merges CreatorMemory.js context into the current
+ * Returns the present-turn array when supplied,
+ * otherwise falls back to persistent memory.
+ */
+function mergePreferredArray(
+  currentValue,
+  memoryValue
+) {
+  return asArray(
+    currentValue
+  ).length > 0
+    ? cloneValue(
+        currentValue
+      )
+    : cloneValue(
+        asArray(
+          memoryValue
+        )
+      );
+}
+
+/**
+ * Merges CreatorMemory.js context into the present
  * planning context.
  *
  * Explicit current-turn context always wins.
  */
 function mergeMemoryContext({
-  context,
-  memoryContext,
+  context = {},
+  memoryContext = null,
 }) {
-  if (
-    !memoryContext ||
-    typeof memoryContext !==
+  const base =
+    cloneValue(
+      DEFAULT_MEMORY_CONTEXT
+    );
+
+  const persistent =
+    memoryContext &&
+    typeof memoryContext ===
       "object"
-  ) {
-    return {
-      ...cloneValue(
-        DEFAULT_MEMORY_CONTEXT
-      ),
+      ? cloneValue(
+          memoryContext
+        )
+      : {};
 
-      ...cloneValue(context),
-
-      currentTimestamp:
-        context?.currentTimestamp ||
-        createTimestamp(),
-    };
-  }
+  const present =
+    cloneValue(
+      context ||
+      {}
+    );
 
   const memoryPreferences =
-    memoryContext
+    persistent
       ?.communicationPreferences ||
     {};
 
   const creatorProfile =
-    context?.creatorProfile ||
-    memoryContext
-      ?.creatorProfile ||
+    present?.creatorProfile ||
+    persistent?.creatorProfile ||
     null;
 
   const activeProject =
-    context?.activeProject ||
-    memoryContext
-      ?.activeProject ||
+    present?.activeProject ||
+    persistent?.activeProject ||
+    null;
+
+  const persistentCreatorId =
+    cleanString(
+      persistent?.creatorId
+    ) ||
+    cleanString(
+      persistent
+        ?.creatorProfile
+        ?.id
+    ) ||
+    null;
+
+  const resolvedProjectId =
+    cleanString(
+      present?.activeProjectId
+    ) ||
+    getProjectId({
+      activeProject,
+    }) ||
+    cleanString(
+      persistent?.activeProjectId
+    ) ||
     null;
 
   return {
-    ...cloneValue(
-      DEFAULT_MEMORY_CONTEXT
-    ),
+    ...base,
 
-    ...cloneValue(
-      memoryContext
-    ),
+    ...persistent,
 
-    ...cloneValue(
-      context
-    ),
+    ...present,
+
+    creatorId:
+      cleanString(
+        present?.creatorId
+      ) ||
+      persistentCreatorId,
 
     creatorProfile,
 
     activeProject,
 
     activeProjectId:
-      context?.activeProjectId ||
-      getProjectId({
-        activeProject,
-      }) ||
-      null,
+      resolvedProjectId,
 
     recentConversations:
-      asArray(
-        context?.recentConversations
-      ).length > 0
-        ? cloneValue(
-            context
-              .recentConversations
-          )
-        : cloneValue(
-            memoryContext
-              ?.recentConversations ||
-            []
-          ),
+      mergePreferredArray(
+        present
+          ?.recentConversations,
+
+        persistent
+          ?.recentConversations
+      ),
 
     existingMemories:
-      asArray(
-        context?.existingMemories
-      ).length > 0
-        ? cloneValue(
-            context
-              .existingMemories
-          )
-        : cloneValue(
-            memoryContext
-              ?.existingMemories ||
-            []
-          ),
+      mergePreferredArray(
+        present
+          ?.existingMemories,
+
+        persistent
+          ?.existingMemories
+      ),
+
+    existingProjectMemories:
+      mergePreferredArray(
+        present
+          ?.existingProjectMemories,
+
+        persistent
+          ?.existingProjectMemories
+      ),
 
     existingPatterns:
-      asArray(
-        context?.existingPatterns
-      ).length > 0
-        ? cloneValue(
-            context
-              .existingPatterns
-          )
-        : cloneValue(
-            memoryContext
-              ?.existingPatterns ||
-            []
-          ),
+      mergePreferredArray(
+        present
+          ?.existingPatterns,
+
+        persistent
+          ?.existingPatterns
+      ),
 
     existingObservations:
-      asArray(
-        context
+      mergePreferredArray(
+        present
+          ?.existingObservations,
+
+        persistent
           ?.existingObservations
-      ).length > 0
-        ? cloneValue(
-            context
-              .existingObservations
-          )
-        : cloneValue(
-            memoryContext
-              ?.existingObservations ||
-            []
-          ),
+      ),
+
+    deferredMemories:
+      mergePreferredArray(
+        present
+          ?.deferredMemories,
+
+        persistent
+          ?.deferredMemories
+      ),
+
+    milestones:
+      mergePreferredArray(
+        present
+          ?.milestones,
+
+        persistent
+          ?.milestones
+      ),
 
     preferredResponseDepth:
-      context
+      present
         ?.preferredResponseDepth ??
       memoryPreferences
         ?.preferredResponseDepth ??
       null,
 
     preferredGuidanceStyle:
-      context
+      present
         ?.preferredGuidanceStyle ??
       memoryPreferences
         ?.preferredGuidanceStyle ??
       null,
 
     preferredMentorRole:
-      context
+      present
         ?.preferredMentorRole ??
       memoryPreferences
         ?.preferredMentorRole ??
       null,
 
     preferredCommunicationPace:
-      context
+      present
         ?.preferredCommunicationPace ??
       memoryPreferences
         ?.preferredCommunicationPace ??
       null,
 
     preferredVoiceProfile:
-      context
+      present
         ?.preferredVoiceProfile ??
       memoryPreferences
         ?.preferredVoiceProfile ??
       null,
 
     preferredChannel:
-      context
+      present
         ?.preferredChannel ??
       memoryPreferences
         ?.preferredChannel ??
       null,
 
     currentTimestamp:
-      context?.currentTimestamp ||
+      present?.currentTimestamp ||
       createTimestamp(),
   };
 }
@@ -1252,16 +1271,17 @@ function detectExplicitMemoryIntent({
   context,
 }) {
   const text =
-    normaliseText(message);
+    normaliseText(
+      message
+    );
 
   const rememberPhrases = [
     "remember this",
     "remember that",
     "add this to memory",
-    "save this",
-    "keep this in mind",
-    "don't forget this",
-    "dont forget this",
+    "save this to memory",
+    "store this in memory",
+    "keep this in memory",
     "lock this in",
     "anchor this",
   ];
@@ -1269,14 +1289,14 @@ function detectExplicitMemoryIntent({
   const doNotStorePhrases = [
     "don't remember this",
     "dont remember this",
-    "don't save this",
-    "dont save this",
+    "don't save this to memory",
+    "dont save this to memory",
     "don't store this",
     "dont store this",
     "this is temporary",
   ];
 
-  const forgetExistingPhrases = [
+  const forgetPhrases = [
     "forget that",
     "forget this memory",
     "remove that from memory",
@@ -1289,7 +1309,7 @@ function detectExplicitMemoryIntent({
   if (
     includesAny(
       text,
-      forgetExistingPhrases
+      forgetPhrases
     )
   ) {
     return createDetection({
@@ -1299,13 +1319,12 @@ function detectExplicitMemoryIntent({
       confidence: 0.99,
 
       evidence:
-        forgetExistingPhrases
-          .filter(
-            (phrase) =>
-              text.includes(
-                phrase
-              )
-          ),
+        forgetPhrases.filter(
+          (phrase) =>
+            text.includes(
+              phrase
+            )
+        ),
     });
   }
 
@@ -1324,13 +1343,12 @@ function detectExplicitMemoryIntent({
       confidence: 0.99,
 
       evidence:
-        doNotStorePhrases
-          .filter(
-            (phrase) =>
-              text.includes(
-                phrase
-              )
-          ),
+        doNotStorePhrases.filter(
+          (phrase) =>
+            text.includes(
+              phrase
+            )
+        ),
     });
   }
 
@@ -1343,7 +1361,8 @@ function detectExplicitMemoryIntent({
     )
   ) {
     return createDetection({
-      value: "store",
+      value:
+        "store",
 
       confidence: 0.98,
 
@@ -1365,13 +1384,98 @@ function detectExplicitMemoryIntent({
 }
 
 /**
+ * Blocks credentials, passwords, API keys and similar
+ * secrets from Creator Memory.
+ */
+function detectSensitiveMemoryContent(
+  message
+) {
+  const text =
+    cleanString(
+      message
+    );
+
+  const normalised =
+    normaliseText(
+      message
+    );
+
+  const labels = [
+    "password",
+    "passcode",
+    "pin number",
+    "api key",
+    "apikey",
+    "access token",
+    "auth token",
+    "secret key",
+    "private key",
+    "recovery phrase",
+    "seed phrase",
+  ];
+
+  const labelMatches =
+    labels.filter(
+      (label) =>
+        normalised.includes(
+          label
+        )
+    );
+
+  const credentialAssignment =
+    /(password|passcode|api[_ -]?key|access[_ -]?token|auth[_ -]?token|secret[_ -]?key|private[_ -]?key)\s*(?:is|=|:|-)\s*\S+/i.test(
+      text
+    );
+
+  const privateKeyBlock =
+    /-----BEGIN [A-Z ]*PRIVATE KEY-----/i.test(
+      text
+    );
+
+  const looksSensitive =
+    labelMatches.length > 0 &&
+    (
+      credentialAssignment ||
+      privateKeyBlock ||
+      normalised.includes(
+        "remember"
+      )
+    );
+
+  return createDetection({
+    value:
+      looksSensitive,
+
+    confidence:
+      looksSensitive
+        ? 0.99
+        : 0.2,
+
+    evidence:
+      uniqueValues([
+        ...labelMatches,
+
+        credentialAssignment
+          ? "credential-like assignment"
+          : null,
+
+        privateKeyBlock
+          ? "private-key block"
+          : null,
+      ]),
+  });
+}
+
+/**
  * Detects a quick detour.
  */
 function detectBriefDetour(
   message
 ) {
   const text =
-    normaliseText(message);
+    normaliseText(
+      message
+    );
 
   const phrases = [
     "one quick thing",
@@ -1419,9 +1523,11 @@ function detectDeferredTopic({
   briefDetour,
 }) {
   const text =
-    normaliseText(message);
+    normaliseText(
+      message
+    );
 
-  const deferPhrases = [
+  const phrases = [
     "we can come back to that",
     "save that for later",
     "another time",
@@ -1436,7 +1542,7 @@ function detectDeferredTopic({
   const explicitDefer =
     includesAny(
       text,
-      deferPhrases
+      phrases
     );
 
   const flowDefer =
@@ -1464,13 +1570,12 @@ function detectDeferredTopic({
 
     evidence:
       uniqueValues([
-        ...deferPhrases
-          .filter(
-            (phrase) =>
-              text.includes(
-                phrase
-              )
-          ),
+        ...phrases.filter(
+          (phrase) =>
+            text.includes(
+              phrase
+            )
+        ),
 
         flowDefer
           ? "brief detour during active creative mode"
@@ -1480,17 +1585,19 @@ function detectDeferredTopic({
 }
 
 /**
- * Detects current-state language that should not become
- * an automatic permanent preference.
+ * Detects current-state language that should not automatically
+ * become a permanent preference.
  */
 function detectTemporaryState({
   message,
   context,
 }) {
   const text =
-    normaliseText(message);
+    normaliseText(
+      message
+    );
 
-  const temporaryPhrases = [
+  const phrases = [
     "today",
     "tonight",
     "right now",
@@ -1503,25 +1610,35 @@ function detectTemporaryState({
     "right now i want",
   ];
 
-  const dynamicContextPresent =
-    Boolean(
-      context?.thinkingMode ||
-      context?.creatorEnergy ||
-      context?.momentum ||
-      context?.guidanceWindow
-    );
-
   const matches =
-    temporaryPhrases.filter(
+    phrases.filter(
       (phrase) =>
         text.includes(
           phrase
         )
     );
 
+  const structuredTemporary = [
+    ...asArray(
+      context?.memorySignals
+    ),
+
+    ...asArray(
+      context
+        ?.projectMemorySignals
+    ),
+  ].some(
+    (signal) =>
+      signal?.evidenceType ===
+        EVIDENCE_TYPES
+          .TEMPORARY_STATE ||
+      signal?.temporary ===
+        true
+  );
+
   const isTemporary =
     matches.length > 0 ||
-    dynamicContextPresent;
+    structuredTemporary;
 
   return createDetection({
     value:
@@ -1529,15 +1646,16 @@ function detectTemporaryState({
 
     confidence:
       isTemporary
-        ? 0.76
-        : 0.42,
+        ? 0.84
+        : 0.36,
 
     evidence:
       uniqueValues([
         ...matches,
 
-        dynamicContextPresent
-          ? "dynamic session context present"
+        structuredTemporary
+          ? EVIDENCE_TYPES
+              .TEMPORARY_STATE
           : null,
       ]),
   });
@@ -1550,9 +1668,11 @@ function detectGuidancePreference(
   message
 ) {
   const text =
-    normaliseText(message);
+    normaliseText(
+      message
+    );
 
-  const preferenceRules = [
+  const rules = [
     {
       value:
         "concise-during-build",
@@ -1607,8 +1727,6 @@ function detectGuidancePreference(
         "captain you lead",
         "guide me",
         "take me through it",
-        "what's next",
-        "whats next",
       ],
     },
 
@@ -1629,7 +1747,7 @@ function detectGuidancePreference(
 
   for (
     const rule
-    of preferenceRules
+    of rules
   ) {
     const matches =
       rule.phrases.filter(
@@ -1668,62 +1786,21 @@ function detectGuidancePreference(
 }
 
 /**
- * Detects shared vocabulary and relationship shorthand.
+ * Detects intentional shared vocabulary and shorthand.
  */
 function detectCreativeVocabulary({
   message,
   context,
 }) {
   const originalText =
-    cleanString(message);
-
-  const text =
-    normaliseText(message);
-
-  const knownTerms = [
-    "vibe",
-    "resonating",
-    "resonate",
-    "hits",
-    "slaps",
-    "groove",
-    "drive",
-    "warm",
-    "warmer",
-    "colder",
-    "cinematic",
-    "raw",
-    "grit",
-    "bite",
-    "heart",
-    "energy",
-    "flow",
-    "spark",
-    "alignment",
-    "sweet spot",
-    "warp drive",
-    "warp drives",
-    "warp 20",
-    "warp 40",
-    "rabbit hole",
-    "let's build",
-    "lets build",
-    "captain's protocol",
-    "captains protocol",
-  ];
-
-  const foundTerms =
-    knownTerms.filter(
-      (term) =>
-        text.includes(
-          term
-        )
+    cleanString(
+      message
     );
 
-  const possibleQuotedPhrases =
-    originalText.match(
-      /["“”']([^"“”']{2,60})["“”']/g
-    ) || [];
+  const text =
+    normaliseText(
+      message
+    );
 
   const sharedTerms = [
     "warp drive",
@@ -1737,33 +1814,41 @@ function detectCreativeVocabulary({
     "captains protocol",
   ];
 
+  const foundSharedTerms =
+    sharedTerms.filter(
+      (term) =>
+        text.includes(
+          term
+        )
+    );
+
+  const quotedPhrases =
+    originalText.match(
+      /["“][^"”]{2,60}["”]/g
+    ) || [];
+
   return {
     terms:
       uniqueValues(
-        foundTerms
+        foundSharedTerms
       ),
 
     quotedPhrases:
       uniqueValues(
-        possibleQuotedPhrases
-          .map(
-            (phrase) =>
-              phrase
-                .replace(
-                  /["“”']/g,
-                  ""
-                )
-                .trim()
-          )
+        quotedPhrases.map(
+          (phrase) =>
+            phrase
+              .replace(
+                /["“”]/g,
+                ""
+              )
+              .trim()
+        )
       ),
 
     likelySharedLanguage:
-      foundTerms.some(
-        (term) =>
-          sharedTerms.includes(
-            term
-          )
-      ) ||
+      foundSharedTerms.length >
+        0 ||
       Boolean(
         context
           ?.relationshipContext
@@ -1778,7 +1863,9 @@ function detectCreativeProcess(
   message
 ) {
   const text =
-    normaliseText(message);
+    normaliseText(
+      message
+    );
 
   const rules = [
     {
@@ -1814,7 +1901,6 @@ function detectCreativeProcess(
         "remix",
         "mix together",
         "add a beat",
-        "dj",
         "sample",
         "layer it",
       ],
@@ -1842,7 +1928,6 @@ function detectCreativeProcess(
         "see where it goes",
         "start in the middle",
         "build around it",
-        "keeps sketching",
       ],
     },
 
@@ -1853,9 +1938,6 @@ function detectCreativeProcess(
       phrases: [
         "warmer",
         "colder",
-        "more",
-        "less",
-        "closer",
         "that's it",
         "thats it",
         "give me another one",
@@ -1871,7 +1953,6 @@ function detectCreativeProcess(
         "solve the problem",
         "prevent this",
         "invent",
-        "news report",
       ],
     },
   ];
@@ -1942,10 +2023,11 @@ function detectCreativeTempo({
   context,
 }) {
   const text =
-    normaliseText(message);
+    normaliseText(
+      message
+    );
 
   const fastPhrases = [
-    "next",
     "fire away",
     "code please",
     "let's build",
@@ -2014,10 +2096,13 @@ function detectCreativeTempo({
       text,
       reflectivePhrases
     ) ||
-    context?.thinkingMode ===
-      "reflection" ||
-    context?.thinkingMode ===
-      "exploration"
+    [
+      "reflection",
+      "exploration",
+    ].includes(
+      context
+        ?.thinkingMode
+    )
   ) {
     return createDetection({
       value:
@@ -2027,15 +2112,15 @@ function detectCreativeTempo({
 
       evidence:
         uniqueValues([
-          ...reflectivePhrases
-            .filter(
-              (phrase) =>
-                text.includes(
-                  phrase
-                )
-            ),
+          ...reflectivePhrases.filter(
+            (phrase) =>
+              text.includes(
+                phrase
+              )
+          ),
 
-          context?.thinkingMode,
+          context
+            ?.thinkingMode,
         ]),
     });
   }
@@ -2054,7 +2139,9 @@ function detectAutomaticSkill(
   message
 ) {
   const text =
-    normaliseText(message);
+    normaliseText(
+      message
+    );
 
   const phrases = [
     "now i do it instinctively",
@@ -2097,7 +2184,9 @@ function detectGrowthSignal(
   message
 ) {
   const text =
-    normaliseText(message);
+    normaliseText(
+      message
+    );
 
   const phrases = [
     "i've progressed",
@@ -2138,7 +2227,7 @@ function detectGrowthSignal(
 }
 
 /**
- * Detects lightweight project-memory signals in ordinary
+ * Detects lightweight project-memory signals in normal
  * creator language.
  */
 function detectProjectMemorySignal({
@@ -2146,17 +2235,16 @@ function detectProjectMemorySignal({
   context,
 }) {
   const text =
-    normaliseText(message);
+    normaliseText(
+      message
+    );
 
   const projectId =
     getProjectId(
       context
     );
 
-  if (
-    !projectId &&
-    !context?.activeProject
-  ) {
+  if (!projectId) {
     return createDetection({
       value: null,
       confidence: 0.2,
@@ -2185,7 +2273,6 @@ function detectProjectMemorySignal({
         "we moved this scene",
         "move this scene",
         "now appears in",
-        "change it to",
         "we changed",
       ],
     },
@@ -2300,7 +2387,9 @@ function detectCorrectionSignal(
   message
 ) {
   const text =
-    normaliseText(message);
+    normaliseText(
+      message
+    );
 
   const phrases = [
     "actually change that",
@@ -2390,6 +2479,80 @@ function calculateCandidateConfidence({
 }
 
 /**
+ * Resolves candidate certainty.
+ */
+function resolveCandidateCertainty({
+  source,
+  certainty = null,
+  explicitMemoryIntent = null,
+}) {
+  if (
+    isKnownCertainty(
+      certainty
+    )
+  ) {
+    return certainty;
+  }
+
+  if (
+    source ===
+      MEMORY_SOURCES.CREATOR &&
+    explicitMemoryIntent
+      ?.value === "store"
+  ) {
+    return (
+      MEMORY_CERTAINTY
+        .EXPLICIT
+    );
+  }
+
+  if (
+    source ===
+    MEMORY_SOURCES.CREATOR
+  ) {
+    return (
+      MEMORY_CERTAINTY
+        .OBSERVED
+    );
+  }
+
+  if (
+    source ===
+    MEMORY_SOURCES.PROJECT_STATE
+  ) {
+    return (
+      MEMORY_CERTAINTY
+        .CONFIRMED
+    );
+  }
+
+  if (
+    source ===
+    MEMORY_SOURCES
+      .SPECIALIST_AGENT
+  ) {
+    return (
+      MEMORY_CERTAINTY
+        .OBSERVED
+    );
+  }
+
+  if (
+    source ===
+    MEMORY_SOURCES.INFERRED
+  ) {
+    return (
+      MEMORY_CERTAINTY
+        .INFERRED
+    );
+  }
+
+  return (
+    MEMORY_CERTAINTY.UNKNOWN
+  );
+}
+
+/**
  * Creates one canonical memory candidate.
  */
 function createMemoryCandidate({
@@ -2408,6 +2571,8 @@ function createMemoryCandidate({
   source =
     MEMORY_SOURCES.CREATOR,
 
+  certainty = null,
+
   creatorId = null,
   projectId = null,
   sessionId = null,
@@ -2421,6 +2586,8 @@ function createMemoryCandidate({
   recallPolicy = null,
 
   metadata = {},
+
+  explicitMemoryIntent = null,
 }) {
   const resolvedCategory =
     isKnownCategory(
@@ -2453,6 +2620,14 @@ function createMemoryCandidate({
           resolvedCategory
         );
 
+  const resolvedSource =
+    isKnownSource(
+      source
+    )
+      ? source
+      : MEMORY_SOURCES
+          .UNKNOWN;
+
   const candidate = {
     id:
       createMemoryPlanId(
@@ -2465,13 +2640,19 @@ function createMemoryCandidate({
       resolvedCategory,
 
     title:
-      cleanString(title),
+      cleanString(
+        title
+      ),
 
     content:
-      cleanString(content),
+      cleanString(
+        content
+      ),
 
     value:
-      cloneValue(value),
+      cloneValue(
+        value
+      ),
 
     horizon:
       resolvedHorizon,
@@ -2497,30 +2678,53 @@ function createMemoryCandidate({
       ),
 
     source:
-      Object.values(
-        MEMORY_SOURCES
-      ).includes(source)
-        ? source
-        : MEMORY_SOURCES
-            .UNKNOWN,
+      resolvedSource,
+
+    certainty:
+      resolveCandidateCertainty({
+        source:
+          resolvedSource,
+
+        certainty,
+
+        explicitMemoryIntent,
+      }),
 
     creatorId:
-      creatorId || null,
+      cleanString(
+        creatorId
+      ) ||
+      null,
 
     projectId:
-      projectId || null,
+      cleanString(
+        projectId
+      ) ||
+      null,
 
     sessionId:
-      sessionId || null,
+      cleanString(
+        sessionId
+      ) ||
+      null,
 
     entityType:
-      entityType || null,
+      cleanString(
+        entityType
+      ) ||
+      null,
 
     entityId:
-      entityId || null,
+      cleanString(
+        entityId
+      ) ||
+      null,
 
     entityName:
-      entityName || null,
+      cleanString(
+        entityName
+      ) ||
+      null,
 
     tags:
       uniqueValues(
@@ -2546,6 +2750,10 @@ function createMemoryCandidate({
   };
 
   candidate.memoryKey =
+    cleanString(
+      metadata?.memoryKey ||
+      metadata?.semanticKey
+    ) ||
     buildMemoryKey(
       candidate
     );
@@ -2555,11 +2763,12 @@ function createMemoryCandidate({
 
 /**
  * Creates a memory candidate from a structured
- * specialist-agent signal.
+ * specialist-agent or project-state signal.
  */
 function createStructuredSignalCandidate({
   signal,
   context,
+  explicitMemoryIntent = null,
 }) {
   if (
     !signal ||
@@ -2581,6 +2790,18 @@ function createStructuredSignalCandidate({
     getProjectId(
       context
     );
+
+  /**
+   * Project truth cannot exist without a project boundary.
+   */
+  if (
+    isProjectMemoryCategory(
+      category
+    ) &&
+    !projectId
+  ) {
+    return null;
+  }
 
   const entity =
     getEntityIdentity(
@@ -2617,14 +2838,15 @@ function createStructuredSignalCandidate({
   }
 
   const source =
-    signal.source ||
-    (
-      context?.sourceAgent
+    isKnownSource(
+      signal.source
+    )
+      ? signal.source
+      : context?.sourceAgent
         ? MEMORY_SOURCES
             .SPECIALIST_AGENT
         : MEMORY_SOURCES
-            .PROJECT_STATE
-    );
+            .PROJECT_STATE;
 
   const evidence =
     uniqueValues([
@@ -2649,7 +2871,12 @@ function createStructuredSignalCandidate({
       cleanString(
         signal.title
       ) ||
-      "Project memory",
+      (
+        category ===
+        MEMORY_CATEGORIES.UNKNOWN
+          ? "Memory signal"
+          : "Project memory"
+      ),
 
     content,
 
@@ -2672,11 +2899,17 @@ function createStructuredSignalCandidate({
       signal.confidence !==
       undefined
         ? signal.confidence
-        : 0.82,
+        : category ===
+            MEMORY_CATEGORIES.UNKNOWN
+          ? 0.55
+          : 0.82,
 
     evidence,
 
     source,
+
+    certainty:
+      signal.certainty,
 
     creatorId:
       signal.creatorId ||
@@ -2723,6 +2956,20 @@ function createStructuredSignalCandidate({
         {}
       ),
 
+      memoryKey:
+        cleanString(
+          signal.memoryKey
+        ) ||
+        cleanString(
+          signal.semanticKey
+        ) ||
+        cleanString(
+          signal
+            .metadata
+            ?.memoryKey
+        ) ||
+        null,
+
       sourceAgent:
         signal.sourceAgent ||
         context?.sourceAgent ||
@@ -2736,6 +2983,8 @@ function createStructuredSignalCandidate({
       structuredSignal:
         true,
     },
+
+    explicitMemoryIntent,
   });
 }
 
@@ -2758,6 +3007,13 @@ function createSessionHandoffCandidate({
     getProjectId(
       context
     );
+
+  /**
+   * Session handoffs are deliberately project-scoped.
+   */
+  if (!projectId) {
+    return null;
+  }
 
   const summary =
     cleanString(
@@ -2817,7 +3073,9 @@ function createSessionHandoffCandidate({
       unresolved.length > 0
         ? (
             `Open threads: ` +
-            `${unresolved.join("; ")}`
+            `${unresolved.join(
+              "; "
+            )}`
           )
         : null,
     ]);
@@ -2841,16 +3099,20 @@ function createSessionHandoffCandidate({
 
     value: {
       summary:
-        summary || null,
+        summary ||
+        null,
 
       lastCompleted:
-        lastCompleted || null,
+        lastCompleted ||
+        null,
 
       nextStep:
-        nextStep || null,
+        nextStep ||
+        null,
 
       activeStage:
-        activeStage || null,
+        activeStage ||
+        null,
 
       unresolved:
         cloneValue(
@@ -2871,7 +3133,8 @@ function createSessionHandoffCandidate({
           handoff.activeCharacter
         ) ||
         cloneValue(
-          context?.activeCharacter
+          context
+            ?.activeCharacter
         ) ||
         null,
 
@@ -2908,6 +3171,10 @@ function createSessionHandoffCandidate({
       MEMORY_SOURCES
         .PROJECT_STATE,
 
+    certainty:
+      MEMORY_CERTAINTY
+        .CONFIRMED,
+
     creatorId:
       context?.creatorId ||
       null,
@@ -2932,6 +3199,9 @@ function createSessionHandoffCandidate({
     },
 
     metadata: {
+      semanticKey:
+        `project::session-handoff::${projectId}`,
+
       replacePreviousHandoff:
         true,
 
@@ -2954,7 +3224,9 @@ function buildMemoryCandidates({
   const candidates = [];
 
   const cleanMessage =
-    cleanString(message);
+    cleanString(
+      message
+    );
 
   const projectId =
     getProjectId(
@@ -2963,6 +3235,7 @@ function buildMemoryCandidates({
 
   const {
     explicitMemoryIntent,
+    sensitiveMemoryContent,
     briefDetour,
     deferredTopic,
     temporaryState,
@@ -2976,14 +3249,17 @@ function buildMemoryCandidates({
   } = detections;
 
   /**
-   * Respect explicit non-storage and forgetting before
-   * considering new memory candidates.
+   * Respect explicit non-storage, forgetting and secret
+   * blocking before creating candidates.
    */
   if (
-    explicitMemoryIntent.value ===
-      "do-not-store" ||
-    explicitMemoryIntent.value ===
-      "forget-existing"
+    [
+      "do-not-store",
+      "forget-existing",
+    ].includes(
+      explicitMemoryIntent.value
+    ) ||
+    sensitiveMemoryContent.value
   ) {
     return [];
   }
@@ -3014,7 +3290,11 @@ function buildMemoryCandidates({
                 .LONG_TERM,
 
         scope:
-          MEMORY_SCOPES.CREATOR,
+          temporaryState.value
+            ? MEMORY_SCOPES
+                .SESSION
+            : MEMORY_SCOPES
+                .CREATOR,
 
         importance:
           MEMORY_IMPORTANCE
@@ -3043,12 +3323,23 @@ function buildMemoryCandidates({
           context?.creatorId ||
           null,
 
+        certainty:
+          explicitMemoryIntent
+            .value ===
+            "store"
+            ? MEMORY_CERTAINTY
+                .EXPLICIT
+            : MEMORY_CERTAINTY
+                .OBSERVED,
+
         metadata: {
           thinkingMode:
             context
               ?.thinkingMode ||
             null,
         },
+
+        explicitMemoryIntent,
       })
     );
   }
@@ -3100,6 +3391,12 @@ function buildMemoryCandidates({
         creatorId:
           context?.creatorId ||
           null,
+
+        certainty:
+          MEMORY_CERTAINTY
+            .OBSERVED,
+
+        explicitMemoryIntent,
       })
     );
   }
@@ -3164,10 +3461,16 @@ function buildMemoryCandidates({
           context?.sessionId ||
           null,
 
+        certainty:
+          MEMORY_CERTAINTY
+            .OBSERVED,
+
         metadata: {
           sessionSpecific:
             temporaryState.value,
         },
+
+        explicitMemoryIntent,
       })
     );
   }
@@ -3205,6 +3508,12 @@ function buildMemoryCandidates({
         creatorId:
           context?.creatorId ||
           null,
+
+        certainty:
+          MEMORY_CERTAINTY
+            .EXPLICIT,
+
+        explicitMemoryIntent,
       })
     );
   }
@@ -3246,48 +3555,42 @@ function buildMemoryCandidates({
         creatorId:
           context?.creatorId ||
           null,
+
+        certainty:
+          MEMORY_CERTAINTY
+            .EXPLICIT,
+
+        explicitMemoryIntent,
       })
     );
   }
 
   vocabulary.terms.forEach(
     (term) => {
-      const shared =
-        vocabulary
-          .likelySharedLanguage;
-
       candidates.push(
         createMemoryCandidate({
           category:
-            shared
-              ? MEMORY_CATEGORIES
-                  .SHARED_MEANING
-              : MEMORY_CATEGORIES
-                  .CREATIVE_VOCABULARY,
+            MEMORY_CATEGORIES
+              .SHARED_MEANING,
 
           title:
-            shared
-              ? "Shared creative phrase"
-              : "Creator vocabulary",
+            "Shared creative phrase",
 
-          content: term,
-          value: term,
+          content:
+            term,
+
+          value:
+            term,
 
           horizon:
             MEMORY_HORIZONS
               .LONG_TERM,
 
           scope:
-            shared
-              ? MEMORY_SCOPES
-                  .RELATIONSHIP
-              : MEMORY_SCOPES
-                  .CREATOR,
+            MEMORY_SCOPES
+              .RELATIONSHIP,
 
-          confidence:
-            shared
-              ? 0.72
-              : 0.58,
+          confidence: 0.72,
 
           evidence: [
             term,
@@ -3296,10 +3599,81 @@ function buildMemoryCandidates({
           creatorId:
             context?.creatorId ||
             null,
+
+          certainty:
+            MEMORY_CERTAINTY
+              .OBSERVED,
+
+          metadata: {
+            semanticKey:
+              `relationship::shared-meaning::${normaliseText(
+                term
+              )}`,
+          },
+
+          explicitMemoryIntent,
         })
       );
     }
   );
+
+  /**
+   * Quoted creator terminology is only promoted when
+   * the creator explicitly asks for it to be remembered.
+   */
+  if (
+    explicitMemoryIntent.value ===
+    "store"
+  ) {
+    vocabulary
+      .quotedPhrases
+      .forEach(
+        (phrase) => {
+          candidates.push(
+            createMemoryCandidate({
+              category:
+                MEMORY_CATEGORIES
+                  .CREATIVE_VOCABULARY,
+
+              title:
+                "Creator vocabulary",
+
+              content:
+                phrase,
+
+              value:
+                phrase,
+
+              horizon:
+                MEMORY_HORIZONS
+                  .LONG_TERM,
+
+              scope:
+                MEMORY_SCOPES
+                  .CREATOR,
+
+              confidence: 0.78,
+
+              evidence: [
+                EVIDENCE_TYPES
+                  .EXPLICIT_STATEMENT,
+              ],
+
+              creatorId:
+                context
+                  ?.creatorId ||
+                null,
+
+              certainty:
+                MEMORY_CERTAINTY
+                  .EXPLICIT,
+
+              explicitMemoryIntent,
+            })
+          );
+        }
+      );
+  }
 
   if (
     briefDetour.value
@@ -3363,6 +3737,10 @@ function buildMemoryCandidates({
           context?.sessionId ||
           null,
 
+        certainty:
+          MEMORY_CERTAINTY
+            .OBSERVED,
+
         tags: [
           deferredTopic.value
             ? "deferred-topic"
@@ -3397,13 +3775,16 @@ function buildMemoryCandidates({
           returnWithoutOpeningRabbitHole:
             true,
         },
+
+        explicitMemoryIntent,
       })
     );
   }
 
   if (
     projectMemorySignal.value &&
-    cleanMessage
+    cleanMessage &&
+    projectId
   ) {
     const category =
       projectMemorySignal
@@ -3467,10 +3848,16 @@ function buildMemoryCandidates({
           context?.sessionId ||
           null,
 
+        certainty:
+          MEMORY_CERTAINTY
+            .OBSERVED,
+
         metadata: {
           inferredFromConversation:
             true,
         },
+
+        explicitMemoryIntent,
       })
     );
   }
@@ -3491,7 +3878,10 @@ function buildMemoryCandidates({
       const candidate =
         createStructuredSignalCandidate({
           signal,
+
           context,
+
+          explicitMemoryIntent,
         });
 
       if (candidate) {
@@ -3583,6 +3973,12 @@ function buildMemoryCandidates({
         sessionId:
           context?.sessionId ||
           null,
+
+        certainty:
+          MEMORY_CERTAINTY
+            .EXPLICIT,
+
+        explicitMemoryIntent,
       })
     );
   }
@@ -3604,7 +4000,8 @@ function deduplicateCandidates(
   candidates.forEach(
     (candidate) => {
       if (
-        !candidate?.memoryKey
+        !candidate
+          ?.memoryKey
       ) {
         return;
       }
@@ -3633,44 +4030,146 @@ function deduplicateCandidates(
 }
 
 /**
+ * Returns every project id attached to a stored memory.
+ */
+function getMemoryProjectIds(
+  memory
+) {
+  return uniqueValues([
+    cleanString(
+      memory?.projectId
+    ),
+
+    cleanString(
+      memory?.metadata
+        ?.projectId
+    ),
+
+    cleanString(
+      memory?.relatedProjectId
+    ),
+
+    ...asArray(
+      memory
+        ?.relatedProjectIds
+    ).map(
+      cleanString
+    ),
+  ].filter(Boolean));
+}
+
+/**
+ * Infers memory scope when an older memory does not carry an
+ * explicit scope field.
+ */
+function inferMemoryScope(
+  memory
+) {
+  const explicitScope =
+    cleanString(
+      memory?.scope
+    ) ||
+    cleanString(
+      memory?.metadata
+        ?.scope
+    );
+
+  if (
+    isKnownScope(
+      explicitScope
+    )
+  ) {
+    return explicitScope;
+  }
+
+  if (
+    getMemoryProjectIds(
+      memory
+    ).length > 0 ||
+    memory?.type ===
+      "project-memory" ||
+    memory?.type ===
+      "session-handoff"
+  ) {
+    return MEMORY_SCOPES.PROJECT;
+  }
+
+  return MEMORY_SCOPES.CREATOR;
+}
+
+/**
  * Ensures two memories are scope-compatible.
  */
 function memoryScopeCompatible(
   candidate,
   memory
 ) {
-  const candidateProjectId =
-    candidate?.projectId ||
-    null;
+  const candidateScope =
+    candidate?.scope ||
+    resolveDefaultScope(
+      candidate?.category
+    );
 
-  const memoryProjectId =
-    memory?.projectId ||
-    memory?.metadata
-      ?.projectId ||
-    memory?.relatedProjectId ||
-    asArray(
-      memory?.relatedProjectIds
-    )[0] ||
-    null;
+  const memoryScope =
+    inferMemoryScope(
+      memory
+    );
+
+  const candidateProjectId =
+    cleanString(
+      candidate?.projectId
+    );
+
+  const memoryProjectIds =
+    getMemoryProjectIds(
+      memory
+    );
 
   if (
-    candidateProjectId &&
-    memoryProjectId &&
-    candidateProjectId !==
-      memoryProjectId
+    candidateScope ===
+    MEMORY_SCOPES.PROJECT
+  ) {
+    if (
+      !candidateProjectId
+    ) {
+      return false;
+    }
+
+    if (
+      memoryScope !==
+      MEMORY_SCOPES.PROJECT
+    ) {
+      return false;
+    }
+
+    if (
+      !memoryProjectIds
+        .includes(
+          candidateProjectId
+        )
+    ) {
+      return false;
+    }
+  } else if (
+    memoryScope ===
+    MEMORY_SCOPES.PROJECT
   ) {
     return false;
   }
 
   const candidateEntityId =
-    candidate?.entityId ||
-    null;
+    cleanString(
+      candidate?.entityId
+    );
 
   const memoryEntityId =
-    memory?.entityId ||
-    memory?.metadata
-      ?.entityId ||
-    null;
+    cleanString(
+      memory?.entityId
+    ) ||
+    cleanString(
+      memory?.metadata
+        ?.entityId
+    );
 
   if (
     candidateEntityId &&
@@ -3767,8 +4266,14 @@ function findRelatedMemories({
 
         if (
           candidate.memoryKey &&
-          memory.memoryKey ===
-            candidate.memoryKey
+          (
+            memory.memoryKey ===
+              candidate.memoryKey ||
+            memory
+              .metadata
+              ?.memoryKey ===
+              candidate.memoryKey
+          )
         ) {
           similarity = 1;
         }
@@ -3811,9 +4316,14 @@ function detectMemoryRelationship({
       0
   ) {
     return {
-      relationship: "new",
-      relatedMemory: null,
-      confidence: 0.6,
+      relationship:
+        "new",
+
+      relatedMemory:
+        null,
+
+      confidence:
+        0.6,
     };
   }
 
@@ -3821,23 +4331,40 @@ function detectMemoryRelationship({
     relatedMemories[0];
 
   const oldValue =
-    strongest.memory?.value ||
-    strongest.memory?.content ||
-    strongest.memory?.text ||
+    strongest
+      .memory
+      ?.value ??
+    strongest
+      .memory
+      ?.metadata
+      ?.value ??
+    strongest
+      .memory
+      ?.content ??
+    strongest
+      .memory
+      ?.text ??
     "";
 
   const newValue =
-    candidate.value ||
-    candidate.content ||
+    candidate.value ??
+    candidate.content ??
     "";
 
+  const oldSerialised =
+    serialiseMemoryValue(
+      oldValue
+    );
+
+  const newSerialised =
+    serialiseMemoryValue(
+      newValue
+    );
+
   if (
-    typeof oldValue ===
-      "string" &&
-    typeof newValue ===
-      "string" &&
-    normaliseText(oldValue) ===
-      normaliseText(newValue)
+    oldSerialised &&
+    oldSerialised ===
+      newSerialised
   ) {
     return {
       relationship:
@@ -3867,12 +4394,19 @@ function detectMemoryRelationship({
       relatedMemory:
         strongest.memory,
 
-      confidence: 0.76,
+      confidence:
+        0.76,
     };
   }
 
+  /**
+   * Only creator-originated corrections may automatically
+   * supersede existing truth.
+   */
   if (
     correctionSignal.value &&
+    candidate.source ===
+      MEMORY_SOURCES.CREATOR &&
     strongest.similarity >=
       0.45
   ) {
@@ -3947,6 +4481,20 @@ function chooseMemoryAction({
     );
   }
 
+  /**
+   * Unknown specialist signals remain evidence only until
+   * their meaning is classified.
+   */
+  if (
+    candidate.category ===
+    MEMORY_CATEGORIES.UNKNOWN
+  ) {
+    return (
+      MEMORY_ACTIONS
+        .HOLD_FOR_MORE_EVIDENCE
+    );
+  }
+
   if (
     candidate.category ===
     MEMORY_CATEGORIES
@@ -3963,10 +4511,11 @@ function chooseMemoryAction({
     MEMORY_CATEGORIES
       .SESSION_HANDOFF
   ) {
-    return (
-      MEMORY_ACTIONS
-        .SAVE_SESSION_HANDOFF
-    );
+    return candidate.projectId
+      ? MEMORY_ACTIONS
+          .SAVE_SESSION_HANDOFF
+      : MEMORY_ACTIONS
+          .IGNORE;
   }
 
   if (
@@ -3990,10 +4539,12 @@ function chooseMemoryAction({
   }
 
   if (
-    relationship.relationship ===
-      "possible-conflict" ||
-    relationship.relationship ===
-      "temporary-override"
+    [
+      "possible-conflict",
+      "temporary-override",
+    ].includes(
+      relationship.relationship
+    )
   ) {
     return (
       MEMORY_ACTIONS
@@ -4007,9 +4558,18 @@ function chooseMemoryAction({
         candidate.category
       )
   ) {
+    /**
+     * Session-specific preferences must never become
+     * permanent creator-profile settings.
+     */
     if (
+      candidate.scope ===
+        MEMORY_SCOPES.CREATOR &&
+      candidate.horizon ===
+        MEMORY_HORIZONS
+          .LONG_TERM &&
       candidate.confidence >=
-      0.78
+        0.78
     ) {
       return (
         MEMORY_ACTIONS
@@ -4030,19 +4590,20 @@ function chooseMemoryAction({
       )
   ) {
     if (
-      candidate.confidence >=
-      0.6
+      !candidate.projectId
     ) {
       return (
         MEMORY_ACTIONS
-          .SAVE_PROJECT_MEMORY
+          .IGNORE
       );
     }
 
-    return (
-      MEMORY_ACTIONS
-        .HOLD_FOR_MORE_EVIDENCE
-    );
+    return candidate.confidence >=
+      0.6
+      ? MEMORY_ACTIONS
+          .SAVE_PROJECT_MEMORY
+      : MEMORY_ACTIONS
+          .HOLD_FOR_MORE_EVIDENCE;
   }
 
   if (
@@ -4072,20 +4633,18 @@ function chooseMemoryAction({
 }
 
 /**
- * Converts a guidance-memory value into the profile fields
- * understood by CreatorMemory.js.
+ * Converts guidance memory into the profile fields understood
+ * by CreatorMemory.js.
  */
 function createProfileUpdatePayload(
   candidate
 ) {
-  const value =
-    candidate.value;
-
   const learningRecord = {
     category:
       candidate.category,
 
-    value,
+    value:
+      candidate.value,
 
     confidence:
       candidate.confidence,
@@ -4100,12 +4659,11 @@ function createProfileUpdatePayload(
       createTimestamp(),
   };
 
-  const communicationPreferences = {
-    mentorLearning:
-      learningRecord,
-  };
+  const communicationPreferences = {};
 
-  switch (value) {
+  switch (
+    candidate.value
+  ) {
     case "concise-during-build":
       communicationPreferences
         .conciseGuidance =
@@ -4151,14 +4709,22 @@ function createProfileUpdatePayload(
 /**
  * Creates a persistence instruction.
  *
- * These action names form the contract between
- * CreatorMemoryEngine and CreatorMemory.js.
+ * These names form the contract between CreatorMemoryEngine
+ * and CreatorMemory.js.
  */
 function createStorageInstruction({
   candidate,
   action,
   relationship,
 }) {
+  if (
+    !candidate ||
+    action ===
+      MEMORY_ACTIONS.IGNORE
+  ) {
+    return null;
+  }
+
   const common = {
     candidateId:
       candidate.id,
@@ -4272,18 +4838,20 @@ function createStorageInstruction({
           candidate.source,
 
         certainty:
-          candidate.source ===
-            MEMORY_SOURCES
-              .CREATOR
-            ? "explicit"
-            : "inferred",
+          candidate.certainty,
+
+        memoryKey:
+          candidate.memoryKey,
+
+        projectId:
+          candidate.projectId,
+
+        scope:
+          candidate.scope,
 
         metadata: {
           horizon:
             candidate.horizon,
-
-          scope:
-            candidate.scope,
 
           importance:
             candidate.importance,
@@ -4308,12 +4876,13 @@ function createStorageInstruction({
   }
 
   if (
-    action ===
+    [
       MEMORY_ACTIONS
-        .CAPTURE_OBSERVATION ||
-    action ===
+        .CAPTURE_OBSERVATION,
+
       MEMORY_ACTIONS
-        .HOLD_FOR_MORE_EVIDENCE
+        .HOLD_FOR_MORE_EVIDENCE,
+    ].includes(action)
   ) {
     return {
       ...common,
@@ -4350,11 +4919,16 @@ function createStorageInstruction({
           candidate.source,
 
         certainty:
-          candidate.source ===
-            MEMORY_SOURCES
-              .CREATOR
-            ? "explicit"
-            : "observed",
+          candidate.certainty,
+
+        memoryKey:
+          candidate.memoryKey,
+
+        projectId:
+          candidate.projectId,
+
+        scope:
+          candidate.scope,
 
         metadata: {
           horizon:
@@ -4399,13 +4973,6 @@ function createStorageInstruction({
     };
   }
 
-  /**
-   * v2.1:
-   *
-   * Deferred topics now use CreatorMemory.js'
-   * dedicated deferred-memory store rather than being
-   * disguised as paused ideas.
-   */
   if (
     action ===
     MEMORY_ACTIONS
@@ -4437,11 +5004,7 @@ function createStorageInstruction({
           candidate.source,
 
         certainty:
-          candidate.source ===
-            MEMORY_SOURCES
-              .CREATOR
-            ? "explicit"
-            : "observed",
+          candidate.certainty,
 
         confidence:
           candidate.confidence,
@@ -4473,6 +5036,9 @@ function createStorageInstruction({
             candidate.category,
             ...candidate.tags,
           ]),
+
+        memoryKey:
+          candidate.memoryKey,
 
         metadata: {
           ...cloneValue(
@@ -4506,11 +5072,6 @@ function createStorageInstruction({
     };
   }
 
-  /**
-   * Stable project-memory contract.
-   *
-   * CreatorMemory.js will implement this method next.
-   */
   if (
     action ===
     MEMORY_ACTIONS
@@ -4563,9 +5124,6 @@ function createStorageInstruction({
     };
   }
 
-  /**
-   * Stable session-handoff contract.
-   */
   if (
     action ===
     MEMORY_ACTIONS
@@ -4593,9 +5151,6 @@ function createStorageInstruction({
     };
   }
 
-  /**
-   * Stable reinforcement contract.
-   */
   if (
     action ===
     MEMORY_ACTIONS
@@ -4620,6 +5175,16 @@ function createStorageInstruction({
             ?.id ||
           null,
 
+        memoryKey:
+          relationship
+            .relatedMemory
+            ?.memoryKey ||
+          relationship
+            .relatedMemory
+            ?.metadata
+            ?.memoryKey ||
+          candidate.memoryKey,
+
         existingMemory:
           cloneValue(
             relationship
@@ -4640,9 +5205,6 @@ function createStorageInstruction({
     };
   }
 
-  /**
-   * Stable supersession contract.
-   */
   if (
     action ===
     MEMORY_ACTIONS
@@ -4667,6 +5229,16 @@ function createStorageInstruction({
             ?.id ||
           null,
 
+        memoryKey:
+          relationship
+            .relatedMemory
+            ?.memoryKey ||
+          relationship
+            .relatedMemory
+            ?.metadata
+            ?.memoryKey ||
+          null,
+
         existingMemory:
           cloneValue(
             relationship
@@ -4687,22 +5259,19 @@ function createStorageInstruction({
     };
   }
 
-  return {
-    ...common,
-
-    targetMethod: null,
-    payload: null,
-  };
+  return null;
 }
 
 /**
- * Extracts natural-language forget target.
+ * Extracts a natural-language forget target.
  */
 function extractForgetTarget(
   message
 ) {
   const text =
-    cleanString(message);
+    cleanString(
+      message
+    );
 
   const patterns = [
     /forget\s+(?:that|this memory)\s*[:,-]?\s*(.*)$/i,
@@ -4719,7 +5288,9 @@ function extractForgetTarget(
     of patterns
   ) {
     const match =
-      text.match(pattern);
+      text.match(
+        pattern
+      );
 
     if (match) {
       return cleanString(
@@ -4729,6 +5300,117 @@ function extractForgetTarget(
   }
 
   return "";
+}
+
+/**
+ * Creates searchable memory text.
+ */
+function getMemoryText(
+  memory
+) {
+  const metadataValue =
+    typeof memory
+      ?.metadata
+      ?.value ===
+      "string"
+      ? memory
+          .metadata
+          .value
+      : "";
+
+  return [
+    memory?.title,
+    memory?.content,
+    memory?.text,
+    memory?.description,
+    memory?.name,
+
+    typeof memory?.value ===
+      "string"
+      ? memory.value
+      : "",
+
+    memory?.category,
+    memory?.entityName,
+    metadataValue,
+  ]
+    .filter(Boolean)
+    .join(" ");
+}
+
+/**
+ * Performs conservative matching for explicit forget requests.
+ *
+ * Deletion requires one unambiguous target rather than merely
+ * the closest vaguely related memory.
+ */
+function findForgetMatches(
+  targetText,
+  existingMemories
+) {
+  const normalisedTarget =
+    normaliseText(
+      targetText
+    );
+
+  if (
+    !normalisedTarget
+  ) {
+    return [];
+  }
+
+  return existingMemories
+    .map(
+      (memory) => {
+        const memoryText =
+          normaliseText(
+            getMemoryText(
+              memory
+            )
+          );
+
+        const exactish =
+          memoryText ===
+            normalisedTarget ||
+          memoryText.includes(
+            normalisedTarget
+          ) ||
+          normalisedTarget.includes(
+            memoryText
+          );
+
+        const similarity =
+          calculateTextSimilarity(
+            targetText,
+            memoryText
+          );
+
+        return {
+          memory,
+
+          similarity:
+            exactish
+              ? Math.max(
+                  0.95,
+                  similarity
+                )
+              : similarity,
+
+          exactish,
+        };
+      }
+    )
+    .filter(
+      (item) =>
+        item.exactish ||
+        item.similarity >=
+          0.72
+    )
+    .sort(
+      (a, b) =>
+        b.similarity -
+        a.similarity
+    );
 }
 
 /**
@@ -4751,6 +5433,9 @@ function planForgetRequest({
 
       matchedMemories: [],
 
+      unresolvedTargetIds:
+        [],
+
       requiresClarification:
         false,
 
@@ -4771,7 +5456,11 @@ function planForgetRequest({
       message
     );
 
-  let matchedMemories = [];
+  let matchedMemories =
+    [];
+
+  let unresolvedTargetIds =
+    [];
 
   if (
     explicitIds.length > 0
@@ -4783,60 +5472,43 @@ function planForgetRequest({
             memory?.id
           )
       );
+
+    unresolvedTargetIds =
+      explicitIds.filter(
+        (id) =>
+          !matchedMemories
+            .some(
+              (memory) =>
+                memory?.id ===
+                id
+            )
+      );
   } else if (
     targetText
   ) {
     matchedMemories =
-      existingMemories
-        .map(
-          (memory) => ({
-            memory,
-
-            similarity:
-              calculateTextSimilarity(
-                targetText,
-
-                [
-                  memory?.title,
-                  memory?.content,
-                  memory?.text,
-                  memory?.description,
-                  memory?.name,
-
-                  typeof memory?.value ===
-                    "string"
-                    ? memory.value
-                    : "",
-                ]
-                  .filter(Boolean)
-                  .join(" ")
-              ),
-          })
-        )
-        .filter(
-          (item) =>
-            item.similarity >=
-            0.38
-        )
-        .sort(
-          (a, b) =>
-            b.similarity -
-            a.similarity
-        )
-        .slice(0, 5)
-        .map(
-          (item) =>
-            item.memory
-        );
+      findForgetMatches(
+        targetText,
+        existingMemories
+      ).map(
+        (item) =>
+          item.memory
+      );
   }
 
   const requiresClarification =
-    explicitIds.length === 0 &&
-    (
-      !targetText ||
-      matchedMemories.length !==
-        1
-    );
+    explicitIds.length > 0
+      ? (
+          matchedMemories.length ===
+            0 ||
+          unresolvedTargetIds.length >
+            0
+        )
+      : (
+          !targetText ||
+          matchedMemories.length !==
+            1
+        );
 
   const instructions =
     requiresClarification
@@ -4866,8 +5538,10 @@ function planForgetRequest({
                 null,
 
               memoryKey:
-                memory?.memoryKey ||
-                memory?.metadata
+                memory
+                  ?.memoryKey ||
+                memory
+                  ?.metadata
                   ?.memoryKey ||
                 null,
             },
@@ -4892,44 +5566,12 @@ function planForgetRequest({
         matchedMemories
       ),
 
+    unresolvedTargetIds,
+
     requiresClarification,
 
     instructions,
   };
-}
-
-/**
- * Creates searchable memory text.
- */
-function getMemoryText(
-  memory
-) {
-  const metadataValue =
-    typeof memory
-      ?.metadata
-      ?.value ===
-      "string"
-      ? memory.metadata.value
-      : "";
-
-  return [
-    memory?.title,
-    memory?.content,
-    memory?.text,
-    memory?.description,
-    memory?.name,
-
-    typeof memory?.value ===
-      "string"
-      ? memory.value
-      : "",
-
-    memory?.category,
-    memory?.entityName,
-    metadataValue,
-  ]
-    .filter(Boolean)
-    .join(" ");
 }
 
 /**
@@ -4946,23 +5588,44 @@ function isRecallEligible(
   const status =
     memory?.status;
 
-  if (
-    [
-      MEMORY_STATUSES.REJECTED,
-      MEMORY_STATUSES.ARCHIVED,
+  const lifecycleStatus =
+    memory?.lifecycleStatus;
 
-      "dismissed",
-      "archived",
-    ].includes(status)
+  const blockedStatuses = [
+    MEMORY_STATUSES.REJECTED,
+    MEMORY_STATUSES.ARCHIVED,
+    MEMORY_STATUSES.DISMISSED,
+
+    "dismissed",
+    "archived",
+    "rejected",
+  ];
+
+  if (
+    blockedStatuses.includes(
+      status
+    ) ||
+    blockedStatuses.includes(
+      lifecycleStatus
+    )
   ) {
     return false;
   }
 
+  const historicalStatuses = [
+    MEMORY_STATUSES.SUPERSEDED,
+    MEMORY_STATUSES.HISTORICAL,
+  ];
+
   if (
-    [
-      MEMORY_STATUSES.SUPERSEDED,
-      MEMORY_STATUSES.HISTORICAL,
-    ].includes(status) &&
+    (
+      historicalStatuses.includes(
+        status
+      ) ||
+      historicalStatuses.includes(
+        lifecycleStatus
+      )
+    ) &&
     !context
       ?.includeHistoricalRecall
   ) {
@@ -4985,26 +5648,39 @@ function isRecallEligible(
       context
     );
 
-  const relatedProjectIds =
-    asArray(
-      memory?.relatedProjectIds
+  const projectIds =
+    getMemoryProjectIds(
+      memory
     );
 
-  const memoryProjectId =
-    memory?.projectId ||
-    memory?.metadata
-      ?.projectId ||
-    memory?.relatedProjectId ||
-    relatedProjectIds[0] ||
-    null;
+  const memoryScope =
+    inferMemoryScope(
+      memory
+    );
 
+  /**
+   * Project-scoped memory may only surface inside its
+   * own active project.
+   */
   if (
-    activeProjectId &&
-    memoryProjectId &&
-    activeProjectId !==
-      memoryProjectId
+    memoryScope ===
+    MEMORY_SCOPES.PROJECT
   ) {
-    return false;
+    if (
+      !activeProjectId
+    ) {
+      return false;
+    }
+
+    if (
+      projectIds.length ===
+        0 ||
+      !projectIds.includes(
+        activeProjectId
+      )
+    ) {
+      return false;
+    }
   }
 
   return true;
@@ -5053,15 +5729,12 @@ function scoreMemoryRecall({
     .filter(Boolean)
     .join(" ");
 
-  const memoryText =
-    getMemoryText(
-      memory
-    );
-
   let score =
     calculateTextSimilarity(
       currentText,
-      memoryText
+      getMemoryText(
+        memory
+      )
     );
 
   const activeProjectId =
@@ -5069,23 +5742,13 @@ function scoreMemoryRecall({
       context
     );
 
-  const relatedProjectIds =
-    asArray(
-      memory?.relatedProjectIds
-    );
-
-  const memoryProjectId =
-    memory?.projectId ||
-    memory?.metadata
-      ?.projectId ||
-    memory?.relatedProjectId ||
-    relatedProjectIds[0] ||
-    null;
-
   if (
     activeProjectId &&
-    memoryProjectId ===
+    getMemoryProjectIds(
+      memory
+    ).includes(
       activeProjectId
+    )
   ) {
     score += 0.25;
   }
@@ -5114,26 +5777,33 @@ function scoreMemoryRecall({
   }
 
   if (
-    memory?.importance ===
-      MEMORY_IMPORTANCE.HIGH ||
-    memory?.importance ===
-      MEMORY_IMPORTANCE.CRITICAL
+    [
+      MEMORY_IMPORTANCE.HIGH,
+      MEMORY_IMPORTANCE.CORE,
+      MEMORY_IMPORTANCE.CRITICAL,
+    ].includes(
+      memory?.importance
+    )
   ) {
     score += 0.12;
   }
 
   if (
-    context?.thinkingMode ===
-      "flow" ||
-    context?.thinkingMode ===
-      "build"
+    [
+      "flow",
+      "build",
+    ].includes(
+      context
+        ?.thinkingMode
+    )
   ) {
     score -= 0.08;
   }
 
   if (
-    context?.guidanceWindow ===
-      "closed-for-now"
+    context
+      ?.guidanceWindow ===
+    "closed-for-now"
   ) {
     score -= 0.22;
   }
@@ -5171,7 +5841,9 @@ function planRelevantRecall({
           relevance:
             scoreMemoryRecall({
               memory,
+
               message,
+
               context,
             }),
         })
@@ -5186,7 +5858,10 @@ function planRelevantRecall({
           b.relevance -
           a.relevance
       )
-      .slice(0, 3);
+      .slice(
+        0,
+        3
+      );
 
   if (
     ranked.length === 0
@@ -5211,7 +5886,8 @@ function planRelevantRecall({
     ranked[0];
 
   if (
-    context?.guidanceWindow ===
+    context
+      ?.guidanceWindow ===
       "closed-for-now" ||
     (
       context?.thinkingMode ===
@@ -5247,8 +5923,10 @@ function planRelevantRecall({
     priority:
       strongest.relevance >=
       0.8
-        ? RECALL_PRIORITIES.HIGH
-        : RECALL_PRIORITIES.MEDIUM,
+        ? RECALL_PRIORITIES
+            .HIGH
+        : RECALL_PRIORITIES
+            .MEDIUM,
 
     timing:
       RECALL_TIMINGS
@@ -5275,15 +5953,20 @@ function scoreDeferredRecall({
   let score =
     scoreMemoryRecall({
       memory,
+
       message,
+
       context,
     });
 
   if (
-    context?.thinkingMode ===
-      "flow" ||
-    context?.thinkingMode ===
-      "build"
+    [
+      "flow",
+      "build",
+    ].includes(
+      context
+        ?.thinkingMode
+    )
   ) {
     score -= 0.14;
   }
@@ -5342,10 +6025,16 @@ function planDeferredRecall({
           relevance:
             scoreDeferredRecall({
               memory,
+
               message,
+
               context,
             }),
         })
+      )
+      .filter(
+        (item) =>
+          item.relevance > 0
       )
       .sort(
         (a, b) =>
@@ -5378,11 +6067,15 @@ function planDeferredRecall({
   }
 
   if (
-    context?.thinkingMode ===
-      "flow" ||
-    context?.thinkingMode ===
-      "build" ||
-    context?.guidanceWindow ===
+    [
+      "flow",
+      "build",
+    ].includes(
+      context
+        ?.thinkingMode
+    ) ||
+    context
+      ?.guidanceWindow ===
       "closed-for-now"
   ) {
     return {
@@ -5412,8 +6105,10 @@ function planDeferredRecall({
     priority:
       strongest.relevance >=
       0.75
-        ? RECALL_PRIORITIES.HIGH
-        : RECALL_PRIORITIES.MEDIUM,
+        ? RECALL_PRIORITIES
+            .HIGH
+        : RECALL_PRIORITIES
+            .MEDIUM,
 
     timing:
       RECALL_TIMINGS
@@ -5472,12 +6167,16 @@ function createCombinedRecallPlan({
           : deferredRecall.timing,
 
     memory:
-      deferredRecall.memory ||
-      null,
+      deferredRecall.shouldRecall
+        ? deferredRecall.memory ||
+          null
+        : null,
 
     memories:
-      relevantRecall.memories ||
-      [],
+      relevantRecall.shouldRecall
+        ? relevantRecall.memories ||
+          []
+        : [],
 
     deferred:
       deferredRecall,
@@ -5500,6 +6199,7 @@ function createResponseGuidance({
   deferredTopic,
   recallPlan,
   forgetPlan,
+  sensitiveMemoryContent,
 }) {
   const guidance = [
     "Memory should help the Mentor serve the creator more effectively.",
@@ -5522,6 +6222,17 @@ function createResponseGuidance({
 
     "When several memories are relevant, surface only the minimum needed for continuity.",
   ];
+
+  if (
+    sensitiveMemoryContent
+      .value
+  ) {
+    guidance.push(
+      "Do not persist the detected credential, secret, token or password as Creator Memory.",
+
+      "Continue helping with the creator's task without echoing sensitive material unnecessarily."
+    );
+  }
 
   if (
     briefDetour.value
@@ -5556,8 +6267,6 @@ function createResponseGuidance({
   ) {
     guidance.push(
       "Introduce remembered context naturally rather than announcing the memory system.",
-
-      "Explain why a recalled item matters only when that explanation is useful.",
 
       "Allow the creator to correct remembered project facts immediately.",
 
@@ -5632,7 +6341,7 @@ function createGuardRails() {
 
     "Do not claim a memory was stored unless persistence confirms success.",
 
-    "Do not persist raw secrets, credentials, tokens or passwords as creative memory.",
+    "Do not persist raw secrets, credentials, tokens, passwords, private keys or recovery phrases as creative memory.",
   ];
 }
 
@@ -5642,7 +6351,7 @@ function createGuardRails() {
 function collectExistingMemories(
   context
 ) {
-  return [
+  const combined = [
     ...asArray(
       context
         ?.existingMemories
@@ -5662,127 +6371,49 @@ function collectExistingMemories(
       context
         ?.existingObservations
     ),
+
+    ...asArray(
+      context
+        ?.deferredMemories
+    ),
+
+    ...asArray(
+      context
+        ?.milestones
+    ),
   ];
-}
 
-/**
- * Creates a safe fallback memory plan.
- */
-function createFallbackMemoryPlan({
-  message,
-  context,
-  error = null,
-}) {
-  return {
-    id:
-      createMemoryPlanId(),
+  const seen =
+    new Set();
 
-    engine:
-      "creator-memory-engine",
+  return combined.filter(
+    (memory) => {
+      const key =
+        memory?.id ||
+        memory?.memoryKey ||
+        memory
+          ?.metadata
+          ?.memoryKey;
 
-    version:
-      CREATOR_MEMORY_ENGINE_VERSION,
+      if (!key) {
+        return true;
+      }
 
-    input: {
-      message:
-        cleanString(message),
-    },
+      if (
+        seen.has(
+          key
+        )
+      ) {
+        return false;
+      }
 
-    detections: {},
+      seen.add(
+        key
+      );
 
-    candidates: [],
-
-    instructions: [],
-
-    forget: {
-      requested: false,
-
-      targetText: "",
-
-      matchedMemories: [],
-
-      requiresClarification:
-        false,
-
-      instructions: [],
-    },
-
-    recall: {
-      shouldRecall: false,
-
-      priority:
-        RECALL_PRIORITIES.NONE,
-
-      timing:
-        RECALL_TIMINGS.NOT_NOW,
-
-      memory: null,
-
-      memories: [],
-
-      deferred: null,
-
-      relevant: null,
-
-      reason:
-        "Memory analysis was unavailable.",
-    },
-
-    responseGuidance: [
-      "Do not store new conclusions.",
-
-      "Use present conversation context only.",
-
-      "Ask for explicit confirmation before remembering anything important.",
-    ],
-
-    guardRails:
-      createGuardRails(),
-
-    persistence: {
-      connected: false,
-
-      canReadContext: false,
-
-      canApplyInstructions:
-        false,
-
-      canPersistProjectMemory:
-        false,
-
-      canPersistSessionHandoff:
-        false,
-
-      canReinforceMemory:
-        false,
-
-      canSupersedeMemory:
-        false,
-
-      canForgetMemory:
-        false,
-    },
-
-    contextSnapshot:
-      cloneValue(
-        context
-      ),
-
-    status: "fallback",
-
-    error:
-      error
-        ? {
-            message:
-              error instanceof Error
-                ? error.message
-                : String(error),
-          }
-        : null,
-
-    createdAt:
-      createTimestamp(),
-  };
+      return true;
+    }
+  );
 }
 
 /**
@@ -5862,10 +6493,15 @@ function describeMemoryService(
 }
 
 /**
- * Reads memory context through CreatorMemory.js where available.
+ * Reads memory context through CreatorMemory.js.
+ *
+ * The current project id is supplied before persistence is read,
+ * preventing another project's context from becoming the default
+ * planning context.
  */
 function readConnectedMemoryContext(
-  memory
+  memory,
+  context = {}
 ) {
   if (
     !memory ||
@@ -5876,10 +6512,21 @@ function readConnectedMemoryContext(
     return null;
   }
 
+  const projectId =
+    getProjectId(
+      context
+    );
+
   try {
     return (
       memory
-        .getMemoryContext()
+        .getMemoryContext(
+          projectId
+            ? {
+                projectId,
+              }
+            : {}
+        )
     );
   } catch (error) {
     console.warn(
@@ -5892,27 +6539,183 @@ function readConnectedMemoryContext(
 }
 
 /**
+ * Creates a safe fallback memory plan.
+ */
+function createFallbackMemoryPlan({
+  message,
+  context,
+  error = null,
+}) {
+  return {
+    id:
+      createMemoryPlanId(),
+
+    engine:
+      "creator-memory-engine",
+
+    version:
+      CREATOR_MEMORY_ENGINE_VERSION,
+
+    input: {
+      message:
+        cleanString(
+          message
+        ),
+    },
+
+    detections: {},
+
+    candidates: [],
+
+    instructions: [],
+
+    forget: {
+      requested: false,
+
+      targetText: "",
+
+      matchedMemories: [],
+
+      unresolvedTargetIds:
+        [],
+
+      requiresClarification:
+        false,
+
+      instructions: [],
+    },
+
+    recall: {
+      shouldRecall: false,
+
+      priority:
+        RECALL_PRIORITIES.NONE,
+
+      timing:
+        RECALL_TIMINGS.NOT_NOW,
+
+      memory: null,
+
+      memories: [],
+
+      deferred: null,
+
+      relevant: null,
+
+      reason:
+        "Memory analysis was unavailable.",
+    },
+
+    responseGuidance: [
+      "Do not store new conclusions.",
+
+      "Use present conversation context only.",
+
+      "Ask for explicit confirmation before remembering anything important.",
+    ],
+
+    guardRails:
+      createGuardRails(),
+
+    persistence:
+      describeMemoryService(
+        null
+      ),
+
+    contextSnapshot:
+      cloneValue(
+        context
+      ),
+
+    status:
+      "fallback",
+
+    error:
+      error
+        ? {
+            message:
+              error instanceof
+              Error
+                ? error.message
+                : String(error),
+          }
+        : null,
+
+    createdAt:
+      createTimestamp(),
+  };
+}
+
+/**
+ * Determines whether a persistence method really applied an
+ * instruction.
+ *
+ * This is especially important for destructive operations such
+ * as forgetting, where a returned object alone is not proof that
+ * deletion happened.
+ */
+function didPersistenceMethodApply(
+  instruction,
+  result
+) {
+  if (
+    result === null ||
+    result === false ||
+    result === undefined
+  ) {
+    return false;
+  }
+
+  if (
+    instruction
+      ?.targetMethod ===
+      "forgetMemory" ||
+    instruction?.action ===
+      "forget-memory"
+  ) {
+    return (
+      result?.forgotten ===
+      true
+    );
+  }
+
+  if (
+    typeof result
+      ?.applied ===
+    "boolean"
+  ) {
+    return result.applied;
+  }
+
+  return true;
+}
+
+/**
  * Creates the Creator Memory Engine service.
  */
 function createCreatorMemoryEngine({
   memory = null,
 } = {}) {
   let activeMemory =
-    memory || null;
+    memory ||
+    null;
 
   /**
-   * Builds context using both present input and persistent memory.
+   * Builds context using both current input and persistent
+   * memory.
    */
   function resolvePlanningContext(
     context = {}
   ) {
     const memoryContext =
       readConnectedMemoryContext(
-        activeMemory
+        activeMemory,
+        context
       );
 
     return mergeMemoryContext({
       context,
+
       memoryContext,
     });
   }
@@ -5937,6 +6740,11 @@ function createCreatorMemoryEngine({
           context:
             combinedContext,
         });
+
+      const sensitiveMemoryContent =
+        detectSensitiveMemoryContent(
+          message
+        );
 
       const briefDetour =
         detectBriefDetour(
@@ -6012,6 +6820,7 @@ function createCreatorMemoryEngine({
 
       const detections = {
         explicitMemoryIntent,
+        sensitiveMemoryContent,
         briefDetour,
         deferredTopic,
         temporaryState,
@@ -6076,13 +6885,16 @@ function createCreatorMemoryEngine({
             const action =
               chooseMemoryAction({
                 candidate,
+
                 relationship,
               });
 
             const instruction =
               createStorageInstruction({
                 candidate,
+
                 action,
+
                 relationship,
               });
 
@@ -6126,6 +6938,7 @@ function createCreatorMemoryEngine({
       const recallPlan =
         createCombinedRecallPlan({
           deferredRecall,
+
           relevantRecall,
         });
 
@@ -6249,6 +7062,9 @@ function createCreatorMemoryEngine({
           memoryMustProtectAutonomy:
             true,
 
+          secretsAreNeverCreativeMemory:
+            true,
+
           complexityRemainsBehindConversation:
             true,
         },
@@ -6262,6 +7078,8 @@ function createCreatorMemoryEngine({
             recallPlan,
 
             forgetPlan,
+
+            sensitiveMemoryContent,
           }),
 
         guardRails:
@@ -6272,7 +7090,8 @@ function createCreatorMemoryEngine({
             combinedContext
           ),
 
-        status: "planned",
+        status:
+          "planned",
 
         createdAt:
           createTimestamp(),
@@ -6286,7 +7105,9 @@ function createCreatorMemoryEngine({
       return (
         createFallbackMemoryPlan({
           message,
+
           context,
+
           error,
         })
       );
@@ -6333,6 +7154,7 @@ function createCreatorMemoryEngine({
     return (
       createCombinedRecallPlan({
         deferredRecall,
+
         relevantRecall,
       })
     );
@@ -6391,7 +7213,15 @@ function createCreatorMemoryEngine({
               activeMemory
             ),
 
-          status: "empty",
+          status:
+            "empty",
+
+          reason:
+            getProjectId(
+              combinedContext
+            )
+              ? "No handoff content was supplied."
+              : "A project id is required for a session handoff.",
 
           createdAt:
             createTimestamp(),
@@ -6399,11 +7229,14 @@ function createCreatorMemoryEngine({
       }
 
       const relationship = {
-        relationship: "new",
+        relationship:
+          "new",
 
-        relatedMemory: null,
+        relatedMemory:
+          null,
 
-        confidence: 0.96,
+        confidence:
+          0.96,
       };
 
       const instruction =
@@ -6432,6 +7265,7 @@ function createCreatorMemoryEngine({
         candidates: [
           {
             candidate,
+
             relationship,
 
             action:
@@ -6442,16 +7276,22 @@ function createCreatorMemoryEngine({
           },
         ],
 
-        instructions: [
-          instruction,
-        ],
+        instructions:
+          instruction
+            ? [
+                instruction,
+              ]
+            : [],
 
         persistence:
           describeMemoryService(
             activeMemory
           ),
 
-        status: "planned",
+        status:
+          instruction
+            ? "planned"
+            : "empty",
 
         createdAt:
           createTimestamp(),
@@ -6460,7 +7300,9 @@ function createCreatorMemoryEngine({
       return (
         createFallbackMemoryPlan({
           message: "",
+
           context,
+
           error,
         })
       );
@@ -6468,15 +7310,13 @@ function createCreatorMemoryEngine({
   }
 
   /**
-   * Executes a plan against CreatorMemory.js.
+   * Executes a memory plan against CreatorMemory.js.
    *
-   * Preferred execution path:
-   *
+   * Preferred path:
    * CreatorMemory.applyMemoryInstructions()
    *
-   * Compatibility execution path:
-   *
-   * direct targetMethod calls.
+   * Compatibility path:
+   * direct target-method calls.
    */
   function applyMemoryPlan({
     plan,
@@ -6492,14 +7332,24 @@ function createCreatorMemoryEngine({
     ) {
       return {
         applied: [],
+
         skipped:
           cloneValue(
-            plan?.instructions ||
+            plan
+              ?.instructions ||
             []
           ),
+
         errors: [],
 
-        successful: false,
+        successful:
+          false,
+
+        fullySuccessful:
+          false,
+
+        partiallySuccessful:
+          false,
 
         reason:
           "No Creator Memory service is connected.",
@@ -6512,7 +7362,7 @@ function createCreatorMemoryEngine({
       );
 
     /**
-     * Primary v2.1 persistence bridge.
+     * Primary v2.2 persistence bridge.
      */
     if (
       typeof resolvedMemory
@@ -6526,29 +7376,76 @@ function createCreatorMemoryEngine({
               instructions
             );
 
+        const applied =
+          cloneValue(
+            result?.applied ||
+            []
+          );
+
+        const skipped =
+          cloneValue(
+            result?.skipped ||
+            []
+          );
+
+        const errors =
+          cloneValue(
+            result?.errors ||
+            []
+          );
+
+        const fullySuccessful =
+          Boolean(
+            result
+              ?.fullySuccessful ??
+            (
+              errors.length ===
+                0 &&
+              skipped.length ===
+                0 &&
+              applied.length >
+                0
+            )
+          );
+
+        const partiallySuccessful =
+          Boolean(
+            result
+              ?.partiallySuccessful ??
+            (
+              applied.length >
+                0 &&
+              (
+                errors.length >
+                  0 ||
+                skipped.length >
+                  0
+              )
+            )
+          );
+
         return {
-          applied:
-            cloneValue(
-              result?.applied ||
-              []
-            ),
+          applied,
 
-          skipped:
-            cloneValue(
-              result?.skipped ||
-              []
-            ),
+          skipped,
 
-          errors:
-            cloneValue(
-              result?.errors ||
-              []
-            ),
+          errors,
 
           successful:
             Boolean(
-              result?.successful
+              result
+                ?.successful ??
+              (
+                applied.length >
+                  0 &&
+                errors.length ===
+                  0
+              )
             ),
+
+          fullySuccessful,
+
+          partiallySuccessful,
 
           executionPath:
             "applyMemoryInstructions",
@@ -6562,8 +7459,8 @@ function createCreatorMemoryEngine({
     }
 
     /**
-     * Compatibility path for storage adapters that do not yet
-     * expose applyMemoryInstructions().
+     * Compatibility path for adapters without
+     * applyMemoryInstructions().
      */
     const applied = [];
     const skipped = [];
@@ -6630,8 +7527,10 @@ function createCreatorMemoryEngine({
           );
 
         if (
-          result === null ||
-          result === false
+          !didPersistenceMethodApply(
+            instruction,
+            result
+          )
         ) {
           skipped.push({
             instruction:
@@ -6665,7 +7564,8 @@ function createCreatorMemoryEngine({
             ),
 
           error:
-            error instanceof Error
+            error instanceof
+            Error
               ? error.message
               : String(error),
         });
@@ -6674,12 +7574,34 @@ function createCreatorMemoryEngine({
 
     return {
       applied,
+
       skipped,
+
       errors,
 
       successful:
-        errors.length === 0 &&
-        applied.length > 0,
+        errors.length ===
+          0 &&
+        applied.length >
+          0,
+
+      fullySuccessful:
+        errors.length ===
+          0 &&
+        skipped.length ===
+          0 &&
+        applied.length >
+          0,
+
+      partiallySuccessful:
+        applied.length >
+          0 &&
+        (
+          skipped.length >
+            0 ||
+          errors.length >
+            0
+        ),
 
       executionPath:
         "direct-method-fallback",
@@ -6756,14 +7678,17 @@ function createCreatorMemoryEngine({
           instruction.payload
         );
 
+      const applied =
+        didPersistenceMethodApply(
+          instruction,
+          result
+        );
+
       return {
-        applied:
-          result !== null &&
-          result !== false,
+        applied,
 
         reason:
-          result !== null &&
-          result !== false
+          applied
             ? null
             : "Persistence method did not apply the instruction.",
 
@@ -6777,7 +7702,8 @@ function createCreatorMemoryEngine({
         applied: false,
 
         reason:
-          error instanceof Error
+          error instanceof
+          Error
             ? error.message
             : String(error),
 
@@ -6818,12 +7744,18 @@ function createCreatorMemoryEngine({
   }
 
   /**
-   * Returns current persistent memory context where available.
+   * Returns current persistent memory context.
+   *
+   * A current context may be supplied so CreatorMemory.js receives
+   * the active project id before reading project-scoped memory.
    */
-  function getConnectedMemoryContext() {
+  function getConnectedMemoryContext(
+    context = {}
+  ) {
     return (
       readConnectedMemoryContext(
-        activeMemory
+        activeMemory,
+        context
       )
     );
   }
@@ -6961,14 +7893,12 @@ function planMemory({
   context = {},
   memory = null,
 } = {}) {
-  const engine =
+  return (
     createCreatorMemoryEngine({
       memory,
-    });
-
-  return (
-    engine.planMemory({
+    }).planMemory({
       message,
+
       context,
     })
   );
@@ -6982,14 +7912,12 @@ function planRecall({
   context = {},
   memory = null,
 } = {}) {
-  const engine =
+  return (
     createCreatorMemoryEngine({
       memory,
-    });
-
-  return (
-    engine.planRecall({
+    }).planRecall({
       message,
+
       context,
     })
   );
@@ -7004,6 +7932,7 @@ export {
   MEMORY_SCOPES,
   MEMORY_IMPORTANCE,
   MEMORY_SOURCES,
+  MEMORY_CERTAINTY,
   MEMORY_ACTIONS,
 
   RECALL_PRIORITIES,
