@@ -22,6 +22,7 @@
  * - Whether memory should be captured or recalled.
  * - Whether project context should be restored.
  * - Whether a session handoff should be preserved.
+ * - Whether a stored session handoff should restore continuity.
  * - Whether a forget request requires clarification or execution.
  * - Whether conversation should continue or move into action.
  * - Which specialist-engine decision takes priority.
@@ -32,6 +33,23 @@
  * CreatorMemoryEngine interprets and plans memory behaviour.
  * AdaptiveMentorEngine orchestrates that intelligence with the
  * other Mentor systems.
+ *
+ * Version 2.3 completes the live memory orchestration bridge:
+ *
+ * - Current explicit project identity is passed into
+ *   CreatorMemory.getMemoryContext({ projectId }).
+ * - Present project context outranks stale persisted project state.
+ * - Project-scoped memory is filtered again before specialist use.
+ * - Explicit null and empty current-turn values remain authoritative.
+ * - CreatorMemoryEngine receives the live CreatorMemory service.
+ * - setMemory() propagates to every memory-aware specialist.
+ * - Stored session handoffs can trigger project restoration.
+ * - Project restoration is now a real adaptive action.
+ * - Build and flow behaviour cannot be made verbose by an old
+ *   remembered detailed-response preference.
+ * - Memory execution receives an Adaptive-level project-boundary
+ *   preflight before CreatorMemory performs final validation.
+ * - Persistence result reporting is preserved accurately.
  *
  * Core philosophy:
  * - Protect the creator.
@@ -52,7 +70,7 @@ import createReflectionEngine from "./ReflectionEngine";
 import createProgressionEngine from "./ProgressionEngine";
 import createCreatorMemoryEngine from "./CreatorMemoryEngine";
 
-const ADAPTIVE_MENTOR_ENGINE_VERSION = "2.2.0";
+const ADAPTIVE_MENTOR_ENGINE_VERSION = "2.3.0";
 
 const MENTOR_ROLES = Object.freeze({
   LISTENER: "listener",
@@ -270,6 +288,9 @@ const ADAPTATION_SIGNALS = Object.freeze({
   SESSION_HANDOFF_AVAILABLE:
     "session-handoff-available",
 
+  STORED_SESSION_HANDOFF_AVAILABLE:
+    "stored-session-handoff-available",
+
   MEMORY_CAPTURE_AVAILABLE:
     "memory-capture-available",
 
@@ -301,6 +322,7 @@ const DEFAULT_ADAPTIVE_CONTEXT =
 
     creatorProfile: null,
 
+    creatorMemoryConnected: false,
     creatorMemoryContext: null,
     memoryContext: null,
 
@@ -466,6 +488,21 @@ function uniqueValues(
   ];
 }
 
+function hasOwn(
+  value,
+  key
+) {
+  return Boolean(
+    value &&
+    Object.prototype
+      .hasOwnProperty
+      .call(
+        value,
+        key
+      )
+  );
+}
+
 function getNestedValue(
   value,
   path,
@@ -551,6 +588,145 @@ function getProjectId(
   );
 }
 
+function getExplicitProjectId(
+  context = {}
+) {
+  if (
+    hasOwn(
+      context,
+      "activeProjectId"
+    )
+  ) {
+    return (
+      cleanString(
+        context.activeProjectId
+      ) ||
+      null
+    );
+  }
+
+  if (
+    hasOwn(
+      context,
+      "activeProject"
+    )
+  ) {
+    if (
+      context.activeProject ===
+      null
+    ) {
+      return null;
+    }
+
+    if (
+      typeof context
+        .activeProject ===
+        "string"
+    ) {
+      return (
+        cleanString(
+          context.activeProject
+        ) ||
+        null
+      );
+    }
+
+    return (
+      cleanString(
+        context
+          ?.activeProject
+          ?.id
+      ) ||
+      cleanString(
+        context
+          ?.activeProject
+          ?.projectId
+      ) ||
+      null
+    );
+  }
+
+  return null;
+}
+
+function getMemoryEntryProjectId(
+  entry
+) {
+  return (
+    cleanString(
+      entry?.projectId
+    ) ||
+    cleanString(
+      entry
+        ?.relatedProjectId
+    ) ||
+    cleanString(
+      entry?.metadata
+        ?.projectId
+    ) ||
+    null
+  );
+}
+
+function isMemoryEntryRelevantToProject(
+  entry,
+  projectId
+) {
+  if (!entry) {
+    return false;
+  }
+
+  const directProjectId =
+    getMemoryEntryProjectId(
+      entry
+    );
+
+  if (directProjectId) {
+    return Boolean(
+      projectId &&
+      directProjectId ===
+        projectId
+    );
+  }
+
+  const relatedProjectIds =
+    asArray(
+      entry
+        ?.relatedProjectIds
+    )
+      .map(cleanString)
+      .filter(Boolean);
+
+  if (
+    relatedProjectIds
+      .length > 0
+  ) {
+    return Boolean(
+      projectId &&
+      relatedProjectIds
+        .includes(
+          projectId
+        )
+    );
+  }
+
+  return true;
+}
+
+function filterMemoryEntriesForProject(
+  entries,
+  projectId
+) {
+  return asArray(entries)
+    .filter(
+      (entry) =>
+        isMemoryEntryRelevantToProject(
+          entry,
+          projectId
+        )
+    );
+}
+
 function hasMeaningfulMemoryContext(
   memoryContext
 ) {
@@ -582,6 +758,10 @@ function hasMeaningfulMemoryContext(
     ).length > 0 ||
     asArray(
       memoryContext
+        ?.existingProjectMemories
+    ).length > 0 ||
+    asArray(
+      memoryContext
         ?.existingPatterns
     ).length > 0 ||
     asArray(
@@ -595,19 +775,26 @@ function hasMeaningfulMemoryContext(
     asArray(
       memoryContext
         ?.recentConversations
-    ).length > 0
+    ).length > 0 ||
+    Boolean(
+      memoryContext
+        ?.sessionHandoff
+    )
   );
 }
 
 /**
  * Reads CreatorMemory's richest available context.
  *
- * getMemoryContext() is the modern v2 contract.
- * createEngineContext() remains supported for backwards
- * compatibility.
+ * The current explicit project id is passed into the modern
+ * v2 memory contract so CreatorMemory can enforce project
+ * isolation before returning context.
  */
 function readCreatorMemoryContext(
-  memory
+  memory,
+  {
+    projectId = null,
+  } = {}
 ) {
   if (!memory) {
     return null;
@@ -621,7 +808,9 @@ function readCreatorMemoryContext(
     ) {
       const context =
         memory
-          .getMemoryContext();
+          .getMemoryContext({
+            projectId,
+          });
 
       if (
         context &&
@@ -657,12 +846,16 @@ function readCreatorMemoryContext(
 function readRecentMemoryConversations(
   memory,
   memoryContext,
-  limit = 10
+  {
+    projectId = null,
+    limit = 10,
+  } = {}
 ) {
   const contextConversations =
-    asArray(
+    filterMemoryEntriesForProject(
       memoryContext
-        ?.recentConversations
+        ?.recentConversations,
+      projectId
     );
 
   if (
@@ -688,11 +881,17 @@ function readRecentMemoryConversations(
   }
 
   try {
-    return asArray(
-      memory
-        .getRecentConversations(
-          limit
-        )
+    return cloneValue(
+      filterMemoryEntriesForProject(
+        memory
+          .getRecentConversations(
+            limit
+          ),
+        projectId
+      ).slice(
+        0,
+        limit
+      )
     );
   } catch (error) {
     console.warn(
@@ -718,11 +917,48 @@ function resolveCommunicationPreferences(
 }
 
 /**
+ * Returns current-turn property when explicitly supplied,
+ * even when the supplied value is null or an empty array.
+ *
+ * This is essential to the "present behaviour leads" rule.
+ */
+function resolveExplicitOrRemembered({
+  explicitContext,
+  key,
+  rememberedValue,
+  fallback = null,
+}) {
+  if (
+    hasOwn(
+      explicitContext,
+      key
+    )
+  ) {
+    return cloneValue(
+      explicitContext[key]
+    );
+  }
+
+  if (
+    rememberedValue !==
+    undefined
+  ) {
+    return cloneValue(
+      rememberedValue
+    );
+  }
+
+  return cloneValue(
+    fallback
+  );
+}
+
+/**
  * Builds the context used by every specialist engine.
  *
  * Precedence:
  * 1. Explicit current-turn context.
- * 2. Rich CreatorMemory context.
+ * 2. Project-filtered CreatorMemory context.
  * 3. Adaptive defaults.
  *
  * Present creator behaviour therefore always wins over memory.
@@ -736,6 +972,21 @@ function createMemoryAwareContext({
       context
     ) || {};
 
+  const explicitProjectWasSupplied =
+    hasOwn(
+      explicitContext,
+      "activeProjectId"
+    ) ||
+    hasOwn(
+      explicitContext,
+      "activeProject"
+    );
+
+  const explicitProjectId =
+    getExplicitProjectId(
+      explicitContext
+    );
+
   const suppliedMemoryContext =
     explicitContext
       ?.creatorMemoryContext ||
@@ -745,20 +996,141 @@ function createMemoryAwareContext({
 
   const storedMemoryContext =
     readCreatorMemoryContext(
-      memory
+      memory,
+      {
+        projectId:
+          explicitProjectWasSupplied
+            ? explicitProjectId
+            : null,
+      }
     );
 
-  const memoryContext =
-    suppliedMemoryContext ||
+  /**
+   * When a live memory service exists it is preferred for
+   * project-scoped data because it can enforce the current
+   * v2.2 persistence boundary.
+   *
+   * Supplied memory remains useful when no service is connected.
+   */
+  const rawMemoryContext =
     storedMemoryContext ||
+    suppliedMemoryContext ||
     null;
 
-  const memoryProfile =
-    explicitContext
-      ?.creatorProfile ||
-    memoryContext
-      ?.creatorProfile ||
+  const rememberedProjectId =
+    cleanString(
+      rawMemoryContext
+        ?.activeProjectId
+    ) ||
+    cleanString(
+      rawMemoryContext
+        ?.activeProject
+        ?.id
+    ) ||
+    cleanString(
+      rawMemoryContext
+        ?.activeProject
+        ?.projectId
+    ) ||
+    cleanString(
+      rawMemoryContext
+        ?.journey
+        ?.activeProjectId
+    ) ||
     null;
+
+  const resolvedProjectId =
+    explicitProjectWasSupplied
+      ? explicitProjectId
+      : rememberedProjectId;
+
+  const memoryContext =
+    rawMemoryContext
+      ? {
+          ...cloneValue(
+            rawMemoryContext
+          ),
+
+          activeProjectId:
+            resolvedProjectId,
+
+          existingMemories:
+            filterMemoryEntriesForProject(
+              rawMemoryContext
+                ?.existingMemories,
+              resolvedProjectId
+            ),
+
+          existingProjectMemories:
+            filterMemoryEntriesForProject(
+              rawMemoryContext
+                ?.existingProjectMemories,
+              resolvedProjectId
+            ),
+
+          existingPatterns:
+            filterMemoryEntriesForProject(
+              rawMemoryContext
+                ?.existingPatterns ||
+              rawMemoryContext
+                ?.knownPatterns,
+              resolvedProjectId
+            ),
+
+          existingObservations:
+            filterMemoryEntriesForProject(
+              rawMemoryContext
+                ?.existingObservations,
+              resolvedProjectId
+            ),
+
+          deferredMemories:
+            filterMemoryEntriesForProject(
+              rawMemoryContext
+                ?.deferredMemories,
+              resolvedProjectId
+            ),
+
+          milestones:
+            filterMemoryEntriesForProject(
+              rawMemoryContext
+                ?.milestones,
+              resolvedProjectId
+            ),
+
+          recentConversations:
+            filterMemoryEntriesForProject(
+              rawMemoryContext
+                ?.recentConversations,
+              resolvedProjectId
+            ),
+
+          sessionHandoff:
+            rawMemoryContext
+              ?.sessionHandoff &&
+            isMemoryEntryRelevantToProject(
+              rawMemoryContext
+                .sessionHandoff,
+              resolvedProjectId
+            )
+              ? cloneValue(
+                  rawMemoryContext
+                    .sessionHandoff
+                )
+              : null,
+        }
+      : null;
+
+  const memoryProfile =
+    hasOwn(
+      explicitContext,
+      "creatorProfile"
+    )
+      ? explicitContext
+          .creatorProfile
+      : memoryContext
+          ?.creatorProfile ||
+        null;
 
   const communicationPreferences =
     resolveCommunicationPreferences(
@@ -770,69 +1142,68 @@ function createMemoryAwareContext({
       ?.activeProject ||
     null;
 
-  const rememberedProjectId =
-    cleanString(
-      rememberedProject?.id
-    ) ||
-    cleanString(
-      rememberedProject
-        ?.projectId
-    ) ||
-    cleanString(
-      memoryContext
-        ?.journey
-        ?.activeProjectId
-    ) ||
-    null;
-
   const recentConversations =
     readRecentMemoryConversations(
       memory,
       memoryContext,
-      10
+      {
+        projectId:
+          resolvedProjectId,
+
+        limit: 10,
+      }
     );
 
   const rememberedPatterns =
-    asArray(
+    filterMemoryEntriesForProject(
       memoryContext
         ?.existingPatterns ||
       memoryContext
-        ?.knownPatterns
+        ?.knownPatterns,
+      resolvedProjectId
     );
 
   const rememberedObservations =
-    asArray(
+    filterMemoryEntriesForProject(
       memoryContext
-        ?.existingObservations
+        ?.existingObservations,
+      resolvedProjectId
     );
 
   const rememberedMemories =
-    asArray(
+    filterMemoryEntriesForProject(
       memoryContext
-        ?.existingMemories
+        ?.existingMemories,
+      resolvedProjectId
     );
 
   const rememberedProjectMemories =
-    asArray(
+    filterMemoryEntriesForProject(
       memoryContext
-        ?.existingProjectMemories
+        ?.existingProjectMemories,
+      resolvedProjectId
     );
 
   const deferredMemories =
-    asArray(
+    filterMemoryEntriesForProject(
       memoryContext
-        ?.deferredMemories
+        ?.deferredMemories,
+      resolvedProjectId
     );
 
   const milestones =
-    asArray(
+    filterMemoryEntriesForProject(
       memoryContext
-        ?.milestones
+        ?.milestones,
+      resolvedProjectId
     );
 
   const memoryDerivedContext = {
     creatorProfile:
       memoryProfile,
+
+    creatorMemoryConnected:
+      Boolean(memory),
 
     creatorMemoryContext:
       memoryContext,
@@ -843,7 +1214,12 @@ function createMemoryAwareContext({
       rememberedProject,
 
     activeProjectId:
-      rememberedProjectId,
+      resolvedProjectId,
+
+    sessionHandoff:
+      memoryContext
+        ?.sessionHandoff ||
+      null,
 
     recentConversations,
 
@@ -872,59 +1248,59 @@ function createMemoryAwareContext({
 
     preferredResponseDepth:
       communicationPreferences
-        ?.preferredResponseDepth ||
+        ?.preferredResponseDepth ??
       null,
 
     preferredGuidanceStyle:
       communicationPreferences
-        ?.preferredGuidanceStyle ||
+        ?.preferredGuidanceStyle ??
       null,
 
     preferredMentorRole:
       communicationPreferences
-        ?.preferredMentorRole ||
+        ?.preferredMentorRole ??
       null,
 
     preferredCommunicationPace:
       communicationPreferences
-        ?.preferredCommunicationPace ||
+        ?.preferredCommunicationPace ??
       null,
 
     preferredVoiceProfile:
       communicationPreferences
-        ?.preferredVoiceProfile ||
+        ?.preferredVoiceProfile ??
       null,
 
     preferredChannel:
       communicationPreferences
-        ?.preferredChannel ||
+        ?.preferredChannel ??
       null,
 
     recentStage:
       memoryContext
         ?.journey
-        ?.recentStage ||
+        ?.recentStage ??
       memoryContext
-        ?.recentStage ||
+        ?.recentStage ??
       null,
 
     recentEmotionalState:
       memoryContext
         ?.journey
-        ?.recentEmotionalState ||
+        ?.recentEmotionalState ??
       memoryContext
-        ?.recentEmotionalState ||
+        ?.recentEmotionalState ??
       null,
 
     interactionCount:
       memoryContext
         ?.relationship
-        ?.interactionCount ||
+        ?.interactionCount ??
       memoryContext
         ?.counts
-        ?.conversations ||
+        ?.conversations ??
       memoryContext
-        ?.conversationCount ||
+        ?.conversationCount ??
       0,
   };
 
@@ -938,11 +1314,21 @@ function createMemoryAwareContext({
     ...explicitContext,
 
     creatorProfile:
-      explicitContext
-        .creatorProfile ??
-      memoryDerivedContext
-        .creatorProfile ??
-      null,
+      resolveExplicitOrRemembered({
+        explicitContext,
+
+        key:
+          "creatorProfile",
+
+        rememberedValue:
+          memoryDerivedContext
+            .creatorProfile,
+
+        fallback: null,
+      }),
+
+    creatorMemoryConnected:
+      Boolean(memory),
 
     creatorMemoryContext:
       memoryContext,
@@ -950,157 +1336,302 @@ function createMemoryAwareContext({
     memoryContext,
 
     activeProject:
-      explicitContext
-        .activeProject ??
-      memoryDerivedContext
-        .activeProject ??
-      null,
+      resolveExplicitOrRemembered({
+        explicitContext,
+
+        key:
+          "activeProject",
+
+        rememberedValue:
+          memoryDerivedContext
+            .activeProject,
+
+        fallback: null,
+      }),
 
     activeProjectId:
-      explicitContext
-        .activeProjectId ??
-      memoryDerivedContext
-        .activeProjectId ??
-      null,
+      explicitProjectWasSupplied
+        ? explicitProjectId
+        : resolvedProjectId,
+
+    sessionHandoff:
+      resolveExplicitOrRemembered({
+        explicitContext,
+
+        key:
+          "sessionHandoff",
+
+        rememberedValue:
+          memoryDerivedContext
+            .sessionHandoff,
+
+        fallback: null,
+      }),
 
     recentConversations:
-      asArray(
-        explicitContext
-          .recentConversations
-      ).length > 0
-        ? cloneValue(
-            explicitContext
-              .recentConversations
-          )
-        : cloneValue(
-            recentConversations
-          ),
+      resolveExplicitOrRemembered({
+        explicitContext,
+
+        key:
+          "recentConversations",
+
+        rememberedValue:
+          recentConversations,
+
+        fallback: [],
+      }),
 
     existingMemories:
-      asArray(
-        explicitContext
-          .existingMemories
-      ).length > 0
-        ? cloneValue(
-            explicitContext
-              .existingMemories
-          )
-        : cloneValue(
-            rememberedMemories
-          ),
+      resolveExplicitOrRemembered({
+        explicitContext,
+
+        key:
+          "existingMemories",
+
+        rememberedValue:
+          rememberedMemories,
+
+        fallback: [],
+      }),
 
     existingProjectMemories:
-      asArray(
-        explicitContext
-          .existingProjectMemories
-      ).length > 0
-        ? cloneValue(
-            explicitContext
-              .existingProjectMemories
-          )
-        : cloneValue(
-            rememberedProjectMemories
-          ),
+      resolveExplicitOrRemembered({
+        explicitContext,
+
+        key:
+          "existingProjectMemories",
+
+        rememberedValue:
+          rememberedProjectMemories,
+
+        fallback: [],
+      }),
 
     existingPatterns:
-      asArray(
-        explicitContext
-          .existingPatterns
-      ).length > 0
-        ? cloneValue(
-            explicitContext
-              .existingPatterns
-          )
-        : cloneValue(
-            rememberedPatterns
-          ),
+      resolveExplicitOrRemembered({
+        explicitContext,
+
+        key:
+          "existingPatterns",
+
+        rememberedValue:
+          rememberedPatterns,
+
+        fallback: [],
+      }),
 
     existingObservations:
-      asArray(
-        explicitContext
-          .existingObservations
-      ).length > 0
-        ? cloneValue(
-            explicitContext
-              .existingObservations
-          )
-        : cloneValue(
-            rememberedObservations
-          ),
+      resolveExplicitOrRemembered({
+        explicitContext,
+
+        key:
+          "existingObservations",
+
+        rememberedValue:
+          rememberedObservations,
+
+        fallback: [],
+      }),
 
     deferredMemories:
-      asArray(
-        explicitContext
-          .deferredMemories
-      ).length > 0
-        ? cloneValue(
-            explicitContext
-              .deferredMemories
-          )
-        : cloneValue(
-            deferredMemories
-          ),
+      resolveExplicitOrRemembered({
+        explicitContext,
+
+        key:
+          "deferredMemories",
+
+        rememberedValue:
+          deferredMemories,
+
+        fallback: [],
+      }),
 
     milestones:
-      asArray(
-        explicitContext
-          .milestones
-      ).length > 0
-        ? cloneValue(
-            explicitContext
-              .milestones
-          )
-        : cloneValue(
-            milestones
-          ),
+      resolveExplicitOrRemembered({
+        explicitContext,
+
+        key:
+          "milestones",
+
+        rememberedValue:
+          milestones,
+
+        fallback: [],
+      }),
 
     preferredResponseDepth:
-      explicitContext
-        .preferredResponseDepth ??
-      memoryDerivedContext
-        .preferredResponseDepth ??
-      null,
+      resolveExplicitOrRemembered({
+        explicitContext,
+
+        key:
+          "preferredResponseDepth",
+
+        rememberedValue:
+          memoryDerivedContext
+            .preferredResponseDepth,
+
+        fallback: null,
+      }),
 
     preferredGuidanceStyle:
-      explicitContext
-        .preferredGuidanceStyle ??
-      memoryDerivedContext
-        .preferredGuidanceStyle ??
-      null,
+      resolveExplicitOrRemembered({
+        explicitContext,
+
+        key:
+          "preferredGuidanceStyle",
+
+        rememberedValue:
+          memoryDerivedContext
+            .preferredGuidanceStyle,
+
+        fallback: null,
+      }),
 
     preferredMentorRole:
-      explicitContext
-        .preferredMentorRole ??
-      memoryDerivedContext
-        .preferredMentorRole ??
-      null,
+      resolveExplicitOrRemembered({
+        explicitContext,
+
+        key:
+          "preferredMentorRole",
+
+        rememberedValue:
+          memoryDerivedContext
+            .preferredMentorRole,
+
+        fallback: null,
+      }),
 
     preferredCommunicationPace:
-      explicitContext
-        .preferredCommunicationPace ??
-      memoryDerivedContext
-        .preferredCommunicationPace ??
-      null,
+      resolveExplicitOrRemembered({
+        explicitContext,
+
+        key:
+          "preferredCommunicationPace",
+
+        rememberedValue:
+          memoryDerivedContext
+            .preferredCommunicationPace,
+
+        fallback: null,
+      }),
 
     preferredVoiceProfile:
-      explicitContext
-        .preferredVoiceProfile ??
-      memoryDerivedContext
-        .preferredVoiceProfile ??
-      null,
+      resolveExplicitOrRemembered({
+        explicitContext,
+
+        key:
+          "preferredVoiceProfile",
+
+        rememberedValue:
+          memoryDerivedContext
+            .preferredVoiceProfile,
+
+        fallback: null,
+      }),
 
     preferredChannel:
-      explicitContext
-        .preferredChannel ??
-      memoryDerivedContext
-        .preferredChannel ??
-      null,
+      resolveExplicitOrRemembered({
+        explicitContext,
+
+        key:
+          "preferredChannel",
+
+        rememberedValue:
+          memoryDerivedContext
+            .preferredChannel,
+
+        fallback: null,
+      }),
 
     currentTimestamp:
       explicitContext
         .currentTimestamp ||
       createTimestamp(),
   };
+
+  /**
+   * Final project filter after the explicit context merge.
+   *
+   * Explicit current arrays are authoritative, but project-bound
+   * items are still prohibited from bleeding across projects.
+   */
+  resolvedContext
+    .existingMemories =
+    filterMemoryEntriesForProject(
+      resolvedContext
+        .existingMemories,
+      resolvedContext
+        .activeProjectId
+    );
+
+  resolvedContext
+    .existingProjectMemories =
+    filterMemoryEntriesForProject(
+      resolvedContext
+        .existingProjectMemories,
+      resolvedContext
+        .activeProjectId
+    );
+
+  resolvedContext
+    .existingPatterns =
+    filterMemoryEntriesForProject(
+      resolvedContext
+        .existingPatterns,
+      resolvedContext
+        .activeProjectId
+    );
+
+  resolvedContext
+    .existingObservations =
+    filterMemoryEntriesForProject(
+      resolvedContext
+        .existingObservations,
+      resolvedContext
+        .activeProjectId
+    );
+
+  resolvedContext
+    .deferredMemories =
+    filterMemoryEntriesForProject(
+      resolvedContext
+        .deferredMemories,
+      resolvedContext
+        .activeProjectId
+    );
+
+  resolvedContext
+    .milestones =
+    filterMemoryEntriesForProject(
+      resolvedContext
+        .milestones,
+      resolvedContext
+        .activeProjectId
+    );
+
+  resolvedContext
+    .recentConversations =
+    filterMemoryEntriesForProject(
+      resolvedContext
+        .recentConversations,
+      resolvedContext
+        .activeProjectId
+    );
+
+  if (
+    resolvedContext
+      .sessionHandoff &&
+    !isMemoryEntryRelevantToProject(
+      resolvedContext
+        .sessionHandoff,
+      resolvedContext
+        .activeProjectId
+    )
+  ) {
+    resolvedContext
+      .sessionHandoff =
+      null;
+  }
 
   return resolvedContext;
 }
@@ -1197,6 +1728,34 @@ function memoryPlanHasSessionHandoff(
         "session-handoff"
       );
     }
+  );
+}
+
+function contextHasStoredSessionHandoff(
+  context
+) {
+  const handoff =
+    context
+      ?.sessionHandoff ||
+    context
+      ?.creatorMemoryContext
+      ?.sessionHandoff ||
+    null;
+
+  if (!handoff) {
+    return false;
+  }
+
+  const activeProjectId =
+    getProjectId(
+      context
+    );
+
+  return (
+    isMemoryEntryRelevantToProject(
+      handoff,
+      activeProjectId
+    )
   );
 }
 
@@ -1456,7 +2015,11 @@ function collectAdaptationSignals({
   if (
     memoryPlanHasProjectMemory(
       memoryPlan
-    )
+    ) ||
+    asArray(
+      context
+        ?.existingProjectMemories
+    ).length > 0
   ) {
     signals.push(
       ADAPTATION_SIGNALS
@@ -1477,7 +2040,7 @@ function collectAdaptationSignals({
 
   if (
     context
-      ?.creatorMemoryContext
+      ?.creatorMemoryConnected
   ) {
     signals.push(
       ADAPTATION_SIGNALS
@@ -1505,6 +2068,17 @@ function collectAdaptationSignals({
     signals.push(
       ADAPTATION_SIGNALS
         .SESSION_HANDOFF_AVAILABLE
+    );
+  }
+
+  if (
+    contextHasStoredSessionHandoff(
+      context
+    )
+  ) {
+    signals.push(
+      ADAPTATION_SIGNALS
+        .STORED_SESSION_HANDOFF_AVAILABLE
     );
   }
 
@@ -1784,6 +2358,59 @@ function collectCandidateActions({
 
         source:
           "reflection-engine",
+      }
+    );
+  }
+
+  /**
+   * Stored project handoff restoration.
+   *
+   * A handoff is not surfaced merely because it exists.
+   * The creator must be actively continuing, requesting the next
+   * step, or asking for guidance inside the same project.
+   */
+  if (
+    signals.includes(
+      ADAPTATION_SIGNALS
+        .STORED_SESSION_HANDOFF_AVAILABLE
+    ) &&
+    (
+      context
+        ?.creatorExplicitlyAskedToContinue ||
+      context
+        ?.creatorExplicitlyAskedForNextStep ||
+      context
+        ?.creatorExplicitlyAskedForGuidance
+    )
+  ) {
+    addCandidateAction(
+      candidates,
+      {
+        action:
+          ADAPTIVE_ACTIONS
+            .RESTORE_PROJECT_CONTEXT,
+
+        priority:
+          ACTION_PRIORITIES
+            .RESTORE_PROJECT_CONTEXT,
+
+        reason:
+          "A stored session handoff can restore the creator's exact project position without repeating earlier work.",
+
+        source:
+          "creator-memory",
+
+        metadata: {
+          handoff:
+            cloneValue(
+              context
+                ?.sessionHandoff ||
+              context
+                ?.creatorMemoryContext
+                ?.sessionHandoff ||
+              null
+            ),
+        },
       }
     );
   }
@@ -2462,14 +3089,6 @@ function resolvePrimaryAction({
   return firstCandidate;
 }
 
-/**
- * Immediate behavioural requirements are resolved before
- * remembered role preference.
- *
- * A remembered preference may guide normal conversation, but it
- * must never turn a required WAIT, FORGET, HANDOFF or BUILD action
- * into the wrong Mentor role.
- */
 function chooseMentorRole({
   primaryAction,
   signals,
@@ -2555,6 +3174,22 @@ function chooseMentorRole({
 
     default:
       break;
+  }
+
+  /**
+   * Build mode is a present behavioural requirement.
+   * It takes precedence over a remembered role preference.
+   */
+  if (
+    signals.includes(
+      ADAPTATION_SIGNALS
+        .BUILD_MODE
+    )
+  ) {
+    return (
+      MENTOR_ROLES
+        .GUIDE
+    );
   }
 
   const preferredRole =
@@ -2747,6 +3382,10 @@ function chooseInterventionLevel({
     signals.includes(
       ADAPTATION_SIGNALS
         .HIGH_MOMENTUM
+    ) ||
+    signals.includes(
+      ADAPTATION_SIGNALS
+        .BUILD_MODE
     )
   ) {
     return (
@@ -2791,10 +3430,6 @@ function chooseInterventionLevel({
 /**
  * Critical present-moment behaviour is resolved before any
  * remembered response-depth preference.
- *
- * This prevents a stored "detailed" preference from turning a
- * build-mode next step, silence, forget confirmation or handoff
- * into an unnecessarily long response.
  */
 function chooseResponseDepth({
   primaryAction,
@@ -2866,7 +3501,23 @@ function chooseResponseDepth({
     );
   }
 
+  /**
+   * Build, flow and high-momentum states outrank remembered
+   * "detailed" preferences.
+   */
   if (
+    signals.includes(
+      ADAPTATION_SIGNALS
+        .BUILD_MODE
+    ) ||
+    signals.includes(
+      ADAPTATION_SIGNALS
+        .FLOW_MODE
+    ) ||
+    signals.includes(
+      ADAPTATION_SIGNALS
+        .HIGH_MOMENTUM
+    ) ||
     signals.includes(
       ADAPTATION_SIGNALS
         .INFORMATION_OVERLOAD
@@ -3431,9 +4082,13 @@ function combineResponseGuidance({
     guidance.push(
       "Restore only the landmarks needed to continue.",
 
+      "Use the stored session handoff only when it belongs to the active project.",
+
       "Mention the last meaningful decision, current position and next useful step.",
 
-      "Do not dump the full project history."
+      "Do not dump the full project history.",
+
+      "After successful restoration, the handoff may be marked resumed by the project workflow."
     );
   }
 
@@ -3529,9 +4184,13 @@ function combineGuardRails({
 
     "Do not mix project-scoped memory across different projects.",
 
+    "Do not restore a session handoff from another project.",
+
     "Do not execute an ambiguous forget request.",
 
     "Do not treat memory recall as permission to derail the creator's current task.",
+
+    "Do not execute a project-scoped persistence instruction against a different active project.",
 
     "Do not claim memory persistence, deletion or session-handoff success unless CreatorMemory confirms it.",
   ]);
@@ -3575,6 +4234,14 @@ function createExecutionPlan({
     getProjectId(
       context
     );
+
+  const storedSessionHandoff =
+    context
+      ?.sessionHandoff ||
+    context
+      ?.creatorMemoryContext
+      ?.sessionHandoff ||
+    null;
 
   const shouldCaptureMemory =
     includesValue(
@@ -3630,6 +4297,11 @@ function createExecutionPlan({
         MEMORY_POLICIES
           .PRESERVE_HANDOFF
     );
+
+  const shouldRestoreProjectContext =
+    primaryAction.action ===
+      ADAPTIVE_ACTIONS
+        .RESTORE_PROJECT_CONTEXT;
 
   return {
     action:
@@ -3694,6 +4366,8 @@ function createExecutionPlan({
 
     shouldRecallMemory,
 
+    shouldRestoreProjectContext,
+
     shouldPreserveSessionHandoff,
 
     shouldApplyForget,
@@ -3723,11 +4397,25 @@ function createExecutionPlan({
       hasProjectMemory:
         memoryPlanHasProjectMemory(
           memoryPlan
-        ),
+        ) ||
+        asArray(
+          context
+            ?.existingProjectMemories
+        ).length > 0,
 
       hasSessionHandoff:
         memoryPlanHasSessionHandoff(
           memoryPlan
+        ),
+
+      storedSessionHandoff:
+        cloneValue(
+          storedSessionHandoff
+        ),
+
+      storedSessionHandoffAvailable:
+        contextHasStoredSessionHandoff(
+          context
         ),
 
       sourceAgent:
@@ -3778,6 +4466,253 @@ function createDecisionSummary({
         : "none"
     }.`
   );
+}
+
+function createMemoryExecutionResult({
+  applied = [],
+  skipped = [],
+  errors = [],
+  reason = null,
+  status = null,
+} = {}) {
+  const safeApplied =
+    asArray(applied);
+
+  const safeSkipped =
+    asArray(skipped);
+
+  const safeErrors =
+    asArray(errors);
+
+  const appliedCount =
+    safeApplied.length;
+
+  const skippedCount =
+    safeSkipped.length;
+
+  const errorCount =
+    safeErrors.length;
+
+  const attemptedCount =
+    appliedCount +
+    skippedCount +
+    errorCount;
+
+  const fullySuccessful =
+    attemptedCount > 0 &&
+    skippedCount === 0 &&
+    errorCount === 0 &&
+    appliedCount ===
+      attemptedCount;
+
+  const partiallySuccessful =
+    appliedCount > 0 &&
+    !fullySuccessful;
+
+  const failed =
+    appliedCount === 0 &&
+    errorCount > 0;
+
+  const noOp =
+    appliedCount === 0 &&
+    errorCount === 0;
+
+  let resolvedStatus =
+    status;
+
+  if (!resolvedStatus) {
+    if (
+      attemptedCount === 0
+    ) {
+      resolvedStatus =
+        "empty";
+    } else if (
+      fullySuccessful
+    ) {
+      resolvedStatus =
+        "fully-successful";
+    } else if (
+      partiallySuccessful
+    ) {
+      resolvedStatus =
+        "partially-successful";
+    } else if (failed) {
+      resolvedStatus =
+        "failed";
+    } else {
+      resolvedStatus =
+        "no-op";
+    }
+  }
+
+  return {
+    applied:
+      cloneValue(
+        safeApplied
+      ),
+
+    skipped:
+      cloneValue(
+        safeSkipped
+      ),
+
+    errors:
+      cloneValue(
+        safeErrors
+      ),
+
+    attemptedCount,
+    appliedCount,
+    skippedCount,
+    errorCount,
+
+    successful:
+      fullySuccessful ||
+      partiallySuccessful,
+
+    fullySuccessful,
+    partiallySuccessful,
+    failed,
+    noOp,
+
+    status:
+      resolvedStatus,
+
+    reason,
+  };
+}
+
+/**
+ * Performs an Adaptive-level project boundary preflight.
+ *
+ * CreatorMemory remains the final persistence authority.
+ * This check prevents a stale adaptive plan from dispatching a
+ * project-scoped instruction into another active project.
+ */
+function preflightMemoryInstructions({
+  instructions,
+  activeProjectId,
+}) {
+  const executable = [];
+  const skipped = [];
+
+  asArray(
+    instructions
+  ).forEach(
+    (instruction) => {
+      const scope =
+        cleanString(
+          instruction
+            ?.scope ||
+          instruction
+            ?.payload
+            ?.scope
+        );
+
+      const instructionProjectId =
+        cleanString(
+          instruction
+            ?.projectId ||
+          instruction
+            ?.payload
+            ?.projectId ||
+          instruction
+            ?.payload
+            ?.metadata
+            ?.projectId
+        );
+
+      const relatedProjectIds =
+        asArray(
+          instruction
+            ?.payload
+            ?.relatedProjectIds
+        )
+          .map(
+            cleanString
+          )
+          .filter(Boolean);
+
+      const isProjectScoped =
+        scope === "project" ||
+        Boolean(
+          instructionProjectId
+        ) ||
+        relatedProjectIds
+          .length > 0;
+
+      if (
+        !isProjectScoped
+      ) {
+        executable.push(
+          instruction
+        );
+
+        return;
+      }
+
+      if (
+        !activeProjectId
+      ) {
+        skipped.push({
+          instruction:
+            cloneValue(
+              instruction
+            ),
+
+          reason:
+            "adaptive-project-boundary-required",
+        });
+
+        return;
+      }
+
+      const matchesDirect =
+        !instructionProjectId ||
+        instructionProjectId ===
+          activeProjectId;
+
+      const matchesRelated =
+        relatedProjectIds
+          .length === 0 ||
+        relatedProjectIds
+          .includes(
+            activeProjectId
+          );
+
+      if (
+        !matchesDirect ||
+        !matchesRelated
+      ) {
+        skipped.push({
+          instruction:
+            cloneValue(
+              instruction
+            ),
+
+          reason:
+            "adaptive-cross-project-memory-blocked",
+
+          activeProjectId,
+
+          instructionProjectId:
+            instructionProjectId ||
+            null,
+        });
+
+        return;
+      }
+
+      executable.push(
+        instruction
+      );
+    }
+  );
+
+  return {
+    executable,
+    skipped,
+  };
 }
 
 function createFallbackAdaptivePlan({
@@ -3898,6 +4833,9 @@ function createFallbackAdaptivePlan({
       shouldRecallMemory:
         false,
 
+      shouldRestoreProjectContext:
+        false,
+
       shouldPreserveSessionHandoff:
         false,
 
@@ -3942,6 +4880,12 @@ function createFallbackAdaptivePlan({
         hasSessionHandoff:
           false,
 
+        storedSessionHandoff:
+          null,
+
+        storedSessionHandoffAvailable:
+          false,
+
         sourceAgent:
           null,
 
@@ -3978,6 +4922,8 @@ function createFallbackAdaptivePlan({
       "Do not overwhelm the creator.",
 
       "Do not execute memory deletion from fallback state.",
+
+      "Do not execute project-scoped memory without an active project boundary.",
     ],
 
     creatorProtocol: {
@@ -4053,9 +4999,29 @@ function createAdaptiveMentorEngine({
     progressionEngine ||
     createProgressionEngine();
 
+  /**
+   * v2.3:
+   * CreatorMemoryEngine receives the same live persistence service
+   * as the orchestration layer.
+   */
   const resolvedCreatorMemoryEngine =
     creatorMemoryEngine ||
-    createCreatorMemoryEngine();
+    createCreatorMemoryEngine({
+      memory:
+        activeMemory,
+    });
+
+  if (
+    creatorMemoryEngine &&
+    typeof resolvedCreatorMemoryEngine
+      .setMemory ===
+      "function"
+  ) {
+    resolvedCreatorMemoryEngine
+      .setMemory(
+        activeMemory
+      );
+  }
 
   function planMentorBehaviour({
     message = "",
@@ -4345,6 +5311,9 @@ function createAdaptiveMentorEngine({
           presentBehaviourLeads:
             true,
 
+          explicitCurrentContextOutranksMemory:
+            true,
+
           longTermMemoryInforms:
             true,
 
@@ -4369,6 +5338,9 @@ function createAdaptiveMentorEngine({
           sessionHandoffProtectsMomentum:
             true,
 
+          storedSessionHandoffMayRestoreContinuity:
+            true,
+
           explicitForgetRequestsAreRespected:
             true,
 
@@ -4376,6 +5348,9 @@ function createAdaptiveMentorEngine({
             true,
 
           persistenceClaimsRequireVerification:
+            true,
+
+          adaptivePersistenceUsesProjectPreflight:
             true,
 
           conversationServesCreation:
@@ -4481,6 +5456,11 @@ function createAdaptiveMentorEngine({
               resolvedMemoryPlan
             ),
 
+          storedSessionHandoffAvailable:
+            contextHasStoredSessionHandoff(
+              combinedContext
+            ),
+
           specialistMemorySignalsPresent:
             contextHasSpecialistMemorySignals(
               combinedContext
@@ -4527,10 +5507,12 @@ function createAdaptiveMentorEngine({
   /**
    * Applies approved memory instructions.
    *
-   * CreatorMemory.js is the persistence authority.
+   * CreatorMemory.js is the final persistence authority.
    *
    * Modern path:
-   * Adaptive plan instructions → CreatorMemory.applyMemoryInstructions()
+   * Adaptive plan instructions
+   * → Adaptive project preflight
+   * → CreatorMemory.applyMemoryInstructions()
    *
    * Compatibility path:
    * CreatorMemoryEngine.applyMemoryPlan()
@@ -4548,81 +5530,151 @@ function createAdaptiveMentorEngine({
     if (
       !activeMemory
     ) {
-      return {
-        applied: [],
+      return (
+        createMemoryExecutionResult({
+          skipped:
+            instructions.map(
+              (instruction) => ({
+                instruction:
+                  cloneValue(
+                    instruction
+                  ),
 
-        skipped:
-          instructions.map(
-            (instruction) => ({
-              instruction:
-                cloneValue(
-                  instruction
-                ),
+                reason:
+                  "No Creator Memory service is connected.",
+              })
+            ),
 
-              reason:
-                "No Creator Memory service is connected.",
-            })
-          ),
-
-        errors: [],
-
-        reason:
-          "No Creator Memory service is connected.",
-      };
+          reason:
+            "No Creator Memory service is connected.",
+        })
+      );
     }
 
     if (
       instructions.length ===
       0
     ) {
-      return {
-        applied: [],
-        skipped: [],
-        errors: [],
+      return (
+        createMemoryExecutionResult({
+          reason:
+            "No memory instructions required execution.",
 
-        reason:
-          "No memory instructions required execution.",
-      };
+          status:
+            "empty",
+        })
+      );
     }
 
-    /**
-     * CreatorMemory is the final persistence boundary.
-     *
-     * Prefer its generic instruction contract so the behavioural
-     * engine does not need to understand storage implementation.
-     */
+    const activeProjectId =
+      cleanString(
+        plan
+          ?.execution
+          ?.activeProjectId
+      ) ||
+      null;
+
+    const preflight =
+      preflightMemoryInstructions({
+        instructions,
+
+        activeProjectId,
+      });
+
+    const executableInstructions =
+      preflight.executable;
+
+    const preflightSkipped =
+      preflight.skipped;
+
+    if (
+      executableInstructions
+        .length === 0
+    ) {
+      return (
+        createMemoryExecutionResult({
+          skipped:
+            preflightSkipped,
+
+          reason:
+            preflightSkipped
+              .length > 0
+              ? "Adaptive memory preflight blocked all persistence instructions."
+              : "No executable memory instructions remained.",
+
+          status:
+            "no-op",
+        })
+      );
+    }
+
     if (
       typeof activeMemory
         .applyMemoryInstructions ===
         "function"
     ) {
       try {
-        return (
+        const result =
           activeMemory
             .applyMemoryInstructions(
-              instructions
-            )
+              executableInstructions
+            );
+
+        return (
+          createMemoryExecutionResult({
+            applied:
+              result
+                ?.applied ||
+              [],
+
+            skipped: [
+              ...preflightSkipped,
+
+              ...asArray(
+                result
+                  ?.skipped
+              ),
+            ],
+
+            errors:
+              result
+                ?.errors ||
+              [],
+
+            reason:
+              result?.reason ||
+              null,
+
+            status:
+              result?.status ||
+              null,
+          })
         );
       } catch (error) {
-        return {
-          applied: [],
-          skipped: [],
+        return (
+          createMemoryExecutionResult({
+            skipped:
+              preflightSkipped,
 
-          errors: [
-            {
-              instruction:
-                null,
+            errors: [
+              {
+                instruction:
+                  null,
 
-              error:
-                error instanceof Error
-                  ? error.message
-                  : String(error),
-            },
-          ],
+                error:
+                  error instanceof Error
+                    ? error.message
+                    : String(error),
+              },
+            ],
 
-          reason:
-            "Creator Memory instruction execution failed.",
-        };
+            reason:
+              "Creator Memory instruction execution failed.",
+
+            status:
+              "failed",
+          })
+        );
       }
     }
 
@@ -4631,30 +5683,33 @@ function createAdaptiveMentorEngine({
         ?.specialistPlans
         ?.memory;
 
-    if (
-      !memoryPlan
-    ) {
-      return {
-        applied: [],
+    if (!memoryPlan) {
+      return (
+        createMemoryExecutionResult({
+          skipped: [
+            ...preflightSkipped,
 
-        skipped:
-          instructions.map(
-            (instruction) => ({
-              instruction:
-                cloneValue(
-                  instruction
-                ),
+            ...executableInstructions
+              .map(
+                (instruction) => ({
+                  instruction:
+                    cloneValue(
+                      instruction
+                    ),
 
-              reason:
-                "No Creator Memory plan was available for compatibility execution.",
-            })
-          ),
+                  reason:
+                    "No Creator Memory plan was available for compatibility execution.",
+                })
+              ),
+          ],
 
-        errors: [],
+          reason:
+            "No Creator Memory plan was available.",
 
-        reason:
-          "No Creator Memory plan was available.",
-      };
+          status:
+            "no-op",
+        })
+      );
     }
 
     if (
@@ -4663,60 +5718,111 @@ function createAdaptiveMentorEngine({
         "function"
     ) {
       try {
-        return (
+        const compatibilityPlan = {
+          ...cloneValue(
+            memoryPlan
+          ),
+
+          instructions:
+            cloneValue(
+              executableInstructions
+            ),
+        };
+
+        const result =
           resolvedCreatorMemoryEngine
             .applyMemoryPlan({
               plan:
-                memoryPlan,
+                compatibilityPlan,
 
               memory:
                 activeMemory,
-            })
+            });
+
+        return (
+          createMemoryExecutionResult({
+            applied:
+              result
+                ?.applied ||
+              [],
+
+            skipped: [
+              ...preflightSkipped,
+
+              ...asArray(
+                result
+                  ?.skipped
+              ),
+            ],
+
+            errors:
+              result
+                ?.errors ||
+              [],
+
+            reason:
+              result?.reason ||
+              null,
+
+            status:
+              result?.status ||
+              null,
+          })
         );
       } catch (error) {
-        return {
-          applied: [],
-          skipped: [],
+        return (
+          createMemoryExecutionResult({
+            skipped:
+              preflightSkipped,
 
-          errors: [
-            {
-              instruction:
-                null,
+            errors: [
+              {
+                instruction:
+                  null,
 
-              error:
-                error instanceof Error
-                  ? error.message
-                  : String(error),
-            },
-          ],
+                error:
+                  error instanceof Error
+                    ? error.message
+                    : String(error),
+              },
+            ],
 
-          reason:
-            "Creator Memory compatibility execution failed.",
-        };
+            reason:
+              "Creator Memory compatibility execution failed.",
+
+            status:
+              "failed",
+          })
+        );
       }
     }
 
-    return {
-      applied: [],
+    return (
+      createMemoryExecutionResult({
+        skipped: [
+          ...preflightSkipped,
 
-      skipped:
-        instructions.map(
-          (instruction) => ({
-            instruction:
-              cloneValue(
-                instruction
-              ),
+          ...executableInstructions
+            .map(
+              (instruction) => ({
+                instruction:
+                  cloneValue(
+                    instruction
+                  ),
 
-            reason:
-              "No compatible Creator Memory execution method is available.",
-          })
-        ),
+                reason:
+                  "No compatible Creator Memory execution method is available.",
+              })
+            ),
+        ],
 
-      errors: [],
+        reason:
+          "Memory execution is unavailable.",
 
-      reason:
-        "Memory execution is unavailable.",
-    };
+        status:
+          "no-op",
+      })
+    );
   }
 
   function planMemoryRecall({
@@ -4798,15 +5904,32 @@ function createAdaptiveMentorEngine({
 
   /**
    * Returns the richest CreatorMemory context available.
+   *
+   * An optional project id ensures callers can request the
+   * correctly scoped context directly.
    */
-  function getMemoryContext() {
+  function getMemoryContext({
+    projectId = null,
+  } = {}) {
     return (
       readCreatorMemoryContext(
-        activeMemory
+        activeMemory,
+        {
+          projectId:
+            cleanString(
+              projectId
+            ) ||
+            null,
+        }
       )
     );
   }
 
+  /**
+   * Connects or replaces the shared persistence service.
+   *
+   * Every memory-aware specialist must follow the same service.
+   */
   function setMemory(
     nextMemory
   ) {
@@ -4820,6 +5943,17 @@ function createAdaptiveMentorEngine({
       "function"
     ) {
       resolvedConversationPlanner
+        .setMemory(
+          activeMemory
+        );
+    }
+
+    if (
+      typeof resolvedCreatorMemoryEngine
+        .setMemory ===
+      "function"
+    ) {
+      resolvedCreatorMemoryEngine
         .setMemory(
           activeMemory
         );
@@ -4872,6 +6006,16 @@ function createAdaptiveMentorEngine({
     );
   }
 
+  function shouldRestoreProjectContext(
+    plan
+  ) {
+    return Boolean(
+      plan
+        ?.execution
+        ?.shouldRestoreProjectContext
+    );
+  }
+
   function shouldPreserveSessionHandoff(
     plan
   ) {
@@ -4917,6 +6061,7 @@ function createAdaptiveMentorEngine({
     shouldMoveForward,
     shouldCaptureMemory,
     shouldRecallMemory,
+    shouldRestoreProjectContext,
     shouldPreserveSessionHandoff,
     shouldApplyForget,
     shouldClarifyForget,
