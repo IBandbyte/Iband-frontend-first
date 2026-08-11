@@ -5330,39 +5330,62 @@ function createMemoryExecutionResult({
     appliedCount === 0 &&
     errorCount > 0;
 
-  const noOp =
-    appliedCount === 0 &&
-    errorCount === 0;
+  const allSkippedAreIntentional =
+  skippedCount > 0 &&
+  safeSkipped.every(
+    (item) =>
+      item?.intentionalNoOp ===
+      true
+  );
 
-  let resolvedStatus =
-    status;
+const noOp =
+  appliedCount === 0 &&
+  errorCount === 0 &&
+  skippedCount > 0 &&
+  allSkippedAreIntentional;
 
-  if (!resolvedStatus) {
-    if (
-      attemptedCount === 0
-    ) {
-      resolvedStatus =
-        "empty";
-    } else if (
-      fullySuccessful
-    ) {
-      resolvedStatus =
-        "fully-successful";
-    } else if (
-      partiallySuccessful
-    ) {
-      resolvedStatus =
-        "partially-successful";
-    } else if (
-      failed
-    ) {
-      resolvedStatus =
-        "failed";
-    } else {
-      resolvedStatus =
-        "no-op";
-    }
+const notApplied =
+  appliedCount === 0 &&
+  errorCount === 0 &&
+  skippedCount > 0 &&
+  !allSkippedAreIntentional;
+
+let resolvedStatus =
+  status;
+
+if (!resolvedStatus) {
+  if (
+    attemptedCount === 0
+  ) {
+    resolvedStatus =
+      "empty";
+  } else if (
+    fullySuccessful
+  ) {
+    resolvedStatus =
+      "fully-successful";
+  } else if (
+    partiallySuccessful
+  ) {
+    resolvedStatus =
+      "partially-successful";
+  } else if (
+    failed
+  ) {
+    resolvedStatus =
+      "failed";
+  } else if (
+    noOp
+  ) {
+    resolvedStatus =
+      "no-op";
+  } else if (
+    notApplied
+  ) {
+    resolvedStatus =
+      "not-applied";
   }
+}
 
   return {
     applied:
@@ -5392,13 +5415,15 @@ function createMemoryExecutionResult({
       fullySuccessful ||
       partiallySuccessful,
 
-    fullySuccessful,
+        fullySuccessful,
 
     partiallySuccessful,
 
     failed,
 
     noOp,
+
+    notApplied,
 
     status:
       resolvedStatus,
