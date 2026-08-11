@@ -6720,19 +6720,16 @@ function createAdaptiveMentorEngine({
         .length === 0
     ) {
       return (
-        createMemoryExecutionResult({
-          skipped:
-            policySkipped,
+  createMemoryExecutionResult({
+    skipped:
+      policySkipped,
 
-          reason:
-            "No memory instructions were authorised by the Adaptive execution policy.",
+    reason:
+      "No memory instructions were authorised by the Adaptive execution policy.",
 
-          status:
-            "no-op",
-
-          executionPolicy,
-        })
-      );
+    executionPolicy,
+  })
+);
     }
 
     const activeProjectId =
@@ -6763,24 +6760,21 @@ function createAdaptiveMentorEngine({
     ];
 
     if (
-      executableInstructions
-        .length === 0
-    ) {
-      return (
-        createMemoryExecutionResult({
-          skipped:
-            preflightSkipped,
+  executableInstructions
+    .length === 0
+) {
+  return (
+    createMemoryExecutionResult({
+      skipped:
+        preflightSkipped,
 
-          reason:
-            "Adaptive memory preflight blocked all persistence instructions.",
+      reason:
+        "Adaptive memory preflight blocked all persistence instructions.",
 
-          status:
-            "no-op",
-
-          executionPolicy,
-        })
-      );
-    }
+      executionPolicy,
+    })
+  );
+}
 
     if (
       typeof activeMemory
@@ -6864,37 +6858,34 @@ function createAdaptiveMentorEngine({
         ?.memory;
 
     if (
-      !memoryPlan
-    ) {
-      return (
-        createMemoryExecutionResult({
-          skipped: [
-            ...preflightSkipped,
+  !memoryPlan
+) {
+  return (
+    createMemoryExecutionResult({
+      skipped: [
+        ...preflightSkipped,
 
-            ...executableInstructions
-              .map(
-                (instruction) => ({
-                  instruction:
-                    cloneValue(
-                      instruction
-                    ),
+        ...executableInstructions
+          .map(
+            (instruction) => ({
+              instruction:
+                cloneValue(
+                  instruction
+                ),
 
-                  reason:
-                    "No Creator Memory plan was available for compatibility execution.",
-                })
-              ),
-          ],
+              reason:
+                "No Creator Memory plan was available for compatibility execution.",
+            })
+          ),
+      ],
 
-          reason:
-            "No Creator Memory plan was available.",
+      reason:
+        "No Creator Memory plan was available.",
 
-          status:
-            "no-op",
-
-          executionPolicy,
-        })
-      );
-    }
+      executionPolicy,
+    })
+  );
+}
 
     if (
       typeof resolvedCreatorMemoryEngine
@@ -6988,33 +6979,30 @@ function createAdaptiveMentorEngine({
     }
 
     return (
-      createMemoryExecutionResult({
-        skipped: [
-          ...preflightSkipped,
+  createMemoryExecutionResult({
+    skipped: [
+      ...preflightSkipped,
 
-          ...executableInstructions
-            .map(
-              (instruction) => ({
-                instruction:
-                  cloneValue(
-                    instruction
-                  ),
+      ...executableInstructions
+        .map(
+          (instruction) => ({
+            instruction:
+              cloneValue(
+                instruction
+              ),
 
-                reason:
-                  "No compatible Creator Memory execution method is available.",
-              })
-            ),
-        ],
+            reason:
+              "No compatible Creator Memory execution method is available.",
+          })
+        ),
+    ],
 
-        reason:
-          "Memory execution is unavailable.",
+    reason:
+      "Memory execution is unavailable.",
 
-        status:
-          "no-op",
-
-        executionPolicy,
-      })
-    );
+    executionPolicy,
+  })
+);
   }
 
   function planMemoryRecall({
