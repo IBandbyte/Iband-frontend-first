@@ -10,7 +10,24 @@
  * - Specialist creator agents.
  * - CreatorMemory.js.
  *
- * Version 2.3 hardens the live memory contract:
+ * Version 2.4 closes the final persistence and present-context
+ * authority gaps in the live memory contract:
+ *
+ * - Explicit current-turn arrays are authoritative even when empty.
+ * - Persistent arrays are only used when the current caller did not
+ *   supply that field at all.
+ * - Intentional persistence no-ops remain distinct from writes that
+ *   were attempted but refused.
+ * - CreatorMemory "not-applied" results remain "not-applied" through
+ *   engine reconciliation.
+ * - Missing adapter outcomes are treated as not-applied rather than
+ *   being misreported as harmless no-ops.
+ * - Unavailable persistence bridges report attempted instructions as
+ *   not-applied.
+ * - Empty plans remain successful intentional no-ops.
+ * - Existing CreatorMemory v2.x contracts remain compatible.
+ *
+ * Version 2.3 introduced:
  *
  * - Present creator and project identity are resolved before
  *   persistent context is accepted.
@@ -26,12 +43,11 @@
  * - Explicit forgetting requires safe, unambiguous resolution.
  * - Destructive persistence receives stricter result verification.
  * - Secrets and credentials are blocked from creative memory.
- * - Empty persistence plans are treated as successful no-ops.
  * - Every attempted persistence instruction must be accounted for
  *   as applied, skipped or errored.
  * - Partial adapter responses cannot masquerade as full success.
- * - Generic and direct persistence bridges now report the same
- *   execution contract.
+ * - Generic and direct persistence bridges report the same execution
+ *   contract.
  * - Session handoffs remain project-bound and replaceable.
  * - Persistence capability reporting exposes the real bridge.
  * - Existing CreatorMemory v2.x contracts remain compatible.
@@ -53,7 +69,7 @@
  * - Complexity belongs behind the conversation.
  */
 
-const CREATOR_MEMORY_ENGINE_VERSION = "2.3.0";
+const CREATOR_MEMORY_ENGINE_VERSION = "2.4.0";
 
 const MEMORY_CATEGORIES = Object.freeze({
   CREATIVE_IDENTITY:
@@ -1496,11 +1512,12 @@ function mergePreferredArray(
   memoryValue
 ) {
   return (
-    asArray(
-      currentValue
-    ).length > 0
+    currentValue !==
+      undefined
       ? cloneValue(
-          currentValue
+          asArray(
+            currentValue
+          )
         )
       : cloneValue(
           asArray(
@@ -1533,6 +1550,17 @@ function mergeMemoryContext({
     )
       ? cloneValue(
           memoryContext
+        )
+      : {};
+
+  const current =
+    (
+      context &&
+      typeof context ===
+        "object"
+    )
+      ? cloneValue(
+          context
         )
       : {};
 
@@ -1603,35 +1631,59 @@ function mergeMemoryContext({
     {};
 
   const activeProject =
-    present
-      ?.activeProject ||
-    safePersistent
-      ?.activeProject ||
-    null;
+  hasOwn(
+    present,
+    "activeProject"
+  )
+    ? (
+        present.activeProject ??
+        null
+      )
+    : (
+        safePersistent
+          ?.activeProject ||
+        null
+      );
 
   const presentProjectId =
-    cleanString(
-      present
-        ?.activeProjectId
-    ) ||
-    getProjectId({
-      activeProject:
-        present
-          ?.activeProject,
-    });
+  hasOwn(
+    present,
+    "activeProjectId"
+  )
+    ? (
+        cleanString(
+          present.activeProjectId
+        ) ||
+        null
+      )
+    : getProjectId({
+        activeProject:
+          present
+            ?.activeProject,
+      });
 
   const resolvedProjectId =
-    presentProjectId ||
-    cleanString(
-      safePersistent
-        ?.activeProjectId
-    ) ||
-    getProjectId({
-      activeProject:
-        safePersistent
-          ?.activeProject,
-    }) ||
-    null;
+  hasOwn(
+    present,
+    "activeProjectId"
+  ) ||
+  hasOwn(
+    present,
+    "activeProject"
+  )
+    ? presentProjectId
+    : (
+        cleanString(
+          safePersistent
+            ?.activeProjectId
+        ) ||
+        getProjectId({
+          activeProject:
+            safePersistent
+              ?.activeProject,
+        }) ||
+        null
+      );
 
   return {
     ...base,
@@ -1675,67 +1727,60 @@ function mergeMemoryContext({
       ),
 
     recentConversations:
-      mergePreferredArray(
-        present
-          ?.recentConversations,
-
-        safePersistent
-          ?.recentConversations
-      ),
+  mergeAuthoritativeArray(
+    present,
+    "recentConversations",
+    safePersistent
+      ?.recentConversations
+  ),
 
     existingMemories:
-      mergePreferredArray(
-        present
-          ?.existingMemories,
-
-        safePersistent
-          ?.existingMemories
-      ),
+  mergeAuthoritativeArray(
+    present,
+    "existingMemories",
+    safePersistent
+      ?.existingMemories
+  ),
 
     existingProjectMemories:
-      mergePreferredArray(
-        present
-          ?.existingProjectMemories,
-
-        safePersistent
-          ?.existingProjectMemories
-      ),
+  mergeAuthoritativeArray(
+    present,
+    "existingProjectMemories",
+    safePersistent
+      ?.existingProjectMemories
+  ),
 
     existingPatterns:
-      mergePreferredArray(
-        present
-          ?.existingPatterns,
-
-        safePersistent
-          ?.existingPatterns
-      ),
+  mergeAuthoritativeArray(
+    present,
+    "existingPatterns",
+    safePersistent
+      ?.existingPatterns
+  ),
 
     existingObservations:
-      mergePreferredArray(
-        present
-          ?.existingObservations,
-
-        safePersistent
-          ?.existingObservations
-      ),
+  mergeAuthoritativeArray(
+    present,
+    "existingObservations",
+    safePersistent
+      ?.existingObservations
+  ),
 
     deferredMemories:
-      mergePreferredArray(
-        present
-          ?.deferredMemories,
-
-        safePersistent
-          ?.deferredMemories
-      ),
+  mergeAuthoritativeArray(
+    present,
+    "deferredMemories",
+    safePersistent
+      ?.deferredMemories
+  ),
 
     milestones:
-      mergePreferredArray(
-        present
-          ?.milestones,
-
-        safePersistent
-          ?.milestones
-      ),
+  mergeAuthoritativeArray(
+    present,
+    "milestones",
+    safePersistent
+      ?.milestones
+  ),
 
     preferredResponseDepth:
       present
