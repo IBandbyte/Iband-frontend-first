@@ -5331,61 +5331,61 @@ function createMemoryExecutionResult({
     errorCount > 0;
 
   const allSkippedAreIntentional =
-  skippedCount > 0 &&
-  safeSkipped.every(
-    (item) =>
-      item?.intentionalNoOp ===
-      true
-  );
+    skippedCount > 0 &&
+    safeSkipped.every(
+      (item) =>
+        item?.intentionalNoOp ===
+        true
+    );
 
-const noOp =
-  appliedCount === 0 &&
-  errorCount === 0 &&
-  skippedCount > 0 &&
-  allSkippedAreIntentional;
+  const noOp =
+    appliedCount === 0 &&
+    errorCount === 0 &&
+    skippedCount > 0 &&
+    allSkippedAreIntentional;
 
-const notApplied =
-  appliedCount === 0 &&
-  errorCount === 0 &&
-  skippedCount > 0 &&
-  !allSkippedAreIntentional;
+  const notApplied =
+    appliedCount === 0 &&
+    errorCount === 0 &&
+    skippedCount > 0 &&
+    !allSkippedAreIntentional;
 
-let resolvedStatus =
-  status;
+  let resolvedStatus =
+    status;
 
-if (!resolvedStatus) {
-  if (
-    attemptedCount === 0
-  ) {
-    resolvedStatus =
-      "empty";
-  } else if (
-    fullySuccessful
-  ) {
-    resolvedStatus =
-      "fully-successful";
-  } else if (
-    partiallySuccessful
-  ) {
-    resolvedStatus =
-      "partially-successful";
-  } else if (
-    failed
-  ) {
-    resolvedStatus =
-      "failed";
-  } else if (
-    noOp
-  ) {
-    resolvedStatus =
-      "no-op";
-  } else if (
-    notApplied
-  ) {
-    resolvedStatus =
-      "not-applied";
+  if (!resolvedStatus) {
+    if (
+      attemptedCount === 0
+    ) {
+      resolvedStatus =
+        "empty";
+    } else if (
+      fullySuccessful
+    ) {
+      resolvedStatus =
+        "fully-successful";
+    } else if (
+      partiallySuccessful
+    ) {
+      resolvedStatus =
+        "partially-successful";
+    } else if (
+      failed
+    ) {
+      resolvedStatus =
+        "failed";
+    } else if (
+      noOp
+    ) {
+      resolvedStatus =
+        "no-op";
+    } else if (
+      notApplied
+    ) {
+      resolvedStatus =
+        "not-applied";
+    }
   }
-}
 
   return {
     applied:
@@ -5415,7 +5415,7 @@ if (!resolvedStatus) {
       fullySuccessful ||
       partiallySuccessful,
 
-        fullySuccessful,
+    fullySuccessful,
 
     partiallySuccessful,
 
@@ -5433,7 +5433,6 @@ if (!resolvedStatus) {
     executionPolicy,
   };
 }
-
 /**
  * Restricts instructions according to Adaptive's execution
  * authorisation.
@@ -6608,258 +6607,388 @@ function createAdaptiveMentorEngine({
    * → CreatorMemory persistence validation
    */
   function applyMemoryPlan(
-    plan
+  plan
+) {
+  const instructions =
+    asArray(
+      plan
+        ?.execution
+        ?.memoryInstructions
+    );
+
+  const executionPolicy =
+    cleanString(
+      plan
+        ?.execution
+        ?.memoryExecutionPolicy
+    ) ||
+    MEMORY_EXECUTION_POLICIES
+      .BLOCK;
+
+  if (
+    !activeMemory
   ) {
-    const instructions =
-      asArray(
-        plan
-          ?.execution
-          ?.memoryInstructions
-      );
+    return (
+      createMemoryExecutionResult({
+        skipped:
+          instructions.map(
+            (instruction) => ({
+              instruction:
+                cloneValue(
+                  instruction
+                ),
 
-    const executionPolicy =
-      cleanString(
-        plan
-          ?.execution
-          ?.memoryExecutionPolicy
-      ) ||
-      MEMORY_EXECUTION_POLICIES
-        .BLOCK;
+              reason:
+                "No Creator Memory service is connected.",
+            })
+          ),
 
-    if (
-      !activeMemory
-    ) {
-      return (
-        createMemoryExecutionResult({
-          skipped:
-            instructions.map(
-              (instruction) => ({
-                instruction:
-                  cloneValue(
-                    instruction
-                  ),
-
-                reason:
-                  "No Creator Memory service is connected.",
-              })
-            ),
-
-          reason:
-            "No Creator Memory service is connected.",
-
-          executionPolicy,
-        })
-      );
-    }
-
-    if (
-      executionPolicy ===
-        MEMORY_EXECUTION_POLICIES
-          .BLOCK
-    ) {
-      return (
-        createMemoryExecutionResult({
-          skipped:
-            instructions.map(
-              (instruction) => ({
-                instruction:
-                  cloneValue(
-                    instruction
-                  ),
-
-                reason:
-                  "Adaptive plan did not authorise memory execution.",
-              })
-            ),
-
-          reason:
-            "Adaptive memory execution policy blocked persistence.",
-
-          status:
-            "no-op",
-
-          executionPolicy,
-        })
-      );
-    }
-
-    if (
-      instructions.length ===
-        0
-    ) {
-      return (
-        createMemoryExecutionResult({
-          reason:
-            "No memory instructions required execution.",
-
-          status:
-            "empty",
-
-          executionPolicy,
-        })
-      );
-    }
-
-    const policyFilter =
-      filterInstructionsByExecutionPolicy({
-        instructions,
+        reason:
+          "No Creator Memory service is connected.",
 
         executionPolicy,
-      });
+      })
+    );
+  }
 
-    const authorisedInstructions =
-      policyFilter
-        .executable;
+  if (
+    executionPolicy ===
+      MEMORY_EXECUTION_POLICIES
+        .BLOCK
+  ) {
+    return (
+      createMemoryExecutionResult({
+        skipped:
+          instructions.map(
+            (instruction) => ({
+              instruction:
+                cloneValue(
+                  instruction
+                ),
 
-    const policySkipped =
-      policyFilter
-        .skipped;
+              reason:
+                "Adaptive plan did not authorise memory execution.",
 
-    if (
-      authorisedInstructions
-        .length === 0
-    ) {
-      return (
-  createMemoryExecutionResult({
-    skipped:
-      policySkipped,
+              intentionalNoOp:
+                true,
+            })
+          ),
 
-    reason:
-      "No memory instructions were authorised by the Adaptive execution policy.",
+        reason:
+          "Adaptive memory execution policy blocked persistence.",
 
-    executionPolicy,
-  })
-);
-    }
+        status:
+          "no-op",
 
-    const activeProjectId =
-      cleanString(
-        plan
-          ?.execution
-          ?.activeProjectId
-      ) ||
-      null;
+        executionPolicy,
+      })
+    );
+  }
 
-    const preflight =
-      preflightMemoryInstructions({
-        instructions:
-          authorisedInstructions,
+  if (
+    instructions.length ===
+      0
+  ) {
+    return (
+      createMemoryExecutionResult({
+        reason:
+          "No memory instructions required execution.",
 
-        activeProjectId,
-      });
+        status:
+          "empty",
 
-    const executableInstructions =
-      preflight
-        .executable;
+        executionPolicy,
+      })
+    );
+  }
 
-    const preflightSkipped = [
-      ...policySkipped,
-
-      ...preflight
-        .skipped,
-    ];
-
-    if (
-  executableInstructions
-    .length === 0
-) {
-  return (
-    createMemoryExecutionResult({
-      skipped:
-        preflightSkipped,
-
-      reason:
-        "Adaptive memory preflight blocked all persistence instructions.",
+  const policyFilter =
+    filterInstructionsByExecutionPolicy({
+      instructions,
 
       executionPolicy,
-    })
-  );
-}
+    });
 
-    if (
-      typeof activeMemory
-        .applyMemoryInstructions ===
-        "function"
-    ) {
-      try {
-        const result =
-          activeMemory
-            .applyMemoryInstructions(
-              executableInstructions
-            );
+  const authorisedInstructions =
+    policyFilter
+      .executable;
 
-        return (
-          createMemoryExecutionResult({
-            applied:
-              result
-                ?.applied ||
-              [],
+  const policySkipped =
+    policyFilter
+      .skipped;
 
-            skipped: [
-              ...preflightSkipped,
+  if (
+    authorisedInstructions
+      .length === 0
+  ) {
+    return (
+      createMemoryExecutionResult({
+        skipped:
+          policySkipped,
 
-              ...asArray(
-                result
-                  ?.skipped
-              ),
-            ],
+        reason:
+          "No memory instructions were authorised by the Adaptive execution policy.",
 
-            errors:
-              result
-                ?.errors ||
-              [],
+        executionPolicy,
+      })
+    );
+  }
 
-            reason:
-              result
-                ?.reason ||
-              null,
-
-            status:
-              result
-                ?.status ||
-              null,
-
-            executionPolicy,
-          })
-        );
-      } catch (error) {
-        return (
-          createMemoryExecutionResult({
-            skipped:
-              preflightSkipped,
-
-            errors: [
-              {
-                instruction:
-                  null,
-
-                error:
-                  error instanceof Error
-                    ? error.message
-                    : String(error),
-              },
-            ],
-
-            reason:
-              "Creator Memory instruction execution failed.",
-
-            status:
-              "failed",
-
-            executionPolicy,
-          })
-        );
-      }
-    }
-
-    const memoryPlan =
+  const activeProjectId =
+    cleanString(
       plan
-        ?.specialistPlans
-        ?.memory;
+        ?.execution
+        ?.activeProjectId
+    ) ||
+    null;
 
-    if (
-  !memoryPlan
-) {
+  const preflight =
+    preflightMemoryInstructions({
+      instructions:
+        authorisedInstructions,
+
+      activeProjectId,
+    });
+
+  const executableInstructions =
+    preflight
+      .executable;
+
+  const preflightSkipped = [
+    ...policySkipped,
+
+    ...preflight
+      .skipped,
+  ];
+
+  if (
+    executableInstructions
+      .length === 0
+  ) {
+    return (
+      createMemoryExecutionResult({
+        skipped:
+          preflightSkipped,
+
+        reason:
+          "Adaptive memory preflight blocked all persistence instructions.",
+
+        executionPolicy,
+      })
+    );
+  }
+
+  /**
+   * CreatorMemory is the persistence authority.
+   *
+   * The modern batch executor is always preferred.
+   */
+  if (
+    typeof activeMemory
+      .applyMemoryInstructions ===
+      "function"
+  ) {
+    try {
+      const result =
+        activeMemory
+          .applyMemoryInstructions(
+            executableInstructions
+          );
+
+      return (
+        createMemoryExecutionResult({
+          applied:
+            result
+              ?.applied ||
+            [],
+
+          skipped: [
+            ...preflightSkipped,
+
+            ...asArray(
+              result
+                ?.skipped
+            ),
+          ],
+
+          errors:
+            result
+              ?.errors ||
+            [],
+
+          reason:
+            result
+              ?.reason ||
+            null,
+
+          status:
+            result
+              ?.status ||
+            null,
+
+          executionPolicy,
+        })
+      );
+    } catch (error) {
+      return (
+        createMemoryExecutionResult({
+          skipped:
+            preflightSkipped,
+
+          errors: [
+            {
+              instruction:
+                null,
+
+              error:
+                error instanceof Error
+                  ? error.message
+                  : String(error),
+            },
+          ],
+
+          reason:
+            "Creator Memory instruction execution failed.",
+
+          status:
+            "failed",
+
+          executionPolicy,
+        })
+      );
+    }
+  }
+
+  /**
+   * Compatibility execution exists only for older Creator Memory
+   * integrations that have not yet adopted applyMemoryInstructions().
+   */
+  const memoryPlan =
+    plan
+      ?.specialistPlans
+      ?.memory;
+
+  if (
+    !memoryPlan
+  ) {
+    return (
+      createMemoryExecutionResult({
+        skipped: [
+          ...preflightSkipped,
+
+          ...executableInstructions
+            .map(
+              (instruction) => ({
+                instruction:
+                  cloneValue(
+                    instruction
+                  ),
+
+                reason:
+                  "No Creator Memory plan was available for compatibility execution.",
+              })
+            ),
+        ],
+
+        reason:
+          "No Creator Memory plan was available.",
+
+        executionPolicy,
+      })
+    );
+  }
+
+  if (
+    typeof resolvedCreatorMemoryEngine
+      .applyMemoryPlan ===
+      "function"
+  ) {
+    try {
+      const compatibilityPlan = {
+        ...cloneValue(
+          memoryPlan
+        ),
+
+        instructions:
+          cloneValue(
+            executableInstructions
+          ),
+      };
+
+      const result =
+        resolvedCreatorMemoryEngine
+          .applyMemoryPlan({
+            plan:
+              compatibilityPlan,
+
+            memory:
+              activeMemory,
+          });
+
+      return (
+        createMemoryExecutionResult({
+          applied:
+            result
+              ?.applied ||
+            [],
+
+          skipped: [
+            ...preflightSkipped,
+
+            ...asArray(
+              result
+                ?.skipped
+            ),
+          ],
+
+          errors:
+            result
+              ?.errors ||
+            [],
+
+          reason:
+            result
+              ?.reason ||
+            null,
+
+          status:
+            result
+              ?.status ||
+            null,
+
+          executionPolicy,
+        })
+      );
+    } catch (error) {
+      return (
+        createMemoryExecutionResult({
+          skipped:
+            preflightSkipped,
+
+          errors: [
+            {
+              instruction:
+                null,
+
+              error:
+                error instanceof Error
+                  ? error.message
+                  : String(error),
+            },
+          ],
+
+          reason:
+            "Creator Memory compatibility execution failed.",
+
+          status:
+            "failed",
+
+          executionPolicy,
+        })
+      );
+    }
+  }
+
   return (
     createMemoryExecutionResult({
       skipped: [
@@ -6874,136 +7003,18 @@ function createAdaptiveMentorEngine({
                 ),
 
               reason:
-                "No Creator Memory plan was available for compatibility execution.",
+                "No compatible Creator Memory execution method is available.",
             })
           ),
       ],
 
       reason:
-        "No Creator Memory plan was available.",
+        "Memory execution is unavailable.",
 
       executionPolicy,
     })
   );
 }
-
-    if (
-      typeof resolvedCreatorMemoryEngine
-        .applyMemoryPlan ===
-        "function"
-    ) {
-      try {
-        const compatibilityPlan = {
-          ...cloneValue(
-            memoryPlan
-          ),
-
-          instructions:
-            cloneValue(
-              executableInstructions
-            ),
-        };
-
-        const result =
-          resolvedCreatorMemoryEngine
-            .applyMemoryPlan({
-              plan:
-                compatibilityPlan,
-
-              memory:
-                activeMemory,
-            });
-
-        return (
-          createMemoryExecutionResult({
-            applied:
-              result
-                ?.applied ||
-              [],
-
-            skipped: [
-              ...preflightSkipped,
-
-              ...asArray(
-                result
-                  ?.skipped
-              ),
-            ],
-
-            errors:
-              result
-                ?.errors ||
-              [],
-
-            reason:
-              result
-                ?.reason ||
-              null,
-
-            status:
-              result
-                ?.status ||
-              null,
-
-            executionPolicy,
-          })
-        );
-      } catch (error) {
-        return (
-          createMemoryExecutionResult({
-            skipped:
-              preflightSkipped,
-
-            errors: [
-              {
-                instruction:
-                  null,
-
-                error:
-                  error instanceof Error
-                    ? error.message
-                    : String(error),
-              },
-            ],
-
-            reason:
-              "Creator Memory compatibility execution failed.",
-
-            status:
-              "failed",
-
-            executionPolicy,
-          })
-        );
-      }
-    }
-
-    return (
-  createMemoryExecutionResult({
-    skipped: [
-      ...preflightSkipped,
-
-      ...executableInstructions
-        .map(
-          (instruction) => ({
-            instruction:
-              cloneValue(
-                instruction
-              ),
-
-            reason:
-              "No compatible Creator Memory execution method is available.",
-          })
-        ),
-    ],
-
-    reason:
-      "Memory execution is unavailable.",
-
-    executionPolicy,
-  })
-);
-  }
 
   function planMemoryRecall({
     message = "",
