@@ -67,13 +67,13 @@ const CreatorWorkspace = ({
   renderPreview,
 }) => {
   const [selectedCreator, setSelectedCreator] = useState(initialCreator);
-const [idea, setIdea] = useState("");
-const [generatedIdea, setGeneratedIdea] = useState("");
-const [projectStatus, setProjectStatus] = useState("idle");
-const [creatorJourney, setCreatorJourney] = useState("guide");
-const [mentorMessage, setMentorMessage] = useState(
-  "I've got your back. Choose what you would like to create, then tell me about your idea."
-);
+  const [idea, setIdea] = useState("");
+  const [generatedIdea, setGeneratedIdea] = useState("");
+  const [projectStatus, setProjectStatus] = useState("idle");
+  const [creatorJourney, setCreatorJourney] = useState("guide");
+  const [mentorMessage, setMentorMessage] = useState(
+    "I've got your back. Choose what you would like to create, then tell me about your idea."
+  );
 
   const activeCreator = useMemo(
     () =>
@@ -81,63 +81,94 @@ const [mentorMessage, setMentorMessage] = useState(
     [selectedCreator]
   );
 
+  const mentorContext = useMemo(
+    () => ({
+      creatorName,
+      creatorType: selectedCreator || null,
+      creatorLabel: activeCreator?.label || null,
+      creatorJourney,
+      idea,
+      projectStatus,
+      hasGeneratedIdea: Boolean(generatedIdea),
+    }),
+    [
+      creatorName,
+      selectedCreator,
+      activeCreator,
+      creatorJourney,
+      idea,
+      projectStatus,
+      generatedIdea,
+    ]
+  );
+
   const canGenerate =
-    Boolean(selectedCreator) && Boolean(idea.trim()) && projectStatus !== "generating";
+    Boolean(selectedCreator) &&
+    Boolean(idea.trim()) &&
+    projectStatus !== "generating";
+
+  const createProjectPayload = () => ({
+    creatorType: selectedCreator,
+    creatorLabel: activeCreator?.label || selectedCreator,
+    creatorJourney,
+    idea: idea.trim(),
+    generatedIdea,
+  });
 
   const handleCreatorSelect = (creator) => {
-  setSelectedCreator(creator.id);
-  setGeneratedIdea("");
-  setProjectStatus("idle");
+    setSelectedCreator(creator.id);
+    setGeneratedIdea("");
+    setProjectStatus("idle");
 
-  switch (creator.id) {
-    case "video":
-      setMentorMessage(
-        "Let's create an amazing video. Tell me what happens in the opening scene."
-      );
-      break;
+    switch (creator.id) {
+      case "video":
+        setMentorMessage(
+          "Let's create an amazing video. Tell me what happens in the opening scene."
+        );
+        break;
 
-    case "image":
-      setMentorMessage(
-        "Let's create a stunning image. Describe what you'd like people to see."
-      );
-      break;
+      case "image":
+        setMentorMessage(
+          "Let's create a stunning image. Describe what you'd like people to see."
+        );
+        break;
 
-    case "music":
-      setMentorMessage(
-        "Let's write something unforgettable. Tell me the mood or emotion you want your music to create."
-      );
-      break;
+      case "music":
+        setMentorMessage(
+          "Let's write something unforgettable. Tell me the mood or emotion you want your music to create."
+        );
+        break;
 
-    case "podcast":
-      setMentorMessage(
-        "Let's build a great podcast. What's the topic, and who are you speaking to?"
-      );
-      break;
+      case "podcast":
+        setMentorMessage(
+          "Let's build a great podcast. What's the topic, and who are you speaking to?"
+        );
+        break;
 
-    case "story":
-      setMentorMessage(
-        "Every great story starts with an idea. Tell me about yours."
-      );
-      break;
+      case "story":
+        setMentorMessage(
+          "Every great story starts with an idea. Tell me about yours."
+        );
+        break;
 
-    case "marketing":
-      setMentorMessage(
-        "Let's create a campaign that gets attention. What are you promoting?"
-      );
-      break;
+      case "marketing":
+        setMentorMessage(
+          "Let's create a campaign that gets attention. What are you promoting?"
+        );
+        break;
 
-    case "social":
-      setMentorMessage(
-        "Let's create content people will want to share. What's your idea?"
-      );
-      break;
+      case "social":
+        setMentorMessage(
+          "Let's create content people will want to share. What's your idea?"
+        );
+        break;
 
-    default:
-      setMentorMessage(
-        "Tell me your idea. We can shape it into something amazing together."
-      );
-  }
-};
+      default:
+        setMentorMessage(
+          "Tell me your idea. We can shape it into something amazing together."
+        );
+    }
+  };
 
   const handleGenerate = async () => {
     if (!canGenerate) {
@@ -150,6 +181,7 @@ const [mentorMessage, setMentorMessage] = useState(
     const request = {
       creatorType: selectedCreator,
       creatorLabel: activeCreator?.label || selectedCreator,
+      creatorJourney,
       idea: idea.trim(),
     };
 
@@ -187,11 +219,7 @@ const [mentorMessage, setMentorMessage] = useState(
   };
 
   const handleSave = async () => {
-    const project = {
-      creatorType: selectedCreator,
-      idea: idea.trim(),
-      generatedIdea,
-    };
+    const project = createProjectPayload();
 
     try {
       if (typeof onSave === "function") {
@@ -218,20 +246,12 @@ const [mentorMessage, setMentorMessage] = useState(
     );
 
     if (typeof onEdit === "function") {
-      onEdit({
-        creatorType: selectedCreator,
-        idea: idea.trim(),
-        generatedIdea,
-      });
+      onEdit(createProjectPayload());
     }
   };
 
   const handlePublish = async () => {
-    const project = {
-      creatorType: selectedCreator,
-      idea: idea.trim(),
-      generatedIdea,
-    };
+    const project = createProjectPayload();
 
     try {
       if (typeof onPublish === "function") {
@@ -264,25 +284,23 @@ const [mentorMessage, setMentorMessage] = useState(
       </section>
 
       <section style={styles.section}>
-  <AiMentor
-  message={mentorMessage}
-  creatorJourney={creatorJourney}
-  mentorContext={{
-    creatorJourney,
-  }}
-/>
-</section>
+        <AiMentor
+          message={mentorMessage}
+          creatorJourney={creatorJourney}
+          mentorContext={mentorContext}
+        />
+      </section>
 
-<section style={styles.section}>
-  <MentorConversation
-  creator={activeCreator}
-  message={mentorMessage}
-  idea={idea}
-  projectStatus={projectStatus}
-  creatorJourney={creatorJourney}
-  onJourneyChange={setCreatorJourney}
-/>
-</section>
+      <section style={styles.section}>
+        <MentorConversation
+          creator={activeCreator}
+          message={mentorMessage}
+          idea={idea}
+          projectStatus={projectStatus}
+          creatorJourney={creatorJourney}
+          onJourneyChange={setCreatorJourney}
+        />
+      </section>
 
       <section style={styles.section}>
         <div style={styles.sectionHeadingRow}>
@@ -338,54 +356,59 @@ const [mentorMessage, setMentorMessage] = useState(
         </div>
       </section>
 
-        {activeCreator && (
-  <section style={styles.section}>
-    <PromptBuilder
-  creatorType={selectedCreator}
-  creatorLabel={activeCreator.label}
-  creatorJourney={creatorJourney}
-  value={idea}
-  projectStatus={projectStatus}
-      onChange={(value) => {
-        setIdea(value);
+      {activeCreator && (
+        <section style={styles.section}>
+          <PromptBuilder
+            creatorType={selectedCreator}
+            creatorLabel={activeCreator.label}
+            creatorJourney={creatorJourney}
+            value={idea}
+            projectStatus={projectStatus}
+            onChange={(value) => {
+              setIdea(value);
 
-        if (projectStatus !== "idle") {
-          setProjectStatus("editing");
-        }
-      }}
-      renderCreatorControls={() =>
-        typeof renderCreatorControls === "function"
-          ? renderCreatorControls({
-              selectedCreator,
-              idea,
-              setIdea,
-              projectStatus,
-            })
-          : null
-      }
-    />
+              if (
+                projectStatus !== "idle" &&
+                projectStatus !== "generating"
+              ) {
+                setProjectStatus("editing");
+              }
+            }}
+            renderCreatorControls={() =>
+              typeof renderCreatorControls === "function"
+                ? renderCreatorControls({
+                    selectedCreator,
+                    activeCreator,
+                    creatorJourney,
+                    idea,
+                    setIdea,
+                    projectStatus,
+                  })
+                : null
+            }
+          />
 
-    <GenerateButton
-  creatorJourney={creatorJourney}
-  onClick={handleGenerate}
-  generating={projectStatus === "generating"}
-  disabled={...}
-/>
-  </section>
-)}
-  
-{(generatedIdea || projectStatus === "generating") && (
-  <PreviewPanel
-  creator={activeCreator}
-  generatedIdea={generatedIdea}
-  creatorJourney={creatorJourney}
-  projectStatus={projectStatus}
-  renderPreview={renderPreview}
-  onSave={handleSave}
-  onEdit={handleEdit}
-  onPublish={handlePublish}
-/>
-)}
+          <GenerateButton
+            creatorJourney={creatorJourney}
+            onClick={handleGenerate}
+            generating={projectStatus === "generating"}
+            disabled={!canGenerate}
+          />
+        </section>
+      )}
+
+      {(generatedIdea || projectStatus === "generating") && (
+        <PreviewPanel
+          creator={activeCreator}
+          generatedIdea={generatedIdea}
+          creatorJourney={creatorJourney}
+          projectStatus={projectStatus}
+          renderPreview={renderPreview}
+          onSave={handleSave}
+          onEdit={handleEdit}
+          onPublish={handlePublish}
+        />
+      )}
     </main>
   );
 };
