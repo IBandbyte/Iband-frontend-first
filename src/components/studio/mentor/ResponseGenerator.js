@@ -4,18 +4,13 @@
  * The executable response pipeline for iBand's AI Mentor —
  * The Creator.
  *
- * Architecture:
+ * This service connects:
  *
- * CreatorEngine
- *   → ConversationPlanner
- *   → ReflectionEngine
- *   → ProgressionEngine
- *   → CreatorMemoryEngine
- *   → AdaptiveMentorEngine
- *   → ResponseComposer
- *   → CommunicationVoiceEngine
- *   → ResponseGenerator
- *   → Provider
+ * - AdaptiveMentorEngine
+ * - ResponseComposer
+ * - CommunicationVoiceEngine
+ * - CreatorMemory
+ * - A future language-model or response-provider adapter
  *
  * Responsibilities:
  * - Accept a creator message and conversation context.
@@ -23,15 +18,12 @@
  * - Produce one unified Adaptive Mentor behaviour plan.
  * - Convert that plan into a response blueprint.
  * - Produce a communication voice plan.
- * - Preserve communication diagnostics even during silence.
  * - Execute approved memory operations at the correct lifecycle point.
- * - Convert persistence results into one canonical execution-truth object.
  * - Verify memory truth before generated language may claim success.
  * - Apply communication intelligence to the provider request.
  * - Execute the blueprint through a supplied response provider.
- * - Validate provider output against upstream decisions.
- * - Attempt controlled provider-output repair before deterministic fallback.
- * - Preserve intentional silence without losing communication or memory work.
+ * - Validate and normalise the generated response.
+ * - Preserve intentional silence without losing valid memory work.
  * - Preserve project continuity and session handoffs.
  * - Handle explicit forget operations safely.
  * - Keep specialist-agent machinery invisible.
@@ -47,25 +39,15 @@
  *
  * CreatorMemory remains the persistence authority.
  *
- * Core execution law:
- *
- * Upstream decides.
- * ResponseGenerator executes.
- * Provider expresses.
- * Nobody downstream re-decides.
- *
  * Core principles:
  * - Protect the Creator.
  * - Present behaviour leads; memory informs.
  * - Intelligence and expression remain separate.
  * - Communication performance must not alter meaning.
- * - Communication planning still occurs when the correct output is silence.
  * - Never fabricate successful memory storage.
  * - Never fabricate successful memory deletion.
  * - Never fabricate successful session handoff persistence.
  * - Never generate speech when silence is the correct response.
- * - Repair provider expression before replacing it.
- * - Repair may alter expression, never upstream meaning.
  * - A provider executes the blueprint; it does not redesign it.
  * - Specialist agents contribute intelligence, not separate voices.
  * - Many intelligences may contribute underneath.
@@ -78,18 +60,23 @@ import createResponseComposer from "./ResponseComposer";
 import createCommunicationVoiceEngine from "./CommunicationVoiceEngine";
 import createCreatorMemory from "./CreatorMemory";
 
-const RESPONSE_GENERATOR_VERSION = "3.0.0";
+const RESPONSE_GENERATOR_VERSION = "2.1.0";
 
 const GENERATION_STATUSES = Object.freeze({
   IDLE: "idle",
   HYDRATING_MEMORY: "hydrating-memory",
   PLANNING: "planning",
   COMPOSING: "composing",
-  PLANNING_COMMUNICATION: "planning-communication",
-  APPLYING_MEMORY: "applying-memory",
+
+  PLANNING_COMMUNICATION:
+    "planning-communication",
+
+  APPLYING_MEMORY:
+    "applying-memory",
+
   GENERATING: "generating",
-  REPAIRING: "repairing",
   VALIDATING: "validating",
+
   COMPLETED: "completed",
   SILENT: "silent",
   PARTIAL: "partial",
@@ -100,14 +87,28 @@ const GENERATION_STATUSES = Object.freeze({
 
 const GENERATION_STAGES = Object.freeze({
   INITIALISE: "initialise",
-  HYDRATE_MEMORY: "hydrate-memory",
-  PLAN_BEHAVIOUR: "plan-behaviour",
-  COMPOSE_BLUEPRINT: "compose-blueprint",
-  PLAN_COMMUNICATION: "plan-communication",
-  APPLY_MEMORY: "apply-memory",
-  EXECUTE_BLUEPRINT: "execute-blueprint",
-  REPAIR_PROVIDER_OUTPUT: "repair-provider-output",
-  VALIDATE_RESPONSE: "validate-response",
+
+  HYDRATE_MEMORY:
+    "hydrate-memory",
+
+  PLAN_BEHAVIOUR:
+    "plan-behaviour",
+
+  COMPOSE_BLUEPRINT:
+    "compose-blueprint",
+
+  PLAN_COMMUNICATION:
+    "plan-communication",
+
+  APPLY_MEMORY:
+    "apply-memory",
+
+  EXECUTE_BLUEPRINT:
+    "execute-blueprint",
+
+  VALIDATE_RESPONSE:
+    "validate-response",
+
   FINALISE: "finalise",
 });
 
@@ -126,183 +127,252 @@ const OUTPUT_FORMATS = Object.freeze({
 
 const RESPONSE_SOURCES = Object.freeze({
   PROVIDER: "provider",
-  PROVIDER_REPAIR: "provider-repair",
-  DETERMINISTIC_RENDERER: "deterministic-renderer",
-  FALLBACK_RENDERER: "fallback-renderer",
+
+  DETERMINISTIC_RENDERER:
+    "deterministic-renderer",
+
+  FALLBACK_RENDERER:
+    "fallback-renderer",
+
   SILENCE: "silence",
 });
 
-const MEMORY_APPLICATION_POLICIES = Object.freeze({
-  BEFORE_GENERATION: "before-generation",
-  AFTER_GENERATION: "after-generation",
-  MANUAL: "manual",
-  DISABLED: "disabled",
-});
+const MEMORY_APPLICATION_POLICIES =
+  Object.freeze({
+    BEFORE_GENERATION:
+      "before-generation",
 
-const MEMORY_OPERATION_TYPES = Object.freeze({
-  CAPTURE: "capture",
-  FORGET: "forget",
-  SESSION_HANDOFF: "session-handoff",
-  UPDATE: "update",
-  UNKNOWN: "unknown",
-});
+    AFTER_GENERATION:
+      "after-generation",
 
-const VALIDATION_SEVERITIES = Object.freeze({
-  INFO: "info",
-  WARNING: "warning",
-  ERROR: "error",
-});
+    MANUAL: "manual",
+    DISABLED: "disabled",
+  });
 
-const REPAIRABLE_VALIDATION_CODES = Object.freeze([
-  "TOO_MANY_QUESTIONS",
-  "FORBIDDEN_LANGUAGE_PATTERN",
-  "SPECIALIST_AGENT_EXPOSED",
-  "UNVERIFIED_MEMORY_STORAGE_CLAIM",
-  "UNVERIFIED_MEMORY_DELETION_CLAIM",
-  "UNVERIFIED_SESSION_HANDOFF_CLAIM",
-  "RESPONSE_TOO_LONG",
-]);
+const MEMORY_OPERATION_TYPES =
+  Object.freeze({
+    CAPTURE: "capture",
+    FORGET: "forget",
+    SESSION_HANDOFF:
+      "session-handoff",
+    UPDATE: "update",
+    UNKNOWN: "unknown",
+  });
 
-const DEFAULT_GENERATOR_OPTIONS = Object.freeze({
-  outputFormat: OUTPUT_FORMATS.TEXT,
+const VALIDATION_SEVERITIES =
+  Object.freeze({
+    INFO: "info",
+    WARNING: "warning",
+    ERROR: "error",
+  });
 
-  memoryApplicationPolicy:
-    MEMORY_APPLICATION_POLICIES.BEFORE_GENERATION,
+const DEFAULT_GENERATOR_OPTIONS =
+  Object.freeze({
+    outputFormat:
+      OUTPUT_FORMATS.TEXT,
 
-  applyMemoryAutomatically: true,
-  hydrateContextFromMemory: true,
+    memoryApplicationPolicy:
+      MEMORY_APPLICATION_POLICIES
+        .BEFORE_GENERATION,
 
-  useDeterministicFallback: true,
+    applyMemoryAutomatically:
+      true,
 
-  validateProviderOutput: true,
+    hydrateContextFromMemory:
+      true,
 
-  repairProviderOutput: true,
-  maximumRepairAttempts: 1,
+    useDeterministicFallback:
+      true,
 
-  includeDiagnostics: true,
-  includeSpecialistPlans: false,
-  includeBlueprint: true,
-  includeCommunicationPlan: true,
+    validateProviderOutput:
+      true,
 
-  trimOutput: true,
-  rejectEmptyProviderOutput: true,
+    includeDiagnostics:
+      true,
 
-  maximumResponseCharacters: 24000,
-  maximumProviderAttempts: 1,
+    includeSpecialistPlans:
+      false,
 
-  abortSignal: null,
+    includeBlueprint:
+      true,
 
-  metadata: {},
-});
+    includeCommunicationPlan:
+      true,
 
-const DEFAULT_GENERATION_CONTEXT = Object.freeze({
-  creatorId: null,
-  creatorName: null,
-  creatorType: null,
-  creatorJourney: "guide",
+    trimOutput:
+      true,
 
-  projectType: null,
+    rejectEmptyProviderOutput:
+      true,
 
-  activeProject: null,
-  activeProjectId: null,
+    maximumResponseCharacters:
+      24000,
 
-  activeIdea: null,
-  activeStage: null,
-  activeScene: null,
-  activeCharacter: null,
-  activeAsset: null,
+    maximumProviderAttempts:
+      1,
 
-  sessionId: null,
+    abortSignal: null,
 
-  previousTask: null,
-  nextTask: null,
-  returnPoint: null,
+    metadata: {},
+  });
 
-  conversationMode: null,
-  thinkingMode: null,
+const DEFAULT_GENERATION_CONTEXT =
+  Object.freeze({
+    creatorId: null,
+    creatorName: null,
+    creatorType: null,
+    creatorJourney: "guide",
 
-  creatorEnergy: null,
-  momentum: null,
+    projectType: null,
 
-  guidanceWindow: null,
-  informationSaturation: null,
+    activeProject: null,
+    activeProjectId: null,
 
-  creatorExplicitlyAskedForGuidance: false,
-  creatorExplicitlyAskedToContinue: false,
-  creatorExplicitlyAskedForNextStep: false,
-  creatorExplicitlyAskedToPause: false,
-  creatorExplicitlyAskedToStop: false,
-  creatorExplicitlyAskedToCreate: false,
-  creatorExplicitlyAskedForHelp: false,
-  creatorExplicitlyAskedForExplanation: false,
-  creatorExplicitlyAskedToRemember: false,
-  creatorExplicitlyAskedNotToRemember: false,
-  creatorExplicitlyAskedToRevisit: false,
+    activeIdea: null,
+    activeStage: null,
+    activeScene: null,
+    activeCharacter: null,
+    activeAsset: null,
 
-  creatorAppearsConfused: false,
-  creatorIsReturning: false,
+    sessionId: null,
 
-  elapsedSinceLastMessageMs: null,
+    previousTask: null,
+    nextTask: null,
+    returnPoint: null,
 
-  relationshipStage: null,
-  interactionCount: 0,
-  knownDurationDays: 0,
+    conversationMode: null,
+    thinkingMode: null,
 
-  preferredResponseDepth: null,
-  preferredGuidanceStyle: null,
-  preferredMentorRole: null,
-  preferredCommunicationPace: null,
-  preferredVoiceProfile: null,
-  preferredChannel: null,
+    creatorEnergy: null,
+    momentum: null,
 
-  recentCreatorMessages: [],
-  recentMentorMessages: [],
-  recentConversations: [],
+    guidanceWindow: null,
+    informationSaturation: null,
 
-  existingMemories: [],
-  existingProjectMemories: [],
-  existingPatterns: [],
-  existingObservations: [],
+    creatorExplicitlyAskedForGuidance:
+      false,
 
-  creatorProfile: null,
-  memoryContext: null,
+    creatorExplicitlyAskedToContinue:
+      false,
 
-  memorySignals: [],
-  projectMemorySignals: [],
+    creatorExplicitlyAskedForNextStep:
+      false,
 
-  captureSessionHandoff: false,
-  sessionHandoff: null,
+    creatorExplicitlyAskedToPause:
+      false,
 
-  sourceAgent: null,
-  sourceSystem: null,
+    creatorExplicitlyAskedToStop:
+      false,
 
-  targetMemoryIds: [],
+    creatorExplicitlyAskedToCreate:
+      false,
 
-  minimumCreationContextReady: false,
-  requiredInformationComplete: false,
-  projectReadyToGenerate: false,
-  projectReadyToRefine: false,
-  projectReadyToPublish: false,
+    creatorExplicitlyAskedForHelp:
+      false,
 
-  establishedVocabulary: [],
-  sharedMeanings: [],
-  sharedRituals: [],
-  sharedJokes: [],
+    creatorExplicitlyAskedForExplanation:
+      false,
 
-  participants: [],
-  primaryCreatorId: null,
-  currentSpeakerId: null,
-  participationMode: null,
+    creatorExplicitlyAskedToRemember:
+      false,
 
-  humourAllowed: true,
-  emojisAllowed: true,
-  useCreatorName: false,
+    creatorExplicitlyAskedNotToRemember:
+      false,
 
-  language: "en",
-  locale: "en-GB",
+    creatorExplicitlyAskedToRevisit:
+      false,
 
-  currentTimestamp: null,
-});
+    creatorAppearsConfused:
+      false,
+
+    creatorIsReturning:
+      false,
+
+    elapsedSinceLastMessageMs:
+      null,
+
+    relationshipStage: null,
+    interactionCount: 0,
+    knownDurationDays: 0,
+
+    preferredResponseDepth:
+      null,
+
+    preferredGuidanceStyle:
+      null,
+
+    preferredMentorRole:
+      null,
+
+    preferredCommunicationPace:
+      null,
+
+    preferredVoiceProfile:
+      null,
+
+    preferredChannel:
+      null,
+
+    recentCreatorMessages: [],
+    recentMentorMessages: [],
+    recentConversations: [],
+
+    existingMemories: [],
+    existingProjectMemories: [],
+    existingPatterns: [],
+    existingObservations: [],
+
+    creatorProfile: null,
+    memoryContext: null,
+
+    memorySignals: [],
+    projectMemorySignals: [],
+
+    captureSessionHandoff:
+      false,
+
+    sessionHandoff:
+      null,
+
+    sourceAgent: null,
+    sourceSystem: null,
+
+    targetMemoryIds: [],
+
+    minimumCreationContextReady:
+      false,
+
+    requiredInformationComplete:
+      false,
+
+    projectReadyToGenerate:
+      false,
+
+    projectReadyToRefine:
+      false,
+
+    projectReadyToPublish:
+      false,
+
+    establishedVocabulary: [],
+    sharedMeanings: [],
+    sharedRituals: [],
+    sharedJokes: [],
+
+    participants: [],
+    primaryCreatorId: null,
+    currentSpeakerId: null,
+    participationMode: null,
+
+    humourAllowed: true,
+    emojisAllowed: true,
+    useCreatorName: false,
+
+    language: "en",
+    locale: "en-GB",
+
+    currentTimestamp: null,
+  });
 
 function createTimestamp() {
   return new Date().toISOString();
@@ -313,7 +383,10 @@ function createGenerationId() {
     .toString(36)
     .slice(2, 10);
 
-  return `mentor-response-${Date.now()}-${randomValue}`;
+  return (
+    `mentor-response-` +
+    `${Date.now()}-${randomValue}`
+  );
 }
 
 function cloneValue(value) {
@@ -321,7 +394,9 @@ function cloneValue(value) {
     return undefined;
   }
 
-  return JSON.parse(JSON.stringify(value));
+  return JSON.parse(
+    JSON.stringify(value)
+  );
 }
 
 function cleanString(value) {
@@ -349,19 +424,29 @@ function clampNumber(
   maximum,
   fallback = minimum
 ) {
-  const numericValue = Number(value);
+  const numericValue =
+    Number(value);
 
-  if (!Number.isFinite(numericValue)) {
+  if (
+    !Number.isFinite(
+      numericValue
+    )
+  ) {
     return fallback;
   }
 
   return Math.max(
     minimum,
-    Math.min(maximum, numericValue)
+    Math.min(
+      maximum,
+      numericValue
+    )
   );
 }
 
-function uniqueValues(values = []) {
+function uniqueValues(
+  values = []
+) {
   return [
     ...new Set(
       values.filter(
@@ -379,130 +464,231 @@ function getNestedValue(
   path,
   fallback = null
 ) {
-  const keys = path.split(".");
-  let currentValue = value;
+  const keys =
+    path.split(".");
 
-  for (const key of keys) {
+  let currentValue =
+    value;
+
+  for (
+    const key
+    of keys
+  ) {
     if (
       currentValue === null ||
       currentValue === undefined ||
-      typeof currentValue !== "object"
+      typeof currentValue !==
+        "object"
     ) {
       return fallback;
     }
 
-    currentValue = currentValue[key];
+    currentValue =
+      currentValue[key];
   }
 
-  return currentValue ?? fallback;
+  return (
+    currentValue ??
+    fallback
+  );
 }
 
-function isResponseProvider(provider) {
+function isPlainObject(value) {
+  return Boolean(
+    value &&
+    typeof value === "object" &&
+    !Array.isArray(value)
+  );
+}
+
+function isResponseProvider(
+  provider
+) {
   return Boolean(
     provider &&
-      typeof provider === "object" &&
+      typeof provider ===
+        "object" &&
       (
-        typeof provider.generateResponse === "function" ||
-        typeof provider.generate === "function" ||
-        typeof provider.executeBlueprint === "function"
+        typeof provider
+          .generateResponse ===
+          "function" ||
+
+        typeof provider
+          .generate ===
+          "function" ||
+
+        typeof provider
+          .executeBlueprint ===
+          "function"
       )
   );
 }
 
-function isMemoryService(memory) {
+function isMemoryService(
+  memory
+) {
   return Boolean(
     memory &&
-      typeof memory === "object" &&
-      (
-        typeof memory.getMemoryContext === "function" ||
-        typeof memory.applyMemoryInstructions === "function" ||
-        typeof memory.getState === "function"
-      )
+    typeof memory === "object" &&
+    (
+      typeof memory
+        .getMemoryContext ===
+        "function" ||
+
+      typeof memory
+        .applyMemoryInstructions ===
+        "function" ||
+
+      typeof memory
+        .getState ===
+        "function"
+    )
   );
 }
 
-function resolveGeneratorOptions(options = {}) {
+function resolveGeneratorOptions(
+  options = {}
+) {
   return {
-    ...cloneValue(DEFAULT_GENERATOR_OPTIONS),
-    ...cloneValue(options),
+    ...cloneValue(
+      DEFAULT_GENERATOR_OPTIONS
+    ),
+
+    ...cloneValue(
+      options
+    ),
 
     maximumResponseCharacters:
       clampNumber(
-        options?.maximumResponseCharacters,
+        options
+          ?.maximumResponseCharacters,
+
         200,
         100000,
-        DEFAULT_GENERATOR_OPTIONS.maximumResponseCharacters
+
+        DEFAULT_GENERATOR_OPTIONS
+          .maximumResponseCharacters
       ),
 
     maximumProviderAttempts:
       clampNumber(
-        options?.maximumProviderAttempts,
+        options
+          ?.maximumProviderAttempts,
+
         1,
         3,
-        DEFAULT_GENERATOR_OPTIONS.maximumProviderAttempts
-      ),
 
-    maximumRepairAttempts:
-      clampNumber(
-        options?.maximumRepairAttempts,
-        0,
-        2,
-        DEFAULT_GENERATOR_OPTIONS.maximumRepairAttempts
+        DEFAULT_GENERATOR_OPTIONS
+          .maximumProviderAttempts
       ),
 
     metadata: {
-      ...cloneValue(DEFAULT_GENERATOR_OPTIONS.metadata),
-      ...cloneValue(options?.metadata || {}),
+      ...cloneValue(
+        DEFAULT_GENERATOR_OPTIONS
+          .metadata
+      ),
+
+      ...cloneValue(
+        options?.metadata ||
+        {}
+      ),
     },
   };
 }
 
-function resolveGenerationContext(context = {}) {
+function resolveGenerationContext(
+  context = {}
+) {
   return {
-    ...cloneValue(DEFAULT_GENERATION_CONTEXT),
-    ...cloneValue(context),
+    ...cloneValue(
+      DEFAULT_GENERATION_CONTEXT
+    ),
+
+    ...cloneValue(
+      context
+    ),
 
     recentCreatorMessages:
-      asArray(context?.recentCreatorMessages),
+      asArray(
+        context
+          ?.recentCreatorMessages
+      ),
 
     recentMentorMessages:
-      asArray(context?.recentMentorMessages),
+      asArray(
+        context
+          ?.recentMentorMessages
+      ),
 
     recentConversations:
-      asArray(context?.recentConversations),
+      asArray(
+        context
+          ?.recentConversations
+      ),
 
     existingMemories:
-      asArray(context?.existingMemories),
+      asArray(
+        context
+          ?.existingMemories
+      ),
 
     existingProjectMemories:
-      asArray(context?.existingProjectMemories),
+      asArray(
+        context
+          ?.existingProjectMemories
+      ),
 
     existingPatterns:
-      asArray(context?.existingPatterns),
+      asArray(
+        context
+          ?.existingPatterns
+      ),
 
     existingObservations:
-      asArray(context?.existingObservations),
+      asArray(
+        context
+          ?.existingObservations
+      ),
 
     memorySignals:
-      asArray(context?.memorySignals),
+      asArray(
+        context
+          ?.memorySignals
+      ),
 
     projectMemorySignals:
-      asArray(context?.projectMemorySignals),
+      asArray(
+        context
+          ?.projectMemorySignals
+      ),
 
     establishedVocabulary:
-      asArray(context?.establishedVocabulary),
+      asArray(
+        context
+          ?.establishedVocabulary
+      ),
 
     sharedMeanings:
-      asArray(context?.sharedMeanings),
+      asArray(
+        context
+          ?.sharedMeanings
+      ),
 
     sharedRituals:
-      asArray(context?.sharedRituals),
+      asArray(
+        context
+          ?.sharedRituals
+      ),
 
     sharedJokes:
-      asArray(context?.sharedJokes),
+      asArray(
+        context
+          ?.sharedJokes
+      ),
 
     currentTimestamp:
-      context?.currentTimestamp ||
+      context
+        ?.currentTimestamp ||
       createTimestamp(),
   };
 }
@@ -518,10 +704,14 @@ function createLifecycleEvent({
     status,
 
     message:
-      cleanString(message),
+      cleanString(
+        message
+      ),
 
     metadata:
-      cloneValue(metadata),
+      cloneValue(
+        metadata
+      ),
 
     createdAt:
       createTimestamp(),
@@ -533,47 +723,63 @@ function recordLifecycleEvent(
   event
 ) {
   lifecycle.push(
-    createLifecycleEvent(event)
+    createLifecycleEvent(
+      event
+    )
   );
 
   return lifecycle;
 }
 
-function assertNotAborted(abortSignal) {
-  if (abortSignal?.aborted) {
+function assertNotAborted(
+  abortSignal
+) {
+  if (
+    abortSignal?.aborted
+  ) {
     const error =
       new Error(
         "Mentor response generation was cancelled."
       );
 
-    error.name = "AbortError";
+    error.name =
+      "AbortError";
 
     throw error;
   }
 }
 
-function resolveProviderMethod(provider) {
-  if (!isResponseProvider(provider)) {
+function resolveProviderMethod(
+  provider
+) {
+  if (
+    !isResponseProvider(
+      provider
+    )
+  ) {
     return null;
   }
 
   if (
-    typeof provider.generateResponse ===
-    "function"
+    typeof provider
+      .generateResponse ===
+      "function"
   ) {
     return "generateResponse";
   }
 
   if (
-    typeof provider.executeBlueprint ===
-    "function"
+    typeof provider
+      .executeBlueprint ===
+      "function"
   ) {
     return "executeBlueprint";
   }
 
   if (
-    typeof provider.generate ===
-    "function"
+    typeof provider
+      .generate ===
+      "function"
   ) {
     return "generate";
   }
@@ -581,8 +787,14 @@ function resolveProviderMethod(provider) {
   return null;
 }
 
-function describeProvider(provider) {
-  if (!isResponseProvider(provider)) {
+function describeProvider(
+  provider
+) {
+  if (
+    !isResponseProvider(
+      provider
+    )
+  ) {
     return {
       available: false,
       type: PROVIDER_TYPES.NONE,
@@ -593,7 +805,9 @@ function describeProvider(provider) {
   }
 
   const method =
-    resolveProviderMethod(provider);
+    resolveProviderMethod(
+      provider
+    );
 
   return {
     available: true,
@@ -605,7 +819,8 @@ function describeProvider(provider) {
     name:
       provider.name ||
       provider.id ||
-      provider.constructor?.name ||
+      provider.constructor
+        ?.name ||
       "custom-response-provider",
 
     version:
@@ -642,13 +857,23 @@ function getProjectId(
       null
     ),
 
-    context?.activeProject?.id,
-    context?.activeProject?.projectId,
+    context
+      ?.activeProject
+      ?.id,
+
+    context
+      ?.activeProject
+      ?.projectId,
   ];
 
-  for (const candidate of candidates) {
+  for (
+    const candidate
+    of candidates
+  ) {
     const cleaned =
-      cleanString(candidate);
+      cleanString(
+        candidate
+      );
 
     if (cleaned) {
       return cleaned;
@@ -658,10 +883,15 @@ function getProjectId(
   return null;
 }
 
-function getMemoryContextSafely(memory) {
+function getMemoryContextSafely(
+  memory
+) {
   if (
-    !isMemoryService(memory) ||
-    typeof memory.getMemoryContext !==
+    !isMemoryService(
+      memory
+    ) ||
+    typeof memory
+      .getMemoryContext !==
       "function"
   ) {
     return null;
@@ -669,11 +899,13 @@ function getMemoryContextSafely(memory) {
 
   try {
     const result =
-      memory.getMemoryContext();
+      memory
+        .getMemoryContext();
 
     return (
       result &&
-      typeof result === "object"
+      typeof result ===
+        "object"
         ? result
         : null
     );
@@ -692,152 +924,209 @@ function mergeMemoryContext({
   memoryContext,
 }) {
   const suppliedContext =
-    resolveGenerationContext(context);
+    resolveGenerationContext(
+      context
+    );
 
   if (
     !memoryContext ||
-    typeof memoryContext !== "object"
+    typeof memoryContext !==
+      "object"
   ) {
     return suppliedContext;
   }
 
   const memoryCommunicationPreferences =
-    memoryContext?.communicationPreferences ||
-    memoryContext?.creatorProfile
+    memoryContext
+      ?.communicationPreferences ||
+    memoryContext
+      ?.creatorProfile
       ?.communicationPreferences ||
     {};
 
   const memoryJourney =
-    memoryContext?.journey ||
+    memoryContext
+      ?.journey ||
     {};
 
   const memoryRelationship =
-    memoryContext?.relationship ||
+    memoryContext
+      ?.relationship ||
     {};
 
   const activeProject =
-    suppliedContext.activeProject ||
-    memoryContext?.activeProject ||
+    suppliedContext
+      .activeProject ||
+    memoryContext
+      ?.activeProject ||
     null;
 
   const activeProjectId =
-    suppliedContext.activeProjectId ||
+    suppliedContext
+      .activeProjectId ||
     activeProject?.id ||
-    activeProject?.projectId ||
-    memoryJourney?.activeProjectId ||
+    activeProject
+      ?.projectId ||
+    memoryJourney
+      ?.activeProjectId ||
     null;
 
   const existingMemories =
-    suppliedContext.existingMemories.length > 0
-      ? suppliedContext.existingMemories
+    suppliedContext
+      .existingMemories
+      .length > 0
+      ? suppliedContext
+          .existingMemories
       : asArray(
-          memoryContext?.existingMemories
+          memoryContext
+            ?.existingMemories
         );
 
   const existingProjectMemories =
-    suppliedContext.existingProjectMemories.length > 0
-      ? suppliedContext.existingProjectMemories
+    suppliedContext
+      .existingProjectMemories
+      .length > 0
+      ? suppliedContext
+          .existingProjectMemories
       : asArray(
-          memoryContext?.existingProjectMemories
+          memoryContext
+            ?.existingProjectMemories
         );
 
   const existingPatterns =
-    suppliedContext.existingPatterns.length > 0
-      ? suppliedContext.existingPatterns
+    suppliedContext
+      .existingPatterns
+      .length > 0
+      ? suppliedContext
+          .existingPatterns
       : asArray(
-          memoryContext?.existingPatterns ||
-          memoryContext?.patterns
+          memoryContext
+            ?.existingPatterns ||
+          memoryContext
+            ?.patterns
         );
 
   const existingObservations =
-    suppliedContext.existingObservations.length > 0
-      ? suppliedContext.existingObservations
+    suppliedContext
+      .existingObservations
+      .length > 0
+      ? suppliedContext
+          .existingObservations
       : asArray(
-          memoryContext?.existingObservations ||
-          memoryContext?.observations
+          memoryContext
+            ?.existingObservations ||
+          memoryContext
+            ?.observations
         );
 
   const recentConversations =
-    suppliedContext.recentConversations.length > 0
-      ? suppliedContext.recentConversations
+    suppliedContext
+      .recentConversations
+      .length > 0
+      ? suppliedContext
+          .recentConversations
       : asArray(
-          memoryContext?.recentConversations
+          memoryContext
+            ?.recentConversations
         );
 
   return {
     ...suppliedContext,
 
     creatorProfile:
-      suppliedContext.creatorProfile ||
-      memoryContext?.creatorProfile ||
+      suppliedContext
+        .creatorProfile ||
+      memoryContext
+        ?.creatorProfile ||
       null,
 
     memoryContext:
-      cloneValue(memoryContext),
+      cloneValue(
+        memoryContext
+      ),
 
     activeProject,
+
     activeProjectId,
 
     activeIdea:
-      suppliedContext.activeIdea ||
-      memoryContext?.activeIdea ||
+      suppliedContext
+        .activeIdea ||
+      memoryContext
+        ?.activeIdea ||
       null,
 
     existingMemories,
+
     existingProjectMemories,
+
     existingPatterns,
+
     existingObservations,
+
     recentConversations,
 
     interactionCount:
-      suppliedContext.interactionCount ||
-      memoryRelationship?.interactionCount ||
-      memoryJourney?.conversationCount ||
+      suppliedContext
+        .interactionCount ||
+      memoryRelationship
+        ?.interactionCount ||
+      memoryJourney
+        ?.conversationCount ||
       0,
 
     relationshipStage:
-      suppliedContext.relationshipStage ||
-      memoryRelationship?.stage ||
+      suppliedContext
+        .relationshipStage ||
+      memoryRelationship
+        ?.stage ||
       null,
 
     preferredResponseDepth:
-      suppliedContext.preferredResponseDepth ||
+      suppliedContext
+        .preferredResponseDepth ||
       memoryCommunicationPreferences
         ?.preferredResponseDepth ||
       null,
 
     preferredGuidanceStyle:
-      suppliedContext.preferredGuidanceStyle ||
+      suppliedContext
+        .preferredGuidanceStyle ||
       memoryCommunicationPreferences
         ?.preferredGuidanceStyle ||
       null,
 
     preferredMentorRole:
-      suppliedContext.preferredMentorRole ||
+      suppliedContext
+        .preferredMentorRole ||
       memoryCommunicationPreferences
         ?.preferredMentorRole ||
       null,
 
     preferredCommunicationPace:
-      suppliedContext.preferredCommunicationPace ||
+      suppliedContext
+        .preferredCommunicationPace ||
       memoryCommunicationPreferences
         ?.preferredCommunicationPace ||
       null,
 
     preferredVoiceProfile:
-      suppliedContext.preferredVoiceProfile ||
+      suppliedContext
+        .preferredVoiceProfile ||
       memoryCommunicationPreferences
         ?.preferredVoiceProfile ||
       null,
 
     preferredChannel:
-      suppliedContext.preferredChannel ||
+      suppliedContext
+        .preferredChannel ||
       memoryCommunicationPreferences
         ?.preferredChannel ||
       null,
 
     currentTimestamp:
-      suppliedContext.currentTimestamp ||
+      suppliedContext
+        .currentTimestamp ||
       createTimestamp(),
   };
 }
@@ -846,22 +1135,28 @@ function classifyMemoryInstruction(
   instruction
 ) {
   const action =
-    normaliseText(instruction?.action);
+    normaliseText(
+      instruction?.action
+    );
 
   const preferredTargetMethod =
     normaliseText(
-      instruction?.preferredTargetMethod
+      instruction
+        ?.preferredTargetMethod
     );
 
   const targetMethod =
     normaliseText(
-      instruction?.targetMethod
+      instruction
+        ?.targetMethod
     );
 
   const category =
     normaliseText(
       instruction?.category ||
-      instruction?.payload?.category
+      instruction
+        ?.payload
+        ?.category
     );
 
   const combined =
@@ -877,7 +1172,8 @@ function classifyMemoryInstruction(
     );
 
   if (
-    action === "forget-memory" ||
+    action ===
+      "forget-memory" ||
     preferredTargetMethod ===
       "forgetmemory" ||
     [
@@ -887,21 +1183,31 @@ function classifyMemoryInstruction(
       "erase",
     ].some(
       (value) =>
-        combined.includes(value)
+        combined.includes(
+          value
+        )
     )
   ) {
-    return MEMORY_OPERATION_TYPES.FORGET;
+    return (
+      MEMORY_OPERATION_TYPES
+        .FORGET
+    );
   }
 
   if (
-    action === "save-session-handoff" ||
-    category === "session-handoff" ||
+    action ===
+      "save-session-handoff" ||
+    category ===
+      "session-handoff" ||
     preferredTargetMethod ===
       "savesessionhandoff" ||
-    combined.includes("session-handoff")
+    combined.includes(
+      "session-handoff"
+    )
   ) {
     return (
-      MEMORY_OPERATION_TYPES.SESSION_HANDOFF
+      MEMORY_OPERATION_TYPES
+        .SESSION_HANDOFF
     );
   }
 
@@ -923,10 +1229,15 @@ function classifyMemoryInstruction(
       "update",
     ].some(
       (value) =>
-        combined.includes(value)
+        combined.includes(
+          value
+        )
     )
   ) {
-    return MEMORY_OPERATION_TYPES.UPDATE;
+    return (
+      MEMORY_OPERATION_TYPES
+        .UPDATE
+    );
   }
 
   if (
@@ -945,13 +1256,21 @@ function classifyMemoryInstruction(
       "remember",
     ].some(
       (value) =>
-        combined.includes(value)
+        combined.includes(
+          value
+        )
     )
   ) {
-    return MEMORY_OPERATION_TYPES.CAPTURE;
+    return (
+      MEMORY_OPERATION_TYPES
+        .CAPTURE
+    );
   }
 
-  return MEMORY_OPERATION_TYPES.UNKNOWN;
+  return (
+    MEMORY_OPERATION_TYPES
+      .UNKNOWN
+  );
 }
 
 function getMemoryExecutionIntent(
@@ -960,31 +1279,36 @@ function getMemoryExecutionIntent(
   return {
     shouldCapture:
       Boolean(
-        adaptivePlan?.execution
+        adaptivePlan
+          ?.execution
           ?.shouldCaptureMemory
       ),
 
     shouldRecall:
       Boolean(
-        adaptivePlan?.execution
+        adaptivePlan
+          ?.execution
           ?.shouldRecallMemory
       ),
 
     shouldPreserveSessionHandoff:
       Boolean(
-        adaptivePlan?.execution
+        adaptivePlan
+          ?.execution
           ?.shouldPreserveSessionHandoff
       ),
 
     shouldApplyForget:
       Boolean(
-        adaptivePlan?.execution
+        adaptivePlan
+          ?.execution
           ?.shouldApplyForget
       ),
 
     shouldClarifyForget:
       Boolean(
-        adaptivePlan?.execution
+        adaptivePlan
+          ?.execution
           ?.shouldClarifyForget
       ),
   };
@@ -994,9 +1318,11 @@ function getMemoryInstructions(
   adaptivePlan
 ) {
   return asArray(
-    adaptivePlan?.execution
+    adaptivePlan
+      ?.execution
       ?.memoryInstructions ||
-    adaptivePlan?.specialistPlans
+    adaptivePlan
+      ?.specialistPlans
       ?.memory
       ?.instructions
   );
@@ -1006,15 +1332,22 @@ function shouldExecuteMemoryOperations({
   adaptivePlan,
   options,
 }) {
-  if (!options.applyMemoryAutomatically) {
+  if (
+    !options
+      .applyMemoryAutomatically
+  ) {
     return false;
   }
 
   if (
-    options.memoryApplicationPolicy ===
-      MEMORY_APPLICATION_POLICIES.DISABLED ||
-    options.memoryApplicationPolicy ===
-      MEMORY_APPLICATION_POLICIES.MANUAL
+    options
+      .memoryApplicationPolicy ===
+      MEMORY_APPLICATION_POLICIES
+        .DISABLED ||
+    options
+      .memoryApplicationPolicy ===
+      MEMORY_APPLICATION_POLICIES
+        .MANUAL
   ) {
     return false;
   }
@@ -1024,7 +1357,10 @@ function shouldExecuteMemoryOperations({
       adaptivePlan
     );
 
-  if (intent.shouldClarifyForget) {
+  if (
+    intent
+      .shouldClarifyForget
+  ) {
     return false;
   }
 
@@ -1035,7 +1371,8 @@ function shouldExecuteMemoryOperations({
 
   return Boolean(
     intent.shouldCapture ||
-    intent.shouldPreserveSessionHandoff ||
+    intent
+      .shouldPreserveSessionHandoff ||
     intent.shouldApplyForget ||
     instructions.length > 0
   );
@@ -1049,10 +1386,20 @@ function shouldForceMemoryBeforeGeneration({
       adaptivePlan
     );
 
-  return Boolean(
-    intent.shouldApplyForget ||
-    intent.shouldPreserveSessionHandoff
-  );
+  if (
+    intent.shouldApplyForget
+  ) {
+    return true;
+  }
+
+  if (
+    intent
+      .shouldPreserveSessionHandoff
+  ) {
+    return true;
+  }
+
+  return false;
 }
 
 function createEmptyMemoryApplicationSummary({
@@ -1105,15 +1452,24 @@ function createEmptyMemoryApplicationSummary({
     },
 
     intent:
-      cloneValue(intent),
+      cloneValue(
+        intent
+      ),
 
     successful: false,
 
-    canClaimStorageSuccess: false,
-    canClaimDeletionSuccess: false,
-    canClaimHandoffSuccess: false,
+    canClaimStorageSuccess:
+      false,
 
-    reason: reason || null,
+    canClaimDeletionSuccess:
+      false,
+
+    canClaimHandoffSuccess:
+      false,
+
+    reason:
+      reason ||
+      null,
   };
 }
 
@@ -1130,28 +1486,41 @@ function createMemoryApplicationSummary({
   }
 
   const applied =
-    asArray(result.applied);
+    asArray(
+      result.applied
+    );
 
   const skipped =
-    asArray(result.skipped);
+    asArray(
+      result.skipped
+    );
 
   const errors =
-    asArray(result.errors);
+    asArray(
+      result.errors
+    );
 
   const pending =
     skipped.filter(
       (item) =>
-        item?.instruction
+        item
+          ?.instruction
           ?.requiresMemoryAdapterResolution ||
         normaliseText(
           item?.reason
-        ).includes("future") ||
+        ).includes(
+          "future"
+        ) ||
         normaliseText(
           item?.reason
-        ).includes("pending") ||
+        ).includes(
+          "pending"
+        ) ||
         normaliseText(
           item?.reason
-        ).includes("adapter")
+        ).includes(
+          "adapter"
+        )
     );
 
   const operationBuckets = {
@@ -1162,37 +1531,50 @@ function createMemoryApplicationSummary({
     unknown: [],
   };
 
-  applied.forEach((item) => {
-    const type =
-      classifyMemoryInstruction(
-        item?.instruction
-      );
+  applied.forEach(
+    (item) => {
+      const type =
+        classifyMemoryInstruction(
+          item?.instruction
+        );
 
-    switch (type) {
-      case MEMORY_OPERATION_TYPES.CAPTURE:
-        operationBuckets.capture.push(item);
-        break;
+      switch (type) {
+        case MEMORY_OPERATION_TYPES
+          .CAPTURE:
+          operationBuckets
+            .capture
+            .push(item);
+          break;
 
-      case MEMORY_OPERATION_TYPES.FORGET:
-        operationBuckets.forget.push(item);
-        break;
+        case MEMORY_OPERATION_TYPES
+          .FORGET:
+          operationBuckets
+            .forget
+            .push(item);
+          break;
 
-      case MEMORY_OPERATION_TYPES
-        .SESSION_HANDOFF:
-        operationBuckets
-          .sessionHandoff
-          .push(item);
-        break;
+        case MEMORY_OPERATION_TYPES
+          .SESSION_HANDOFF:
+          operationBuckets
+            .sessionHandoff
+            .push(item);
+          break;
 
-      case MEMORY_OPERATION_TYPES.UPDATE:
-        operationBuckets.update.push(item);
-        break;
+        case MEMORY_OPERATION_TYPES
+          .UPDATE:
+          operationBuckets
+            .update
+            .push(item);
+          break;
 
-      default:
-        operationBuckets.unknown.push(item);
-        break;
+        default:
+          operationBuckets
+            .unknown
+            .push(item);
+          break;
+      }
     }
-  });
+  );
 
   const attemptedInstructions = [
     ...applied,
@@ -1214,13 +1596,19 @@ function createMemoryApplicationSummary({
     );
 
   const captureSuccessful =
-    operationBuckets.capture.length > 0;
+    operationBuckets
+      .capture
+      .length > 0;
 
   const updateSuccessful =
-    operationBuckets.update.length > 0;
+    operationBuckets
+      .update
+      .length > 0;
 
   const forgetSuccessful =
-    operationBuckets.forget.length > 0;
+    operationBuckets
+      .forget
+      .length > 0;
 
   const handoffSuccessful =
     operationBuckets
@@ -1233,52 +1621,68 @@ function createMemoryApplicationSummary({
 
   return {
     attempted:
-      attemptedInstructions.length > 0,
+      attemptedInstructions
+        .length > 0,
 
     applied:
-      cloneValue(applied),
+      cloneValue(
+        applied
+      ),
 
     skipped:
-      cloneValue(skipped),
+      cloneValue(
+        skipped
+      ),
 
     errors:
-      cloneValue(errors),
+      cloneValue(
+        errors
+      ),
 
     pending:
-      cloneValue(pending),
+      cloneValue(
+        pending
+      ),
 
     operations: {
       capture: {
         attempted:
           intent.shouldCapture ||
           attemptedTypes.includes(
-            MEMORY_OPERATION_TYPES.CAPTURE
+            MEMORY_OPERATION_TYPES
+              .CAPTURE
           ),
 
         successful:
           captureSuccessful,
 
         count:
-          operationBuckets.capture.length,
+          operationBuckets
+            .capture
+            .length,
       },
 
       forget: {
         attempted:
           intent.shouldApplyForget ||
           attemptedTypes.includes(
-            MEMORY_OPERATION_TYPES.FORGET
+            MEMORY_OPERATION_TYPES
+              .FORGET
           ),
 
         successful:
           forgetSuccessful,
 
         count:
-          operationBuckets.forget.length,
+          operationBuckets
+            .forget
+            .length,
       },
 
       sessionHandoff: {
         attempted:
-          intent.shouldPreserveSessionHandoff ||
+          intent
+            .shouldPreserveSessionHandoff ||
           attemptedTypes.includes(
             MEMORY_OPERATION_TYPES
               .SESSION_HANDOFF
@@ -1296,32 +1700,42 @@ function createMemoryApplicationSummary({
       update: {
         attempted:
           attemptedTypes.includes(
-            MEMORY_OPERATION_TYPES.UPDATE
+            MEMORY_OPERATION_TYPES
+              .UPDATE
           ),
 
         successful:
           updateSuccessful,
 
         count:
-          operationBuckets.update.length,
+          operationBuckets
+            .update
+            .length,
       },
 
       unknown: {
         attempted:
           attemptedTypes.includes(
-            MEMORY_OPERATION_TYPES.UNKNOWN
+            MEMORY_OPERATION_TYPES
+              .UNKNOWN
           ),
 
         successful:
-          operationBuckets.unknown.length > 0,
+          operationBuckets
+            .unknown
+            .length > 0,
 
         count:
-          operationBuckets.unknown.length,
+          operationBuckets
+            .unknown
+            .length,
       },
     },
 
     intent:
-      cloneValue(intent),
+      cloneValue(
+        intent
+      ),
 
     successful,
 
@@ -1332,77 +1746,19 @@ function createMemoryApplicationSummary({
       ),
 
     canClaimDeletionSuccess:
-      Boolean(forgetSuccessful),
+      Boolean(
+        forgetSuccessful
+      ),
 
     canClaimHandoffSuccess:
-      Boolean(handoffSuccessful),
+      Boolean(
+        handoffSuccessful
+      ),
 
     reason:
       result.reason ||
       null,
   };
-}
-
-/**
- * Canonical execution truth.
- *
- * This is the single persistence-truth contract consumed by
- * downstream response execution.
- *
- * Providers must not infer persistence success from plans,
- * intentions, requested operations or language.
- */
-function createExecutionTruth(
-  memoryApplication
-) {
-  const application =
-    memoryApplication ||
-    createEmptyMemoryApplicationSummary();
-
-  return Object.freeze({
-    memorySaved:
-      Boolean(
-        application.canClaimStorageSuccess
-      ),
-
-    memoryDeleted:
-      Boolean(
-        application.canClaimDeletionSuccess
-      ),
-
-    handoffSaved:
-      Boolean(
-        application.canClaimHandoffSuccess
-      ),
-
-    persistenceAttempted:
-      Boolean(
-        application.attempted
-      ),
-
-    persistenceSuccessful:
-      Boolean(
-        application.successful
-      ),
-
-    persistenceErrors:
-      cloneValue(
-        asArray(application.errors)
-      ),
-
-    persistencePending:
-      cloneValue(
-        asArray(application.pending)
-      ),
-
-    persistenceSkipped:
-      cloneValue(
-        asArray(application.skipped)
-      ),
-
-    createdAt:
-      createTimestamp(),
-  });
 }
 
 function createProviderRequest({
@@ -1414,7 +1770,6 @@ function createProviderRequest({
   communicationPlan,
   options,
   memoryApplication,
-  executionTruth,
 }) {
   const activeProjectId =
     getProjectId(
@@ -1424,76 +1779,96 @@ function createProviderRequest({
     );
 
   return {
-    id: generationId,
+    id:
+      generationId,
 
     input: {
       creatorMessage:
-        cleanString(message),
+        cleanString(
+          message
+        ),
     },
 
     context:
-      cloneValue(context),
+      cloneValue(
+        context
+      ),
 
     adaptivePlan:
-      cloneValue(adaptivePlan),
+      cloneValue(
+        adaptivePlan
+      ),
 
     blueprint:
-      cloneValue(blueprint),
+      cloneValue(
+        blueprint
+      ),
 
     communicationPlan:
-      cloneValue(communicationPlan),
-
-    executionTruth:
-      cloneValue(executionTruth),
+      cloneValue(
+        communicationPlan
+      ),
 
     project: {
       activeProjectId,
 
       activeProject:
         cloneValue(
-          context?.activeProject ||
-          blueprint?.project
+          context
+            ?.activeProject ||
+          blueprint
+            ?.project
             ?.activeProject ||
           null
         ),
 
       activeStage:
         cloneValue(
-          context?.activeStage ||
-          blueprint?.project
+          context
+            ?.activeStage ||
+          blueprint
+            ?.project
             ?.activeStage ||
           null
         ),
 
       activeScene:
         cloneValue(
-          context?.activeScene ||
-          blueprint?.project
+          context
+            ?.activeScene ||
+          blueprint
+            ?.project
             ?.activeScene ||
           null
         ),
 
       activeCharacter:
         cloneValue(
-          context?.activeCharacter ||
-          blueprint?.project
+          context
+            ?.activeCharacter ||
+          blueprint
+            ?.project
             ?.activeCharacter ||
           null
         ),
 
       returnPoint:
-        context?.returnPoint ||
+        context
+          ?.returnPoint ||
         null,
 
       continuity:
         cloneValue(
-          blueprint?.project ||
+          blueprint
+            ?.project ||
           {}
         ),
     },
 
     memoryExecution:
-      cloneValue(memoryApplication),
+      cloneValue(
+        memoryApplication
+      ),
 
     memoryIntent:
       cloneValue(
@@ -1507,68 +1882,88 @@ function createProviderRequest({
         options.outputFormat,
 
       maximumCharacters:
-        options.maximumResponseCharacters,
+        options
+          .maximumResponseCharacters,
     },
 
     constraints: {
       ...cloneValue(
-        blueprint?.constraints ||
+        blueprint
+          ?.constraints ||
         {}
       ),
 
-      obeySectionOrder: true,
+      obeySectionOrder:
+        true,
 
-      doNotExposeInternalPlanning: true,
-      doNotExposeSpecialistAgents: true,
+      doNotExposeInternalPlanning:
+        true,
 
-      doNotInventMemorySuccess: true,
-      doNotInventMemoryDeletion: true,
-      doNotInventSessionHandoffSuccess: true,
+      doNotExposeSpecialistAgents:
+        true,
 
-      doNotOverrideSilence: true,
+      doNotInventMemorySuccess:
+        true,
 
-      creatorCorrectionsOverrideMemory: true,
-      creatorCorrectionsOverrideAgentAssumptions: true,
+      doNotInventMemoryDeletion:
+        true,
+
+      doNotInventSessionHandoffSuccess:
+        true,
+
+      doNotOverrideSilence:
+        true,
+
+      creatorCorrectionsOverrideMemory:
+        true,
+
+      creatorCorrectionsOverrideAgentAssumptions:
+        true,
 
       memoryStorageVerified:
-        executionTruth.memorySaved,
+        Boolean(
+          memoryApplication
+            ?.canClaimStorageSuccess
+        ),
 
       memoryDeletionVerified:
-        executionTruth.memoryDeleted,
+        Boolean(
+          memoryApplication
+            ?.canClaimDeletionSuccess
+        ),
 
       sessionHandoffVerified:
-        executionTruth.handoffSaved,
-
-      persistenceAttempted:
-        executionTruth.persistenceAttempted,
-
-      persistenceErrors:
-        cloneValue(
-          executionTruth.persistenceErrors
+        Boolean(
+          memoryApplication
+            ?.canClaimHandoffSuccess
         ),
     },
 
     style:
       cloneValue(
-        blueprint?.style ||
+        blueprint
+          ?.style ||
         {}
       ),
 
     languageGuidance:
       cloneValue(
-        blueprint?.languageGuidance ||
+        blueprint
+          ?.languageGuidance ||
         []
       ),
 
     sourceGuidance:
       cloneValue(
-        blueprint?.sourceGuidance ||
+        blueprint
+          ?.sourceGuidance ||
         []
       ),
 
     executionIntent:
       cloneValue(
-        blueprint?.executionIntent ||
+        blueprint
+          ?.executionIntent ||
         {}
       ),
 
@@ -1588,17 +1983,26 @@ function normaliseProviderResult(
     "string"
   ) {
     return {
-      text: providerResult,
-      structured: null,
-      usage: null,
+      text:
+        providerResult,
+
+      structured:
+        null,
+
+      usage:
+        null,
+
       metadata: {},
-      raw: providerResult,
+
+      raw:
+        providerResult,
     };
   }
 
   if (
     !providerResult ||
-    typeof providerResult !== "object"
+    typeof providerResult !==
+      "object"
   ) {
     return {
       text: "",
@@ -1619,32 +2023,40 @@ function normaliseProviderResult(
 
   return {
     text:
-      typeof text === "string"
+      typeof text ===
+      "string"
         ? text
         : "",
 
     structured:
-      providerResult.structured ??
-      providerResult.data ??
+      providerResult
+        .structured ??
+      providerResult
+        .data ??
       null,
 
     usage:
-      providerResult.usage ??
+      providerResult
+        .usage ??
       null,
 
     metadata: {
       ...cloneValue(
-        providerResult.metadata ||
+        providerResult
+          .metadata ||
         {}
       ),
 
       finishReason:
-        providerResult.finishReason ??
-        providerResult.finish_reason ??
+        providerResult
+          .finishReason ??
+        providerResult
+          .finish_reason ??
         null,
 
       model:
-        providerResult.model ??
+        providerResult
+          .model ??
         null,
     },
 
@@ -1659,7 +2071,9 @@ async function executeProvider({
   options,
 }) {
   const providerMethod =
-    resolveProviderMethod(provider);
+    resolveProviderMethod(
+      provider
+    );
 
   if (!providerMethod) {
     throw new TypeError(
@@ -1667,12 +2081,14 @@ async function executeProvider({
     );
   }
 
-  let latestError = null;
+  let latestError =
+    null;
 
   for (
     let attempt = 1;
     attempt <=
-      options.maximumProviderAttempts;
+      options
+        .maximumProviderAttempts;
     attempt += 1
   ) {
     assertNotAborted(
@@ -1692,15 +2108,19 @@ async function executeProvider({
           ),
 
         attempt,
+
         providerMethod,
       };
     } catch (error) {
-      latestError = error;
+      latestError =
+        error;
 
       if (
-        error?.name === "AbortError" ||
+        error?.name ===
+          "AbortError" ||
         attempt >=
-          options.maximumProviderAttempts
+          options
+            .maximumProviderAttempts
       ) {
         throw error;
       }
@@ -1726,16 +2146,24 @@ function resolveSectionSourceText(
   }
 
   if (
-    typeof sourceData === "string"
+    typeof sourceData ===
+    "string"
   ) {
-    return cleanString(sourceData);
+    return cleanString(
+      sourceData
+    );
   }
 
-  if (Array.isArray(sourceData)) {
+  if (
+    Array.isArray(
+      sourceData
+    )
+  ) {
     return sourceData
       .map((value) => {
         if (
-          typeof value === "string"
+          typeof value ===
+          "string"
         ) {
           return value;
         }
@@ -1747,7 +2175,8 @@ function resolveSectionSourceText(
           value?.title ||
           value?.description ||
           (
-            typeof value?.value === "string"
+            typeof value?.value ===
+              "string"
               ? value.value
               : ""
           ) ||
@@ -1765,7 +2194,8 @@ function resolveSectionSourceText(
     sourceData.description ||
     sourceData.title ||
     (
-      typeof sourceData.value === "string"
+      typeof sourceData.value ===
+        "string"
         ? sourceData.value
         : ""
     ) ||
@@ -1777,20 +2207,25 @@ function resolveRecallMemoryText(
   blueprint
 ) {
   const recallPlan =
-    blueprint?.memory?.recallPlan;
+    blueprint
+      ?.memory
+      ?.recallPlan;
 
   const rankedMemories =
     asArray(
-      recallPlan?.memories
+      recallPlan
+        ?.memories
     );
 
   const rankedMemory =
-    rankedMemories[0]?.memory ||
+    rankedMemories[0]
+      ?.memory ||
     rankedMemories[0] ||
     null;
 
   const memory =
-    recallPlan?.memory ||
+    recallPlan
+      ?.memory ||
     rankedMemory ||
     null;
 
@@ -1808,13 +2243,19 @@ function renderAcknowledgement({
   context,
 }) {
   if (
-    context?.creatorExplicitlyAskedForNextStep ||
-    context?.creatorExplicitlyAskedToContinue
+    context
+      ?.creatorExplicitlyAskedForNextStep ||
+    context
+      ?.creatorExplicitlyAskedToContinue
   ) {
-    return "Aye. Let’s continue.";
+    return (
+      "Aye. Let’s continue."
+    );
   }
 
-  return "I’m with you.";
+  return (
+    "I’m with you."
+  );
 }
 
 function renderUnderstanding() {
@@ -1827,7 +2268,9 @@ function renderReflection({
   section,
 }) {
   const sourceText =
-    resolveSectionSourceText(section);
+    resolveSectionSourceText(
+      section
+    );
 
   if (sourceText) {
     return (
@@ -1851,16 +2294,23 @@ function renderReassurance() {
 }
 
 function renderMemoryCapture({
-  executionTruth,
   memoryApplication,
 }) {
-  if (executionTruth?.memorySaved) {
-    return "I’ve saved that.";
+  if (
+    memoryApplication
+      ?.canClaimStorageSuccess
+  ) {
+    return (
+      "I’ve saved that."
+    );
   }
 
   if (
-    memoryApplication?.attempted &&
-    memoryApplication?.errors?.length > 0
+    memoryApplication
+      ?.attempted &&
+    memoryApplication
+      ?.errors
+      ?.length > 0
   ) {
     return (
       "That’s worth preserving. " +
@@ -1869,7 +2319,9 @@ function renderMemoryCapture({
   }
 
   if (
-    memoryApplication?.pending?.length > 0
+    memoryApplication
+      ?.pending
+      ?.length > 0
   ) {
     return (
       "That’s worth preserving. " +
@@ -1877,7 +2329,9 @@ function renderMemoryCapture({
     );
   }
 
-  return "That’s worth keeping in view.";
+  return (
+    "That’s worth keeping in view."
+  );
 }
 
 function renderMemoryRecall({
@@ -1904,7 +2358,9 @@ function renderContextRestoration({
   section,
 }) {
   const sourceText =
-    resolveSectionSourceText(section);
+    resolveSectionSourceText(
+      section
+    );
 
   if (!sourceText) {
     return (
@@ -1923,32 +2379,51 @@ function renderProjectContext({
   context,
 }) {
   const sourceData =
-    section?.sourceData ||
+    section
+      ?.sourceData ||
     {};
 
   const projectTitle =
     cleanString(
-      context?.activeProject?.title ||
-      context?.activeProject?.name ||
-      sourceData?.activeProject?.title ||
-      sourceData?.activeProject?.name ||
+      context
+        ?.activeProject
+        ?.title ||
+      context
+        ?.activeProject
+        ?.name ||
+      sourceData
+        ?.activeProject
+        ?.title ||
+      sourceData
+        ?.activeProject
+        ?.name ||
       ""
     );
 
   const activeStage =
     cleanString(
-      context?.activeStage?.title ||
-      context?.activeStage?.name ||
+      context
+        ?.activeStage
+        ?.title ||
+      context
+        ?.activeStage
+        ?.name ||
       (
-        typeof context?.activeStage ===
+        typeof context
+          ?.activeStage ===
           "string"
           ? context.activeStage
           : ""
       ) ||
-      sourceData?.activeStage?.title ||
-      sourceData?.activeStage?.name ||
+      sourceData
+        ?.activeStage
+        ?.title ||
+      sourceData
+        ?.activeStage
+        ?.name ||
       (
-        typeof sourceData?.activeStage ===
+        typeof sourceData
+          ?.activeStage ===
           "string"
           ? sourceData.activeStage
           : ""
@@ -1986,21 +2461,28 @@ function renderMemoryForgetClarification({
   blueprint,
 }) {
   const forgetPlan =
-    blueprint?.memory?.forgetPlan;
+    blueprint
+      ?.memory
+      ?.forgetPlan;
 
   const matchedMemories =
     asArray(
-      forgetPlan?.matchedMemories
+      forgetPlan
+        ?.matchedMemories
     );
 
   if (
-    matchedMemories.length === 1
+    matchedMemories.length ===
+    1
   ) {
     const memoryText =
       cleanString(
-        matchedMemories[0]?.title ||
-        matchedMemories[0]?.description ||
-        matchedMemories[0]?.content ||
+        matchedMemories[0]
+          ?.title ||
+        matchedMemories[0]
+          ?.description ||
+        matchedMemories[0]
+          ?.content ||
         ""
       );
 
@@ -2017,18 +2499,23 @@ function renderMemoryForgetClarification({
 }
 
 function renderMemoryForget({
-  executionTruth,
   memoryApplication,
 }) {
-  if (executionTruth?.memoryDeleted) {
+  if (
+    memoryApplication
+      ?.canClaimDeletionSuccess
+  ) {
     return (
       "Done. I’ve removed it from memory."
     );
   }
 
   if (
-    memoryApplication?.attempted &&
-    memoryApplication?.errors?.length > 0
+    memoryApplication
+      ?.attempted &&
+    memoryApplication
+      ?.errors
+      ?.length > 0
   ) {
     return (
       "I haven’t claimed it was removed because the deletion wasn’t confirmed."
@@ -2043,7 +2530,9 @@ function renderMemoryForget({
 function renderRecommendation({
   context,
 }) {
-  if (context?.nextTask) {
+  if (
+    context?.nextTask
+  ) {
     return (
       `My recommendation: ${context.nextTask}.`
     );
@@ -2057,7 +2546,9 @@ function renderRecommendation({
 function renderCreativeDirection({
   blueprint,
 }) {
-  switch (blueprint?.action) {
+  switch (
+    blueprint?.action
+  ) {
     case "compose-next-task":
       return (
         "We’re ready for the next task."
@@ -2088,13 +2579,17 @@ function renderCreativeDirection({
 function renderNextStep({
   context,
 }) {
-  if (context?.nextTask) {
+  if (
+    context?.nextTask
+  ) {
     return cleanString(
       context.nextTask
     );
   }
 
-  if (context?.returnPoint) {
+  if (
+    context?.returnPoint
+  ) {
     return (
       `Next: ${context.returnPoint}.`
     );
@@ -2108,7 +2603,9 @@ function renderNextStep({
 function renderQuestion({
   blueprint,
 }) {
-  switch (blueprint?.action) {
+  switch (
+    blueprint?.action
+  ) {
     case "compose-reflection":
       return (
         "Does that feel accurate to you?"
@@ -2147,8 +2644,12 @@ function renderSessionRecap({
 }) {
   const projectTitle =
     cleanString(
-      context?.activeProject?.title ||
-      context?.activeProject?.name ||
+      context
+        ?.activeProject
+        ?.title ||
+      context
+        ?.activeProject
+        ?.name ||
       ""
     );
 
@@ -2165,16 +2666,21 @@ function renderSessionRecap({
 
 function renderSessionHandoff({
   context,
-  executionTruth,
+  memoryApplication,
 }) {
   const returnPoint =
     cleanString(
-      context?.returnPoint ||
-      context?.nextTask ||
+      context
+        ?.returnPoint ||
+      context
+        ?.nextTask ||
       ""
     );
 
-  if (executionTruth?.handoffSaved) {
+  if (
+    memoryApplication
+      ?.canClaimHandoffSuccess
+  ) {
     if (returnPoint) {
       return (
         `Your place is saved. We’ll come back at ${returnPoint}.`
@@ -2215,7 +2721,9 @@ function renderOpenDoor({
 }
 
 function renderClosing() {
-  return "We’ll continue from here.";
+  return (
+    "We’ll continue from here."
+  );
 }
 
 function renderSectionDeterministically({
@@ -2224,9 +2732,10 @@ function renderSectionDeterministically({
   blueprint,
   context,
   memoryApplication,
-  executionTruth,
 }) {
-  switch (section?.type) {
+  switch (
+    section?.type
+  ) {
     case "opening":
       return "";
 
@@ -2252,12 +2761,13 @@ function renderSectionDeterministically({
       );
 
     case "reassurance":
-      return renderReassurance();
+      return (
+        renderReassurance()
+      );
 
     case "memory-capture":
       return (
         renderMemoryCapture({
-          executionTruth,
           memoryApplication,
         })
       );
@@ -2279,7 +2789,6 @@ function renderSectionDeterministically({
     case "memory-forget":
       return (
         renderMemoryForget({
-          executionTruth,
           memoryApplication,
         })
       );
@@ -2303,7 +2812,7 @@ function renderSectionDeterministically({
       return (
         renderSessionHandoff({
           context,
-          executionTruth,
+          memoryApplication,
         })
       );
 
@@ -2358,7 +2867,9 @@ function renderSectionDeterministically({
       );
 
     case "closing":
-      return renderClosing();
+      return (
+        renderClosing()
+      );
 
     default:
       return "";
@@ -2370,10 +2881,11 @@ function renderBlueprintDeterministically({
   blueprint,
   context,
   memoryApplication,
-  executionTruth,
 }) {
   const sections =
-    asArray(blueprint?.sections);
+    asArray(
+      blueprint?.sections
+    );
 
   return sections
     .map(
@@ -2384,10 +2896,11 @@ function renderBlueprintDeterministically({
           blueprint,
           context,
           memoryApplication,
-          executionTruth,
         })
     )
-    .map(cleanString)
+    .map(
+      cleanString
+    )
     .filter(Boolean)
     .join("\n\n");
 }
@@ -2403,18 +2916,29 @@ function createValidationIssue({
     severity,
 
     message:
-      cleanString(message),
+      cleanString(
+        message
+      ),
 
     metadata:
-      cloneValue(metadata),
+      cloneValue(
+        metadata
+      ),
   };
 }
 
-function countQuestions(text) {
+function countQuestions(
+  text
+) {
   const matches =
-    cleanString(text).match(/\?/g);
+    cleanString(
+      text
+    ).match(/\?/g);
 
-  return matches?.length || 0;
+  return (
+    matches?.length ||
+    0
+  );
 }
 
 function findForbiddenPatterns({
@@ -2422,27 +2946,38 @@ function findForbiddenPatterns({
   forbiddenPatterns,
 }) {
   const normalisedText =
-    cleanString(text).toLowerCase();
+    cleanString(
+      text
+    )
+      .toLowerCase();
 
   return asArray(
     forbiddenPatterns
-  ).filter((pattern) => {
-    const cleanedPattern =
-      cleanString(pattern)
-        .toLowerCase();
+  ).filter(
+    (pattern) => {
+      const cleanedPattern =
+        cleanString(
+          pattern
+        )
+          .toLowerCase();
 
-    return Boolean(
-      cleanedPattern &&
-      normalisedText.includes(
-        cleanedPattern
-      )
-    );
-  });
+      return Boolean(
+        cleanedPattern &&
+        normalisedText.includes(
+          cleanedPattern
+        )
+      );
+    }
+  );
 }
 
-function detectsStorageSuccessClaim(text) {
+function detectsStorageSuccessClaim(
+  text
+) {
   const normalised =
-    normaliseText(text);
+    normaliseText(
+      text
+    );
 
   const phrases = [
     "i've saved that",
@@ -2461,13 +2996,19 @@ function detectsStorageSuccessClaim(text) {
 
   return phrases.some(
     (phrase) =>
-      normalised.includes(phrase)
+      normalised.includes(
+        phrase
+      )
   );
 }
 
-function detectsDeletionSuccessClaim(text) {
+function detectsDeletionSuccessClaim(
+  text
+) {
   const normalised =
-    normaliseText(text);
+    normaliseText(
+      text
+    );
 
   const phrases = [
     "i've removed it from memory",
@@ -2487,13 +3028,19 @@ function detectsDeletionSuccessClaim(text) {
 
   return phrases.some(
     (phrase) =>
-      normalised.includes(phrase)
+      normalised.includes(
+        phrase
+      )
   );
 }
 
-function detectsHandoffSuccessClaim(text) {
+function detectsHandoffSuccessClaim(
+  text
+) {
   const normalised =
-    normaliseText(text);
+    normaliseText(
+      text
+    );
 
   const phrases = [
     "your place is saved",
@@ -2509,13 +3056,19 @@ function detectsHandoffSuccessClaim(text) {
 
   return phrases.some(
     (phrase) =>
-      normalised.includes(phrase)
+      normalised.includes(
+        phrase
+      )
   );
 }
 
-function detectsAgentExposure(text) {
+function detectsAgentExposure(
+  text
+) {
   const normalised =
-    normaliseText(text);
+    normaliseText(
+      text
+    );
 
   const phrases = [
     "story agent says",
@@ -2532,13 +3085,13 @@ function detectsAgentExposure(text) {
     "response composer says",
     "progression engine says",
     "reflection engine says",
-    "communication voice engine says",
-    "response generator says",
   ];
 
   return phrases.some(
     (phrase) =>
-      normalised.includes(phrase)
+      normalised.includes(
+        phrase
+      )
   );
 }
 
@@ -2546,19 +3099,23 @@ function validateGeneratedResponse({
   text,
   blueprint,
   options,
-  executionTruth,
+  memoryApplication,
 }) {
   const issues = [];
 
   const cleanedText =
-    cleanString(text);
+    cleanString(
+      text
+    );
 
   const constraints =
-    blueprint?.constraints ||
+    blueprint
+      ?.constraints ||
     {};
 
   if (
-    constraints.shouldGenerateText ===
+    constraints
+      .shouldGenerateText ===
       false &&
     cleanedText
   ) {
@@ -2568,7 +3125,8 @@ function validateGeneratedResponse({
           "TEXT_GENERATED_DURING_SILENCE",
 
         severity:
-          VALIDATION_SEVERITIES.ERROR,
+          VALIDATION_SEVERITIES
+            .ERROR,
 
         message:
           "The blueprint requested silence, but text was generated.",
@@ -2577,9 +3135,11 @@ function validateGeneratedResponse({
   }
 
   if (
-    constraints.shouldGenerateText !==
+    constraints
+      .shouldGenerateText !==
       false &&
-    options.rejectEmptyProviderOutput &&
+    options
+      .rejectEmptyProviderOutput &&
     !cleanedText
   ) {
     issues.push(
@@ -2588,7 +3148,8 @@ function validateGeneratedResponse({
           "EMPTY_RESPONSE",
 
         severity:
-          VALIDATION_SEVERITIES.ERROR,
+          VALIDATION_SEVERITIES
+            .ERROR,
 
         message:
           "The provider returned no response text.",
@@ -2598,7 +3159,8 @@ function validateGeneratedResponse({
 
   if (
     cleanedText.length >
-    options.maximumResponseCharacters
+    options
+      .maximumResponseCharacters
   ) {
     issues.push(
       createValidationIssue({
@@ -2606,7 +3168,8 @@ function validateGeneratedResponse({
           "RESPONSE_TOO_LONG",
 
         severity:
-          VALIDATION_SEVERITIES.ERROR,
+          VALIDATION_SEVERITIES
+            .ERROR,
 
         message:
           "The generated response exceeds the configured character limit.",
@@ -2616,7 +3179,8 @@ function validateGeneratedResponse({
             cleanedText.length,
 
           maximumCharacters:
-            options.maximumResponseCharacters,
+            options
+              .maximumResponseCharacters,
         },
       })
     );
@@ -2624,16 +3188,22 @@ function validateGeneratedResponse({
 
   const maximumQuestions =
     Number(
-      constraints.maximumQuestions ??
+      constraints
+        .maximumQuestions ??
       0
     );
 
   const questionCount =
-    countQuestions(cleanedText);
+    countQuestions(
+      cleanedText
+    );
 
   if (
-    Number.isFinite(maximumQuestions) &&
-    questionCount > maximumQuestions
+    Number.isFinite(
+      maximumQuestions
+    ) &&
+    questionCount >
+      maximumQuestions
   ) {
     issues.push(
       createValidationIssue({
@@ -2641,7 +3211,8 @@ function validateGeneratedResponse({
           "TOO_MANY_QUESTIONS",
 
         severity:
-          VALIDATION_SEVERITIES.WARNING,
+          VALIDATION_SEVERITIES
+            .WARNING,
 
         message:
           "The generated response contains more questions than the blueprint allows.",
@@ -2656,21 +3227,27 @@ function validateGeneratedResponse({
 
   const forbiddenPatterns =
     findForbiddenPatterns({
-      text: cleanedText,
+      text:
+        cleanedText,
 
       forbiddenPatterns:
-        constraints.forbiddenPatterns ||
+        constraints
+          .forbiddenPatterns ||
         [],
     });
 
-  if (forbiddenPatterns.length > 0) {
+  if (
+    forbiddenPatterns.length >
+    0
+  ) {
     issues.push(
       createValidationIssue({
         code:
           "FORBIDDEN_LANGUAGE_PATTERN",
 
         severity:
-          VALIDATION_SEVERITIES.ERROR,
+          VALIDATION_SEVERITIES
+            .ERROR,
 
         message:
           "The generated response contains prohibited language.",
@@ -2687,7 +3264,8 @@ function validateGeneratedResponse({
     detectsStorageSuccessClaim(
       cleanedText
     ) &&
-    !executionTruth?.memorySaved
+    !memoryApplication
+      ?.canClaimStorageSuccess
   ) {
     issues.push(
       createValidationIssue({
@@ -2695,7 +3273,8 @@ function validateGeneratedResponse({
           "UNVERIFIED_MEMORY_STORAGE_CLAIM",
 
         severity:
-          VALIDATION_SEVERITIES.ERROR,
+          VALIDATION_SEVERITIES
+            .ERROR,
 
         message:
           "The response claims memory storage succeeded without persistence confirmation.",
@@ -2707,7 +3286,8 @@ function validateGeneratedResponse({
     detectsDeletionSuccessClaim(
       cleanedText
     ) &&
-    !executionTruth?.memoryDeleted
+    !memoryApplication
+      ?.canClaimDeletionSuccess
   ) {
     issues.push(
       createValidationIssue({
@@ -2715,7 +3295,8 @@ function validateGeneratedResponse({
           "UNVERIFIED_MEMORY_DELETION_CLAIM",
 
         severity:
-          VALIDATION_SEVERITIES.ERROR,
+          VALIDATION_SEVERITIES
+            .ERROR,
 
         message:
           "The response claims memory deletion succeeded without persistence confirmation.",
@@ -2727,7 +3308,8 @@ function validateGeneratedResponse({
     detectsHandoffSuccessClaim(
       cleanedText
     ) &&
-    !executionTruth?.handoffSaved
+    !memoryApplication
+      ?.canClaimHandoffSuccess
   ) {
     issues.push(
       createValidationIssue({
@@ -2735,7 +3317,8 @@ function validateGeneratedResponse({
           "UNVERIFIED_SESSION_HANDOFF_CLAIM",
 
         severity:
-          VALIDATION_SEVERITIES.ERROR,
+          VALIDATION_SEVERITIES
+            .ERROR,
 
         message:
           "The response claims the creator's return position was saved without persistence confirmation.",
@@ -2754,7 +3337,8 @@ function validateGeneratedResponse({
           "SPECIALIST_AGENT_EXPOSED",
 
         severity:
-          VALIDATION_SEVERITIES.ERROR,
+          VALIDATION_SEVERITIES
+            .ERROR,
 
         message:
           "The response exposed internal Mentor machinery.",
@@ -2767,7 +3351,8 @@ function validateGeneratedResponse({
       !issues.some(
         (issue) =>
           issue.severity ===
-          VALIDATION_SEVERITIES.ERROR
+          VALIDATION_SEVERITIES
+            .ERROR
       ),
 
     issues,
@@ -2789,7 +3374,9 @@ function validateGeneratedResponse({
       paragraphs:
         cleanedText
           ? cleanedText
-              .split(/\n\s*\n/)
+              .split(
+                /\n\s*\n/
+              )
               .filter(Boolean)
               .length
           : 0,
@@ -2803,295 +3390,43 @@ function normaliseGeneratedText({
   options,
 }) {
   if (
-    blueprint?.constraints
-      ?.shouldGenerateText === false
+    blueprint
+      ?.constraints
+      ?.shouldGenerateText ===
+      false
   ) {
     return "";
   }
 
   let nextText =
-    typeof text === "string"
+    typeof text ===
+      "string"
       ? text
       : "";
 
-  if (options.trimOutput) {
+  if (
+    options.trimOutput
+  ) {
     nextText =
       nextText.trim();
   }
 
   if (
     nextText.length >
-    options.maximumResponseCharacters
+    options
+      .maximumResponseCharacters
   ) {
     nextText =
       nextText
         .slice(
           0,
-          options.maximumResponseCharacters
+          options
+            .maximumResponseCharacters
         )
         .trimEnd();
   }
 
   return nextText;
-}
-
-function getRepairableIssues(
-  validation
-) {
-  return asArray(
-    validation?.issues
-  ).filter(
-    (issue) =>
-      REPAIRABLE_VALIDATION_CODES
-        .includes(issue?.code)
-  );
-}
-
-function shouldAttemptProviderRepair({
-  validation,
-  source,
-  options,
-  provider,
-}) {
-  if (
-    !options.repairProviderOutput ||
-    options.maximumRepairAttempts <= 0 ||
-    source !== RESPONSE_SOURCES.PROVIDER ||
-    !isResponseProvider(provider)
-  ) {
-    return false;
-  }
-
-  return (
-    getRepairableIssues(
-      validation
-    ).length > 0
-  );
-}
-
-/**
- * Repair requests are deliberately constrained.
- *
- * The provider may repair expression only.
- * It receives the original blueprint, communication plan and
- * canonical execution truth again so it cannot reinterpret the
- * conversation or redesign the response.
- */
-function createRepairRequest({
-  originalRequest,
-  originalText,
-  validation,
-  executionTruth,
-  repairAttempt,
-}) {
-  const repairableIssues =
-    getRepairableIssues(
-      validation
-    );
-
-  return {
-    ...cloneValue(originalRequest),
-
-    mode:
-      "repair-provider-output",
-
-    repair: {
-      attempt:
-        repairAttempt,
-
-      originalText:
-        cleanString(originalText),
-
-      issues:
-        cloneValue(
-          repairableIssues
-        ),
-
-      instructions: [
-        "Repair the existing response only.",
-        "Preserve the original response meaning.",
-        "Preserve the upstream blueprint action and section intent.",
-        "Preserve the communication plan.",
-        "Do not introduce new advice, facts, decisions or questions.",
-        "Do not expose internal engines, agents, plans or diagnostics.",
-        "Do not claim persistence unless executionTruth confirms it.",
-        "Do not reinterpret the creator's request.",
-        "Return only the repaired creator-facing response.",
-      ],
-    },
-
-    executionTruth:
-      cloneValue(executionTruth),
-
-    constraints: {
-      ...cloneValue(
-        originalRequest?.constraints ||
-        {}
-      ),
-
-      repairExpressionOnly: true,
-      preserveMeaning: true,
-      preserveBlueprintDecision: true,
-      preserveCommunicationDecision: true,
-      doNotAddNewDecisions: true,
-      doNotAddNewFacts: true,
-      doNotAddNewQuestions: true,
-
-      memoryStorageVerified:
-        Boolean(
-          executionTruth?.memorySaved
-        ),
-
-      memoryDeletionVerified:
-        Boolean(
-          executionTruth?.memoryDeleted
-        ),
-
-      sessionHandoffVerified:
-        Boolean(
-          executionTruth?.handoffSaved
-        ),
-    },
-  };
-}
-
-async function attemptProviderRepair({
-  provider,
-  originalRequest,
-  originalText,
-  validation,
-  executionTruth,
-  options,
-}) {
-  let latestText =
-    cleanString(originalText);
-
-  let latestValidation =
-    validation;
-
-  let latestExecution =
-    null;
-
-  for (
-    let attempt = 1;
-    attempt <=
-      options.maximumRepairAttempts;
-    attempt += 1
-  ) {
-    assertNotAborted(
-      options.abortSignal
-    );
-
-    const repairRequest =
-      createRepairRequest({
-        originalRequest,
-        originalText:
-          latestText,
-
-        validation:
-          latestValidation,
-
-        executionTruth,
-
-        repairAttempt:
-          attempt,
-      });
-
-    latestExecution =
-      await executeProvider({
-        provider,
-        request:
-          repairRequest,
-        options: {
-          ...options,
-
-          /**
-           * One provider call per repair iteration.
-           * Repair iterations themselves are already controlled
-           * by maximumRepairAttempts.
-           */
-          maximumProviderAttempts: 1,
-        },
-      });
-
-    const repairedText =
-      normaliseGeneratedText({
-        text:
-          latestExecution
-            .result
-            .text,
-
-        blueprint:
-          originalRequest
-            ?.blueprint,
-
-        options,
-      });
-
-    const repairedValidation =
-      validateGeneratedResponse({
-        text:
-          repairedText,
-
-        blueprint:
-          originalRequest
-            ?.blueprint,
-
-        options,
-
-        executionTruth,
-      });
-
-    latestText =
-      repairedText;
-
-    latestValidation =
-      repairedValidation;
-
-    if (repairedValidation.valid) {
-      return {
-        successful: true,
-
-        text:
-          repairedText,
-
-        structured:
-          latestExecution
-            .result
-            .structured,
-
-        validation:
-          repairedValidation,
-
-        providerExecution:
-          latestExecution,
-
-        attempt,
-      };
-    }
-  }
-
-  return {
-    successful: false,
-
-    text:
-      latestText,
-
-    structured:
-      latestExecution
-        ?.result
-        ?.structured ||
-      null,
-
-    validation:
-      latestValidation,
-
-    providerExecution:
-      latestExecution,
-
-    attempt:
-      options.maximumRepairAttempts,
-  };
 }
 
 function mergeValidationIssues(
@@ -3100,20 +3435,30 @@ function mergeValidationIssues(
 ) {
   const serialised =
     uniqueValues([
-      ...asArray(firstIssues).map(
+      ...asArray(
+        firstIssues
+      ).map(
         (issue) =>
-          JSON.stringify(issue)
+          JSON.stringify(
+            issue
+          )
       ),
 
-      ...asArray(secondIssues).map(
+      ...asArray(
+        secondIssues
+      ).map(
         (issue) =>
-          JSON.stringify(issue)
+          JSON.stringify(
+            issue
+          )
       ),
     ]);
 
   return serialised.map(
     (issue) =>
-      JSON.parse(issue)
+      JSON.parse(
+        issue
+      )
   );
 }
 
@@ -3129,11 +3474,9 @@ function createCompletedResponse({
   blueprint,
   communicationPlan,
   memoryApplication,
-  executionTruth,
   memoryContext,
   provider,
   providerExecution,
-  repairExecution,
   validation,
   lifecycle,
   options,
@@ -3143,13 +3486,18 @@ function createCompletedResponse({
     createTimestamp();
 
   const startedTime =
-    new Date(startedAt).getTime();
+    new Date(
+      startedAt
+    ).getTime();
 
   const completedTime =
-    new Date(completedAt).getTime();
+    new Date(
+      completedAt
+    ).getTime();
 
   return {
-    id: generationId,
+    id:
+      generationId,
 
     generator:
       "response-generator",
@@ -3158,27 +3506,2204 @@ function createCompletedResponse({
       RESPONSE_GENERATOR_VERSION,
 
     status,
+
     source,
 
     input: {
       message:
-        cleanString(message),
+        cleanString(
+          message
+        ),
     },
 
     response: {
       text:
-        cleanString(text),
+        cleanString(
+          text
+        ),
 
       structured:
-        cloneValue(structured),
+        cloneValue(
+          structured
+        ),
 
       format:
         options.outputFormat,
 
       isSilent:
         status ===
-          GENERATION_STATUSES.SILENT ||
-        !cleanString(text),
+          GENERATION_STATUSES
+            .SILENT ||
+        !cleanString(
+          text
+        ),
     },
 
-   
+    provider: {
+      ...cloneValue(
+        provider
+      ),
+
+      attempt:
+        providerExecution
+          ?.attempt ||
+        null,
+
+      method:
+        providerExecution
+          ?.providerMethod ||
+        provider?.method ||
+        null,
+
+      usage:
+        cloneValue(
+          providerExecution
+            ?.result
+            ?.usage ||
+          null
+        ),
+
+      metadata:
+        cloneValue(
+          providerExecution
+            ?.result
+            ?.metadata ||
+          {}
+        ),
+    },
+
+    memory:
+      cloneValue(
+        memoryApplication
+      ),
+
+    memoryContext:
+      cloneValue(
+        memoryContext
+      ),
+
+    project: {
+      activeProjectId:
+        getProjectId(
+          context,
+          adaptivePlan,
+          blueprint
+        ),
+
+      activeProject:
+        cloneValue(
+          context
+            ?.activeProject ||
+          blueprint
+            ?.project
+            ?.activeProject ||
+          null
+        ),
+
+      activeStage:
+        cloneValue(
+          context
+            ?.activeStage ||
+          blueprint
+            ?.project
+            ?.activeStage ||
+          null
+        ),
+
+      activeScene:
+        cloneValue(
+          context
+            ?.activeScene ||
+          blueprint
+            ?.project
+            ?.activeScene ||
+          null
+        ),
+
+      returnPoint:
+        context
+          ?.returnPoint ||
+        null,
+
+      sessionHandoffPreserved:
+        Boolean(
+          memoryApplication
+            ?.canClaimHandoffSuccess
+        ),
+    },
+
+    validation:
+      cloneValue(
+        validation
+      ),
+
+    adaptivePlan:
+      options
+        .includeSpecialistPlans
+        ? cloneValue(
+            adaptivePlan
+          )
+        : {
+            id:
+              adaptivePlan
+                ?.id ||
+              null,
+
+            primaryAction:
+              cloneValue(
+                adaptivePlan
+                  ?.primaryAction ||
+                null
+              ),
+
+            behaviour:
+              cloneValue(
+                adaptivePlan
+                  ?.behaviour ||
+                null
+              ),
+
+            execution:
+              cloneValue(
+                adaptivePlan
+                  ?.execution ||
+                null
+              ),
+
+            signals:
+              cloneValue(
+                adaptivePlan
+                  ?.signals ||
+                []
+              ),
+
+            projectState:
+              cloneValue(
+                adaptivePlan
+                  ?.projectState ||
+                null
+              ),
+
+            decisionSummary:
+              adaptivePlan
+                ?.decisionSummary ||
+              null,
+          },
+
+    blueprint:
+      options
+        .includeBlueprint
+        ? cloneValue(
+            blueprint
+          )
+        : {
+            id:
+              blueprint?.id ||
+              null,
+
+            action:
+              blueprint?.action ||
+              null,
+
+            length:
+              blueprint?.length ||
+              null,
+
+            style:
+              cloneValue(
+                blueprint
+                  ?.style ||
+                null
+              ),
+
+            executionIntent:
+              cloneValue(
+                blueprint
+                  ?.executionIntent ||
+                null
+              ),
+
+            blueprintSummary:
+              blueprint
+                ?.blueprintSummary ||
+              null,
+          },
+
+    communicationPlan:
+      options
+        .includeCommunicationPlan
+        ? cloneValue(
+            communicationPlan
+          )
+        : {
+            id:
+              communicationPlan
+                ?.id ||
+              null,
+
+            mode:
+              communicationPlan
+                ?.mode ||
+              null,
+
+            conversationPhase:
+              communicationPlan
+                ?.conversationPhase ||
+              null,
+
+            landingStyle:
+              communicationPlan
+                ?.landingStyle ||
+              null,
+
+            style:
+              cloneValue(
+                communicationPlan
+                  ?.style ||
+                null
+              ),
+
+            primaryEffect:
+              communicationPlan
+                ?.primaryEffect ||
+              null,
+
+            summary:
+              communicationPlan
+                ?.summary ||
+              null,
+          },
+
+    diagnostics:
+      options
+        .includeDiagnostics
+        ? {
+            lifecycle:
+              cloneValue(
+                lifecycle
+              ),
+
+            durationMs:
+              Number.isFinite(
+                completedTime -
+                startedTime
+              )
+                ? completedTime -
+                  startedTime
+                : null,
+
+            contextSnapshot:
+              cloneValue(
+                context
+              ),
+
+            memoryTruth: {
+              storageConfirmed:
+                Boolean(
+                  memoryApplication
+                    ?.canClaimStorageSuccess
+                ),
+
+              deletionConfirmed:
+                Boolean(
+                  memoryApplication
+                    ?.canClaimDeletionSuccess
+                ),
+
+              handoffConfirmed:
+                Boolean(
+                  memoryApplication
+                    ?.canClaimHandoffSuccess
+                ),
+            },
+          }
+        : null,
+
+    createdAt:
+      startedAt,
+
+    completedAt,
+  };
+}
+
+function createFailureResponse({
+  generationId,
+  message,
+  context,
+  lifecycle,
+  error,
+  startedAt,
+  adaptivePlan = null,
+  blueprint = null,
+  communicationPlan = null,
+  memoryApplication = null,
+  memoryContext = null,
+}) {
+  const isCancelled =
+    error?.name ===
+    "AbortError";
+
+  return {
+    id:
+      generationId,
+
+    generator:
+      "response-generator",
+
+    version:
+      RESPONSE_GENERATOR_VERSION,
+
+    status:
+      isCancelled
+        ? GENERATION_STATUSES
+            .CANCELLED
+        : GENERATION_STATUSES
+            .FAILED,
+
+    source:
+      RESPONSE_SOURCES
+        .FALLBACK_RENDERER,
+
+    input: {
+      message:
+        cleanString(
+          message
+        ),
+    },
+
+    response: {
+      text:
+        isCancelled
+          ? ""
+          : (
+              "I’m still with you. " +
+              "Something interrupted the response pipeline, so I’ve stopped rather than guessing."
+            ),
+
+      structured:
+        null,
+
+      format:
+        OUTPUT_FORMATS.TEXT,
+
+      isSilent:
+        isCancelled,
+    },
+
+    memory:
+      cloneValue(
+        memoryApplication ||
+        createEmptyMemoryApplicationSummary({
+          adaptivePlan,
+        })
+      ),
+
+    memoryContext:
+      cloneValue(
+        memoryContext
+      ),
+
+    error: {
+      name:
+        error?.name ||
+        "Error",
+
+      message:
+        error instanceof Error
+          ? error.message
+          : String(error),
+
+      stack:
+        error instanceof Error
+          ? error.stack ||
+            null
+          : null,
+    },
+
+    adaptivePlan:
+      adaptivePlan
+        ? cloneValue(
+            adaptivePlan
+          )
+        : null,
+
+    blueprint:
+      blueprint
+        ? cloneValue(
+            blueprint
+          )
+        : null,
+
+    communicationPlan:
+      communicationPlan
+        ? cloneValue(
+            communicationPlan
+          )
+        : null,
+
+    diagnostics: {
+      lifecycle:
+        cloneValue(
+          lifecycle
+        ),
+
+      contextSnapshot:
+        cloneValue(
+          context
+        ),
+    },
+
+    createdAt:
+      startedAt,
+
+    completedAt:
+      createTimestamp(),
+  };
+}
+
+function createResponseGenerator({
+  adaptiveMentorEngine = null,
+  responseComposer = null,
+  communicationVoiceEngine = null,
+  responseProvider = null,
+  memory = null,
+  memoryFactory = null,
+  creatorId = null,
+  defaultOptions = {},
+  onLifecycleEvent = null,
+} = {}) {
+  const ownsAdaptiveMentorEngine =
+    !adaptiveMentorEngine;
+
+  const resolvedMemoryFactory =
+    typeof memoryFactory ===
+      "function"
+      ? memoryFactory
+      : (options = {}) =>
+          createCreatorMemory(
+            options
+          );
+
+  let activeMemory =
+    memory ||
+    resolvedMemoryFactory({
+      creatorId:
+        creatorId ||
+        null,
+    });
+
+  let activeMemoryCreatorId =
+    creatorId ||
+    null;
+
+  let activeResponseProvider =
+    responseProvider ||
+    null;
+
+  let activeDefaultOptions =
+    resolveGeneratorOptions(
+      defaultOptions
+    );
+
+  let activeAdaptiveMentorEngine =
+    adaptiveMentorEngine ||
+    createAdaptiveMentorEngine({
+      memory:
+        activeMemory,
+    });
+
+  const resolvedResponseComposer =
+    responseComposer ||
+    createResponseComposer();
+
+  const resolvedCommunicationVoiceEngine =
+    communicationVoiceEngine ||
+    createCommunicationVoiceEngine();
+
+  function publishLifecycleEvent(
+    lifecycle,
+    event
+  ) {
+    recordLifecycleEvent(
+      lifecycle,
+      event
+    );
+
+    if (
+      typeof onLifecycleEvent ===
+      "function"
+    ) {
+      try {
+        onLifecycleEvent(
+          cloneValue(
+            lifecycle[
+              lifecycle.length -
+              1
+            ]
+          )
+        );
+      } catch (error) {
+        console.warn(
+          "ResponseGenerator lifecycle listener error:",
+          error
+        );
+      }
+    }
+  }
+
+  function bindMemoryToAdaptiveEngine() {
+    if (
+      typeof activeAdaptiveMentorEngine
+        ?.setMemory ===
+      "function"
+    ) {
+      activeAdaptiveMentorEngine
+        .setMemory(
+          activeMemory
+        );
+
+      return;
+    }
+
+    if (
+      ownsAdaptiveMentorEngine
+    ) {
+      activeAdaptiveMentorEngine =
+        createAdaptiveMentorEngine({
+          memory:
+            activeMemory,
+        });
+    }
+  }
+
+  function ensureMemoryForContext(
+    context = {}
+  ) {
+    const requestedCreatorId =
+      cleanString(
+        context?.creatorId
+      ) ||
+      null;
+
+    if (
+      activeMemory &&
+      (
+        !requestedCreatorId ||
+        requestedCreatorId ===
+          activeMemoryCreatorId
+      )
+    ) {
+      return activeMemory;
+    }
+
+    if (
+      requestedCreatorId &&
+      requestedCreatorId !==
+        activeMemoryCreatorId
+    ) {
+      activeMemory =
+        resolvedMemoryFactory({
+          creatorId:
+            requestedCreatorId,
+        });
+
+      activeMemoryCreatorId =
+        requestedCreatorId;
+
+      bindMemoryToAdaptiveEngine();
+    }
+
+    return activeMemory;
+  }
+
+  async function executeMemoryOperations(
+    adaptivePlan
+  ) {
+    if (
+      typeof activeAdaptiveMentorEngine
+        ?.applyMemoryPlan ===
+      "function"
+    ) {
+      const result =
+        await Promise.resolve(
+          activeAdaptiveMentorEngine
+            .applyMemoryPlan(
+              adaptivePlan
+            )
+        );
+
+      if (
+        result &&
+        typeof result ===
+          "object"
+      ) {
+        return result;
+      }
+    }
+
+    const instructions =
+      getMemoryInstructions(
+        adaptivePlan
+      );
+
+    if (
+      activeMemory &&
+      typeof activeMemory
+        .applyMemoryInstructions ===
+        "function"
+    ) {
+      return Promise.resolve(
+        activeMemory
+          .applyMemoryInstructions(
+            instructions
+          )
+      );
+    }
+
+    return {
+      applied: [],
+      skipped:
+        instructions.map(
+          (instruction) => ({
+            instruction:
+              cloneValue(
+                instruction
+              ),
+
+            reason:
+              "No compatible memory executor is available.",
+          })
+        ),
+      errors: [],
+      reason:
+        "Memory execution unavailable.",
+    };
+  }
+
+  async function applyMemoryOperations({
+    adaptivePlan,
+    options,
+  }) {
+    if (
+      !shouldExecuteMemoryOperations({
+        adaptivePlan,
+        options,
+      })
+    ) {
+      let reason =
+        "No automatic memory operation was required.";
+
+      if (
+        !options
+          .applyMemoryAutomatically
+      ) {
+        reason =
+          "Automatic memory application is disabled.";
+      } else if (
+        options
+          .memoryApplicationPolicy ===
+          MEMORY_APPLICATION_POLICIES
+            .MANUAL
+      ) {
+        reason =
+          "Memory application is configured for manual execution.";
+      } else if (
+        options
+          .memoryApplicationPolicy ===
+          MEMORY_APPLICATION_POLICIES
+            .DISABLED
+      ) {
+        reason =
+          "Memory application is disabled.";
+      } else if (
+        adaptivePlan
+          ?.execution
+          ?.shouldClarifyForget
+      ) {
+        reason =
+          "Forget execution is waiting for creator clarification.";
+      }
+
+      return (
+        createEmptyMemoryApplicationSummary({
+          adaptivePlan,
+          reason,
+        })
+      );
+    }
+
+    if (
+      !activeMemory
+    ) {
+      return (
+        createEmptyMemoryApplicationSummary({
+          adaptivePlan,
+
+          reason:
+            "No CreatorMemory service is available.",
+        })
+      );
+    }
+
+    try {
+      const result =
+        await executeMemoryOperations(
+          adaptivePlan
+        );
+
+      return (
+        createMemoryApplicationSummary({
+          result,
+          adaptivePlan,
+        })
+      );
+    } catch (error) {
+      return (
+        createMemoryApplicationSummary({
+          adaptivePlan,
+
+          result: {
+            applied: [],
+            skipped: [],
+            errors: [
+              {
+                instruction:
+                  null,
+
+                error:
+                  error instanceof Error
+                    ? error.message
+                    : String(error),
+              },
+            ],
+
+            reason:
+              "Memory execution failed.",
+          },
+        })
+      );
+    }
+  }
+
+  function shouldApplyBeforeGeneration({
+    adaptivePlan,
+    options,
+  }) {
+    if (
+      !shouldExecuteMemoryOperations({
+        adaptivePlan,
+        options,
+      })
+    ) {
+      return false;
+    }
+
+    if (
+      shouldForceMemoryBeforeGeneration({
+        adaptivePlan,
+      })
+    ) {
+      return true;
+    }
+
+    return (
+      options
+        .memoryApplicationPolicy ===
+      MEMORY_APPLICATION_POLICIES
+        .BEFORE_GENERATION
+    );
+  }
+
+  function shouldApplyAfterGeneration({
+    adaptivePlan,
+    options,
+    memoryApplication,
+  }) {
+    if (
+      memoryApplication
+        ?.attempted
+    ) {
+      return false;
+    }
+
+    if (
+      !shouldExecuteMemoryOperations({
+        adaptivePlan,
+        options,
+      })
+    ) {
+      return false;
+    }
+
+    if (
+      shouldForceMemoryBeforeGeneration({
+        adaptivePlan,
+      })
+    ) {
+      return false;
+    }
+
+    return (
+      options
+        .memoryApplicationPolicy ===
+      MEMORY_APPLICATION_POLICIES
+        .AFTER_GENERATION
+    );
+  }
+
+  async function generateResponse({
+    message = "",
+    context = {},
+    options = {},
+    adaptivePlan = null,
+    blueprint = null,
+    communicationPlan = null,
+    voiceProfile = null,
+  } = {}) {
+    const generationId =
+      createGenerationId();
+
+    const startedAt =
+      createTimestamp();
+
+    const lifecycle = [];
+
+    const resolvedOptions =
+      resolveGeneratorOptions({
+        ...cloneValue(
+          activeDefaultOptions
+        ),
+
+        ...cloneValue(
+          options
+        ),
+      });
+
+    let currentAdaptivePlan =
+      adaptivePlan;
+
+    let currentBlueprint =
+      blueprint;
+
+    let currentCommunicationPlan =
+      communicationPlan;
+
+    let currentMemoryContext =
+      null;
+
+    let resolvedContext =
+      resolveGenerationContext(
+        context
+      );
+
+    let memoryApplication =
+      createEmptyMemoryApplicationSummary();
+
+    try {
+      assertNotAborted(
+        resolvedOptions
+          .abortSignal
+      );
+
+      publishLifecycleEvent(
+        lifecycle,
+        {
+          stage:
+            GENERATION_STAGES
+              .INITIALISE,
+
+          status:
+            GENERATION_STATUSES
+              .IDLE,
+
+          message:
+            "Response generation initialised.",
+        }
+      );
+
+      if (
+        !cleanString(
+          message
+        )
+      ) {
+        throw new TypeError(
+          "ResponseGenerator requires a creator message."
+        );
+      }
+
+      ensureMemoryForContext(
+        resolvedContext
+      );
+
+      if (
+        resolvedOptions
+          .hydrateContextFromMemory &&
+        activeMemory
+      ) {
+        publishLifecycleEvent(
+          lifecycle,
+          {
+            stage:
+              GENERATION_STAGES
+                .HYDRATE_MEMORY,
+
+            status:
+              GENERATION_STATUSES
+                .HYDRATING_MEMORY,
+
+            message:
+              "Hydrating Mentor context from CreatorMemory.",
+          }
+        );
+
+        currentMemoryContext =
+          getMemoryContextSafely(
+            activeMemory
+          );
+
+        resolvedContext =
+          mergeMemoryContext({
+            context:
+              resolvedContext,
+
+            memoryContext:
+              currentMemoryContext,
+          });
+      }
+
+      bindMemoryToAdaptiveEngine();
+
+      if (
+        !currentAdaptivePlan
+      ) {
+        assertNotAborted(
+          resolvedOptions
+            .abortSignal
+        );
+
+        publishLifecycleEvent(
+          lifecycle,
+          {
+            stage:
+              GENERATION_STAGES
+                .PLAN_BEHAVIOUR,
+
+            status:
+              GENERATION_STATUSES
+                .PLANNING,
+
+            message:
+              "Planning Mentor behaviour.",
+          }
+        );
+
+        currentAdaptivePlan =
+          activeAdaptiveMentorEngine
+            .planMentorBehaviour({
+              message,
+
+              context:
+                resolvedContext,
+            });
+      }
+
+      if (
+        !currentAdaptivePlan ||
+        typeof currentAdaptivePlan !==
+          "object"
+      ) {
+        throw new TypeError(
+          "Adaptive Mentor Engine did not return a valid plan."
+        );
+      }
+
+      memoryApplication =
+        createEmptyMemoryApplicationSummary({
+          adaptivePlan:
+            currentAdaptivePlan,
+        });
+
+      if (
+        !currentBlueprint
+      ) {
+        assertNotAborted(
+          resolvedOptions
+            .abortSignal
+        );
+
+        publishLifecycleEvent(
+          lifecycle,
+          {
+            stage:
+              GENERATION_STAGES
+                .COMPOSE_BLUEPRINT,
+
+            status:
+              GENERATION_STATUSES
+                .COMPOSING,
+
+            message:
+              "Composing response blueprint.",
+          }
+        );
+
+        currentBlueprint =
+          resolvedResponseComposer
+            .composeResponseBlueprint({
+              message,
+
+              adaptivePlan:
+                currentAdaptivePlan,
+
+              context:
+                resolvedContext,
+            });
+      }
+
+      if (
+        !currentBlueprint ||
+        typeof currentBlueprint !==
+          "object"
+      ) {
+        throw new TypeError(
+          "Response Composer did not return a valid blueprint."
+        );
+      }
+
+      if (
+        shouldApplyBeforeGeneration({
+          adaptivePlan:
+            currentAdaptivePlan,
+
+          options:
+            resolvedOptions,
+        })
+      ) {
+        assertNotAborted(
+          resolvedOptions
+            .abortSignal
+        );
+
+        publishLifecycleEvent(
+          lifecycle,
+          {
+            stage:
+              GENERATION_STAGES
+                .APPLY_MEMORY,
+
+            status:
+              GENERATION_STATUSES
+                .APPLYING_MEMORY,
+
+            message:
+              "Applying approved memory operations before response generation.",
+          }
+        );
+
+        memoryApplication =
+          await applyMemoryOperations({
+            adaptivePlan:
+              currentAdaptivePlan,
+
+            options:
+              resolvedOptions,
+          });
+
+        currentMemoryContext =
+          getMemoryContextSafely(
+            activeMemory
+          ) ||
+          currentMemoryContext;
+      }
+
+      const shouldRemainSilent =
+        resolvedResponseComposer
+          .shouldRemainSilent(
+            currentBlueprint
+          );
+
+      if (
+        shouldRemainSilent
+      ) {
+        if (
+          shouldApplyAfterGeneration({
+            adaptivePlan:
+              currentAdaptivePlan,
+
+            options:
+              resolvedOptions,
+
+            memoryApplication,
+          })
+        ) {
+          assertNotAborted(
+            resolvedOptions
+              .abortSignal
+          );
+
+          publishLifecycleEvent(
+            lifecycle,
+            {
+              stage:
+                GENERATION_STAGES
+                  .APPLY_MEMORY,
+
+              status:
+                GENERATION_STATUSES
+                  .APPLYING_MEMORY,
+
+              message:
+                "Applying approved memory operations after intentional silence.",
+            }
+          );
+
+          memoryApplication =
+            await applyMemoryOperations({
+              adaptivePlan:
+                currentAdaptivePlan,
+
+              options:
+                resolvedOptions,
+            });
+
+          currentMemoryContext =
+            getMemoryContextSafely(
+              activeMemory
+            ) ||
+            currentMemoryContext;
+        }
+
+        publishLifecycleEvent(
+          lifecycle,
+          {
+            stage:
+              GENERATION_STAGES
+                .FINALISE,
+
+            status:
+              GENERATION_STATUSES
+                .SILENT,
+
+            message:
+              "The response blueprint requested intentional silence.",
+          }
+        );
+
+        const silentValidation = {
+          valid: true,
+
+          issues: [],
+
+          metrics: {
+            characters: 0,
+            words: 0,
+            questions: 0,
+            paragraphs: 0,
+          },
+        };
+
+        return (
+          createCompletedResponse({
+            generationId,
+            message,
+
+            text: "",
+            structured: null,
+
+            source:
+              RESPONSE_SOURCES
+                .SILENCE,
+
+            status:
+              GENERATION_STATUSES
+                .SILENT,
+
+            context:
+              resolvedContext,
+
+            adaptivePlan:
+              currentAdaptivePlan,
+
+            blueprint:
+              currentBlueprint,
+
+            communicationPlan:
+              currentCommunicationPlan,
+
+            memoryApplication,
+
+            memoryContext:
+              currentMemoryContext,
+
+            provider:
+              describeProvider(
+                activeResponseProvider
+              ),
+
+            providerExecution:
+              null,
+
+            validation:
+              silentValidation,
+
+            lifecycle,
+
+            options:
+              resolvedOptions,
+
+            startedAt,
+          })
+        );
+      }
+
+      if (
+        !currentCommunicationPlan
+      ) {
+        assertNotAborted(
+          resolvedOptions
+            .abortSignal
+        );
+
+        publishLifecycleEvent(
+          lifecycle,
+          {
+            stage:
+              GENERATION_STAGES
+                .PLAN_COMMUNICATION,
+
+            status:
+              GENERATION_STATUSES
+                .PLANNING_COMMUNICATION,
+
+            message:
+              "Planning Mentor communication voice.",
+          }
+        );
+
+        currentCommunicationPlan =
+          resolvedCommunicationVoiceEngine
+            .planCommunication({
+              message,
+
+              context:
+                resolvedContext,
+
+              adaptivePlan:
+                currentAdaptivePlan,
+
+              responseBlueprint:
+                currentBlueprint,
+
+              voiceProfile,
+            });
+      }
+
+      if (
+        !currentCommunicationPlan ||
+        typeof currentCommunicationPlan !==
+          "object"
+      ) {
+        throw new TypeError(
+          "Communication Voice Engine did not return a valid plan."
+        );
+      }
+
+      assertNotAborted(
+        resolvedOptions
+          .abortSignal
+      );
+
+      publishLifecycleEvent(
+        lifecycle,
+        {
+          stage:
+            GENERATION_STAGES
+              .EXECUTE_BLUEPRINT,
+
+          status:
+            GENERATION_STATUSES
+              .GENERATING,
+
+          message:
+            "Executing response blueprint.",
+        }
+      );
+
+      const providerDescription =
+        describeProvider(
+          activeResponseProvider
+        );
+
+      let generatedText =
+        "";
+
+      let generatedStructured =
+        null;
+
+      let source =
+        RESPONSE_SOURCES
+          .DETERMINISTIC_RENDERER;
+
+      let providerExecution =
+        null;
+
+      if (
+        providerDescription
+          .available
+      ) {
+        const baseProviderRequest =
+          createProviderRequest({
+            generationId,
+            message,
+
+            context:
+              resolvedContext,
+
+            adaptivePlan:
+              currentAdaptivePlan,
+
+            blueprint:
+              currentBlueprint,
+
+            communicationPlan:
+              currentCommunicationPlan,
+
+            options:
+              resolvedOptions,
+
+            memoryApplication,
+          });
+
+        const providerRequest =
+          resolvedCommunicationVoiceEngine
+            .applyToProviderRequest({
+              providerRequest:
+                baseProviderRequest,
+
+              communicationPlan:
+                currentCommunicationPlan,
+            });
+
+        try {
+          providerExecution =
+            await executeProvider({
+              provider:
+                activeResponseProvider,
+
+              request:
+                providerRequest,
+
+              options:
+                resolvedOptions,
+            });
+
+          generatedText =
+            providerExecution
+              .result
+              .text;
+
+          generatedStructured =
+            providerExecution
+              .result
+              .structured;
+
+          source =
+            RESPONSE_SOURCES
+              .PROVIDER;
+        } catch (
+          providerError
+        ) {
+          if (
+            providerError
+              ?.name ===
+              "AbortError"
+          ) {
+            throw providerError;
+          }
+
+          publishLifecycleEvent(
+            lifecycle,
+            {
+              stage:
+                GENERATION_STAGES
+                  .EXECUTE_BLUEPRINT,
+
+              status:
+                GENERATION_STATUSES
+                  .PARTIAL,
+
+              message:
+                "The response provider failed. Falling back to deterministic blueprint rendering.",
+
+              metadata: {
+                error:
+                  providerError instanceof
+                    Error
+                    ? providerError
+                        .message
+                    : String(
+                        providerError
+                      ),
+              },
+            }
+          );
+
+          if (
+            !resolvedOptions
+              .useDeterministicFallback
+          ) {
+            throw providerError;
+          }
+
+          generatedText =
+            renderBlueprintDeterministically({
+              message,
+
+              blueprint:
+                currentBlueprint,
+
+              context:
+                resolvedContext,
+
+              memoryApplication,
+            });
+
+          source =
+            RESPONSE_SOURCES
+              .FALLBACK_RENDERER;
+        }
+      } else {
+        generatedText =
+          renderBlueprintDeterministically({
+            message,
+
+            blueprint:
+              currentBlueprint,
+
+            context:
+              resolvedContext,
+
+            memoryApplication,
+          });
+      }
+
+      if (
+        shouldApplyAfterGeneration({
+          adaptivePlan:
+            currentAdaptivePlan,
+
+          options:
+            resolvedOptions,
+
+          memoryApplication,
+        })
+      ) {
+        assertNotAborted(
+          resolvedOptions
+            .abortSignal
+        );
+
+        publishLifecycleEvent(
+          lifecycle,
+          {
+            stage:
+              GENERATION_STAGES
+                .APPLY_MEMORY,
+
+            status:
+              GENERATION_STATUSES
+                .APPLYING_MEMORY,
+
+            message:
+              "Applying approved memory operations after response generation.",
+          }
+        );
+
+        memoryApplication =
+          await applyMemoryOperations({
+            adaptivePlan:
+              currentAdaptivePlan,
+
+            options:
+              resolvedOptions,
+          });
+
+        currentMemoryContext =
+          getMemoryContextSafely(
+            activeMemory
+          ) ||
+          currentMemoryContext;
+
+        /**
+         * Text is deliberately not rewritten after an
+         * AFTER_GENERATION save.
+         *
+         * Language generated before persistence confirmation
+         * must never retroactively claim that persistence
+         * succeeded.
+         */
+      }
+
+      generatedText =
+        normaliseGeneratedText({
+          text:
+            generatedText,
+
+          blueprint:
+            currentBlueprint,
+
+          options:
+            resolvedOptions,
+        });
+
+      assertNotAborted(
+        resolvedOptions
+          .abortSignal
+      );
+
+      publishLifecycleEvent(
+        lifecycle,
+        {
+          stage:
+            GENERATION_STAGES
+              .VALIDATE_RESPONSE,
+
+          status:
+            GENERATION_STATUSES
+              .VALIDATING,
+
+          message:
+            "Validating generated Mentor response.",
+        }
+      );
+
+      let validation =
+        resolvedOptions
+          .validateProviderOutput
+          ? validateGeneratedResponse({
+              text:
+                generatedText,
+
+              blueprint:
+                currentBlueprint,
+
+              options:
+                resolvedOptions,
+
+              memoryApplication,
+            })
+          : {
+              valid: true,
+
+              issues: [],
+
+              metrics: {
+                characters:
+                  generatedText
+                    .length,
+
+                words:
+                  generatedText
+                    ? generatedText
+                        .split(/\s+/)
+                        .length
+                    : 0,
+
+                questions:
+                  countQuestions(
+                    generatedText
+                  ),
+
+                paragraphs:
+                  generatedText
+                    ? generatedText
+                        .split(
+                          /\n\s*\n/
+                        )
+                        .filter(Boolean)
+                        .length
+                    : 0,
+              },
+            };
+
+      if (
+        !validation.valid &&
+        source ===
+          RESPONSE_SOURCES
+            .PROVIDER &&
+        resolvedOptions
+          .useDeterministicFallback
+      ) {
+        publishLifecycleEvent(
+          lifecycle,
+          {
+            stage:
+              GENERATION_STAGES
+                .VALIDATE_RESPONSE,
+
+            status:
+              GENERATION_STATUSES
+                .PARTIAL,
+
+            message:
+              "Provider output failed blueprint validation. Replacing it with deterministic rendering.",
+
+            metadata: {
+              issues:
+                validation.issues,
+            },
+          }
+        );
+
+        generatedText =
+          renderBlueprintDeterministically({
+            message,
+
+            blueprint:
+              currentBlueprint,
+
+            context:
+              resolvedContext,
+
+            memoryApplication,
+          });
+
+        generatedText =
+          normaliseGeneratedText({
+            text:
+              generatedText,
+
+            blueprint:
+              currentBlueprint,
+
+            options:
+              resolvedOptions,
+          });
+
+        source =
+          RESPONSE_SOURCES
+            .FALLBACK_RENDERER;
+
+        const fallbackValidation =
+          validateGeneratedResponse({
+            text:
+              generatedText,
+
+            blueprint:
+              currentBlueprint,
+
+            options:
+              resolvedOptions,
+
+            memoryApplication,
+          });
+
+        validation = {
+          valid:
+            fallbackValidation
+              .valid,
+
+          issues:
+            mergeValidationIssues(
+              validation
+                .issues,
+
+              fallbackValidation
+                .issues
+            ),
+
+          metrics:
+            fallbackValidation
+              .metrics,
+        };
+      }
+
+      const finalStatus =
+        validation.valid
+          ? GENERATION_STATUSES
+              .COMPLETED
+          : GENERATION_STATUSES
+              .PARTIAL;
+
+      publishLifecycleEvent(
+        lifecycle,
+        {
+          stage:
+            GENERATION_STAGES
+              .FINALISE,
+
+          status:
+            finalStatus,
+
+          message:
+            "Mentor response generation completed.",
+
+          metadata: {
+            source,
+
+            memoryStorageConfirmed:
+              Boolean(
+                memoryApplication
+                  ?.canClaimStorageSuccess
+              ),
+
+            memoryDeletionConfirmed:
+              Boolean(
+                memoryApplication
+                  ?.canClaimDeletionSuccess
+              ),
+
+            sessionHandoffConfirmed:
+              Boolean(
+                memoryApplication
+                  ?.canClaimHandoffSuccess
+              ),
+          },
+        }
+      );
+
+      return (
+        createCompletedResponse({
+          generationId,
+          message,
+
+          text:
+            generatedText,
+
+          structured:
+            generatedStructured,
+
+          source,
+
+          status:
+            finalStatus,
+
+          context:
+            resolvedContext,
+
+          adaptivePlan:
+            currentAdaptivePlan,
+
+          blueprint:
+            currentBlueprint,
+
+          communicationPlan:
+            currentCommunicationPlan,
+
+          memoryApplication,
+
+          memoryContext:
+            currentMemoryContext,
+
+          provider:
+            providerDescription,
+
+          providerExecution,
+
+          validation,
+
+          lifecycle,
+
+          options:
+            resolvedOptions,
+
+          startedAt,
+        })
+      );
+    } catch (error) {
+      publishLifecycleEvent(
+        lifecycle,
+        {
+          stage:
+            GENERATION_STAGES
+              .FINALISE,
+
+          status:
+            error?.name ===
+              "AbortError"
+              ? GENERATION_STATUSES
+                  .CANCELLED
+              : GENERATION_STATUSES
+                  .FAILED,
+
+          message:
+            error instanceof Error
+              ? error.message
+              : String(error),
+        }
+      );
+
+      console.error(
+        "ResponseGenerator generation error:",
+        error
+      );
+
+      return (
+        createFailureResponse({
+          generationId,
+          message,
+
+          context:
+            resolvedContext,
+
+          lifecycle,
+
+          error,
+
+          startedAt,
+
+          adaptivePlan:
+            currentAdaptivePlan,
+
+          blueprint:
+            currentBlueprint,
+
+          communicationPlan:
+            currentCommunicationPlan,
+
+          memoryApplication,
+
+          memoryContext:
+            currentMemoryContext,
+        })
+      );
+    }
+  }
+
+  function previewResponsePlan({
+    message = "",
+    context = {},
+    adaptivePlan = null,
+    blueprint = null,
+    communicationPlan = null,
+    voiceProfile = null,
+  } = {}) {
+    let resolvedContext =
+      resolveGenerationContext(
+        context
+      );
+
+    ensureMemoryForContext(
+      resolvedContext
+    );
+
+    const memoryContext =
+      getMemoryContextSafely(
+        activeMemory
+      );
+
+    resolvedContext =
+      mergeMemoryContext({
+        context:
+          resolvedContext,
+
+        memoryContext,
+      });
+
+    bindMemoryToAdaptiveEngine();
+
+    const resolvedAdaptivePlan =
+      adaptivePlan ||
+      activeAdaptiveMentorEngine
+        .planMentorBehaviour({
+          message,
+
+          context:
+            resolvedContext,
+        });
+
+    const resolvedBlueprint =
+      blueprint ||
+      resolvedResponseComposer
+        .composeResponseBlueprint({
+          message,
+
+          adaptivePlan:
+            resolvedAdaptivePlan,
+
+          context:
+            resolvedContext,
+        });
+
+    const resolvedCommunicationPlan =
+      communicationPlan ||
+      resolvedCommunicationVoiceEngine
+        .planCommunication({
+          message,
+
+          context:
+            resolvedContext,
+
+          adaptivePlan:
+            resolvedAdaptivePlan,
+
+          responseBlueprint:
+            resolvedBlueprint,
+
+          voiceProfile,
+        });
+
+    const memoryIntent =
+      getMemoryExecutionIntent(
+        resolvedAdaptivePlan
+      );
+
+    return {
+      adaptivePlan:
+        resolvedAdaptivePlan,
+
+      blueprint:
+        resolvedBlueprint,
+
+      communicationPlan:
+        resolvedCommunicationPlan,
+
+      memoryContext:
+        cloneValue(
+          memoryContext
+        ),
+
+      memoryIntent,
+
+      shouldRemainSilent:
+        resolvedResponseComposer
+          .shouldRemainSilent(
+            resolvedBlueprint
+          ),
+
+      sectionOrder:
+        resolvedResponseComposer
+          .getSectionOrder(
+            resolvedBlueprint
+          ),
+
+      communicationSummary:
+        resolvedCommunicationPlan
+          ?.summary ||
+        null,
+
+      activeProjectId:
+        getProjectId(
+          resolvedContext,
+          resolvedAdaptivePlan,
+          resolvedBlueprint
+        ),
+
+      createdAt:
+        createTimestamp(),
+    };
+  }
+
+  async function applyMemoryPlan(
+    adaptivePlan
+  ) {
+    const result =
+      await executeMemoryOperations(
+        adaptivePlan
+      );
+
+    return (
+      createMemoryApplicationSummary({
+        result,
+        adaptivePlan,
+      })
+    );
+  }
+
+  function refreshMemoryContext() {
+    return cloneValue(
+      getMemoryContextSafely(
+        activeMemory
+      )
+    );
+  }
+
+  function setResponseProvider(
+    nextProvider
+  ) {
+    if (
+      nextProvider !== null &&
+      nextProvider !==
+        undefined &&
+      !isResponseProvider(
+        nextProvider
+      )
+    ) {
+      throw new TypeError(
+        "Response provider must expose generateResponse, executeBlueprint or generate."
+      );
+    }
+
+    activeResponseProvider =
+      nextProvider ||
+      null;
+
+    return (
+      describeProvider(
+        activeResponseProvider
+      )
+    );
+  }
+
+  function getResponseProvider() {
+    return (
+      activeResponseProvider
+    );
+  }
+
+  function getResponseProviderInfo() {
+    return (
+      describeProvider(
+        activeResponseProvider
+      )
+    );
+  }
+
+  function setMemory(
+    nextMemory
+  ) {
+    if (
+      nextMemory !== null &&
+      nextMemory !== undefined &&
+      !isMemoryService(
+        nextMemory
+      )
+    ) {
+      throw new TypeError(
+        "Memory must expose the CreatorMemory service contract."
+      );
+    }
+
+    activeMemory =
+      nextMemory ||
+      null;
+
+    activeMemoryCreatorId =
+      null;
+
+    bindMemoryToAdaptiveEngine();
+
+    return activeMemory;
+  }
+
+  function getMemory() {
+    return activeMemory;
+  }
+
+  function setDefaultOptions(
+    nextOptions = {}
+  ) {
+    activeDefaultOptions =
+      resolveGeneratorOptions({
+        ...cloneValue(
+          activeDefaultOptions
+        ),
+
+        ...cloneValue(
+          nextOptions
+        ),
+      });
+
+    return cloneValue(
+      activeDefaultOptions
+    );
+  }
+
+  function getDefaultOptions() {
+    return cloneValue(
+      activeDefaultOptions
+    );
+  }
+
+  function getServices() {
+    return {
+      adaptiveMentorEngine:
+        activeAdaptiveMentorEngine,
+
+      responseComposer:
+        resolvedResponseComposer,
+
+      communicationVoiceEngine:
+        resolvedCommunicationVoiceEngine,
+
+      responseProvider:
+        activeResponseProvider,
+
+      memory:
+        activeMemory,
+    };
+  }
+
+  return {
+    generateResponse,
+
+    previewResponsePlan,
+
+    applyMemoryPlan,
+    refreshMemoryContext,
+
+    setResponseProvider,
+    getResponseProvider,
+    getResponseProviderInfo,
+
+    setMemory,
+    getMemory,
+
+    setDefaultOptions,
+    getDefaultOptions,
+
+    getServices,
+  };
+}
+
+async function generateResponse({
+  message = "",
+  context = {},
+  options = {},
+  responseProvider = null,
+  memory = null,
+  adaptivePlan = null,
+  blueprint = null,
+  communicationPlan = null,
+  voiceProfile = null,
+} = {}) {
+  const generator =
+    createResponseGenerator({
+      responseProvider,
+      memory,
+    });
+
+  return (
+    generator.generateResponse({
+      message,
+      context,
+      options,
+
+      adaptivePlan,
+      blueprint,
+      communicationPlan,
+      voiceProfile,
+    })
+  );
+}
+
+export {
+  RESPONSE_GENERATOR_VERSION,
+
+  GENERATION_STATUSES,
+  GENERATION_STAGES,
+
+  PROVIDER_TYPES,
+  OUTPUT_FORMATS,
+  RESPONSE_SOURCES,
+
+  MEMORY_APPLICATION_POLICIES,
+  MEMORY_OPERATION_TYPES,
+
+  VALIDATION_SEVERITIES,
+
+  createResponseGenerator,
+  generateResponse,
+};
+
+export default createResponseGenerator;
