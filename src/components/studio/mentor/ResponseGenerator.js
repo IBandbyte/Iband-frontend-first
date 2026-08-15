@@ -60,7 +60,7 @@ import createResponseComposer from "./ResponseComposer";
 import createCommunicationVoiceEngine from "./CommunicationVoiceEngine";
 import createCreatorMemory from "./CreatorMemory";
 
-const RESPONSE_GENERATOR_VERSION = "2.1.0";
+const RESPONSE_GENERATOR_VERSION = "3.0.0";
 
 const GENERATION_STATUSES = Object.freeze({
   IDLE: "idle",
@@ -884,7 +884,8 @@ function getProjectId(
 }
 
 function getMemoryContextSafely(
-  memory
+  memory,
+  options = {}
 ) {
   if (
     !isMemoryService(
@@ -900,7 +901,9 @@ function getMemoryContextSafely(
   try {
     const result =
       memory
-        .getMemoryContext();
+        .getMemoryContext(
+          options
+        );
 
     return (
       result &&
@@ -2748,9 +2751,7 @@ function renderSectionDeterministically({
 
     case "understanding":
       return (
-        renderUnderstanding({
-          message,
-        })
+        renderUnderstanding()
       );
 
     case "reflection":
@@ -3187,11 +3188,14 @@ function validateGeneratedResponse({
   }
 
   const maximumQuestions =
-    Number(
-      constraints
-        .maximumQuestions ??
-      0
-    );
+    constraints
+      .maximumQuestions !=
+      null
+      ? Number(
+          constraints
+            .maximumQuestions
+        )
+      : null;
 
   const questionCount =
     countQuestions(
@@ -3199,6 +3203,8 @@ function validateGeneratedResponse({
     );
 
   if (
+    maximumQuestions !==
+      null &&
     Number.isFinite(
       maximumQuestions
     ) &&
@@ -3833,6 +3839,9 @@ function createFailureResponse({
   lifecycle,
   error,
   startedAt,
+  source =
+    RESPONSE_SOURCES
+      .FALLBACK_RENDERER,
   adaptivePlan = null,
   blueprint = null,
   communicationPlan = null,
@@ -3860,9 +3869,7 @@ function createFailureResponse({
         : GENERATION_STATUSES
             .FAILED,
 
-    source:
-      RESPONSE_SOURCES
-        .FALLBACK_RENDERER,
+    source,
 
     input: {
       message:
@@ -3996,6 +4003,11 @@ function createResponseGenerator({
     creatorId ||
     null;
 
+  let memoryIsExternallyOwned =
+    isMemoryService(
+      memory
+    );
+
   let activeResponseProvider =
     responseProvider ||
     null;
@@ -4088,6 +4100,7 @@ function createResponseGenerator({
     if (
       activeMemory &&
       (
+        memoryIsExternallyOwned ||
         !requestedCreatorId ||
         requestedCreatorId ===
           activeMemoryCreatorId
@@ -4399,6 +4412,10 @@ function createResponseGenerator({
     let memoryApplication =
       createEmptyMemoryApplicationSummary();
 
+    let source =
+      RESPONSE_SOURCES
+        .DETERMINISTIC_RENDERER;
+
     try {
       assertNotAborted(
         resolvedOptions
@@ -4458,7 +4475,16 @@ function createResponseGenerator({
 
         currentMemoryContext =
           getMemoryContextSafely(
-            activeMemory
+            activeMemory,
+
+            {
+              projectId:
+                cleanString(
+                  resolvedContext
+                    ?.activeProjectId
+                ) ||
+                undefined,
+            }
           );
 
         resolvedContext =
@@ -4611,7 +4637,17 @@ function createResponseGenerator({
 
         currentMemoryContext =
           getMemoryContextSafely(
-            activeMemory
+            activeMemory,
+
+            {
+              projectId:
+                getProjectId(
+                  resolvedContext,
+                  currentAdaptivePlan,
+                  currentBlueprint
+                ) ||
+                undefined,
+            }
           ) ||
           currentMemoryContext;
       }
@@ -4668,7 +4704,17 @@ function createResponseGenerator({
 
           currentMemoryContext =
             getMemoryContextSafely(
-              activeMemory
+              activeMemory,
+
+              {
+                projectId:
+                  getProjectId(
+                    resolvedContext,
+                    currentAdaptivePlan,
+                    currentBlueprint
+                  ) ||
+                  undefined,
+              }
             ) ||
             currentMemoryContext;
         }
@@ -4840,10 +4886,6 @@ function createResponseGenerator({
       let generatedStructured =
         null;
 
-      let source =
-        RESPONSE_SOURCES
-          .DETERMINISTIC_RENDERER;
-
       let providerExecution =
         null;
 
@@ -4987,6 +5029,9 @@ function createResponseGenerator({
           });
       }
 
+      const memoryApplicationAtGenerationTime =
+        memoryApplication;
+
       if (
         shouldApplyAfterGeneration({
           adaptivePlan:
@@ -5030,7 +5075,17 @@ function createResponseGenerator({
 
         currentMemoryContext =
           getMemoryContextSafely(
-            activeMemory
+            activeMemory,
+
+            {
+              projectId:
+                getProjectId(
+                  resolvedContext,
+                  currentAdaptivePlan,
+                  currentBlueprint
+                ) ||
+                undefined,
+            }
           ) ||
           currentMemoryContext;
 
@@ -5090,7 +5145,8 @@ function createResponseGenerator({
               options:
                 resolvedOptions,
 
-              memoryApplication,
+              memoryApplication:
+                memoryApplicationAtGenerationTime,
             })
           : {
               valid: true,
@@ -5195,7 +5251,8 @@ function createResponseGenerator({
             options:
               resolvedOptions,
 
-            memoryApplication,
+            memoryApplication:
+              memoryApplicationAtGenerationTime,
           });
 
         validation = {
@@ -5352,6 +5409,8 @@ function createResponseGenerator({
 
           startedAt,
 
+          source,
+
           adaptivePlan:
             currentAdaptivePlan,
 
@@ -5389,7 +5448,16 @@ function createResponseGenerator({
 
     const memoryContext =
       getMemoryContextSafely(
-        activeMemory
+        activeMemory,
+
+        {
+          projectId:
+            cleanString(
+              resolvedContext
+                ?.activeProjectId
+            ) ||
+            undefined,
+        }
       );
 
     resolvedContext =
@@ -5510,10 +5578,13 @@ function createResponseGenerator({
     );
   }
 
-  function refreshMemoryContext() {
+  function refreshMemoryContext(
+    options = {}
+  ) {
     return cloneValue(
       getMemoryContextSafely(
-        activeMemory
+        activeMemory,
+        options
       )
     );
   }
@@ -5580,6 +5651,11 @@ function createResponseGenerator({
 
     activeMemoryCreatorId =
       null;
+
+    memoryIsExternallyOwned =
+      isMemoryService(
+        nextMemory
+      );
 
     bindMemoryToAdaptiveEngine();
 
