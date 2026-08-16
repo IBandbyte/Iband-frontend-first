@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React from "react";
 
 const FONT_STACK =
   '"TikTok Sans", Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
@@ -44,9 +44,9 @@ export default function MentorConversation({
   creatorJourney,
   onJourneyChange,
 }) {
-  if (!creator) return null;
-const [selectedMode, setSelectedMode] = useState("guide");
-const activeMode =
+    if (!creator) return null;
+
+  const activeMode =
   CREATION_MODES.find((mode) => mode.id === creatorJourney) ||
   CREATION_MODES[1];
   const questions = {
