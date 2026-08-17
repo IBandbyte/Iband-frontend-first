@@ -9,16 +9,10 @@ const SUGGESTIONS = [
   "Write a song",
   "Design an image",
   "Create a storyboard",
-  "Help me with an idea"
+  "Help me with an idea",
 ];
 
-export default function AiMentor({
-  message,
-  creatorJourney,
-  mentorContext = {},
-}) {
-  const [selectedSuggestion, setSelectedSuggestion] = useState(null);
-  const journeyMessages = {
+const JOURNEY_MESSAGES = {
   surprise:
     "Sit back and let your imagination wander. I'll surprise you with fresh ideas and creative directions.",
   guide:
@@ -29,14 +23,18 @@ export default function AiMentor({
     "You're in control. I'll stay nearby with suggestions whenever you want another perspective.",
 };
 
-const journeyMessage =
-  journeyMessages[creatorJourney] || journeyMessages.guide;
-  const {
-  creatorJourney: currentJourney,
-} = mentorContext;
-  const getMentorMessage = () => {
-  return journeyMessage;
-};
+export default function AiMentor({
+  message,
+  creatorJourney,
+  mentorContext = {},
+}) {
+  const [selectedSuggestion, setSelectedSuggestion] = useState(null);
+
+  const currentJourney =
+    mentorContext.creatorJourney || creatorJourney || "guide";
+
+  const journeyMessage =
+    JOURNEY_MESSAGES[currentJourney] || JOURNEY_MESSAGES.guide;
 
   return (
     <div
@@ -44,25 +42,28 @@ const journeyMessage =
         width: "100%",
         display: "flex",
         flexDirection: "column",
-        gap: 20,
+        gap: 16,
         fontFamily: FONT_STACK,
-        color: "#ffffff"
+        color: "#16181d",
       }}
     >
       <div
         style={{
           padding: 20,
           borderRadius: 20,
-          background: "rgba(255,255,255,0.05)",
-          border: "1px solid rgba(255,255,255,0.08)"
+          background: "#ffffff",
+          border: "1px solid rgba(17,24,39,0.08)",
+          boxShadow: "0 8px 24px rgba(17,24,39,0.05)",
         }}
       >
         <div
           style={{
-            fontSize: 14,
-            fontWeight: 700,
-            opacity: 0.7,
-            marginBottom: 10
+            fontSize: 12,
+            fontWeight: 800,
+            color: "#7b8190",
+            textTransform: "uppercase",
+            letterSpacing: "0.12em",
+            marginBottom: 10,
           }}
         >
           AI Mentor
@@ -73,28 +74,29 @@ const journeyMessage =
             fontSize: 24,
             fontWeight: 800,
             lineHeight: 1.3,
-            marginBottom: 12
+            marginBottom: 12,
+            color: "#16181d",
           }}
         >
           {message || "Welcome back."}
         </div>
 
         <div
-  style={{
-    fontSize: 16,
-    lineHeight: 1.6,
-    color: "rgba(255,255,255,0.85)"
-  }}
->
-  {getMentorMessage()}
-</div>
+          style={{
+            fontSize: 16,
+            lineHeight: 1.6,
+            color: "#5f6673",
+          }}
+        >
+          {journeyMessage}
+        </div>
       </div>
 
       <div
         style={{
           display: "flex",
           flexDirection: "column",
-          gap: 12
+          gap: 10,
         }}
       >
         {SUGGESTIONS.map((item) => {
@@ -104,27 +106,35 @@ const journeyMessage =
             <button
               key={item}
               type="button"
+              aria-pressed={active}
               onClick={() => setSelectedSuggestion(item)}
               style={{
+                width: "100%",
                 appearance: "none",
                 border: active
-                  ? "1px solid rgba(255,255,255,0.30)"
-                  : "1px solid rgba(255,255,255,0.10)",
+                  ? "2px solid #604dff"
+                  : "1px solid rgba(17,24,39,0.08)",
                 background: active
-                  ? "rgba(255,255,255,0.10)"
-                  : "rgba(255,255,255,0.04)",
-                color: "#ffffff",
+                  ? "rgba(96,77,255,0.08)"
+                  : "#ffffff",
+                color: "#16181d",
                 borderRadius: 16,
                 padding: "16px 18px",
                 textAlign: "left",
                 cursor: "pointer",
-                transition: "0.2s"
+                boxShadow: active
+                  ? "0 8px 22px rgba(96,77,255,0.10)"
+                  : "0 5px 18px rgba(17,24,39,0.04)",
+                transition:
+                  "border-color 160ms ease, background 160ms ease, box-shadow 160ms ease",
+                WebkitTapHighlightColor: "transparent",
               }}
             >
               <div
                 style={{
                   fontSize: 16,
-                  fontWeight: 700
+                  fontWeight: 700,
+                  lineHeight: 1.4,
                 }}
               >
                 {item}
@@ -136,31 +146,34 @@ const journeyMessage =
 
       <div
         style={{
-          marginTop: 6,
+          marginTop: 2,
           padding: 18,
           borderRadius: 18,
-          background: "rgba(124,58,237,0.12)",
-          border: "1px solid rgba(124,58,237,0.30)"
+          background: "rgba(96,77,255,0.08)",
+          border: "1px solid rgba(96,77,255,0.20)",
         }}
       >
         <div
           style={{
-            fontSize: 13,
-            fontWeight: 700,
-            marginBottom: 6,
-            opacity: 0.8
+            fontSize: 12,
+            fontWeight: 800,
+            marginBottom: 7,
+            color: "#4d3dd9",
+            textTransform: "uppercase",
+            letterSpacing: "0.08em",
           }}
         >
-          Captain's Reminder
+          Captain&apos;s Reminder
         </div>
 
         <div
           style={{
             fontSize: 15,
-            lineHeight: 1.5
+            lineHeight: 1.6,
+            color: "#4b5563",
           }}
         >
-          You don't need permission to create.
+          You don&apos;t need permission to create.
           <br />
           You only need to begin.
         </div>
