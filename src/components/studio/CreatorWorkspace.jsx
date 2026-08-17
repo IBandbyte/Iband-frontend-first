@@ -1,10 +1,10 @@
-import React, { useMemo, useState } from "react";
+import React, { Fragment, useMemo, useState } from "react";
 import AiMentor from "./AiMentor";
 import MentorConversation from "./MentorConversation";
-import CreatorModeSelector, { CREATOR_MODES } from "./CreatorModeSelector";
 import PromptBuilder from "./PromptBuilder";
 import GenerateButton from "./GenerateButton";
 import PreviewPanel from "./PreviewPanel";
+import CreatorModeSelector from "./CreatorModeSelector";
 
 const CREATOR_OPTIONS = [
   {
@@ -69,6 +69,7 @@ const CreatorWorkspace = ({
 }) => {
   const [selectedCreator, setSelectedCreator] = useState(initialCreator);
   const [selectedCreatorMode, setSelectedCreatorMode] = useState("");
+  const [selectedCreatorModeLabel, setSelectedCreatorModeLabel] = useState("");
   const [idea, setIdea] = useState("");
   const [generatedIdea, setGeneratedIdea] = useState("");
   const [projectStatus, setProjectStatus] = useState("idle");
@@ -83,21 +84,13 @@ const CreatorWorkspace = ({
     [selectedCreator]
   );
 
-  const activeCreatorMode = useMemo(() => {
-    const modes = CREATOR_MODES[selectedCreator] || [];
-
-    return (
-      modes.find((mode) => mode.id === selectedCreatorMode) || null
-    );
-  }, [selectedCreator, selectedCreatorMode]);
-
   const mentorContext = useMemo(
     () => ({
       creatorName,
       creatorType: selectedCreator || null,
       creatorLabel: activeCreator?.label || null,
       creatorMode: selectedCreatorMode || null,
-      creatorModeLabel: activeCreatorMode?.label || null,
+      creatorModeLabel: selectedCreatorModeLabel || null,
       creatorJourney,
       idea,
       projectStatus,
@@ -108,7 +101,7 @@ const CreatorWorkspace = ({
       selectedCreator,
       activeCreator,
       selectedCreatorMode,
-      activeCreatorMode,
+      selectedCreatorModeLabel,
       creatorJourney,
       idea,
       projectStatus,
@@ -118,117 +111,176 @@ const CreatorWorkspace = ({
 
   const canGenerate =
     Boolean(selectedCreator) &&
-    Boolean(selectedCreatorMode) &&
     Boolean(idea.trim()) &&
     projectStatus !== "generating";
 
   const createProjectPayload = () => ({
     creatorType: selectedCreator,
     creatorLabel: activeCreator?.label || selectedCreator,
-    creatorMode: selectedCreatorMode,
-    creatorModeLabel: activeCreatorMode?.label || selectedCreatorMode,
+    creatorMode: selectedCreatorMode || null,
+    creatorModeLabel: selectedCreatorModeLabel || null,
     creatorJourney,
     idea: idea.trim(),
     generatedIdea,
   });
 
   const handleCreatorSelect = (creator) => {
+    const creatorChanged = selectedCreator !== creator.id;
+
     setSelectedCreator(creator.id);
-    setSelectedCreatorMode("");
-    setIdea("");
+
+    if (creatorChanged) {
+      setSelectedCreatorMode("");
+      setSelectedCreatorModeLabel("");
+    }
+
     setGeneratedIdea("");
     setProjectStatus("idle");
 
     switch (creator.id) {
       case "video":
         setMentorMessage(
-          "Great. What kind of video would you like to create? Choose a starting point and we'll take it from there."
+          "Let's create an amazing video. Choose what you'd like to make, and we'll build it together."
         );
         break;
 
       case "image":
         setMentorMessage(
-          "Great. What kind of image would you like to create? Choose a starting point and we'll shape it together."
+          "Let's create a stunning image. Choose what you'd like to make, then describe what you'd like people to see."
         );
         break;
 
       case "music":
         setMentorMessage(
-          "Great. What would you like to create with music? Choose a starting point and we'll build it together."
+          "Let's create something unforgettable. Choose where you'd like to begin, then tell me the mood, feeling or idea you have in mind."
         );
         break;
 
       case "podcast":
         setMentorMessage(
-          "Great. What would you like to create for your podcast? Choose a starting point and we'll take it one step at a time."
+          "Let's build a great podcast. Choose what you'd like to create, and we'll take it one step at a time."
         );
         break;
 
       case "story":
         setMentorMessage(
-          "Great. What kind of story would you like to create? Choose a starting point and we'll develop it together."
+          "Every great story starts with an idea. Choose what you'd like to create, then tell me what you already have in your head."
         );
         break;
 
       case "marketing":
         setMentorMessage(
-          "Great. What would you like to promote? Choose the type of project and we'll build the campaign from there."
+          "Let's create something that gets attention. Choose what you'd like to make, then tell me what you're promoting."
         );
         break;
 
       case "social":
         setMentorMessage(
-          "Great. What would you like to create for social media? Choose a starting point and we'll shape it together."
+          "Let's create content people will want to engage with. Choose what you'd like to make, then tell me your idea."
         );
         break;
 
       default:
         setMentorMessage(
-          "Tell me what you'd like to create. We can shape the idea together."
+          "Tell me your idea. We can shape it into something amazing together."
         );
     }
   };
 
   const handleCreatorModeSelect = (mode) => {
     setSelectedCreatorMode(mode.id);
-    setIdea("");
+    setSelectedCreatorModeLabel(mode.label);
     setGeneratedIdea("");
     setProjectStatus("idle");
 
     switch (mode.id) {
       case "ai-movie":
         setMentorMessage(
-          "Perfect. Let's make a movie. You don't need to know how to make one yet—that's why I'm here. We'll take it one step at a time. For now, tell me the idea you have in your head, even if it's only one sentence."
-        );
-        break;
-
-      case "songwriting":
-        setMentorMessage(
-          "Perfect. Let's write a song. You don't need to have everything worked out. Tell me the feeling, idea, story or even a single line you have in your head."
-        );
-        break;
-
-      case "lyrics":
-        setMentorMessage(
-          "Let's work on your lyrics. Give me what you already have, even if it's only a line, a phrase or an idea."
+          "Welcome. That's exactly why I'm here. You don't need to know how to make a movie. We'll take it one step at a time, and I'll help you through the journey. For now, tell me the idea you have in your head—even if it's only one sentence."
         );
         break;
 
       case "movie-scene":
         setMentorMessage(
-          "Let's build a cinematic scene. Tell me what you can already see happening, even if it's only a rough idea."
+          "Let's build your scene together. Tell me what you imagine happening—even if you only know one moment, character or location."
         );
         break;
 
       case "music-video":
         setMentorMessage(
-          "Let's turn the music into something visual. Tell me about the song and the first image or feeling you imagine."
+          "Let's turn your music into a visual story. Tell me about the song and anything you already imagine seeing on screen."
+        );
+        break;
+
+      case "advert":
+        setMentorMessage(
+          "Let's create a video advert that gets attention. Tell me what you're promoting and the main thing you want people to remember."
+        );
+        break;
+
+      case "short-reel":
+        setMentorMessage(
+          "Let's make something short, clear and engaging. Tell me the idea, message or moment you want the Reel or Short to capture."
+        );
+        break;
+
+      case "lyric-video":
+        setMentorMessage(
+          "Let's bring your lyrics to life visually. Tell me about the song, its mood and any visual ideas you already have."
+        );
+        break;
+
+      case "animation-cartoon":
+        setMentorMessage(
+          "Let's build your animated world. Tell me the idea, character or scene you have in mind—even if it's only the beginning."
+        );
+        break;
+
+      case "documentary":
+        setMentorMessage(
+          "Let's shape your documentary one step at a time. Tell me the real story, subject or question you want to explore."
+        );
+        break;
+
+      case "songwriting":
+        setMentorMessage(
+          "Let's write your song together. Start with anything you have—a feeling, title, story, phrase or even a single line."
+        );
+        break;
+
+      case "lyrics":
+        setMentorMessage(
+          "Let's work on the lyrics. Give me what you already have, or tell me what you want the song to say."
+        );
+        break;
+
+      case "full-song":
+        setMentorMessage(
+          "Let's build the whole song together. Tell me the feeling, story or idea you want at the heart of it."
+        );
+        break;
+
+      case "instrumental":
+        setMentorMessage(
+          "Let's shape the instrumental. Tell me the mood, energy or atmosphere you want it to create."
+        );
+        break;
+
+      case "soundtrack-score":
+        setMentorMessage(
+          "Let's create music for the story on screen. Tell me about the scene, emotion or journey the score needs to support."
+        );
+        break;
+
+      case "music-idea":
+        setMentorMessage(
+          "Let's explore the idea together. Tell me anything you already hear or feel—even if you can't describe it in musical terms."
         );
         break;
 
       default:
         setMentorMessage(
-          `Great choice. Let's create your ${mode.label.toLowerCase()}. Tell me what you already have in mind, even if it's only a rough idea.`
+          `Great choice. Let's create your ${mode.label.toLowerCase()} together. Tell me what you already have in mind, even if it's only a rough idea.`
         );
     }
   };
@@ -236,7 +288,7 @@ const CreatorWorkspace = ({
   const handleGenerate = async () => {
     if (!canGenerate) {
       setMentorMessage(
-        "Choose what you would like to create, choose your creator mode, and tell me a little about your idea. We can shape the rest together."
+        "Choose what you would like to create and tell me a little about your idea. We can shape the rest together."
       );
       return;
     }
@@ -244,8 +296,8 @@ const CreatorWorkspace = ({
     const request = {
       creatorType: selectedCreator,
       creatorLabel: activeCreator?.label || selectedCreator,
-      creatorMode: selectedCreatorMode,
-      creatorModeLabel: activeCreatorMode?.label || selectedCreatorMode,
+      creatorMode: selectedCreatorMode || null,
+      creatorModeLabel: selectedCreatorModeLabel || null,
       creatorJourney,
       idea: idea.trim(),
     };
@@ -357,6 +409,17 @@ const CreatorWorkspace = ({
       </section>
 
       <section style={styles.section}>
+        <MentorConversation
+          creator={activeCreator}
+          message={mentorMessage}
+          idea={idea}
+          projectStatus={projectStatus}
+          creatorJourney={creatorJourney}
+          onJourneyChange={setCreatorJourney}
+        />
+      </section>
+
+      <section style={styles.section}>
         <div style={styles.sectionHeadingRow}>
           <div>
             <p style={styles.sectionEyebrow}>Quick Create</p>
@@ -375,69 +438,59 @@ const CreatorWorkspace = ({
             const isSelected = selectedCreator === creator.id;
 
             return (
-              <button
-                key={creator.id}
-                type="button"
-                aria-pressed={isSelected}
-                onClick={() => handleCreatorSelect(creator)}
-                style={{
-                  ...styles.creatorCard,
-                  ...(isSelected ? styles.creatorCardActive : {}),
-                }}
-              >
-                <span style={styles.creatorIcon}>{creator.icon}</span>
-
-                <span style={styles.creatorCopy}>
-                  <span style={styles.creatorLabel}>{creator.label}</span>
-
-                  <span style={styles.creatorDescription}>
-                    {creator.description}
-                  </span>
-                </span>
-
-                <span
-                  aria-hidden="true"
+              <Fragment key={creator.id}>
+                <button
+                  type="button"
+                  aria-pressed={isSelected}
+                  onClick={() => handleCreatorSelect(creator)}
                   style={{
-                    ...styles.creatorArrow,
-                    ...(isSelected ? styles.creatorArrowActive : {}),
+                    ...styles.creatorCard,
+                    ...(isSelected ? styles.creatorCardActive : {}),
                   }}
                 >
-                  ›
-                </span>
-              </button>
+                  <span style={styles.creatorIcon}>{creator.icon}</span>
+
+                  <span style={styles.creatorCopy}>
+                    <span style={styles.creatorLabel}>{creator.label}</span>
+
+                    <span style={styles.creatorDescription}>
+                      {creator.description}
+                    </span>
+                  </span>
+
+                  <span
+                    aria-hidden="true"
+                    style={{
+                      ...styles.creatorArrow,
+                      ...(isSelected ? styles.creatorArrowActive : {}),
+                    }}
+                  >
+                    ›
+                  </span>
+                </button>
+
+                {isSelected && (
+                  <div style={styles.creatorModeRow}>
+                    <CreatorModeSelector
+                      creatorType={creator.id}
+                      selectedMode={selectedCreatorMode}
+                      onSelect={handleCreatorModeSelect}
+                    />
+                  </div>
+                )}
+              </Fragment>
             );
           })}
         </div>
       </section>
 
       {activeCreator && (
-        <CreatorModeSelector
-          creatorType={selectedCreator}
-          selectedMode={selectedCreatorMode}
-          onSelect={handleCreatorModeSelect}
-        />
-      )}
-
-      {activeCreator && activeCreatorMode && (
-        <section style={styles.section}>
-          <MentorConversation
-            creator={activeCreator}
-            message={mentorMessage}
-            idea={idea}
-            projectStatus={projectStatus}
-            creatorJourney={creatorJourney}
-            onJourneyChange={setCreatorJourney}
-          />
-        </section>
-      )}
-
-      {activeCreator && activeCreatorMode && (
         <section style={styles.section}>
           <PromptBuilder
             creatorType={selectedCreator}
             creatorLabel={activeCreator.label}
             creatorMode={selectedCreatorMode}
-            creatorModeLabel={activeCreatorMode.label}
+            creatorModeLabel={selectedCreatorModeLabel}
             creatorJourney={creatorJourney}
             value={idea}
             projectStatus={projectStatus}
@@ -457,7 +510,7 @@ const CreatorWorkspace = ({
                     selectedCreator,
                     activeCreator,
                     selectedCreatorMode,
-                    activeCreatorMode,
+                    selectedCreatorModeLabel,
                     creatorJourney,
                     idea,
                     setIdea,
@@ -561,9 +614,9 @@ const styles = {
   activeCreatorBadge: {
     flexShrink: "0",
     padding: "7px 10px",
-    border: "1px solid rgba(96,77,255,0.2)",
+    border: "1px solid rgba(96, 77, 255, 0.2)",
     borderRadius: "999px",
-    background: "rgba(96,77,255,0.08)",
+    background: "rgba(96, 77, 255, 0.08)",
     color: "#5140d8",
     fontSize: "12px",
     fontWeight: "800",
@@ -575,6 +628,12 @@ const styles = {
     gap: "10px",
   },
 
+  creatorModeRow: {
+    gridColumn: "1 / -1",
+    width: "100%",
+    marginBottom: "8px",
+  },
+
   creatorCard: {
     width: "100%",
     minHeight: "92px",
@@ -582,10 +641,10 @@ const styles = {
     alignItems: "center",
     gap: "12px",
     padding: "15px",
-    border: "1px solid rgba(20,24,32,0.09)",
+    border: "1px solid rgba(20, 24, 32, 0.09)",
     borderRadius: "20px",
     background: "#ffffff",
-    boxShadow: "0 8px 24px rgba(17,24,39,0.05)",
+    boxShadow: "0 8px 24px rgba(17, 24, 39, 0.05)",
     color: "#17191f",
     textAlign: "left",
     cursor: "pointer",
@@ -595,10 +654,10 @@ const styles = {
   },
 
   creatorCardActive: {
-    border: "1px solid rgba(96,77,255,0.52)",
+    border: "1px solid rgba(96, 77, 255, 0.52)",
     background:
-      "linear-gradient(145deg, rgba(96,77,255,0.1), rgba(255,255,255,1))",
-    boxShadow: "0 12px 30px rgba(96,77,255,0.13)",
+      "linear-gradient(145deg, rgba(96, 77, 255, 0.1), rgba(255, 255, 255, 1))",
+    boxShadow: "0 12px 30px rgba(96, 77, 255, 0.13)",
     transform: "translateY(-1px)",
   },
 
