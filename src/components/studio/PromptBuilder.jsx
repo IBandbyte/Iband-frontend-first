@@ -151,7 +151,7 @@ const CREATOR_QUESTIONS = {
 const MODE_QUESTIONS = {
   "ai-movie": [
     "Who or what is the movie mainly about?",
-    "What kind of feeling should the movie have?",
+    "How would you like the movie to feel — or should we discover that as we build it?",
     "Is there anything you already know about how the story begins?",
   ],
   "movie-scene": [
