@@ -1,4 +1,4 @@
-import React, { Fragment, useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import AiMentor from "./AiMentor";
 import MentorConversation from "./MentorConversation";
 import PromptBuilder from "./PromptBuilder";
@@ -74,6 +74,14 @@ const CreatorWorkspace = ({
   const [generatedIdea, setGeneratedIdea] = useState("");
   const [projectStatus, setProjectStatus] = useState("idle");
   const [creatorJourney, setCreatorJourney] = useState("guide");
+
+  const [showCreatorChoices, setShowCreatorChoices] = useState(
+    !Boolean(initialCreator)
+  );
+  const [showCreatorModeChoices, setShowCreatorModeChoices] = useState(
+    Boolean(initialCreator)
+  );
+
   const [mentorMessage, setMentorMessage] = useState(
     "I've got your back. Choose what you would like to create, then tell me about your idea."
   );
@@ -83,6 +91,12 @@ const CreatorWorkspace = ({
       CREATOR_OPTIONS.find((creator) => creator.id === selectedCreator) || null,
     [selectedCreator]
   );
+
+  const journeyReady =
+    Boolean(activeCreator) &&
+    Boolean(selectedCreatorMode) &&
+    !showCreatorChoices &&
+    !showCreatorModeChoices;
 
   const mentorContext = useMemo(
     () => ({
@@ -110,8 +124,7 @@ const CreatorWorkspace = ({
   );
 
   const canGenerate =
-    Boolean(selectedCreator) &&
-    Boolean(selectedCreatorMode) &&
+    journeyReady &&
     Boolean(idea.trim()) &&
     projectStatus !== "generating";
 
@@ -129,15 +142,16 @@ const CreatorWorkspace = ({
     const creatorChanged = selectedCreator !== creator.id;
 
     setSelectedCreator(creator.id);
+    setShowCreatorChoices(false);
+    setShowCreatorModeChoices(true);
 
     if (creatorChanged) {
       setSelectedCreatorMode("");
       setSelectedCreatorModeLabel("");
       setIdea("");
+      setGeneratedIdea("");
+      setProjectStatus("idle");
     }
-
-    setGeneratedIdea("");
-    setProjectStatus("idle");
 
     switch (creator.id) {
       case "video":
@@ -194,13 +208,13 @@ const CreatorWorkspace = ({
 
     setSelectedCreatorMode(mode.id);
     setSelectedCreatorModeLabel(mode.label);
+    setShowCreatorModeChoices(false);
 
     if (modeChanged) {
       setIdea("");
+      setGeneratedIdea("");
+      setProjectStatus("idle");
     }
-
-    setGeneratedIdea("");
-    setProjectStatus("idle");
 
     switch (mode.id) {
       case "ai-movie":
@@ -292,6 +306,16 @@ const CreatorWorkspace = ({
           `Great choice. Let's create your ${mode.label.toLowerCase()} together. Tell me what you already have in mind, even if it's only a rough idea.`
         );
     }
+  };
+
+  const handleChangeCreator = () => {
+    setShowCreatorChoices(true);
+    setShowCreatorModeChoices(false);
+  };
+
+  const handleChangeCreatorMode = () => {
+    setShowCreatorChoices(false);
+    setShowCreatorModeChoices(true);
   };
 
   const handleGenerate = async () => {
@@ -417,27 +441,22 @@ const CreatorWorkspace = ({
         />
       </section>
 
-      <section style={styles.section}>
-        <div style={styles.sectionHeadingRow}>
-          <div>
-            <p style={styles.sectionEyebrow}>Quick Create</p>
-            <h2 style={styles.sectionTitle}>Choose your starting point</h2>
+      {showCreatorChoices && (
+        <section style={styles.section}>
+          <div style={styles.sectionHeadingRow}>
+            <div>
+              <p style={styles.sectionEyebrow}>Quick Create</p>
+              <h2 style={styles.sectionTitle}>Choose your starting point</h2>
+            </div>
           </div>
 
-          {activeCreator && (
-            <span style={styles.activeCreatorBadge}>
-              {activeCreator.icon} {activeCreator.label}
-            </span>
-          )}
-        </div>
+          <div style={styles.creatorGrid}>
+            {CREATOR_OPTIONS.map((creator) => {
+              const isSelected = selectedCreator === creator.id;
 
-        <div style={styles.creatorGrid}>
-          {CREATOR_OPTIONS.map((creator) => {
-            const isSelected = selectedCreator === creator.id;
-
-            return (
-              <Fragment key={creator.id}>
+              return (
                 <button
+                  key={creator.id}
                   type="button"
                   aria-pressed={isSelected}
                   onClick={() => handleCreatorSelect(creator)}
@@ -466,23 +485,72 @@ const CreatorWorkspace = ({
                     ›
                   </span>
                 </button>
+              );
+            })}
+          </div>
+        </section>
+      )}
 
-                {isSelected && (
-                  <div style={styles.creatorModeRow}>
-                    <CreatorModeSelector
-                      creatorType={creator.id}
-                      selectedMode={selectedCreatorMode}
-                      onSelect={handleCreatorModeSelect}
-                    />
-                  </div>
-                )}
-              </Fragment>
-            );
-          })}
-        </div>
-      </section>
+      {!showCreatorChoices && activeCreator && (
+        <section style={styles.section}>
+          <div style={styles.choiceSummary}>
+            <div style={styles.choiceSummaryCopy}>
+              <span style={styles.choiceSummaryEyebrow}>Starting Point</span>
 
-      {activeCreator && selectedCreatorMode && (
+              <span style={styles.choiceSummaryValue}>
+                {activeCreator.icon} {activeCreator.label}
+              </span>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleChangeCreator}
+              style={styles.changeButton}
+            >
+              Change
+            </button>
+          </div>
+        </section>
+      )}
+
+      {!showCreatorChoices &&
+        activeCreator &&
+        showCreatorModeChoices && (
+          <section style={styles.section}>
+            <CreatorModeSelector
+              creatorType={selectedCreator}
+              selectedMode={selectedCreatorMode}
+              onSelect={handleCreatorModeSelect}
+            />
+          </section>
+        )}
+
+      {!showCreatorChoices &&
+        activeCreator &&
+        selectedCreatorMode &&
+        !showCreatorModeChoices && (
+          <section style={styles.section}>
+            <div style={styles.choiceSummary}>
+              <div style={styles.choiceSummaryCopy}>
+                <span style={styles.choiceSummaryEyebrow}>Creator Mode</span>
+
+                <span style={styles.choiceSummaryValue}>
+                  {selectedCreatorModeLabel}
+                </span>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleChangeCreatorMode}
+                style={styles.changeButton}
+              >
+                Change
+              </button>
+            </div>
+          </section>
+        )}
+
+      {journeyReady && (
         <section style={styles.section}>
           <MentorConversation
             creator={activeCreator}
@@ -497,7 +565,7 @@ const CreatorWorkspace = ({
         </section>
       )}
 
-      {activeCreator && selectedCreatorMode && (
+      {journeyReady && (
         <section style={styles.section}>
           <PromptBuilder
             creatorType={selectedCreator}
@@ -624,27 +692,10 @@ const styles = {
     letterSpacing: "-0.025em",
   },
 
-  activeCreatorBadge: {
-    flexShrink: "0",
-    padding: "7px 10px",
-    border: "1px solid rgba(96, 77, 255, 0.2)",
-    borderRadius: "999px",
-    background: "rgba(96, 77, 255, 0.08)",
-    color: "#5140d8",
-    fontSize: "12px",
-    fontWeight: "800",
-  },
-
   creatorGrid: {
     display: "grid",
     gridTemplateColumns: "repeat(auto-fit, minmax(245px, 1fr))",
     gap: "10px",
-  },
-
-  creatorModeRow: {
-    gridColumn: "1 / -1",
-    width: "100%",
-    marginBottom: "8px",
   },
 
   creatorCard: {
@@ -712,6 +763,57 @@ const styles = {
 
   creatorArrowActive: {
     color: "#604dff",
+  },
+
+  choiceSummary: {
+    width: "100%",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: "14px",
+    padding: "15px 16px",
+    boxSizing: "border-box",
+    borderRadius: "18px",
+    border: "1px solid rgba(96, 77, 255, 0.2)",
+    background:
+      "linear-gradient(145deg, rgba(96,77,255,0.08), rgba(255,255,255,1))",
+    boxShadow: "0 8px 24px rgba(17,24,39,0.04)",
+  },
+
+  choiceSummaryCopy: {
+    minWidth: 0,
+    display: "flex",
+    flexDirection: "column",
+    gap: "4px",
+  },
+
+  choiceSummaryEyebrow: {
+    color: "#777d89",
+    fontSize: "10px",
+    fontWeight: "800",
+    letterSpacing: "0.12em",
+    textTransform: "uppercase",
+  },
+
+  choiceSummaryValue: {
+    color: "#17191f",
+    fontSize: "16px",
+    fontWeight: "800",
+    lineHeight: "1.3",
+  },
+
+  changeButton: {
+    flexShrink: 0,
+    appearance: "none",
+    border: "1px solid rgba(96,77,255,0.22)",
+    borderRadius: "999px",
+    background: "#ffffff",
+    color: "#5140d8",
+    padding: "8px 12px",
+    fontSize: "12px",
+    fontWeight: "800",
+    cursor: "pointer",
+    WebkitTapHighlightColor: "transparent",
   },
 };
 
