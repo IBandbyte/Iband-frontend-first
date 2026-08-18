@@ -111,6 +111,7 @@ const CreatorWorkspace = ({
 
   const canGenerate =
     Boolean(selectedCreator) &&
+    Boolean(selectedCreatorMode) &&
     Boolean(idea.trim()) &&
     projectStatus !== "generating";
 
@@ -132,6 +133,7 @@ const CreatorWorkspace = ({
     if (creatorChanged) {
       setSelectedCreatorMode("");
       setSelectedCreatorModeLabel("");
+      setIdea("");
     }
 
     setGeneratedIdea("");
@@ -140,69 +142,76 @@ const CreatorWorkspace = ({
     switch (creator.id) {
       case "video":
         setMentorMessage(
-          "Let's create an amazing video. Choose what you'd like to make, and we'll build it together."
+          "Let's create something visual. Choose what you'd like to make, and we'll take it from there."
         );
         break;
 
       case "image":
         setMentorMessage(
-          "Let's create a stunning image. Choose what you'd like to make, then describe what you'd like people to see."
+          "Let's create something visual. Choose what kind of image you'd like to make, and we'll shape it together."
         );
         break;
 
       case "music":
         setMentorMessage(
-          "Let's create something unforgettable. Choose where you'd like to begin, then tell me the mood, feeling or idea you have in mind."
+          "Let's create something with music. Choose where you'd like to begin, and we'll build from there."
         );
         break;
 
       case "podcast":
         setMentorMessage(
-          "Let's build a great podcast. Choose what you'd like to create, and we'll take it one step at a time."
+          "Let's build your podcast project. Choose what you'd like to create, and we'll take it one step at a time."
         );
         break;
 
       case "story":
         setMentorMessage(
-          "Every great story starts with an idea. Choose what you'd like to create, then tell me what you already have in your head."
+          "Let's build your story. Choose what you'd like to create, and we'll develop it together."
         );
         break;
 
       case "marketing":
         setMentorMessage(
-          "Let's create something that gets attention. Choose what you'd like to make, then tell me what you're promoting."
+          "Let's create something that gets attention. Choose the kind of marketing project you want to make."
         );
         break;
 
       case "social":
         setMentorMessage(
-          "Let's create content people will want to engage with. Choose what you'd like to make, then tell me your idea."
+          "Let's create something for social media. Choose what you'd like to make, and we'll shape it together."
         );
         break;
 
       default:
         setMentorMessage(
-          "Tell me your idea. We can shape it into something amazing together."
+          "Tell me what you'd like to create. We can shape the idea together."
         );
     }
   };
 
   const handleCreatorModeSelect = (mode) => {
+    const modeChanged = selectedCreatorMode !== mode.id;
+
     setSelectedCreatorMode(mode.id);
     setSelectedCreatorModeLabel(mode.label);
+
+    if (modeChanged) {
+      setIdea("");
+    }
+
     setGeneratedIdea("");
     setProjectStatus("idle");
 
     switch (mode.id) {
       case "ai-movie":
         setMentorMessage(
-          "Welcome. That's exactly why I'm here. You don't need to know how to make a movie. We'll take it one step at a time, and I'll help you through the journey. For now, tell me the idea you have in your head—even if it's only one sentence."
+          "Welcome. That's exactly why I'm here. Since this is your first time, I'm not going to fill your head with a wall of instructions or expect you to know where to begin. You don't need to know how to make a movie. I'll help you through it. We'll take it one step at a time, and I'll explain things as we go. For now, tell me the idea you have in your head—even if it's only one sentence."
         );
         break;
 
       case "movie-scene":
         setMentorMessage(
-          "Let's build your scene together. Tell me what you imagine happening—even if you only know one moment, character or location."
+          "Let's build your scene together. Tell me what you imagine happening, even if you only know one moment, character or location."
         );
         break;
 
@@ -232,7 +241,7 @@ const CreatorWorkspace = ({
 
       case "animation-cartoon":
         setMentorMessage(
-          "Let's build your animated world. Tell me the idea, character or scene you have in mind—even if it's only the beginning."
+          "Let's build your animated world. Tell me the idea, character or scene you have in mind, even if it's only the beginning."
         );
         break;
 
@@ -274,7 +283,7 @@ const CreatorWorkspace = ({
 
       case "music-idea":
         setMentorMessage(
-          "Let's explore the idea together. Tell me anything you already hear or feel—even if you can't describe it in musical terms."
+          "Let's explore the idea together. Tell me anything you already hear or feel, even if you can't describe it in musical terms."
         );
         break;
 
@@ -288,7 +297,7 @@ const CreatorWorkspace = ({
   const handleGenerate = async () => {
     if (!canGenerate) {
       setMentorMessage(
-        "Choose what you would like to create and tell me a little about your idea. We can shape the rest together."
+        "Choose what you would like to create, choose your Creator Mode, and tell me a little about your idea. We can shape the rest together."
       );
       return;
     }
@@ -296,8 +305,8 @@ const CreatorWorkspace = ({
     const request = {
       creatorType: selectedCreator,
       creatorLabel: activeCreator?.label || selectedCreator,
-      creatorMode: selectedCreatorMode || null,
-      creatorModeLabel: selectedCreatorModeLabel || null,
+      creatorMode: selectedCreatorMode,
+      creatorModeLabel: selectedCreatorModeLabel,
       creatorJourney,
       idea: idea.trim(),
     };
@@ -351,7 +360,7 @@ const CreatorWorkspace = ({
       console.error("CreatorWorkspace save error:", error);
 
       setMentorMessage(
-        "Your work is still here. The save did not complete, so please try once more when you’re ready."
+        "Your work is still here. The save did not complete, so please try once more when you're ready."
       );
     }
   };
@@ -359,7 +368,7 @@ const CreatorWorkspace = ({
   const handleEdit = () => {
     setProjectStatus("editing");
     setMentorMessage(
-      "Let’s keep developing it. Make any changes you need, then generate another version when you’re ready."
+      "Let's keep developing it. Make any changes you need, then generate another version when you're ready."
     );
 
     if (typeof onEdit === "function") {
@@ -405,17 +414,6 @@ const CreatorWorkspace = ({
           message={mentorMessage}
           creatorJourney={creatorJourney}
           mentorContext={mentorContext}
-        />
-      </section>
-
-      <section style={styles.section}>
-        <MentorConversation
-          creator={activeCreator}
-          message={mentorMessage}
-          idea={idea}
-          projectStatus={projectStatus}
-          creatorJourney={creatorJourney}
-          onJourneyChange={setCreatorJourney}
         />
       </section>
 
@@ -484,7 +482,22 @@ const CreatorWorkspace = ({
         </div>
       </section>
 
-      {activeCreator && (
+      {activeCreator && selectedCreatorMode && (
+        <section style={styles.section}>
+          <MentorConversation
+            creator={activeCreator}
+            creatorMode={selectedCreatorMode}
+            creatorModeLabel={selectedCreatorModeLabel}
+            message={mentorMessage}
+            idea={idea}
+            projectStatus={projectStatus}
+            creatorJourney={creatorJourney}
+            onJourneyChange={setCreatorJourney}
+          />
+        </section>
+      )}
+
+      {activeCreator && selectedCreatorMode && (
         <section style={styles.section}>
           <PromptBuilder
             creatorType={selectedCreator}
