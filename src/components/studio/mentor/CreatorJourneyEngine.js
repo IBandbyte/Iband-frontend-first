@@ -13,6 +13,8 @@
  * - Creator-confirmed decisions.
  * - Mentor provisional creative decisions.
  * - Unresolved creative decisions.
+ * - Initial creative idea capture.
+ * - Clarification gates for materially ambiguous meaning.
  * - Milestones and milestone significance.
  * - Precise resume points.
  * - Revisit history.
@@ -23,8 +25,10 @@
  *
  * CreatorJourneyEngine DOES NOT own:
  *
+ * - Natural-language interpretation.
+ * - Deciding what an unfamiliar expression means.
  * - Conversation pacing.
- * - Whether the Mentor should ask another question.
+ * - Whether the Mentor should ask another conversational question.
  * - Final Mentor wording.
  * - Long-term persistence.
  * - Memory execution.
@@ -39,6 +43,7 @@
  * - CreatorMemoryEngine / CreatorMemory
  * - AdaptiveMentorEngine
  * - ResponseComposer / ResponseGenerator
+ * - Future specialist AI agents
  *
  * Core philosophy:
  *
@@ -52,14 +57,20 @@
  * - Creator-confirmed truth outranks Mentor inference.
  * - Mentor inference should reduce unnecessary questioning.
  * - Do not ask for information the creator already supplied.
+ * - Do not pretend to understand what is not understood.
+ * - Material ambiguity must be clarified rather than guessed.
+ * - The creator remains the authority on what they meant.
+ * - Preserve the creator's original language.
+ * - Provisional Mentor interpretation is never creator truth.
  * - Experimentation should feel safe.
  * - Creative work is non-destructive by default.
  * - A new version must not silently destroy an older version.
  * - Deleted scenes remain recoverable until deliberately purged.
  * - Past -> Present -> Next should always be reconstructable.
+ * - Clear permission already given should not be repeatedly requested.
  */
 
-const CREATOR_JOURNEY_ENGINE_VERSION = "1.0.0";
+const CREATOR_JOURNEY_ENGINE_VERSION = "1.1.0";
 
 const DEFAULT_DELETED_SCENE_RETENTION_DAYS = 30;
 
@@ -120,6 +131,18 @@ const VERSION_STATUSES = Object.freeze({
   ACTIVE: "active",
   PREVIOUS: "previous",
   ARCHIVED: "archived",
+});
+
+const CLARIFICATION_STATUSES = Object.freeze({
+  REQUIRED: "required",
+  RESOLVED: "resolved",
+});
+
+const IDEA_CAPTURE_STATUSES = Object.freeze({
+  NOT_CAPTURED: "not-captured",
+  CAPTURED: "captured",
+  WAITING_FOR_CLARIFICATION: "waiting-for-clarification",
+  READY_TO_ADVANCE: "ready-to-advance",
 });
 
 const MOVIE_JOURNEY_STAGES = Object.freeze([
@@ -444,6 +467,32 @@ function addDays(timestamp, days) {
   return date.toISOString();
 }
 
+function normalizeConfidence(value) {
+  if (
+    !Number.isFinite(
+      Number(value)
+    )
+  ) {
+    return null;
+  }
+
+  return Math.max(
+    0,
+    Math.min(
+      1,
+      Number(value)
+    )
+  );
+}
+
+function isValidDecisionAuthority(
+  authority
+) {
+  return Object.values(
+    DECISION_AUTHORITIES
+  ).includes(authority);
+}
+
 function createTaskState(task, index) {
   return {
     id:
@@ -577,15 +626,24 @@ function createJourney({
         firstStage?.tasks?.[0]?.id || null,
 
       sceneId: null,
-
       note: null,
-
       savedAt: now,
     },
 
     nextAction: null,
 
     decisions: [],
+
+    clarifications: [],
+
+    initialIdea: {
+      status:
+        IDEA_CAPTURE_STATUSES.NOT_CAPTURED,
+
+      originalText: null,
+      capturedAt: null,
+      readyToAdvance: false,
+    },
 
     milestones: [],
 
@@ -610,12 +668,14 @@ function getStage(
   journey,
   stageId
 ) {
-  return asArray(
-    journey?.stages
-  ).find(
-    (stage) =>
-      stage?.id === stageId
-  ) || null;
+  return (
+    asArray(
+      journey?.stages
+    ).find(
+      (stage) =>
+        stage?.id === stageId
+    ) || null
+  );
 }
 
 function getCurrentStage(
@@ -633,13 +693,15 @@ function getCurrentTask(
   const stage =
     getCurrentStage(journey);
 
-  return asArray(
-    stage?.tasks
-  ).find(
-    (task) =>
-      task?.id ===
-      journey?.currentTaskId
-  ) || null;
+  return (
+    asArray(
+      stage?.tasks
+    ).find(
+      (task) =>
+        task?.id ===
+        journey?.currentTaskId
+    ) || null
+  );
 }
 
 function findNextIncompleteStage(
@@ -649,20 +711,23 @@ function findNextIncompleteStage(
   const stages =
     asArray(journey?.stages);
 
-  const startIndex =
+  const matchedIndex =
     afterStageId
       ? stages.findIndex(
           (stage) =>
             stage?.id ===
             afterStageId
-        ) + 1
+        )
+      : -1;
+
+  const startIndex =
+    matchedIndex >= 0
+      ? matchedIndex + 1
       : 0;
 
   return (
     stages
-      .slice(
-        Math.max(0, startIndex)
-      )
+      .slice(startIndex)
       .find(
         (stage) =>
           stage?.status !==
@@ -728,7 +793,9 @@ function createOrientation(
 
   const previousStage =
     currentStageIndex > 0
-      ? stages[currentStageIndex - 1]
+      ? stages[
+          currentStageIndex - 1
+        ]
       : null;
 
   const nextStage =
@@ -739,6 +806,15 @@ function createOrientation(
 
   const progress =
     getProgress(journey);
+
+  const unresolvedClarifications =
+    asArray(
+      journey?.clarifications
+    ).filter(
+      (clarification) =>
+        clarification?.status ===
+        CLARIFICATION_STATUSES.REQUIRED
+    );
 
   return {
     past: {
@@ -783,6 +859,21 @@ function createOrientation(
 
       status:
         journey?.status || null,
+
+      initialIdea:
+        cloneValue(
+          journey?.initialIdea ||
+          null
+        ),
+
+      clarificationRequired:
+        unresolvedClarifications
+          .length > 0,
+
+      clarifications:
+        cloneValue(
+          unresolvedClarifications
+        ),
     },
 
     next: {
@@ -805,6 +896,10 @@ function touchJourney(
 ) {
   return {
     ...journey,
+
+    engineVersion:
+      CREATOR_JOURNEY_ENGINE_VERSION,
+
     updatedAt:
       createTimestamp(),
   };
@@ -848,14 +943,18 @@ function setCurrentPosition(
 
   const requestedTask =
     taskId
-      ? asArray(stage.tasks).find(
+      ? asArray(
+          stage.tasks
+        ).find(
           (task) =>
             task?.id === taskId
         )
       : null;
 
   const fallbackTask =
-    asArray(stage.tasks).find(
+    asArray(
+      stage.tasks
+    ).find(
       (task) =>
         task?.status !==
         TASK_STATUSES
@@ -922,7 +1021,9 @@ function completeTask(
     );
 
   const task =
-    asArray(stage?.tasks).find(
+    asArray(
+      stage?.tasks
+    ).find(
       (item) =>
         item?.id === taskId
     );
@@ -936,6 +1037,7 @@ function completeTask(
       .COMPLETED_FOR_NOW;
 
   task.completedAt =
+    task.completedAt ||
     createTimestamp();
 
   return touchJourney(next);
@@ -969,10 +1071,13 @@ function completeStage(
       .COMPLETED_FOR_NOW;
 
   stage.completedAt =
+    stage.completedAt ||
     now;
 
   stage.tasks =
-    asArray(stage.tasks).map(
+    asArray(
+      stage.tasks
+    ).map(
       (task) => ({
         ...task,
 
@@ -990,27 +1095,38 @@ function completeStage(
       })
     );
 
-  next.milestones.push({
-    id:
-      createId("milestone"),
+  const existingMilestone =
+    asArray(
+      next.milestones
+    ).find(
+      (milestone) =>
+        milestone?.stageId ===
+        stage.id
+    );
 
-    stageId:
-      stage.id,
+  if (!existingMilestone) {
+    next.milestones.push({
+      id:
+        createId("milestone"),
 
-    label:
-      stage.label,
+      stageId:
+        stage.id,
 
-    significance:
-      stage.significance,
+      label:
+        stage.label,
 
-    message:
-      cleanString(
-        milestoneMessage
-      ) || null,
+      significance:
+        stage.significance,
 
-    reachedAt:
-      now,
-  });
+      message:
+        cleanString(
+          milestoneMessage
+        ) || null,
+
+      reachedAt:
+        now,
+    });
+  }
 
   const nextStage =
     findNextIncompleteStage(
@@ -1030,6 +1146,14 @@ function completeStage(
       now;
 
     const nextTask =
+      asArray(
+        nextStage.tasks
+      ).find(
+        (task) =>
+          task?.status !==
+          TASK_STATUSES
+            .COMPLETED_FOR_NOW
+      ) ||
       nextStage.tasks?.[0] ||
       null;
 
@@ -1120,7 +1244,9 @@ function revisitStage(
     stage.id;
 
   const task =
-    asArray(stage.tasks).find(
+    asArray(
+      stage.tasks
+    ).find(
       (item) =>
         item?.status !==
         TASK_STATUSES
@@ -1179,23 +1305,35 @@ function recordDecision(
     return next;
   }
 
-  const existingActive =
-    asArray(next.decisions)
-      .filter(
-        (decision) =>
-          decision?.key ===
-            cleanKey &&
+  const safeAuthority =
+    isValidDecisionAuthority(
+      authority
+    )
+      ? authority
+      : DECISION_AUTHORITIES
+          .UNRESOLVED;
+
+  const existingCurrent =
+    asArray(
+      next.decisions
+    ).filter(
+      (decision) =>
+        decision?.key ===
+          cleanKey &&
+        (
           decision?.status ===
-            DECISION_STATUSES
-              .ACTIVE
-      );
+            DECISION_STATUSES.ACTIVE ||
+          decision?.status ===
+            DECISION_STATUSES.UNRESOLVED
+        )
+    );
 
   const creatorAuthority =
-    authority ===
+    safeAuthority ===
     DECISION_AUTHORITIES.CREATOR;
 
   if (creatorAuthority) {
-    existingActive.forEach(
+    existingCurrent.forEach(
       (decision) => {
         decision.status =
           DECISION_STATUSES
@@ -1207,16 +1345,36 @@ function recordDecision(
     );
   } else {
     const creatorDecision =
-      existingActive.find(
+      existingCurrent.find(
         (decision) =>
           decision?.authority ===
-          DECISION_AUTHORITIES
-            .CREATOR
+            DECISION_AUTHORITIES
+              .CREATOR &&
+          decision?.status ===
+            DECISION_STATUSES
+              .ACTIVE
       );
 
     if (creatorDecision) {
       return next;
     }
+
+    existingCurrent
+      .filter(
+        (decision) =>
+          decision?.authority ===
+          safeAuthority
+      )
+      .forEach(
+        (decision) => {
+          decision.status =
+            DECISION_STATUSES
+              .SUPERSEDED;
+
+          decision.supersededAt =
+            createTimestamp();
+        }
+      );
   }
 
   next.decisions.push({
@@ -1229,10 +1387,11 @@ function recordDecision(
     value:
       cloneValue(value),
 
-    authority,
+    authority:
+      safeAuthority,
 
     status:
-      authority ===
+      safeAuthority ===
       DECISION_AUTHORITIES
         .UNRESOLVED
         ? DECISION_STATUSES
@@ -1249,17 +1408,9 @@ function recordDecision(
       null,
 
     confidence:
-      Number.isFinite(
-        Number(confidence)
-      )
-        ? Math.max(
-            0,
-            Math.min(
-              1,
-              Number(confidence)
-            )
-          )
-        : null,
+      normalizeConfidence(
+        confidence
+      ),
 
     reason:
       cleanString(reason) ||
@@ -1284,31 +1435,65 @@ function getActiveDecision(
   const cleanKey =
     cleanString(key);
 
-  const active =
-    asArray(journey?.decisions)
-      .filter(
-        (decision) =>
-          decision?.key ===
-            cleanKey &&
-          decision?.status ===
-            DECISION_STATUSES
-              .ACTIVE
-      );
-
-  const creatorDecision =
-    active.find(
+  const current =
+    asArray(
+      journey?.decisions
+    ).filter(
       (decision) =>
-        decision?.authority ===
-        DECISION_AUTHORITIES
-          .CREATOR
+        decision?.key ===
+          cleanKey &&
+        (
+          decision?.status ===
+            DECISION_STATUSES.ACTIVE ||
+          decision?.status ===
+            DECISION_STATUSES.UNRESOLVED
+        )
     );
 
-  return (
-    cloneValue(
-      creatorDecision ||
-      active.at(-1) ||
-      null
-    )
+  const creatorDecision =
+    current.find(
+      (decision) =>
+        decision?.authority ===
+          DECISION_AUTHORITIES
+            .CREATOR &&
+        decision?.status ===
+          DECISION_STATUSES.ACTIVE
+    );
+
+  const sharedDecision =
+    current.find(
+      (decision) =>
+        decision?.authority ===
+          DECISION_AUTHORITIES
+            .SHARED &&
+        decision?.status ===
+          DECISION_STATUSES.ACTIVE
+    );
+
+  const provisionalDecision =
+    current.find(
+      (decision) =>
+        decision?.authority ===
+          DECISION_AUTHORITIES
+            .MENTOR_PROVISIONAL &&
+        decision?.status ===
+          DECISION_STATUSES.ACTIVE
+    );
+
+  const unresolvedDecision =
+    current.find(
+      (decision) =>
+        decision?.authority ===
+          DECISION_AUTHORITIES
+            .UNRESOLVED
+    );
+
+  return cloneValue(
+    creatorDecision ||
+    sharedDecision ||
+    provisionalDecision ||
+    unresolvedDecision ||
+    null
   );
 }
 
@@ -1367,6 +1552,949 @@ function setNextAction(
   };
 
   return touchJourney(next);
+}
+
+function normalizeContextEntry(
+  entry,
+  {
+    defaultPrefix,
+    defaultAuthority,
+    defaultStageId = "idea",
+  }
+) {
+  if (
+    entry === null ||
+    entry === undefined
+  ) {
+    return null;
+  }
+
+  if (
+    typeof entry !== "object" ||
+    Array.isArray(entry)
+  ) {
+    return {
+      key:
+        `${defaultPrefix}.${createId(
+          "item"
+        )}`,
+
+      value:
+        cloneValue(entry),
+
+      authority:
+        defaultAuthority,
+
+      stageId:
+        defaultStageId,
+
+      confidence: null,
+      reason: null,
+      metadata: {},
+    };
+  }
+
+  const key =
+    cleanString(
+      entry.key
+    ) ||
+    `${defaultPrefix}.${createId(
+      "item"
+    )}`;
+
+  const authority =
+    isValidDecisionAuthority(
+      entry.authority
+    )
+      ? entry.authority
+      : defaultAuthority;
+
+  return {
+    key,
+
+    value:
+      cloneValue(
+        entry.value
+      ),
+
+    authority,
+
+    stageId:
+      cleanString(
+        entry.stageId
+      ) ||
+      defaultStageId,
+
+    sceneId:
+      cleanString(
+        entry.sceneId
+      ) ||
+      null,
+
+    confidence:
+      normalizeConfidence(
+        entry.confidence
+      ),
+
+    reason:
+      cleanString(
+        entry.reason
+      ) ||
+      null,
+
+    metadata:
+      cloneValue(
+        entry.metadata || {}
+      ),
+  };
+}
+
+function createClarification(
+  {
+    key = null,
+    expression = null,
+    question = null,
+    reason = null,
+    material = true,
+    metadata = {},
+  } = {}
+) {
+  return {
+    id:
+      createId("clarification"),
+
+    key:
+      cleanString(key) ||
+      null,
+
+    expression:
+      cleanString(
+        expression
+      ) ||
+      null,
+
+    question:
+      cleanString(
+        question
+      ) ||
+      null,
+
+    reason:
+      cleanString(reason) ||
+      null,
+
+    material:
+      material !== false,
+
+    status:
+      CLARIFICATION_STATUSES.REQUIRED,
+
+    createdAt:
+      createTimestamp(),
+
+    resolvedAt: null,
+
+    resolution: null,
+
+    metadata:
+      cloneValue(metadata),
+  };
+}
+
+function getOpenClarifications(
+  journey
+) {
+  return cloneValue(
+    asArray(
+      journey?.clarifications
+    ).filter(
+      (clarification) =>
+        clarification?.status ===
+        CLARIFICATION_STATUSES.REQUIRED
+    )
+  );
+}
+
+function resolveClarification(
+  journey,
+  {
+    clarificationId,
+    resolution,
+    decisionKey = null,
+    decisionValue = undefined,
+    stageId = "idea",
+    metadata = {},
+  } = {}
+) {
+  let next =
+    cloneValue(journey);
+
+  const clarification =
+    asArray(
+      next.clarifications
+    ).find(
+      (item) =>
+        item?.id ===
+        clarificationId
+    );
+
+  if (!clarification) {
+    return next;
+  }
+
+  clarification.status =
+    CLARIFICATION_STATUSES.RESOLVED;
+
+  clarification.resolvedAt =
+    createTimestamp();
+
+  clarification.resolution =
+    cloneValue(resolution);
+
+  if (
+    cleanString(
+      decisionKey
+    )
+  ) {
+    next =
+      recordDecision(
+        next,
+        {
+          key:
+            decisionKey,
+
+          value:
+            decisionValue !==
+            undefined
+              ? decisionValue
+              : resolution,
+
+          authority:
+            DECISION_AUTHORITIES
+              .CREATOR,
+
+          stageId,
+
+          reason:
+            "Creator clarified previously ambiguous meaning.",
+
+          metadata: {
+            clarificationId,
+            ...cloneValue(
+              metadata
+            ),
+          },
+        }
+      );
+  }
+
+  const remaining =
+    getOpenClarifications(
+      next
+    );
+
+  if (
+    remaining.length === 0 &&
+    next.initialIdea
+      ?.status ===
+      IDEA_CAPTURE_STATUSES
+        .WAITING_FOR_CLARIFICATION
+  ) {
+    next.initialIdea = {
+      ...next.initialIdea,
+
+      status:
+        IDEA_CAPTURE_STATUSES.CAPTURED,
+    };
+
+    next =
+      setCurrentPosition(
+        next,
+        {
+          stageId: "idea",
+          taskId:
+            "identify-open-threads",
+          note:
+            "Clarification resolved. Continue developing the creator's idea.",
+        }
+      );
+  }
+
+  return touchJourney(next);
+}
+
+/**
+ * captureInitialMovieIdea
+ * ------------------------------------------------------------
+ * Receives STRUCTURED interpretation from the Mentor intelligence
+ * layer after the creator supplies their first movie idea.
+ *
+ * This function does not parse or infer natural language itself.
+ *
+ * Input categories:
+ *
+ * understoodContext
+ *   Information the intelligence layer believes the creator
+ *   explicitly supplied. By default this is recorded as CREATOR
+ *   authority, but callers can lower authority when appropriate.
+ *
+ * provisionalContext
+ *   Useful Mentor interpretation that may guide work silently but
+ *   must never be represented as something the creator explicitly
+ *   decided.
+ *
+ * unresolvedContext
+ *   Information that remains open or uncertain but does not
+ *   necessarily require interrupting the creator now.
+ *
+ * clarificationNeeded
+ *   Meaning that is sufficiently ambiguous or unfamiliar that
+ *   proceeding could materially distort the creator's intention.
+ *
+ * readyToAdvance
+ *   Must be supplied by the intelligence/orchestration layer.
+ *   CreatorJourneyEngine does not independently decide that enough
+ *   is known.
+ *
+ * Core rule:
+ *
+ * Material clarification overrides advancement.
+ */
+function captureInitialMovieIdea(
+  journey,
+  {
+    originalIdea,
+    understoodContext = [],
+    provisionalContext = [],
+    unresolvedContext = [],
+    clarificationNeeded = [],
+    readyToAdvance = false,
+    recommendedStageId = "story-direction",
+    recommendedTaskId = null,
+    nextAction = null,
+    resumeNote = null,
+    metadata = {},
+  } = {}
+) {
+  const cleanIdea =
+    cleanString(
+      originalIdea
+    );
+
+  if (!cleanIdea) {
+    return cloneValue(
+      journey
+    );
+  }
+
+  let next =
+    cloneValue(journey);
+
+  const now =
+    createTimestamp();
+
+  /**
+   * Preserve the creator's actual words before doing anything else.
+   *
+   * This is intentionally separate from interpretations of the idea.
+   */
+  next.initialIdea = {
+    status:
+      IDEA_CAPTURE_STATUSES.CAPTURED,
+
+    originalText:
+      cleanIdea,
+
+    capturedAt:
+      next.initialIdea
+        ?.capturedAt ||
+      now,
+
+    lastUpdatedAt:
+      now,
+
+    readyToAdvance:
+      Boolean(
+        readyToAdvance
+      ),
+
+    metadata: {
+      ...cloneValue(
+        next.initialIdea
+          ?.metadata || {}
+      ),
+
+      ...cloneValue(
+        metadata
+      ),
+    },
+  };
+
+  next =
+    recordDecision(
+      next,
+      {
+        key:
+          "movie.idea.original",
+
+        value:
+          cleanIdea,
+
+        authority:
+          DECISION_AUTHORITIES
+            .CREATOR,
+
+        stageId:
+          "idea",
+
+        confidence: 1,
+
+        reason:
+          "Creator's original movie idea, preserved in their own words.",
+
+        metadata: {
+          source:
+            "initial-movie-idea",
+          verbatim: true,
+        },
+      }
+    );
+
+  /**
+   * Step 1A:
+   * The idea itself is safely captured.
+   */
+  next =
+    completeTask(
+      next,
+      {
+        stageId:
+          "idea",
+
+        taskId:
+          "capture-core-idea",
+      }
+    );
+
+  /**
+   * Record information explicitly understood from the creator.
+   *
+   * The Mentor intelligence layer remains responsible for deciding
+   * whether something truly counts as explicit creator information.
+   */
+  asArray(
+    understoodContext
+  ).forEach(
+    (entry) => {
+      const normalized =
+        normalizeContextEntry(
+          entry,
+          {
+            defaultPrefix:
+              "movie.idea.known",
+
+            defaultAuthority:
+              DECISION_AUTHORITIES
+                .CREATOR,
+          }
+        );
+
+      if (!normalized) {
+        return;
+      }
+
+      next =
+        recordDecision(
+          next,
+          normalized
+        );
+    }
+  );
+
+  /**
+   * Mentor working interpretations.
+   *
+   * These can reduce unnecessary questioning and allow the Mentor
+   * to prepare sensible cinematography, pacing, soundtrack, tone,
+   * visual language and other directions in the background.
+   *
+   * They remain provisional and creator-overridable.
+   */
+  asArray(
+    provisionalContext
+  ).forEach(
+    (entry) => {
+      const normalized =
+        normalizeContextEntry(
+          entry,
+          {
+            defaultPrefix:
+              "movie.idea.provisional",
+
+            defaultAuthority:
+              DECISION_AUTHORITIES
+                .MENTOR_PROVISIONAL,
+          }
+        );
+
+      if (!normalized) {
+        return;
+      }
+
+      normalized.authority =
+        DECISION_AUTHORITIES
+          .MENTOR_PROVISIONAL;
+
+      next =
+        recordDecision(
+          next,
+          normalized
+        );
+    }
+  );
+
+  /**
+   * Open questions that do not necessarily need to interrupt flow.
+   */
+  asArray(
+    unresolvedContext
+  ).forEach(
+    (entry) => {
+      const normalized =
+        normalizeContextEntry(
+          entry,
+          {
+            defaultPrefix:
+              "movie.idea.unresolved",
+
+            defaultAuthority:
+              DECISION_AUTHORITIES
+                .UNRESOLVED,
+          }
+        );
+
+      if (!normalized) {
+        return;
+      }
+
+      normalized.authority =
+        DECISION_AUTHORITIES
+          .UNRESOLVED;
+
+      next =
+        recordDecision(
+          next,
+          normalized
+        );
+    }
+  );
+
+  /**
+   * Identify all known/open context before choosing progression.
+   */
+  next =
+    completeTask(
+      next,
+      {
+        stageId:
+          "idea",
+
+        taskId:
+          "identify-known-context",
+      }
+    );
+
+  next =
+    completeTask(
+      next,
+      {
+        stageId:
+          "idea",
+
+        taskId:
+          "identify-open-threads",
+      }
+    );
+
+  /**
+   * Clarification gate.
+   *
+   * Unknown terminology, slang, cultural expression, genre-specific
+   * language or any other materially ambiguous meaning belongs here.
+   *
+   * We preserve the ambiguity rather than inventing an interpretation.
+   */
+  const newClarifications =
+    asArray(
+      clarificationNeeded
+    )
+      .map(
+        (item) =>
+          createClarification(
+            typeof item ===
+              "object" &&
+            item !== null
+              ? item
+              : {
+                  expression:
+                    String(
+                      item
+                    ),
+                }
+          )
+      );
+
+  const existingOpen =
+    getOpenClarifications(
+      next
+    );
+
+  const existingKeys =
+    new Set(
+      existingOpen.map(
+        (clarification) =>
+          [
+            clarification.key,
+            clarification.expression,
+            clarification.question,
+          ]
+            .filter(
+              Boolean
+            )
+            .join("::")
+      )
+    );
+
+  newClarifications
+    .filter(
+      (clarification) => {
+        const signature =
+          [
+            clarification.key,
+            clarification.expression,
+            clarification.question,
+          ]
+            .filter(
+              Boolean
+            )
+            .join("::");
+
+        return (
+          !signature ||
+          !existingKeys.has(
+            signature
+          )
+        );
+      }
+    )
+    .forEach(
+      (clarification) => {
+        next.clarifications.push(
+          clarification
+        );
+
+        if (
+          clarification.key
+        ) {
+          next =
+            recordDecision(
+              next,
+              {
+                key:
+                  clarification.key,
+
+                value: null,
+
+                authority:
+                  DECISION_AUTHORITIES
+                    .UNRESOLVED,
+
+                stageId:
+                  "idea",
+
+                reason:
+                  clarification.reason ||
+                  "Meaning requires creator clarification before it can safely guide the project.",
+
+                metadata: {
+                  clarificationId:
+                    clarification.id,
+
+                  expression:
+                    clarification.expression,
+
+                  material:
+                    clarification.material,
+                },
+              }
+            );
+        }
+      }
+    );
+
+  const openClarifications =
+    getOpenClarifications(
+      next
+    );
+
+  const materialClarifications =
+    openClarifications.filter(
+      (clarification) =>
+        clarification
+          ?.material !== false
+    );
+
+  /**
+   * Do not allow a materially misunderstood idea to progress.
+   */
+  if (
+    materialClarifications.length >
+    0
+  ) {
+    next.initialIdea = {
+      ...next.initialIdea,
+
+      status:
+        IDEA_CAPTURE_STATUSES
+          .WAITING_FOR_CLARIFICATION,
+
+      readyToAdvance:
+        false,
+    };
+
+    next =
+      setCurrentPosition(
+        next,
+        {
+          stageId:
+            "idea",
+
+          taskId:
+            "identify-known-context",
+
+          note:
+            cleanString(
+              resumeNote
+            ) ||
+            "Waiting for creator clarification before progressing the movie idea.",
+        }
+      );
+
+    const firstClarification =
+      materialClarifications[0];
+
+    next =
+      setNextAction(
+        next,
+        {
+          type:
+            "clarify-meaning",
+
+          label:
+            firstClarification
+              ?.question ||
+            (
+              firstClarification
+                ?.expression
+                ? `Clarify what "${firstClarification.expression}" means`
+                : "Clarify the creator's meaning"
+            ),
+
+          stageId:
+            "idea",
+
+          taskId:
+            "identify-known-context",
+
+          reason:
+            firstClarification
+              ?.reason ||
+            "The Mentor should not guess at meaning that could materially alter the creator's vision.",
+
+          optional: false,
+
+          metadata: {
+            clarificationId:
+              firstClarification
+                ?.id ||
+              null,
+
+            expression:
+              firstClarification
+                ?.expression ||
+              null,
+
+            clarificationRequired:
+              true,
+          },
+        }
+      );
+
+    return touchJourney(
+      next
+    );
+  }
+
+  /**
+   * No material clarification blocks progression.
+   *
+   * The intelligence/orchestration layer still decides whether enough
+   * is known to leave Idea.
+   */
+  if (
+    Boolean(
+      readyToAdvance
+    )
+  ) {
+    next.initialIdea = {
+      ...next.initialIdea,
+
+      status:
+        IDEA_CAPTURE_STATUSES
+          .READY_TO_ADVANCE,
+
+      readyToAdvance:
+        true,
+    };
+
+    next =
+      completeStage(
+        next,
+        {
+          stageId:
+            "idea",
+
+          milestoneMessage:
+            "The creator's movie idea is captured and we have enough foundation to begin developing it.",
+        }
+      );
+
+    const targetStage =
+      getStage(
+        next,
+        recommendedStageId
+      );
+
+    if (targetStage) {
+      next =
+        setCurrentPosition(
+          next,
+          {
+            stageId:
+              recommendedStageId,
+
+            taskId:
+              recommendedTaskId,
+
+            note:
+              cleanString(
+                resumeNote
+              ) ||
+              "Initial movie idea captured. Continue with the next useful creative step.",
+          }
+        );
+    }
+  } else {
+    next.initialIdea = {
+      ...next.initialIdea,
+
+      status:
+        IDEA_CAPTURE_STATUSES
+          .CAPTURED,
+
+      readyToAdvance:
+        false,
+    };
+
+    next =
+      setCurrentPosition(
+        next,
+        {
+          stageId:
+            "idea",
+
+          taskId:
+            "identify-open-threads",
+
+          note:
+            cleanString(
+              resumeNote
+            ) ||
+            "Initial movie idea captured. Continue developing the idea before advancing.",
+        }
+      );
+  }
+
+  /**
+   * The intelligence layer may supply an already-chosen next action.
+   *
+   * This avoids JourneyEngine deciding conversationally what to ask.
+   */
+  if (
+    nextAction &&
+    typeof nextAction ===
+      "object"
+  ) {
+    next =
+      setNextAction(
+        next,
+        nextAction
+      );
+  } else if (
+    Boolean(
+      readyToAdvance
+    )
+  ) {
+    next =
+      setNextAction(
+        next,
+        {
+          type:
+            "continue-creative-journey",
+
+          label:
+            "Continue developing the movie",
+
+          stageId:
+            next.currentStageId,
+
+          taskId:
+            next.currentTaskId,
+
+          reason:
+            "The initial idea is safely captured and no material clarification is blocking progression.",
+
+          optional: false,
+        }
+      );
+  } else {
+    next =
+      setNextAction(
+        next,
+        {
+          type:
+            "develop-initial-idea",
+
+          label:
+            "Continue shaping the movie idea",
+
+          stageId:
+            "idea",
+
+          taskId:
+            "identify-open-threads",
+
+          reason:
+            "The core idea is captured, but the Mentor intelligence layer has not yet marked it ready to advance.",
+
+          optional: false,
+        }
+      );
+  }
+
+  return touchJourney(
+    next
+  );
 }
 
 function createScene({
@@ -1432,9 +2560,12 @@ function ensureScene(
 
   const existing =
     sceneId
-      ? asArray(next.scenes).find(
+      ? asArray(
+          next.scenes
+        ).find(
           (scene) =>
-            scene?.id === sceneId
+            scene?.id ===
+            sceneId
         )
       : null;
 
@@ -1446,9 +2577,13 @@ function ensureScene(
   }
 
   const scene =
-    createScene(sceneInput);
+    createScene(
+      sceneInput
+    );
 
-  next.scenes.push(scene);
+  next.scenes.push(
+    scene
+  );
 
   return {
     journey:
@@ -1476,7 +2611,9 @@ function createSceneVersion(
     cloneValue(journey);
 
   const scene =
-    asArray(next.scenes).find(
+    asArray(
+      next.scenes
+    ).find(
       (item) =>
         item?.id === sceneId
     );
@@ -1489,7 +2626,9 @@ function createSceneVersion(
     createTimestamp();
 
   scene.versions =
-    asArray(scene.versions).map(
+    asArray(
+      scene.versions
+    ).map(
       (version) => ({
         ...version,
 
@@ -1573,7 +2712,9 @@ function activateSceneVersion(
     cloneValue(journey);
 
   const scene =
-    asArray(next.scenes).find(
+    asArray(
+      next.scenes
+    ).find(
       (item) =>
         item?.id === sceneId
     );
@@ -1583,9 +2724,12 @@ function activateSceneVersion(
   }
 
   const targetVersion =
-    asArray(scene.versions).find(
+    asArray(
+      scene.versions
+    ).find(
       (version) =>
-        version?.id === versionId
+        version?.id ===
+        versionId
     );
 
   if (!targetVersion) {
@@ -1600,7 +2744,8 @@ function activateSceneVersion(
         status:
           version.id ===
           targetVersion.id
-            ? VERSION_STATUSES.ACTIVE
+            ? VERSION_STATUSES
+                .ACTIVE
             : VERSION_STATUSES
                 .PREVIOUS,
       })
@@ -1648,11 +2793,12 @@ function softDeleteScene(
     cloneValue(journey);
 
   const sceneIndex =
-    asArray(next.scenes)
-      .findIndex(
-        (scene) =>
-          scene?.id === sceneId
-      );
+    asArray(
+      next.scenes
+    ).findIndex(
+      (scene) =>
+        scene?.id === sceneId
+    );
 
   if (sceneIndex < 0) {
     return next;
@@ -1761,7 +2907,8 @@ function purgeExpiredDeletedScenes(
   const now =
     safeDate(
       currentTimestamp
-    ) || new Date();
+    ) ||
+    new Date();
 
   next.deletedScenes =
     asArray(
@@ -1807,7 +2954,8 @@ function permanentlyDeleteScene(
       next.deletedScenes
     ).filter(
       (scene) =>
-        scene?.id !== sceneId
+        scene?.id !==
+        sceneId
     );
 
   return touchJourney(next);
@@ -1867,6 +3015,11 @@ function resumeJourney(
 function createJourneySnapshot(
   journey
 ) {
+  const openClarifications =
+    getOpenClarifications(
+      journey
+    );
+
   return {
     engineVersion:
       CREATOR_JOURNEY_ENGINE_VERSION,
@@ -1900,6 +3053,12 @@ function createJourneySnapshot(
         journey
       ),
 
+    initialIdea:
+      cloneValue(
+        journey?.initialIdea ||
+        null
+      ),
+
     activeDecisionCount:
       asArray(
         journey?.decisions
@@ -1918,6 +3077,17 @@ function createJourneySnapshot(
           DECISION_STATUSES
             .UNRESOLVED
       ).length,
+
+    clarificationRequired:
+      openClarifications
+        .some(
+          (clarification) =>
+            clarification
+              ?.material !== false
+        ),
+
+    openClarificationCount:
+      openClarifications.length,
 
     sceneCount:
       asArray(
@@ -2002,6 +3172,8 @@ function createCreatorJourneyEngine(
 
     getActiveDecision,
 
+    getOpenClarifications,
+
     setCurrentPosition,
 
     completeTask,
@@ -2013,6 +3185,10 @@ function createCreatorJourneyEngine(
     recordDecision,
 
     setNextAction,
+
+    captureInitialMovieIdea,
+
+    resolveClarification,
 
     pauseJourney,
 
@@ -2059,6 +3235,8 @@ function createCreatorJourneyEngine(
       MILESTONE_SIGNIFICANCE,
       SCENE_STATUSES,
       VERSION_STATUSES,
+      CLARIFICATION_STATUSES,
+      IDEA_CAPTURE_STATUSES,
       MOVIE_JOURNEY_STAGES,
       DEFAULT_DELETED_SCENE_RETENTION_DAYS,
     },
@@ -2092,6 +3270,36 @@ function createCreatorJourneyEngine(
         true,
 
       doNotAskForKnownInformation:
+        true,
+
+      doNotPretendToUnderstand:
+        true,
+
+      clarifyMaterialAmbiguity:
+        true,
+
+      unfamiliarLanguageMayRequireClarification:
+        true,
+
+      creatorDefinesTheirMeaning:
+        true,
+
+      preserveOriginalCreatorLanguage:
+        true,
+
+      provisionalInferenceIsNotCreatorTruth:
+        true,
+
+      unresolvedMeaningDoesNotBecomeTruth:
+        true,
+
+      materialMisunderstandingBlocksProgression:
+        true,
+
+      clearPermissionAllowsContinuation:
+        true,
+
+      doNotRepeatedlyRequestPermission:
         true,
 
       experimentationShouldFeelSafe:
@@ -2132,10 +3340,13 @@ export {
   MILESTONE_SIGNIFICANCE,
   SCENE_STATUSES,
   VERSION_STATUSES,
+  CLARIFICATION_STATUSES,
+  IDEA_CAPTURE_STATUSES,
   MOVIE_JOURNEY_STAGES,
   createJourney,
   createOrientation,
   createJourneySnapshot,
+  captureInitialMovieIdea,
 };
 
 export default createCreatorJourneyEngine;
