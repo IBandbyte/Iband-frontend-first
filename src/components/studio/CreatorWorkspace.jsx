@@ -5,6 +5,9 @@ import PromptBuilder from "./PromptBuilder";
 import GenerateButton from "./GenerateButton";
 import PreviewPanel from "./PreviewPanel";
 import CreatorModeSelector from "./CreatorModeSelector";
+import createCreatorJourneyEngine from "./mentor/CreatorJourneyEngine";
+
+const creatorJourneyEngine = createCreatorJourneyEngine();
 
 const CREATOR_OPTIONS = [
   {
@@ -73,11 +76,46 @@ const CreatorWorkspace = ({
   const [idea, setIdea] = useState("");
   const [generatedIdea, setGeneratedIdea] = useState("");
   const [projectStatus, setProjectStatus] = useState("idle");
+
+  /**
+   * creatorJourney
+   * ------------------------------------------------------------
+   * This remains the Mentor working relationship:
+   *
+   * surprise
+   * guide
+   * together
+   * expert
+   *
+   * It is intentionally separate from projectJourney below.
+   */
   const [creatorJourney, setCreatorJourney] = useState("guide");
+
+  /**
+   * projectJourney
+   * ------------------------------------------------------------
+   * This is the actual creative-project map owned by
+   * CreatorJourneyEngine.
+   *
+   * For AI Movie Making this carries:
+   *
+   * Past -> Present -> Next
+   * stages
+   * tasks
+   * decisions
+   * milestones
+   * resume points
+   * scenes
+   * scene versions
+   * deleted scenes
+   * revisit history
+   */
+  const [projectJourney, setProjectJourney] = useState(null);
 
   const [showCreatorChoices, setShowCreatorChoices] = useState(
     !Boolean(initialCreator)
   );
+
   const [showCreatorModeChoices, setShowCreatorModeChoices] = useState(
     Boolean(initialCreator)
   );
@@ -92,6 +130,22 @@ const CreatorWorkspace = ({
     [selectedCreator]
   );
 
+  const projectJourneySnapshot = useMemo(() => {
+    if (!projectJourney) {
+      return null;
+    }
+
+    return creatorJourneyEngine.createSnapshot(projectJourney);
+  }, [projectJourney]);
+
+  const projectJourneyOrientation = useMemo(() => {
+    if (!projectJourney) {
+      return null;
+    }
+
+    return creatorJourneyEngine.getOrientation(projectJourney);
+  }, [projectJourney]);
+
   const journeyReady =
     Boolean(activeCreator) &&
     Boolean(selectedCreatorMode) &&
@@ -105,7 +159,18 @@ const CreatorWorkspace = ({
       creatorLabel: activeCreator?.label || null,
       creatorMode: selectedCreatorMode || null,
       creatorModeLabel: selectedCreatorModeLabel || null,
+
+      /**
+       * Mentor working style.
+       */
       creatorJourney,
+
+      /**
+       * Creative-project journey.
+       */
+      projectJourney: projectJourneySnapshot,
+      projectJourneyOrientation,
+
       idea,
       projectStatus,
       hasGeneratedIdea: Boolean(generatedIdea),
@@ -117,6 +182,8 @@ const CreatorWorkspace = ({
       selectedCreatorMode,
       selectedCreatorModeLabel,
       creatorJourney,
+      projectJourneySnapshot,
+      projectJourneyOrientation,
       idea,
       projectStatus,
       generatedIdea,
@@ -133,10 +200,36 @@ const CreatorWorkspace = ({
     creatorLabel: activeCreator?.label || selectedCreator,
     creatorMode: selectedCreatorMode || null,
     creatorModeLabel: selectedCreatorModeLabel || null,
+
+    /**
+     * Mentor working style.
+     */
     creatorJourney,
+
+    /**
+     * Full creative journey state plus a safe orientation snapshot.
+     */
+    projectJourney,
+    projectJourneySnapshot,
+
     idea: idea.trim(),
     generatedIdea,
   });
+
+  const createMovieJourney = ({
+    creatorModeLabel,
+    workingMode = creatorJourney,
+  } = {}) => {
+    return creatorJourneyEngine.createMovieJourney({
+      creatorType: "video",
+      creatorMode: "ai-movie",
+      creatorJourney: workingMode,
+      metadata: {
+        creatorModeLabel: creatorModeLabel || "AI Movie Making",
+        createdFrom: "CreatorWorkspace",
+      },
+    });
+  };
 
   const handleCreatorSelect = (creator) => {
     const creatorChanged = selectedCreator !== creator.id;
@@ -151,6 +244,13 @@ const CreatorWorkspace = ({
       setIdea("");
       setGeneratedIdea("");
       setProjectStatus("idle");
+
+      /**
+       * A project journey belongs to the selected creation.
+       * Do not allow movie journey state to bleed into another
+       * creator type.
+       */
+      setProjectJourney(null);
     }
 
     switch (creator.id) {
@@ -214,6 +314,34 @@ const CreatorWorkspace = ({
       setIdea("");
       setGeneratedIdea("");
       setProjectStatus("idle");
+
+      /**
+       * AI Movie Making receives the full project journey engine.
+       *
+       * Other Creator Modes remain unchanged for now. Their own
+       * journey definitions can be added later without pretending
+       * they are movie projects.
+       */
+      if (mode.id === "ai-movie") {
+        setProjectJourney(
+          createMovieJourney({
+            creatorModeLabel: mode.label,
+          })
+        );
+      } else {
+        setProjectJourney(null);
+      }
+    } else if (mode.id === "ai-movie" && !projectJourney) {
+      /**
+       * Defensive recovery:
+       * if AI Movie Making is active but no journey currently
+       * exists, rebuild its initial journey foundation.
+       */
+      setProjectJourney(
+        createMovieJourney({
+          creatorModeLabel: mode.label,
+        })
+      );
     }
 
     switch (mode.id) {
@@ -308,6 +436,26 @@ const CreatorWorkspace = ({
     }
   };
 
+  const handleCreatorJourneyChange = (nextWorkingMode) => {
+    setCreatorJourney(nextWorkingMode);
+
+    /**
+     * Keep the project journey aware of the Mentor working style
+     * without confusing the working style with the journey itself.
+     */
+    setProjectJourney((currentJourney) => {
+      if (!currentJourney) {
+        return currentJourney;
+      }
+
+      return {
+        ...currentJourney,
+        creatorJourney: nextWorkingMode,
+        updatedAt: new Date().toISOString(),
+      };
+    });
+  };
+
   const handleChangeCreator = () => {
     setShowCreatorChoices(true);
     setShowCreatorModeChoices(false);
@@ -331,7 +479,21 @@ const CreatorWorkspace = ({
       creatorLabel: activeCreator?.label || selectedCreator,
       creatorMode: selectedCreatorMode,
       creatorModeLabel: selectedCreatorModeLabel,
+
+      /**
+       * Mentor working style.
+       */
       creatorJourney,
+
+      /**
+       * Project journey foundation.
+       *
+       * Door 6C will change AI Movie Making's Step 1 behaviour
+       * so this journey begins to advance from the creator's idea.
+       */
+      projectJourney,
+      projectJourneySnapshot,
+
       idea: idea.trim(),
     };
 
@@ -559,8 +721,22 @@ const CreatorWorkspace = ({
             message={mentorMessage}
             idea={idea}
             projectStatus={projectStatus}
+
+            /**
+             * Existing Mentor working style.
+             */
             creatorJourney={creatorJourney}
-            onJourneyChange={setCreatorJourney}
+            onJourneyChange={handleCreatorJourneyChange}
+
+            /**
+             * New creative-project journey context.
+             *
+             * MentorConversation does not need to render this yet.
+             * Door 6C/6D can consume it when orientation becomes
+             * creator-visible.
+             */
+            projectJourney={projectJourneySnapshot}
+            projectJourneyOrientation={projectJourneyOrientation}
           />
         </section>
       )}
@@ -593,6 +769,9 @@ const CreatorWorkspace = ({
                     selectedCreatorMode,
                     selectedCreatorModeLabel,
                     creatorJourney,
+                    projectJourney,
+                    projectJourneySnapshot,
+                    projectJourneyOrientation,
                     idea,
                     setIdea,
                     projectStatus,
