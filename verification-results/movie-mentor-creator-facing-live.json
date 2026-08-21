@@ -1,11 +1,35 @@
 {
-  "generatedAt": "2026-08-21T20:58:55.259Z",
+  "generatedAt": "2026-08-21T21:02:23.589Z",
   "baseUrl": "https://iband-backend-first-1.onrender.com",
   "passed": false,
-  "cases": [],
+  "cases": [
+    {
+      "name": "clear-language",
+      "clarificationRequired": false,
+      "stageId": "idea",
+      "selectedAgents": [
+        "story",
+        "character"
+      ],
+      "executedAgents": [
+        "story",
+        "character"
+      ],
+      "synthesisUsed": [
+        "story",
+        "character"
+      ],
+      "conflictsHandled": [
+        "The lighthouse message mechanism is unresolved, so I treated it as an open creative choice rather than assuming a specific explanation.",
+        "The daughter’s status is not confirmed beyond being missing, so I avoided treating the messages as proof of any outcome."
+      ],
+      "presentationSource": "mentor-synthesis",
+      "presentationText": "You’ve got a strong core premise already: a retired astronaut in a coastal town discovers that the lighthouse is receiving messages from her missing daughter. That’s immediately compelling because it combines emotional loss with a mysterious signal, and the astronaut background gives the protagonist a natural way to approach the impossible with both skepticism and hope.\n\nThe main thing still open is the mechanism of the messages. Right now, the premise doesn’t yet tell us whether they’re technological, supernatural, time-displaced, or something else entirely—and that ambiguity is useful at this stage, as long as it eventually leads to a clear dramatic direction.\n\nA few promising story directions emerge from the idea:\n- a melancholic mystery about grief and unanswered contact\n- a hopeful sci-fi drama where the astronaut’s past becomes relevant to decoding the messages\n- a suspenseful family rescue story driven by the possibility that the daughter is still reaching out\n\nCharacter-wise, the strongest engine is the tension between the protagonist’s training and the emotional reality of her daughter’s disappearance. She may be torn between scientific explanation and the pull to believe the lighthouse is telling the truth. That tension can carry the movie even before the bigger mystery is solved.\n\nIf you want to develop it next, the best question to answer is: what kind of messages are these, and what does the protagonist stand to lose if she ignores them?"
+    }
+  ],
   "error": {
-    "message": "/api/movie-mentor-semantic/interpret failed (422): {\"success\":false,\"code\":\"SEMANTIC_INTELLIGENCE_INVALID\",\"message\":\"Semantic AI provider returned intelligence that failed iBand's authority/safety validation.\",\"providerFailureCategory\":null,\"retryable\":false,\"configurationIssues\":[],\"validationIssues\":[\"provisional_context_requires_model_provisional_source\"],\"semanticIntelligenceAvailable\":false,\"safety\":{\"preserveCreatorLanguage\":true,\"creatorConfirmedMeaningOutranksInference\":true,\"provisionalInferenceIsNotCreatorTruth\":true,\"unfamiliarTerminologyRequiresClarification\":true,\"doNotGuessMeaning\":true,\"materialAmbiguityBlocksProgression\":true,\"deterministicPlanningIsNotSemanticUnderstanding\":true,\"structuredSemanticIntelligenceRequiredForAdvance\":true,\"mayAdvanceJourney\":false}}\n\nfalse !== true\n",
+    "message": "/api/movie-mentor-synthesis/synthesize failed (422): {\"success\":false,\"code\":\"MENTOR_SYNTHESIS_OUTPUT_INVALID\",\"message\":\"Mentor synthesis referenced an unavailable specialist contribution.\",\"validationIssues\":[\"unknown_contribution:scene\",\"unknown_contribution:cinematography\",\"unknown_contribution:continuity\",\"unknown_contribution:sound-music\",\"unknown_contribution:production\"],\"retryable\":false,\"authority\":{\"creatorTruthDominates\":true,\"validatedSemanticsOutrankSpecialists\":true,\"specialistsRemainProvisional\":true,\"specialistContentBecomesCanonicalTruth\":false,\"mayAdvanceJourney\":false,\"singleCreatorFacingMentor\":true}}\n\nfalse !== true\n",
     "code": "ERR_ASSERTION",
-    "stack": "AssertionError [ERR_ASSERTION]: /api/movie-mentor-semantic/interpret failed (422): {\"success\":false,\"code\":\"SEMANTIC_INTELLIGENCE_INVALID\",\"message\":\"Semantic AI provider returned intelligence that failed iBand's authority/safety validation.\",\"providerFailureCategory\":null,\"retryable\":false,\"configurationIssues\":[],\"validationIssues\":[\"provisional_context_requires_model_provisional_source\"],\"semanticIntelligenceAvailable\":false,\"safety\":{\"preserveCreatorLanguage\":true,\"creatorConfirmedMeaningOutranksInference\":true,\"provisionalInferenceIsNotCreatorTruth\":true,\"unfamiliarTerminologyRequiresClarification\":true,\"doNotGuessMeaning\":true,\"materialAmbiguityBlocksProgression\":true,\"deterministicPlanningIsNotSemanticUnderstanding\":true,\"structuredSemanticIntelligenceRequiredForAdvance\":true,\"mayAdvanceJourney\":false}}\n\nfalse !== true\n\n    at post (file:///home/runner/work/Iband-frontend-first/Iband-frontend-first/scripts/verify-movie-mentor-creator-facing-live.mjs:14:222)\n    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\n    at async interpret (file:///home/runner/work/Iband-frontend-first/Iband-frontend-first/scripts/verify-movie-mentor-creator-facing-live.mjs:22:54)\n    at async runCase (file:///home/runner/work/Iband-frontend-first/Iband-frontend-first/scripts/verify-movie-mentor-creator-facing-live.mjs:30:21)\n    at async run (file:///home/runner/work/Iband-frontend-first/Iband-frontend-first/scripts/verify-movie-mentor-creator-facing-live.mjs:58:2)\n    at async file:///home/runner/work/Iband-frontend-first/Iband-frontend-first/scripts/verify-movie-mentor-creator-facing-live.mjs:72:5"
+    "stack": "AssertionError [ERR_ASSERTION]: /api/movie-mentor-synthesis/synthesize failed (422): {\"success\":false,\"code\":\"MENTOR_SYNTHESIS_OUTPUT_INVALID\",\"message\":\"Mentor synthesis referenced an unavailable specialist contribution.\",\"validationIssues\":[\"unknown_contribution:scene\",\"unknown_contribution:cinematography\",\"unknown_contribution:continuity\",\"unknown_contribution:sound-music\",\"unknown_contribution:production\"],\"retryable\":false,\"authority\":{\"creatorTruthDominates\":true,\"validatedSemanticsOutrankSpecialists\":true,\"specialistsRemainProvisional\":true,\"specialistContentBecomesCanonicalTruth\":false,\"mayAdvanceJourney\":false,\"singleCreatorFacingMentor\":true}}\n\nfalse !== true\n\n    at post (file:///home/runner/work/Iband-frontend-first/Iband-frontend-first/scripts/verify-movie-mentor-creator-facing-live.mjs:14:222)\n    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\n    at async runCase (file:///home/runner/work/Iband-frontend-first/Iband-frontend-first/scripts/verify-movie-mentor-creator-facing-live.mjs:33:18)\n    at async run (file:///home/runner/work/Iband-frontend-first/Iband-frontend-first/scripts/verify-movie-mentor-creator-facing-live.mjs:59:2)\n    at async file:///home/runner/work/Iband-frontend-first/Iband-frontend-first/scripts/verify-movie-mentor-creator-facing-live.mjs:72:5"
   }
 }
