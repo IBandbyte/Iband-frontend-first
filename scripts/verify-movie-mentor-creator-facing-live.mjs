@@ -11,7 +11,19 @@ const REPORT_PATH=process.env.IBAND_LIVE_REPORT_PATH||"verification-results/movi
 const report={generatedAt:new Date().toISOString(),baseUrl:BASE_URL,passed:false,cases:[],error:null};
 function writeReport(){mkdirSync(dirname(REPORT_PATH),{recursive:true});writeFileSync(REPORT_PATH,`${JSON.stringify(report,null,2)}\n`,`utf8`);}
 async function readJson(r){const text=await r.text();try{return text?JSON.parse(text):null;}catch{return {raw:text};}}
-async function post(path,body){const r=await fetch(`${BASE_URL}${path}`,{method:"POST",headers:{Accept:"application/json","Content-Type":"application/json"},body:JSON.stringify(body)});const json=await readJson(r);assert.equal(r.ok,true,`${path} failed (${r.status}): ${JSON.stringify(json)}`);return json;}
+const sleep=(ms)=>new Promise(resolve=>setTimeout(resolve,ms));
+async function post(path,body){
+  let last=null;
+  for(let attempt=1;attempt<=4;attempt+=1){
+    const r=await fetch(`${BASE_URL}${path}`,{method:"POST",headers:{Accept:"application/json","Content-Type":"application/json"},body:JSON.stringify(body)});
+    const json=await readJson(r);
+    if(r.ok)return json;
+    last={status:r.status,json};
+    if(![502,503,504].includes(r.status)||attempt===4)break;
+    await sleep(15000);
+  }
+  assert.equal(false,true,`${path} failed (${last?.status}): ${JSON.stringify(last?.json)}`);
+}
 
 const engine=createCreatorJourneyEngine();
 const bridge=createMovieJourneyIntelligenceBridge({journeyEngine:engine});
