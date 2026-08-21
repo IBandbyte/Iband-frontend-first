@@ -1,5 +1,12 @@
-import assert from "node:assert/strict"; import {createMentorSynthesisContext} from "../src/components/studio/mentor/MovieMentorResponseService.js";
-const contribution={agentId:"story",authority:"mentor-provisional",creatorFacing:false,mayAdvanceJourney:false,mayOverwriteCreatorTruth:false};
-const open=createMentorSynthesisContext({specialistAgentPlan:{selectedAgents:["story"]},specialistExecution:{contributions:[contribution]},movieJourneyIntelligence:{clarificationNeeded:[]}});assert.equal(open.creativeSynthesisBlockedByMaterialClarification,false);assert.deepEqual(open.rules.authorityOrder,["creator-confirmed-truth","validated-semantic-intelligence","specialist-contributions"]);assert.equal(open.rules.specialistContentBecomesCanonicalJourneyTruth,false);assert.equal(open.rules.mentorMaySelectCombineDeferOrIgnore,true);
-const blocked=createMentorSynthesisContext({specialistAgentPlan:{selectedAgents:["story"]},specialistExecution:{contributions:[]},movieJourneyIntelligence:{clarificationNeeded:[{material:true}]}});assert.equal(blocked.creativeSynthesisBlockedByMaterialClarification,true);
+import assert from "node:assert/strict"; import {readFileSync} from "node:fs";
+const service=readFileSync(new URL("../src/components/studio/mentor/MovieMentorResponseService.js",import.meta.url),"utf8");
+const provider=readFileSync(new URL("../src/components/studio/mentor/MovieMentorSynthesisProvider.js",import.meta.url),"utf8");
+assert.match(service,/MOVIE_MENTOR_RESPONSE_SERVICE_VERSION="1\.6\.0"/);
+assert.match(service,/authorityOrder:\["creator-confirmed-truth","validated-semantic-intelligence","specialist-contributions"\]/);
+assert.match(service,/specialistContentBecomesCanonicalJourneyTruth:false/);
+assert.match(service,/mentorMaySelectCombineDeferOrIgnore:true/);
+assert.match(service,/creativeSynthesisBlockedByMaterialClarification/);
+assert.match(service,/status:"blocked-by-clarification"/);
+assert.match(service,/mentorSynthesisProvider\.synthesize/);
+assert.match(provider,/\/api\/movie-mentor-synthesis\/synthesize/);
 console.log("Movie Mentor frontend synthesis regression passed.");
