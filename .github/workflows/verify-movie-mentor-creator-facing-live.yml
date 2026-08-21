@@ -28,7 +28,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "20"
-      # Backend semantic/synthesis changes deploy independently on Render; allow provider readiness too.
+      # Backend semantic/synthesis changes deploy independently on Render; allow provider reset/readiness too.
       - name: Wait for Render backend deployment
         run: sleep 100
       - name: Verify live creator-facing Movie Mentor pipeline
