@@ -1,0 +1,49 @@
+{
+  "generatedAt": "2026-08-21T20:02:06.792Z",
+  "baseUrl": "https://iband-backend-first-1.onrender.com",
+  "passed": true,
+  "bridgeVersion": "1.2.1",
+  "cases": [
+    {
+      "name": "clear-language",
+      "currentStageId": "story-direction",
+      "readyToAdvance": true,
+      "clarificationRequired": false,
+      "clarificationMessage": null,
+      "creatorConfirmedDecisionCount": 5
+    },
+    {
+      "name": "uk-slang",
+      "currentStageId": "story-direction",
+      "readyToAdvance": true,
+      "clarificationRequired": false,
+      "clarificationMessage": null,
+      "creatorConfirmedDecisionCount": 4
+    },
+    {
+      "name": "invented-terminology",
+      "currentStageId": "idea",
+      "readyToAdvance": false,
+      "clarificationRequired": true,
+      "clarificationMessage": "What does \"glorp-coded\" mean in your usage here?",
+      "creatorConfirmedDecisionCount": 3
+    },
+    {
+      "name": "material-ambiguity",
+      "currentStageId": "idea",
+      "readyToAdvance": false,
+      "clarificationRequired": true,
+      "clarificationMessage": "Which character is the killer: Mia or Lena?",
+      "creatorConfirmedDecisionCount": 1
+    },
+    {
+      "name": "creator-correction",
+      "currentStageId": "idea",
+      "readyToAdvance": false,
+      "clarificationRequired": false,
+      "clarificationMessage": null,
+      "creatorConfirmedDecisionCount": 2
+    }
+  ],
+  "error": null
+}
