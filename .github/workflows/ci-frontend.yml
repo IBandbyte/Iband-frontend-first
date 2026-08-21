@@ -28,5 +28,7 @@ jobs:
         run: npm run verify:movie-mentor-agent-execution
       - name: Verify Movie Mentor synthesis integration
         run: npm run verify:movie-mentor-synthesis
+      - name: Verify Movie Mentor creator-facing integration
+        run: npm run verify:movie-mentor-creator-facing
       - name: Build frontend
         run: npm run build
