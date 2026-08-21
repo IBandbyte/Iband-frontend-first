@@ -1,15 +1,17 @@
 {
-  "generatedAt": "2026-08-21T21:09:43.155Z",
+  "generatedAt": "2026-08-21T21:13:44.945Z",
   "baseUrl": "https://iband-backend-first-1.onrender.com",
   "passed": false,
   "cases": [
     {
       "name": "clear-language",
       "clarificationRequired": false,
-      "stageId": "idea",
+      "stageId": "story-direction",
       "selectedAgents": [
         "story",
-        "character"
+        "character",
+        "continuity",
+        "scene"
       ],
       "executedAgents": [
         "story",
@@ -20,17 +22,17 @@
         "character"
       ],
       "conflictsHandled": [
-        "Kept the messages unresolved rather than forcing a premature explanation, since their nature is still open and defining them now would overcommit the idea.",
-        "Framed the astronaut background as supporting the emotional mystery rather than letting it dominate the story.",
-        "Held the genre as flexible options instead of selecting one as fact, because the premise currently supports multiple directions."
+        "Preserved the creator’s original premise exactly as given while using specialist observations only as interpretive support.",
+        "Kept the cause of the lighthouse messages open instead of treating any speculative explanation as established truth.",
+        "Integrated the astronaut background as story-driving competence and emotional contrast without overstating any fixed character history beyond the creator’s premise."
       ],
       "presentationSource": "mentor-synthesis",
-      "presentationText": "You have a strong, evocative core idea: a retired astronaut in a coastal town hears messages from her missing daughter through the lighthouse. The premise already carries a powerful emotional engine, and the astronaut background gives her a unique, credible way to approach the mystery.\n\nWhat stands out most is the tension between the rational and the impossible. Her past as an astronaut can shape how she investigates, while the lighthouse gives the story a haunting symbolic center — a place between sea and sky, absence and return, signal and silence.\n\nThe main open question is what kind of messages these are. That choice will define the story’s genre feel and emotional direction: are they scientific, supernatural, psychological, or something in between? Keeping that question alive for now can preserve suspense, but the story will eventually need a clear dramatic shape so the premise doesn’t stay only atmospheric.\n\nA strong next step would be to define the story’s emotional and tonal lane. For example, you could lean toward:\n- contemplative sci-fi\n- coastal mystery\n- intimate family drama with a speculative twist\n\nAt the character level, the heart of the story is the mother-daughter relationship, even though the daughter is missing. The protagonist will likely be most compelling if she starts from control, skepticism, or guarded grief and is pushed toward vulnerability, risk, and emotional truth. The messages should do more than reveal plot information — they should force her to confront what she has lost, what she still hopes for, and what she may need to sacrifice to reach the truth.\n\nIf you want, the best next creative move is to shape one of these three things:\n1. what the lighthouse messages actually are,\n2. what the protagonist wants most in the moment,\n3. what tone you want the film to live in."
+      "presentationText": "Strong premise. You’ve got a clean emotional engine: a retired astronaut, a coastal town, a lighthouse, and a missing daughter. That combination gives you mystery, grief, and a built-in reason the protagonist might notice patterns others miss.\n\nA useful way to think about it is this: the astronaut past can shape how she investigates the messages, while the lighthouse keeps the story visually contained and eerie. The core tension is whether she’s facing a real signal, a hidden human explanation, or something that can’t be neatly explained.\n\nAt this stage, the idea already supports a haunting family mystery with emotional and possibly sci-fi ambiguity. The main thing to protect is the mystery itself: if the source of the messages is explained too quickly, you may lose the tension that makes the premise compelling.\n\nIf you want, the next useful step is to decide the story’s emotional lane: is this closer to a grounded thriller, a supernatural mystery, or a sci-fi drama with ambiguity?"
     }
   ],
   "error": {
-    "message": "uk-slang: unexpected clarification\n\ntrue !== false\n",
+    "message": "/api/movie-mentor-semantic/interpret failed (422): {\"success\":false,\"code\":\"SEMANTIC_INTELLIGENCE_INVALID\",\"message\":\"Semantic AI provider returned intelligence that failed iBand's authority/safety validation.\",\"providerFailureCategory\":null,\"retryable\":false,\"configurationIssues\":[],\"validationIssues\":[\"understood_context_requires_creator_authority\",\"unresolved_context_forced_ready_to_advance_false\"],\"semanticIntelligenceAvailable\":false,\"safety\":{\"preserveCreatorLanguage\":true,\"creatorConfirmedMeaningOutranksInference\":true,\"provisionalInferenceIsNotCreatorTruth\":true,\"unfamiliarTerminologyRequiresClarification\":true,\"doNotGuessMeaning\":true,\"materialAmbiguityBlocksProgression\":true,\"deterministicPlanningIsNotSemanticUnderstanding\":true,\"structuredSemanticIntelligenceRequiredForAdvance\":true,\"mayAdvanceJourney\":false}}\n\nfalse !== true\n",
     "code": "ERR_ASSERTION",
-    "stack": "AssertionError [ERR_ASSERTION]: uk-slang: unexpected clarification\n\ntrue !== false\n\n    at runCase (file:///home/runner/work/Iband-frontend-first/Iband-frontend-first/scripts/verify-movie-mentor-creator-facing-live.mjs:54:11)\n    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\n    at async run (file:///home/runner/work/Iband-frontend-first/Iband-frontend-first/scripts/verify-movie-mentor-creator-facing-live.mjs:71:2)\n    at async file:///home/runner/work/Iband-frontend-first/Iband-frontend-first/scripts/verify-movie-mentor-creator-facing-live.mjs:84:5"
+    "stack": "AssertionError [ERR_ASSERTION]: /api/movie-mentor-semantic/interpret failed (422): {\"success\":false,\"code\":\"SEMANTIC_INTELLIGENCE_INVALID\",\"message\":\"Semantic AI provider returned intelligence that failed iBand's authority/safety validation.\",\"providerFailureCategory\":null,\"retryable\":false,\"configurationIssues\":[],\"validationIssues\":[\"understood_context_requires_creator_authority\",\"unresolved_context_forced_ready_to_advance_false\"],\"semanticIntelligenceAvailable\":false,\"safety\":{\"preserveCreatorLanguage\":true,\"creatorConfirmedMeaningOutranksInference\":true,\"provisionalInferenceIsNotCreatorTruth\":true,\"unfamiliarTerminologyRequiresClarification\":true,\"doNotGuessMeaning\":true,\"materialAmbiguityBlocksProgression\":true,\"deterministicPlanningIsNotSemanticUnderstanding\":true,\"structuredSemanticIntelligenceRequiredForAdvance\":true,\"mayAdvanceJourney\":false}}\n\nfalse !== true\n\n    at post (file:///home/runner/work/Iband-frontend-first/Iband-frontend-first/scripts/verify-movie-mentor-creator-facing-live.mjs:25:10)\n    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\n    at async interpret (file:///home/runner/work/Iband-frontend-first/Iband-frontend-first/scripts/verify-movie-mentor-creator-facing-live.mjs:34:54)\n    at async runCase (file:///home/runner/work/Iband-frontend-first/Iband-frontend-first/scripts/verify-movie-mentor-creator-facing-live.mjs:42:21)\n    at async run (file:///home/runner/work/Iband-frontend-first/Iband-frontend-first/scripts/verify-movie-mentor-creator-facing-live.mjs:71:2)\n    at async file:///home/runner/work/Iband-frontend-first/Iband-frontend-first/scripts/verify-movie-mentor-creator-facing-live.mjs:84:5"
   }
 }
