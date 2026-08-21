@@ -1,8 +1,8 @@
 {
-  "generatedAt": "2026-08-21T20:02:06.792Z",
+  "generatedAt": "2026-08-21T21:25:55.400Z",
   "baseUrl": "https://iband-backend-first-1.onrender.com",
-  "passed": true,
-  "bridgeVersion": "1.2.1",
+  "passed": false,
+  "bridgeVersion": "1.2.2",
   "cases": [
     {
       "name": "clear-language",
@@ -10,7 +10,7 @@
       "readyToAdvance": true,
       "clarificationRequired": false,
       "clarificationMessage": null,
-      "creatorConfirmedDecisionCount": 5
+      "creatorConfirmedDecisionCount": 6
     },
     {
       "name": "uk-slang",
@@ -18,32 +18,11 @@
       "readyToAdvance": true,
       "clarificationRequired": false,
       "clarificationMessage": null,
-      "creatorConfirmedDecisionCount": 4
-    },
-    {
-      "name": "invented-terminology",
-      "currentStageId": "idea",
-      "readyToAdvance": false,
-      "clarificationRequired": true,
-      "clarificationMessage": "What does \"glorp-coded\" mean in your usage here?",
-      "creatorConfirmedDecisionCount": 3
-    },
-    {
-      "name": "material-ambiguity",
-      "currentStageId": "idea",
-      "readyToAdvance": false,
-      "clarificationRequired": true,
-      "clarificationMessage": "Which character is the killer: Mia or Lena?",
-      "creatorConfirmedDecisionCount": 1
-    },
-    {
-      "name": "creator-correction",
-      "currentStageId": "idea",
-      "readyToAdvance": false,
-      "clarificationRequired": false,
-      "clarificationMessage": null,
-      "creatorConfirmedDecisionCount": 2
+      "creatorConfirmedDecisionCount": 6
     }
   ],
-  "error": null
+  "error": {
+    "message": "invented-terminology: semantic request failed (503): {\"success\":false,\"code\":\"SEMANTIC_PROVIDER_RATE_LIMITED\",\"message\":\"Rate limit reached for gpt-5.4-mini in organization org-TtiL9b6UJMFInGdN6YSdwUEv on requests per day (RPD): Limit 50, Used 50, Requested 1. Please try again in 28m48s. Visit https://platform.openai.com/account/rate-limits to learn more. You can increase your rate limit by adding a payment method to your account at https://platform.openai.com/account/billing.\",\"providerFailureCategory\":\"rate-limit\",\"retryable\":true,\"configurationIssues\":[],\"validationIssues\":[],\"semanticIntelligenceAvailable\":false,\"safety\":{\"preserveCreatorLanguage\":true,\"creatorConfirmedMeaningOutranksInference\":true,\"provisionalInferenceIsNotCreatorTruth\":true,\"unfamiliarTerminologyRequiresClarification\":true,\"doNotGuessMeaning\":true,\"materialAmbiguityBlocksProgression\":true,\"deterministicPlanningIsNotSemanticUnderstanding\":true,\"structuredSemanticIntelligenceRequiredForAdvance\":true,\"mayAdvanceJourney\":false}}\n\nfalse !== true\n",
+    "code": "ERR_ASSERTION"
+  }
 }
