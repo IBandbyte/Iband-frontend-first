@@ -33,5 +33,8 @@ jobs:
       - name: Verify Movie Mentor specialist agent orchestration
         run: npm run verify:movie-mentor-agents
 
+      - name: Verify Movie Mentor specialist execution adapter
+        run: npm run verify:movie-mentor-agent-execution
+
       - name: Build frontend
         run: npm run build
