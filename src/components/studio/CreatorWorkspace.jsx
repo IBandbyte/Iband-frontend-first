@@ -6,8 +6,12 @@ import GenerateButton from "./GenerateButton";
 import PreviewPanel from "./PreviewPanel";
 import CreatorModeSelector from "./CreatorModeSelector";
 import createCreatorJourneyEngine from "./mentor/CreatorJourneyEngine";
+import createMovieJourneyIntelligenceBridge from "./mentor/MovieJourneyIntelligenceBridge";
 
 const creatorJourneyEngine = createCreatorJourneyEngine();
+const movieJourneyIntelligenceBridge = createMovieJourneyIntelligenceBridge({
+  journeyEngine: creatorJourneyEngine,
+});
 
 const CREATOR_OPTIONS = [
   {
@@ -207,10 +211,11 @@ const CreatorWorkspace = ({
     creatorJourney,
 
     /**
-     * Full creative journey state plus a safe orientation snapshot.
+     * Full creative journey state plus safe orientation views.
      */
     projectJourney,
     projectJourneySnapshot,
+    projectJourneyOrientation,
 
     idea: idea.trim(),
     generatedIdea,
@@ -474,6 +479,43 @@ const CreatorWorkspace = ({
       return;
     }
 
+    let workingProjectJourney = projectJourney;
+    let workingProjectJourneySnapshot = projectJourneySnapshot;
+    let workingProjectJourneyOrientation = projectJourneyOrientation;
+
+    /**
+     * Door 6C integration:
+     * AI Movie Making now captures the creator's original idea into
+     * the canonical journey before any provider/generation work runs.
+     *
+     * No meaning is invented here. Structured Mentor intelligence can
+     * be applied later through MovieJourneyIntelligenceBridge.
+     */
+    if (selectedCreatorMode === "ai-movie" && workingProjectJourney) {
+      const captured = movieJourneyIntelligenceBridge.captureInitialIdea(
+        workingProjectJourney,
+        {
+          originalIdea: idea.trim(),
+          source: "CreatorWorkspace.handleGenerate",
+        }
+      );
+
+      workingProjectJourney = captured.journey;
+      workingProjectJourneySnapshot = captured.snapshot;
+      workingProjectJourneyOrientation = captured.orientation;
+
+      setProjectJourney(workingProjectJourney);
+
+      if (captured.clarificationRequired) {
+        setProjectStatus("idle");
+        setMentorMessage(
+          captured.clarificationMessage ||
+            "I’m sorry, I lost you there. Can you explain what you mean a little further?"
+        );
+        return;
+      }
+    }
+
     const request = {
       creatorType: selectedCreator,
       creatorLabel: activeCreator?.label || selectedCreator,
@@ -486,13 +528,28 @@ const CreatorWorkspace = ({
       creatorJourney,
 
       /**
-       * Project journey foundation.
-       *
-       * Door 6C will change AI Movie Making's Step 1 behaviour
-       * so this journey begins to advance from the creator's idea.
+       * Canonical project journey after initial Movie idea capture.
        */
-      projectJourney,
-      projectJourneySnapshot,
+      projectJourney: workingProjectJourney,
+      projectJourneySnapshot: workingProjectJourneySnapshot,
+      projectJourneyOrientation: workingProjectJourneyOrientation,
+
+      /**
+       * ResponseGenerator/provider-ready journey context.
+       */
+      movieJourneyContext:
+        selectedCreatorMode === "ai-movie" && workingProjectJourney
+          ? movieJourneyIntelligenceBridge.buildResponseContext(
+              workingProjectJourney,
+              {
+                creatorName,
+                creatorType: selectedCreator,
+                creatorJourney,
+                activeIdea: idea.trim(),
+                conversationMode: selectedCreatorMode,
+              }
+            )
+          : null,
 
       idea: idea.trim(),
     };
@@ -507,6 +564,37 @@ const CreatorWorkspace = ({
 
       if (typeof onGenerate === "function") {
         result = await onGenerate(request);
+      }
+
+      /**
+       * A generation/provider layer may return structured journey
+       * intelligence. Apply only that explicit contract; never infer
+       * creator truth from arbitrary generated prose.
+       */
+      if (selectedCreatorMode === "ai-movie" && workingProjectJourney) {
+        const applied = movieJourneyIntelligenceBridge.applyGenerationResult(
+          workingProjectJourney,
+          result,
+          {
+            originalIdea: idea.trim(),
+            source: "CreatorWorkspace.onGenerate",
+          }
+        );
+
+        workingProjectJourney = applied.journey;
+        workingProjectJourneySnapshot = applied.snapshot;
+        workingProjectJourneyOrientation = applied.orientation;
+
+        setProjectJourney(workingProjectJourney);
+
+        if (applied.clarificationRequired) {
+          setProjectStatus("idle");
+          setMentorMessage(
+            applied.clarificationMessage ||
+              "I’m sorry, I lost you there. Can you explain what you mean a little further?"
+          );
+          return;
+        }
       }
 
       setGeneratedIdea(
@@ -729,11 +817,7 @@ const CreatorWorkspace = ({
             onJourneyChange={handleCreatorJourneyChange}
 
             /**
-             * New creative-project journey context.
-             *
-             * MentorConversation does not need to render this yet.
-             * Door 6C/6D can consume it when orientation becomes
-             * creator-visible.
+             * Canonical creative-project journey context.
              */
             projectJourney={projectJourneySnapshot}
             projectJourneyOrientation={projectJourneyOrientation}
