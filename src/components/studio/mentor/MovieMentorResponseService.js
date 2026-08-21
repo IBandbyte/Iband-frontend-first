@@ -1,14 +1,8 @@
 import createResponseGenerator from "./ResponseGenerator";
 
-const MOVIE_MENTOR_RESPONSE_SERVICE_VERSION = "1.1.0";
+const MOVIE_MENTOR_RESPONSE_SERVICE_VERSION = "1.2.0";
 
 const responseGenerator = createResponseGenerator();
-
-const ADVANCE_ACTIONS = new Set([
-  "move-to-creation",
-  "move-to-next-task",
-  "yield-to-execution",
-]);
 
 function cleanString(value) {
   return typeof value === "string" ? value.trim() : "";
@@ -68,17 +62,21 @@ function adaptivePlanRequiresMeaningClarification(result) {
   );
 }
 
-function adaptivePlanIsReadyToAdvance(result) {
-  const action = getAdaptiveAction(result);
-  const questionPolicy = getQuestionPolicy(result);
-
-  if (questionPolicy === "one-required") {
-    return false;
-  }
-
-  return ADVANCE_ACTIONS.has(action);
-}
-
+/**
+ * createSafeMovieJourneyIntelligence
+ * ------------------------------------------------------------
+ * Provider-supplied structured intelligence is the only path that may
+ * claim semantic understanding of the creator's movie idea.
+ *
+ * AdaptiveMentorEngine can still control pacing, question policy and
+ * progression pressure, but its deterministic planning signals are not
+ * treated as proof that slang, cultural language, genre terminology or
+ * any other expression has been semantically understood.
+ *
+ * Therefore the fallback path NEVER advances the canonical movie
+ * journey. It preserves the creator's words and waits for a semantic
+ * intelligence layer to explicitly return readyToAdvance.
+ */
 function createSafeMovieJourneyIntelligence(result, request = {}) {
   const providerIntelligence = getStructuredMovieIntelligence(result);
 
@@ -104,6 +102,7 @@ function createSafeMovieJourneyIntelligence(result, request = {}) {
         ...(providerIntelligence.metadata || {}),
         source: "response-generator-provider-intelligence",
         serviceVersion: MOVIE_MENTOR_RESPONSE_SERVICE_VERSION,
+        semanticInterpretationAvailable: true,
         semanticInterpretationApplied: true,
       },
     };
@@ -112,10 +111,6 @@ function createSafeMovieJourneyIntelligence(result, request = {}) {
   const originalIdea = cleanString(request.idea);
   const clarificationRequired =
     adaptivePlanRequiresMeaningClarification(result);
-  const readyToAdvance =
-    Boolean(originalIdea) &&
-    !clarificationRequired &&
-    adaptivePlanIsReadyToAdvance(result);
   const action = getAdaptiveAction(result);
   const questionPolicy = getQuestionPolicy(result);
 
@@ -136,20 +131,29 @@ function createSafeMovieJourneyIntelligence(result, request = {}) {
           },
         ]
       : [],
-    readyToAdvance,
+
+    // Critical safety rule: deterministic planning is not semantic
+    // understanding. No provider intelligence means no stage advancement.
+    readyToAdvance: false,
     recommendedStageId: "story-direction",
     recommendedTaskId: null,
     nextAction: null,
-    resumeNote: readyToAdvance
-      ? "Adaptive Mentor has explicitly cleared the initial movie idea to continue into story direction without treating unstated details as creator decisions."
-      : "The creator's original idea is preserved. Keep working in the Idea stage until Mentor intelligence explicitly confirms that it is safe to advance.",
+    resumeNote: originalIdea
+      ? "The creator's original idea is preserved. Remain in the Idea stage until semantic Mentor intelligence explicitly confirms that the meaning is understood well enough to advance."
+      : null,
     metadata: {
       source: "adaptive-mentor-safe-fallback",
       serviceVersion: MOVIE_MENTOR_RESPONSE_SERVICE_VERSION,
+      semanticInterpretationAvailable: false,
       semanticInterpretationApplied: false,
       adaptiveAction: action || null,
       questionPolicy: questionPolicy || null,
-      explicitAdvanceSignalRequired: true,
+      adaptiveAdvanceSignalObserved: [
+        "move-to-creation",
+        "move-to-next-task",
+        "yield-to-execution",
+      ].includes(action),
+      blockedFromAdvancingWithoutSemanticIntelligence: true,
     },
   };
 }
@@ -203,7 +207,7 @@ async function generateMovieMentorResponse(request = {}) {
             "resumeNote",
           ],
           rule:
-            "Return structured movie journey intelligence only when meaning is supported. Never invent creator decisions; material ambiguity requires clarification and advancement requires an explicit safe signal.",
+            "Return structured movie journey intelligence only when meaning is supported. Never invent creator decisions; material ambiguity requires clarification. If terminology or expression is not understood, say so and ask the creator to explain. Advancement requires explicit semantic intelligence, not merely a deterministic progression signal.",
         },
       },
     },
