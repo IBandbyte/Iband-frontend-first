@@ -135,6 +135,118 @@ const DEFAULT_CREATOR_QUESTIONS = {
   other: "Tell me what you'd like to create.",
 };
 
+function MovieJourneyStatus({
+  projectJourney,
+  projectJourneyOrientation,
+}) {
+  if (!projectJourney || !projectJourneyOrientation) {
+    return null;
+  }
+
+  const present = projectJourneyOrientation.present || {};
+  const next = projectJourneyOrientation.next || {};
+  const progress = projectJourneyOrientation.progress || {};
+  const clarificationRequired =
+    present.clarificationRequired === true;
+  const clarification = present.clarifications?.[0] || null;
+
+  const clarificationText =
+    clarification?.question ||
+    (clarification?.expression
+      ? `I’m sorry, I lost you at “${clarification.expression}”. Can you explain what you mean by that?`
+      : "I’m sorry, I lost you there. Can you explain what you mean a little further?");
+
+  return (
+    <div
+      style={{
+        marginTop: 18,
+        padding: 18,
+        borderRadius: 16,
+        background: clarificationRequired
+          ? "rgba(255, 179, 0, 0.08)"
+          : "rgba(96,77,255,0.06)",
+        border: clarificationRequired
+          ? "1px solid rgba(198, 130, 0, 0.24)"
+          : "1px solid rgba(96,77,255,0.16)",
+      }}
+    >
+      <div
+        style={{
+          fontSize: 11,
+          fontWeight: 800,
+          color: "#777d89",
+          textTransform: "uppercase",
+          letterSpacing: "0.1em",
+          marginBottom: 8,
+        }}
+      >
+        Movie Journey
+      </div>
+
+      {clarificationRequired ? (
+        <div
+          style={{
+            color: "#4a3a12",
+            lineHeight: 1.6,
+            fontWeight: 700,
+          }}
+        >
+          {clarificationText}
+        </div>
+      ) : (
+        <>
+          <div
+            style={{
+              color: "#16181d",
+              fontWeight: 800,
+              fontSize: 16,
+            }}
+          >
+            {present.stage?.label || "Idea"}
+          </div>
+
+          <div
+            style={{
+              marginTop: 5,
+              color: "#606775",
+              lineHeight: 1.5,
+              fontSize: 13,
+            }}
+          >
+            {present.task?.label ||
+              "We’ll keep the next useful step clear without rushing you."}
+          </div>
+
+          {(next.action?.label || next.nextStage?.label) && (
+            <div
+              style={{
+                marginTop: 10,
+                color: "#5140d8",
+                fontSize: 13,
+                fontWeight: 700,
+              }}
+            >
+              Next: {next.action?.label || next.nextStage?.label}
+            </div>
+          )}
+
+          {Number.isFinite(progress.percentage) && (
+            <div
+              style={{
+                marginTop: 10,
+                color: "#7b8190",
+                fontSize: 11,
+              }}
+            >
+              {progress.completedStages || 0} of {progress.totalStages || 0} stages completed for now
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
 export default function MentorConversation({
   creator,
   creatorMode = "",
@@ -144,6 +256,8 @@ export default function MentorConversation({
   projectStatus,
   creatorJourney,
   onJourneyChange,
+  projectJourney = null,
+  projectJourneyOrientation = null,
 }) {
   if (!creator) return null;
 
@@ -157,6 +271,11 @@ export default function MentorConversation({
     ? MODE_QUESTIONS[creatorMode] ||
       "Tell me what you already have in mind, even if it's only a rough idea."
     : DEFAULT_CREATOR_QUESTIONS[creator.id] || "Tell me your idea.";
+
+  const showMovieJourney =
+    creatorMode === "ai-movie" &&
+    Boolean(projectJourney) &&
+    Boolean(projectJourneyOrientation);
 
   return (
     <section
@@ -207,11 +326,7 @@ export default function MentorConversation({
 
       {hasCreatorMode && (
         <>
-          <div
-            style={{
-              marginBottom: 22,
-            }}
-          >
+          <div style={{ marginBottom: 22 }}>
             <div
               style={{
                 fontSize: 12,
@@ -225,12 +340,7 @@ export default function MentorConversation({
               How would you like me to work with you?
             </div>
 
-            <div
-              style={{
-                display: "grid",
-                gap: 10,
-              }}
-            >
+            <div style={{ display: "grid", gap: 10 }}>
               {CREATION_MODES.map((mode) => {
                 const active = creatorJourney === mode.id;
 
@@ -316,6 +426,13 @@ export default function MentorConversation({
               {firstQuestion}
             </div>
           </div>
+
+          {showMovieJourney && (
+            <MovieJourneyStatus
+              projectJourney={projectJourney}
+              projectJourneyOrientation={projectJourneyOrientation}
+            />
+          )}
 
           {idea.trim() && (
             <div
