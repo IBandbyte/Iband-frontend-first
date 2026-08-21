@@ -1,38 +1,11 @@
 {
-  "generatedAt": "2026-08-21T21:13:44.945Z",
+  "generatedAt": "2026-08-21T21:17:56.703Z",
   "baseUrl": "https://iband-backend-first-1.onrender.com",
   "passed": false,
-  "cases": [
-    {
-      "name": "clear-language",
-      "clarificationRequired": false,
-      "stageId": "story-direction",
-      "selectedAgents": [
-        "story",
-        "character",
-        "continuity",
-        "scene"
-      ],
-      "executedAgents": [
-        "story",
-        "character"
-      ],
-      "synthesisUsed": [
-        "story",
-        "character"
-      ],
-      "conflictsHandled": [
-        "Preserved the creator’s original premise exactly as given while using specialist observations only as interpretive support.",
-        "Kept the cause of the lighthouse messages open instead of treating any speculative explanation as established truth.",
-        "Integrated the astronaut background as story-driving competence and emotional contrast without overstating any fixed character history beyond the creator’s premise."
-      ],
-      "presentationSource": "mentor-synthesis",
-      "presentationText": "Strong premise. You’ve got a clean emotional engine: a retired astronaut, a coastal town, a lighthouse, and a missing daughter. That combination gives you mystery, grief, and a built-in reason the protagonist might notice patterns others miss.\n\nA useful way to think about it is this: the astronaut past can shape how she investigates the messages, while the lighthouse keeps the story visually contained and eerie. The core tension is whether she’s facing a real signal, a hidden human explanation, or something that can’t be neatly explained.\n\nAt this stage, the idea already supports a haunting family mystery with emotional and possibly sci-fi ambiguity. The main thing to protect is the mystery itself: if the source of the messages is explained too quickly, you may lose the tension that makes the premise compelling.\n\nIf you want, the next useful step is to decide the story’s emotional lane: is this closer to a grounded thriller, a supernatural mystery, or a sci-fi drama with ambiguity?"
-    }
-  ],
+  "cases": [],
   "error": {
-    "message": "/api/movie-mentor-semantic/interpret failed (422): {\"success\":false,\"code\":\"SEMANTIC_INTELLIGENCE_INVALID\",\"message\":\"Semantic AI provider returned intelligence that failed iBand's authority/safety validation.\",\"providerFailureCategory\":null,\"retryable\":false,\"configurationIssues\":[],\"validationIssues\":[\"understood_context_requires_creator_authority\",\"unresolved_context_forced_ready_to_advance_false\"],\"semanticIntelligenceAvailable\":false,\"safety\":{\"preserveCreatorLanguage\":true,\"creatorConfirmedMeaningOutranksInference\":true,\"provisionalInferenceIsNotCreatorTruth\":true,\"unfamiliarTerminologyRequiresClarification\":true,\"doNotGuessMeaning\":true,\"materialAmbiguityBlocksProgression\":true,\"deterministicPlanningIsNotSemanticUnderstanding\":true,\"structuredSemanticIntelligenceRequiredForAdvance\":true,\"mayAdvanceJourney\":false}}\n\nfalse !== true\n",
+    "message": "clear-language: validated semantic readiness did not reach canonical story-direction stage\n+ actual - expected\n\n+ 'idea'\n- 'story-direction'",
     "code": "ERR_ASSERTION",
-    "stack": "AssertionError [ERR_ASSERTION]: /api/movie-mentor-semantic/interpret failed (422): {\"success\":false,\"code\":\"SEMANTIC_INTELLIGENCE_INVALID\",\"message\":\"Semantic AI provider returned intelligence that failed iBand's authority/safety validation.\",\"providerFailureCategory\":null,\"retryable\":false,\"configurationIssues\":[],\"validationIssues\":[\"understood_context_requires_creator_authority\",\"unresolved_context_forced_ready_to_advance_false\"],\"semanticIntelligenceAvailable\":false,\"safety\":{\"preserveCreatorLanguage\":true,\"creatorConfirmedMeaningOutranksInference\":true,\"provisionalInferenceIsNotCreatorTruth\":true,\"unfamiliarTerminologyRequiresClarification\":true,\"doNotGuessMeaning\":true,\"materialAmbiguityBlocksProgression\":true,\"deterministicPlanningIsNotSemanticUnderstanding\":true,\"structuredSemanticIntelligenceRequiredForAdvance\":true,\"mayAdvanceJourney\":false}}\n\nfalse !== true\n\n    at post (file:///home/runner/work/Iband-frontend-first/Iband-frontend-first/scripts/verify-movie-mentor-creator-facing-live.mjs:25:10)\n    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\n    at async interpret (file:///home/runner/work/Iband-frontend-first/Iband-frontend-first/scripts/verify-movie-mentor-creator-facing-live.mjs:34:54)\n    at async runCase (file:///home/runner/work/Iband-frontend-first/Iband-frontend-first/scripts/verify-movie-mentor-creator-facing-live.mjs:42:21)\n    at async run (file:///home/runner/work/Iband-frontend-first/Iband-frontend-first/scripts/verify-movie-mentor-creator-facing-live.mjs:71:2)\n    at async file:///home/runner/work/Iband-frontend-first/Iband-frontend-first/scripts/verify-movie-mentor-creator-facing-live.mjs:84:5"
+    "stack": "AssertionError [ERR_ASSERTION]: clear-language: validated semantic readiness did not reach canonical story-direction stage\n+ actual - expected\n\n+ 'idea'\n- 'story-direction'\n    at runCase (file:///home/runner/work/Iband-frontend-first/Iband-frontend-first/scripts/verify-movie-mentor-creator-facing-live.mjs:45:11)\n    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\n    at async run (file:///home/runner/work/Iband-frontend-first/Iband-frontend-first/scripts/verify-movie-mentor-creator-facing-live.mjs:61:2)\n    at async file:///home/runner/work/Iband-frontend-first/Iband-frontend-first/scripts/verify-movie-mentor-creator-facing-live.mjs:72:5"
   }
 }
