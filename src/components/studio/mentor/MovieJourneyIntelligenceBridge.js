@@ -11,6 +11,7 @@
  * - Apply understood, provisional, unresolved and clarification state.
  * - Keep materially ambiguous meaning from silently becoming truth.
  * - Build a clean journey context for ResponseGenerator/provider layers.
+ * - Expose active creator-confirmed decisions to semantic intelligence.
  * - Return updated journey, snapshot, orientation and creator-facing
  *   clarification guidance as one integration result.
  *
@@ -24,7 +25,7 @@
 
 import createCreatorJourneyEngine from "./CreatorJourneyEngine";
 
-const MOVIE_JOURNEY_INTELLIGENCE_BRIDGE_VERSION = "1.1.0";
+const MOVIE_JOURNEY_INTELLIGENCE_BRIDGE_VERSION = "1.2.0";
 
 const DEFAULT_CLARIFICATION_MESSAGE =
   "I’m sorry, I lost you there. Can you explain what you mean a little further?";
@@ -116,6 +117,29 @@ function getClarificationMessage(orientation) {
   }
 
   return DEFAULT_CLARIFICATION_MESSAGE;
+}
+
+function getCreatorConfirmedContext(journey) {
+  return asArray(journey?.decisions)
+    .filter(
+      (decision) =>
+        decision?.authority === "creator" &&
+        decision?.status === "active" &&
+        cleanString(decision?.key)
+    )
+    .map((decision) => ({
+      key: cleanString(decision.key),
+      value: cloneValue(decision.value),
+      stageId: cleanString(decision.stageId) || null,
+      sceneId: cleanString(decision.sceneId) || null,
+      reason: cleanString(decision.reason) || null,
+      createdAt: decision.createdAt || null,
+      metadata:
+        decision?.metadata && typeof decision.metadata === "object"
+          ? cloneValue(decision.metadata)
+          : {},
+      authority: "creator",
+    }));
 }
 
 function createMovieJourneyIntelligenceBridge({
@@ -233,12 +257,15 @@ function createMovieJourneyIntelligenceBridge({
     const journeyReadyToAdvance =
       journey?.initialIdea?.readyToAdvance === true &&
       described.clarificationRequired !== true;
+    const creatorConfirmedContext =
+      getCreatorConfirmedContext(journey);
 
     return {
       ...cloneValue(context),
       projectType: "movie",
       projectJourney: described.snapshot,
       projectJourneyOrientation: orientation,
+      creatorConfirmedContext,
       activeProjectId:
         journey?.projectId ||
         context?.activeProjectId ||
@@ -270,6 +297,9 @@ function createMovieJourneyIntelligenceBridge({
         movieJourneyBridgeVersion:
           MOVIE_JOURNEY_INTELLIGENCE_BRIDGE_VERSION,
         journeyReadinessIsExplicit: true,
+        creatorConfirmedContextIncluded: true,
+        creatorConfirmedDecisionCount:
+          creatorConfirmedContext.length,
       },
     };
   }
@@ -282,6 +312,7 @@ function createMovieJourneyIntelligenceBridge({
     describeJourney,
     extractGenerationIntelligence,
     getClarificationMessage,
+    getCreatorConfirmedContext,
   };
 }
 
@@ -291,6 +322,7 @@ export {
   normaliseIntelligence,
   extractGenerationIntelligence,
   getClarificationMessage,
+  getCreatorConfirmedContext,
   createMovieJourneyIntelligenceBridge,
 };
 
