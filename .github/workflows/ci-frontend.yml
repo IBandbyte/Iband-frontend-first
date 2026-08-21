@@ -30,5 +30,8 @@ jobs:
       - name: Verify Movie Mentor closed loop
         run: npm run verify:movie-mentor
 
+      - name: Verify Movie Mentor specialist agent orchestration
+        run: npm run verify:movie-mentor-agents
+
       - name: Build frontend
         run: npm run build
