@@ -30,7 +30,7 @@ jobs:
           node-version: "20"
       # Backend semantic/synthesis changes deploy independently on Render.
       - name: Wait for Render backend deployment
-        run: sleep 75
+        run: sleep 90
       - name: Verify live creator-facing Movie Mentor pipeline
         continue-on-error: true
         env:
