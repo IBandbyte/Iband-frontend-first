@@ -1,0 +1,5 @@
+import assert from "node:assert/strict"; import {createMentorSynthesisContext} from "../src/components/studio/mentor/MovieMentorResponseService.js";
+const contribution={agentId:"story",authority:"mentor-provisional",creatorFacing:false,mayAdvanceJourney:false,mayOverwriteCreatorTruth:false};
+const open=createMentorSynthesisContext({specialistAgentPlan:{selectedAgents:["story"]},specialistExecution:{contributions:[contribution]},movieJourneyIntelligence:{clarificationNeeded:[]}});assert.equal(open.creativeSynthesisBlockedByMaterialClarification,false);assert.deepEqual(open.rules.authorityOrder,["creator-confirmed-truth","validated-semantic-intelligence","specialist-contributions"]);assert.equal(open.rules.specialistContentBecomesCanonicalJourneyTruth,false);assert.equal(open.rules.mentorMaySelectCombineDeferOrIgnore,true);
+const blocked=createMentorSynthesisContext({specialistAgentPlan:{selectedAgents:["story"]},specialistExecution:{contributions:[]},movieJourneyIntelligence:{clarificationNeeded:[{material:true}]}});assert.equal(blocked.creativeSynthesisBlockedByMaterialClarification,true);
+console.log("Movie Mentor frontend synthesis regression passed.");
