@@ -4,6 +4,7 @@ import Artists from "./Artists";
 import ArtistDetail from "./ArtistDetail";
 import Submit from "./Submit";
 import CreatorWorkspace from "./components/studio/CreatorWorkspace";
+import generateMovieMentorResponse from "./components/studio/mentor/MovieMentorResponseService";
 
 export default function App() {
   return (
@@ -12,7 +13,10 @@ export default function App() {
       <Route path="/artists" element={<Artists />} />
       <Route path="/artists/:id" element={<ArtistDetail />} />
       <Route path="/submit" element={<Submit />} />
-      <Route path="/studio" element={<CreatorWorkspace />} />
+      <Route
+        path="/studio"
+        element={<CreatorWorkspace onGenerate={generateMovieMentorResponse} />}
+      />
     </Routes>
   );
 }
