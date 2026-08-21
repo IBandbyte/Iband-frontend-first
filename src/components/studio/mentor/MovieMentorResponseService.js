@@ -1,8 +1,13 @@
 import createResponseGenerator from "./ResponseGenerator";
+import createMovieSemanticResponseProvider from "./MovieSemanticResponseProvider";
 
-const MOVIE_MENTOR_RESPONSE_SERVICE_VERSION = "1.2.0";
+const MOVIE_MENTOR_RESPONSE_SERVICE_VERSION = "1.3.0";
 
-const responseGenerator = createResponseGenerator();
+const semanticResponseProvider = createMovieSemanticResponseProvider();
+
+const responseGenerator = createResponseGenerator({
+  responseProvider: semanticResponseProvider,
+});
 
 function cleanString(value) {
   return typeof value === "string" ? value.trim() : "";
@@ -81,12 +86,19 @@ function createSafeMovieJourneyIntelligence(result, request = {}) {
   const providerIntelligence = getStructuredMovieIntelligence(result);
 
   if (providerIntelligence) {
+    const clarificationNeeded = asArray(providerIntelligence.clarificationNeeded);
+    const materialClarificationRequired = clarificationNeeded.some(
+      (item) => item?.material !== false
+    );
+
     return {
       understoodContext: asArray(providerIntelligence.understoodContext),
       provisionalContext: asArray(providerIntelligence.provisionalContext),
       unresolvedContext: asArray(providerIntelligence.unresolvedContext),
-      clarificationNeeded: asArray(providerIntelligence.clarificationNeeded),
-      readyToAdvance: providerIntelligence.readyToAdvance === true,
+      clarificationNeeded,
+      readyToAdvance:
+        providerIntelligence.readyToAdvance === true &&
+        !materialClarificationRequired,
       recommendedStageId:
         cleanString(providerIntelligence.recommendedStageId) ||
         "story-direction",
@@ -104,6 +116,7 @@ function createSafeMovieJourneyIntelligence(result, request = {}) {
         serviceVersion: MOVIE_MENTOR_RESPONSE_SERVICE_VERSION,
         semanticInterpretationAvailable: true,
         semanticInterpretationApplied: true,
+        materialClarificationOverridesAdvance: true,
       },
     };
   }
@@ -194,6 +207,7 @@ async function generateMovieMentorResponse(request = {}) {
       metadata: {
         creatorMode: request.creatorMode || "ai-movie",
         movieJourneyIntelligenceRequested: true,
+        semanticProvider: "movie-mentor-semantic-gateway",
         movieJourneyIntelligenceContract: {
           fields: [
             "understoodContext",
@@ -231,6 +245,8 @@ async function generateMovieMentorResponse(request = {}) {
       movieJourneyIntelligence,
       movieMentorResponseServiceVersion:
         MOVIE_MENTOR_RESPONSE_SERVICE_VERSION,
+      semanticResponseProviderVersion:
+        semanticResponseProvider.version || null,
     },
   };
 }
