@@ -1,8 +1,14 @@
 import createResponseGenerator from "./ResponseGenerator";
 
-const MOVIE_MENTOR_RESPONSE_SERVICE_VERSION = "1.0.0";
+const MOVIE_MENTOR_RESPONSE_SERVICE_VERSION = "1.1.0";
 
 const responseGenerator = createResponseGenerator();
+
+const ADVANCE_ACTIONS = new Set([
+  "move-to-creation",
+  "move-to-next-task",
+  "yield-to-execution",
+]);
 
 function cleanString(value) {
   return typeof value === "string" ? value.trim() : "";
@@ -37,17 +43,40 @@ function getStructuredMovieIntelligence(result) {
   return candidate && typeof candidate === "object" ? candidate : null;
 }
 
-function adaptivePlanRequiresClarification(result) {
-  const action = cleanString(result?.adaptivePlan?.primaryAction?.action);
-  const questionPolicy = cleanString(
-    result?.adaptivePlan?.behaviour?.questionPolicy?.policy
+function getAdaptiveAction(result) {
+  return cleanString(
+    result?.adaptivePlan?.primaryAction?.action ||
+      result?.blueprint?.action ||
+      ""
   );
+}
+
+function getQuestionPolicy(result) {
+  return cleanString(
+    result?.adaptivePlan?.behaviour?.questionPolicy?.policy ||
+      result?.adaptivePlan?.behaviour?.questionPolicy ||
+      ""
+  );
+}
+
+function adaptivePlanRequiresMeaningClarification(result) {
+  const action = getAdaptiveAction(result);
 
   return (
     action.includes("clarify") ||
-    questionPolicy === "one-required" ||
     result?.diagnostics?.contextSnapshot?.creatorAppearsConfused === true
   );
+}
+
+function adaptivePlanIsReadyToAdvance(result) {
+  const action = getAdaptiveAction(result);
+  const questionPolicy = getQuestionPolicy(result);
+
+  if (questionPolicy === "one-required") {
+    return false;
+  }
+
+  return ADVANCE_ACTIONS.has(action);
 }
 
 function createSafeMovieJourneyIntelligence(result, request = {}) {
@@ -75,12 +104,20 @@ function createSafeMovieJourneyIntelligence(result, request = {}) {
         ...(providerIntelligence.metadata || {}),
         source: "response-generator-provider-intelligence",
         serviceVersion: MOVIE_MENTOR_RESPONSE_SERVICE_VERSION,
+        semanticInterpretationApplied: true,
       },
     };
   }
 
   const originalIdea = cleanString(request.idea);
-  const clarificationRequired = adaptivePlanRequiresClarification(result);
+  const clarificationRequired =
+    adaptivePlanRequiresMeaningClarification(result);
+  const readyToAdvance =
+    Boolean(originalIdea) &&
+    !clarificationRequired &&
+    adaptivePlanIsReadyToAdvance(result);
+  const action = getAdaptiveAction(result);
+  const questionPolicy = getQuestionPolicy(result);
 
   return {
     understoodContext: [],
@@ -90,27 +127,29 @@ function createSafeMovieJourneyIntelligence(result, request = {}) {
       ? [
           {
             key: "movie.idea.meaning",
-            expression: originalIdea || null,
+            expression: null,
             question:
-              "I want to make sure I understand your idea before we build on it. Can you explain that part a little further?",
+              "I want to make sure I understand what you mean before we build on it. Can you explain that part a little further?",
             reason:
-              "Adaptive Mentor requires clarification before the movie journey advances.",
+              "Adaptive Mentor indicates that meaning requires clarification before the movie journey advances.",
             material: true,
           },
         ]
       : [],
-    readyToAdvance: Boolean(originalIdea) && !clarificationRequired,
+    readyToAdvance,
     recommendedStageId: "story-direction",
     recommendedTaskId: null,
     nextAction: null,
-    resumeNote:
-      Boolean(originalIdea) && !clarificationRequired
-        ? "Initial movie idea captured. Continue into story direction without treating unstated details as creator decisions."
-        : null,
+    resumeNote: readyToAdvance
+      ? "Adaptive Mentor has explicitly cleared the initial movie idea to continue into story direction without treating unstated details as creator decisions."
+      : "The creator's original idea is preserved. Keep working in the Idea stage until Mentor intelligence explicitly confirms that it is safe to advance.",
     metadata: {
       source: "adaptive-mentor-safe-fallback",
       serviceVersion: MOVIE_MENTOR_RESPONSE_SERVICE_VERSION,
       semanticInterpretationApplied: false,
+      adaptiveAction: action || null,
+      questionPolicy: questionPolicy || null,
+      explicitAdvanceSignalRequired: true,
     },
   };
 }
@@ -164,7 +203,7 @@ async function generateMovieMentorResponse(request = {}) {
             "resumeNote",
           ],
           rule:
-            "Return structured movie journey intelligence only when meaning is supported. Never invent creator decisions; material ambiguity requires clarification.",
+            "Return structured movie journey intelligence only when meaning is supported. Never invent creator decisions; material ambiguity requires clarification and advancement requires an explicit safe signal.",
         },
       },
     },
