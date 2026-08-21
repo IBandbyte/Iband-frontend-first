@@ -155,7 +155,7 @@ function runUnfamiliarTerminologyScenario() {
   assert.match(applied.clarificationMessage, /glorp-coded/i);
 }
 
-function runExplicitAdvanceScenario() {
+function runAdaptiveAdvanceWithoutSemanticIntelligenceScenario() {
   const originalIdea =
     "A mother and son cross Europe to return a stolen violin before its final concert.";
 
@@ -177,7 +177,15 @@ function runExplicitAdvanceScenario() {
     idea: originalIdea,
   });
 
-  assert.equal(intelligence.readyToAdvance, true);
+  assert.equal(intelligence.readyToAdvance, false);
+  assert.equal(
+    intelligence.metadata?.adaptiveAdvanceSignalObserved,
+    true
+  );
+  assert.equal(
+    intelligence.metadata?.semanticInterpretationAvailable,
+    false
+  );
 
   const serviceResult = {
     id: "verification-generation",
@@ -193,14 +201,14 @@ function runExplicitAdvanceScenario() {
     serviceResult,
     {
       originalIdea,
-      source: "behaviour-verifier-explicit-advance",
+      source: "behaviour-verifier-adaptive-without-semantics",
     }
   );
 
   assertOriginalIdeaPreserved(applied.journey, originalIdea);
   assert.equal(applied.clarificationRequired, false);
-  assert.equal(applied.journey.currentStageId, "story-direction");
-  assert.equal(applied.journey.initialIdea?.readyToAdvance, true);
+  assert.equal(applied.journey.currentStageId, "idea");
+  assert.equal(applied.journey.initialIdea?.readyToAdvance, false);
 }
 
 function runRequiredQuestionBlocksAdvanceScenario() {
@@ -270,10 +278,13 @@ function runProvisionalAuthorityScenario() {
 }
 
 const scenarios = [
-  ["clear idea advances safely", runClearIdeaScenario],
+  ["clear idea with semantic intelligence advances safely", runClearIdeaScenario],
   ["vague idea stays in Idea", runVagueIdeaScenario],
   ["unfamiliar terminology requires clarification", runUnfamiliarTerminologyScenario],
-  ["explicit Adaptive Mentor advance closes the loop", runExplicitAdvanceScenario],
+  [
+    "Adaptive advance signal without semantic intelligence cannot advance",
+    runAdaptiveAdvanceWithoutSemanticIntelligenceScenario,
+  ],
   ["required question blocks progression", runRequiredQuestionBlocksAdvanceScenario],
   ["provisional interpretation never becomes creator truth", runProvisionalAuthorityScenario],
 ];
@@ -283,4 +294,6 @@ for (const [name, run] of scenarios) {
   console.log(`✓ ${name}`);
 }
 
-console.log(`\nMovie Mentor closed-loop verification passed: ${scenarios.length}/${scenarios.length} scenarios.`);
+console.log(
+  `\nMovie Mentor closed-loop verification passed: ${scenarios.length}/${scenarios.length} scenarios.`
+);
