@@ -23,9 +23,9 @@
  * - Generate final Mentor wording beyond safe clarification fallback text.
  */
 
-import createCreatorJourneyEngine from "./CreatorJourneyEngine";
+import createCreatorJourneyEngine from "./CreatorJourneyEngine.js";
 
-const MOVIE_JOURNEY_INTELLIGENCE_BRIDGE_VERSION = "1.2.0";
+const MOVIE_JOURNEY_INTELLIGENCE_BRIDGE_VERSION = "1.2.1";
 
 const DEFAULT_CLARIFICATION_MESSAGE =
   "I’m sorry, I lost you there. Can you explain what you mean a little further?";
