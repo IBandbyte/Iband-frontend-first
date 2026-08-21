@@ -129,8 +129,6 @@ function runUnfamiliarTerminologyScenario() {
               material: true,
             },
           ],
-          // Deliberately contradictory input: the Journey Engine must let
-          // material clarification override attempted advancement.
           readyToAdvance: true,
           recommendedStageId: "story-direction",
         },
@@ -277,6 +275,64 @@ function runProvisionalAuthorityScenario() {
   assert.notEqual(decision?.authority, DECISION_AUTHORITIES.CREATOR);
 }
 
+function runCreatorTruthIsForwardedToSemanticProviderScenario() {
+  let journey = createMovieJourney();
+
+  journey = journeyEngine.recordDecision(journey, {
+    key: "movie.character.relationship",
+    value: "best friends",
+    authority: DECISION_AUTHORITIES.CREATOR,
+    stageId: "idea",
+    reason: "Creator explicitly confirmed the relationship.",
+  });
+
+  const context = bridge.buildResponseContext(journey);
+
+  assert.equal(context.creatorConfirmedContext.length, 1);
+  assert.equal(
+    context.creatorConfirmedContext[0].key,
+    "movie.character.relationship"
+  );
+  assert.equal(context.creatorConfirmedContext[0].value, "best friends");
+  assert.equal(context.creatorConfirmedContext[0].authority, "creator");
+}
+
+function runCreatorCorrectionSupersedesPriorJourneyTruthScenario() {
+  let journey = createMovieJourney();
+
+  journey = journeyEngine.recordDecision(journey, {
+    key: "movie.character.relationship",
+    value: "best friends",
+    authority: DECISION_AUTHORITIES.CREATOR,
+    stageId: "idea",
+  });
+
+  const applied = bridge.captureInitialIdea(journey, {
+    originalIdea: "Actually, they are brother and sister.",
+    intelligence: {
+      understoodContext: [
+        {
+          key: "movie.character.relationship",
+          value: "brother and sister",
+        },
+      ],
+      provisionalContext: [],
+      unresolvedContext: [],
+      clarificationNeeded: [],
+      readyToAdvance: false,
+    },
+    source: "behaviour-verifier-creator-correction",
+  });
+
+  const decision = journeyEngine.getActiveDecision(
+    applied.journey,
+    "movie.character.relationship"
+  );
+
+  assert.equal(decision?.authority, DECISION_AUTHORITIES.CREATOR);
+  assert.equal(decision?.value, "brother and sister");
+}
+
 const scenarios = [
   ["clear idea with semantic intelligence advances safely", runClearIdeaScenario],
   ["vague idea stays in Idea", runVagueIdeaScenario],
@@ -287,6 +343,8 @@ const scenarios = [
   ],
   ["required question blocks progression", runRequiredQuestionBlocksAdvanceScenario],
   ["provisional interpretation never becomes creator truth", runProvisionalAuthorityScenario],
+  ["creator-confirmed journey truth reaches semantic provider context", runCreatorTruthIsForwardedToSemanticProviderScenario],
+  ["current creator correction supersedes prior journey truth", runCreatorCorrectionSupersedesPriorJourneyTruthScenario],
 ];
 
 for (const [name, run] of scenarios) {
