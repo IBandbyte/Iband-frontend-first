@@ -24,7 +24,7 @@
 
 import createCreatorJourneyEngine from "./CreatorJourneyEngine";
 
-const MOVIE_JOURNEY_INTELLIGENCE_BRIDGE_VERSION = "1.0.0";
+const MOVIE_JOURNEY_INTELLIGENCE_BRIDGE_VERSION = "1.1.0";
 
 const DEFAULT_CLARIFICATION_MESSAGE =
   "I’m sorry, I lost you there. Can you explain what you mean a little further?";
@@ -230,6 +230,9 @@ function createMovieJourneyIntelligenceBridge({
   ) {
     const described = describeJourney(journey);
     const orientation = described.orientation;
+    const journeyReadyToAdvance =
+      journey?.initialIdea?.readyToAdvance === true &&
+      described.clarificationRequired !== true;
 
     return {
       ...cloneValue(context),
@@ -253,9 +256,9 @@ function createMovieJourneyIntelligenceBridge({
         context?.returnPoint ||
         null,
       minimumCreationContextReady:
-        journey?.initialIdea?.readyToAdvance === true,
+        journeyReadyToAdvance,
       requiredInformationComplete:
-        described.clarificationRequired !== true,
+        journeyReadyToAdvance,
       creatorAppearsConfused:
         described.clarificationRequired === true
           ? true
@@ -266,6 +269,7 @@ function createMovieJourneyIntelligenceBridge({
           : {}),
         movieJourneyBridgeVersion:
           MOVIE_JOURNEY_INTELLIGENCE_BRIDGE_VERSION,
+        journeyReadinessIsExplicit: true,
       },
     };
   }
