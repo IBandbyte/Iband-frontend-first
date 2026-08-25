@@ -4,7 +4,7 @@ import {
 } from "./MovieMentorDurableStateSync.js";
 import requestMovieMentorTurn from "./MovieMentorTurnClient.js";
 
-const MOVIE_MENTOR_LIVE_GATEWAY_SERVICE_VERSION = "1.0.0";
+const MOVIE_MENTOR_LIVE_GATEWAY_SERVICE_VERSION = "1.1.0";
 const WORKSPACE_SESSION_KEY = "iband.movie-mentor.workspace-session";
 
 function cleanString(value) {
@@ -28,14 +28,21 @@ function apiBase() {
   ).replace(/\/$/, "");
 }
 
-function createSessionId() {
-  if (typeof globalThis?.crypto?.randomUUID === "function") {
-    return `movie-workspace-${globalThis.crypto.randomUUID()}`;
+function createSessionId({ cryptoImpl = globalThis?.crypto } = {}) {
+  if (typeof cryptoImpl?.randomUUID !== "function") {
+    const error = new Error("Movie Mentor working-session identity requires crypto.randomUUID().");
+    error.code = "MOVIE_MENTOR_WORKING_SESSION_CRYPTO_REQUIRED";
+    throw error;
   }
-  return `movie-workspace-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+  return `movie-workspace-${cryptoImpl.randomUUID()}`;
 }
 
-function resolveWorkspaceIdentity({ request = {}, storage = globalThis?.localStorage } = {}) {
+function sessionStorageKey(projectId) {
+  const project = cleanString(projectId);
+  return project ? `${WORKSPACE_SESSION_KEY}:${project}` : WORKSPACE_SESSION_KEY;
+}
+
+function resolveWorkspaceIdentity({ request = {}, storage = globalThis?.sessionStorage, cryptoImpl = globalThis?.crypto } = {}) {
   const projectId = cleanString(
     request?.projectId ||
       request?.projectJourneySnapshot?.projectId ||
@@ -44,23 +51,23 @@ function resolveWorkspaceIdentity({ request = {}, storage = globalThis?.localSto
       ""
   );
 
-  if (projectId) {
-    return { projectId, creatorSessionId: null };
-  }
-
-  let creatorSessionId = "";
-  try {
-    creatorSessionId = cleanString(storage?.getItem?.(WORKSPACE_SESSION_KEY));
-  } catch {}
+  let creatorSessionId = cleanString(request?.creatorSessionId);
+  const key = sessionStorageKey(projectId);
 
   if (!creatorSessionId) {
-    creatorSessionId = createSessionId();
     try {
-      storage?.setItem?.(WORKSPACE_SESSION_KEY, creatorSessionId);
+      creatorSessionId = cleanString(storage?.getItem?.(key));
     } catch {}
   }
 
-  return { projectId: null, creatorSessionId };
+  if (!creatorSessionId) {
+    creatorSessionId = createSessionId({ cryptoImpl });
+    try {
+      storage?.setItem?.(key, creatorSessionId);
+    } catch {}
+  }
+
+  return { projectId: projectId || null, creatorSessionId };
 }
 
 function createWorkspaceConfirmedContext(request = {}) {
@@ -168,6 +175,8 @@ async function generateMovieMentorLiveResponse(
   {
     fetchImpl = globalThis?.fetch,
     storage = globalThis?.localStorage,
+    sessionStorage = globalThis?.sessionStorage,
+    cryptoImpl = globalThis?.crypto,
   } = {}
 ) {
   const message = cleanString(request?.idea);
@@ -177,7 +186,7 @@ async function generateMovieMentorLiveResponse(
     throw error;
   }
 
-  const identity = resolveWorkspaceIdentity({ request, storage });
+  const identity = resolveWorkspaceIdentity({ request, storage: sessionStorage, cryptoImpl });
   await syncWorkspaceReality({ request, identity, fetchImpl, storage });
 
   const turn = await requestMovieMentorTurn({
@@ -193,6 +202,7 @@ async function generateMovieMentorLiveResponse(
 export {
   MOVIE_MENTOR_LIVE_GATEWAY_SERVICE_VERSION,
   WORKSPACE_SESSION_KEY,
+  createSessionId,
   resolveWorkspaceIdentity,
   createWorkspaceConfirmedContext,
   syncWorkspaceReality,
