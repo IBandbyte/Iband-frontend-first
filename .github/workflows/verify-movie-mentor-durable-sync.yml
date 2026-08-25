@@ -1,0 +1,29 @@
+name: Movie Mentor Durable Sync Verification
+on:
+  push:
+    branches: [main]
+    paths:
+      - "src/components/studio/mentor/MovieMentorDurableStateSync.js"
+      - "src/main.jsx"
+      - "scripts/verify-movie-mentor-durable-state-sync.mjs"
+      - "package.json"
+      - ".github/workflows/verify-movie-mentor-durable-sync.yml"
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Use Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Install dependencies
+        run: npm i --no-audit --no-fund
+      - name: Verify Movie Mentor durable state sync
+        run: npm run verify:movie-mentor-durable-sync
