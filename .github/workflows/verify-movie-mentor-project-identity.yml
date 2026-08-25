@@ -1,0 +1,29 @@
+name: Movie Mentor Project Identity Verification
+on:
+  push:
+    branches: [main]
+    paths:
+      - "src/components/studio/mentor/CreatorMemory.js"
+      - "src/components/studio/mentor/CreatorMemoryCore.js"
+      - "src/components/studio/mentor/MovieMentorProjectIdentity.js"
+      - "src/components/studio/mentor/MovieMentorDurableStateSync.js"
+      - "scripts/verify-movie-mentor-project-identity-continuity.mjs"
+      - ".github/workflows/verify-movie-mentor-project-identity.yml"
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - run: npm i --no-audit --no-fund
+      - name: Verify canonical project identity continuity
+        run: node scripts/verify-movie-mentor-project-identity-continuity.mjs
+      - name: Build frontend
+        run: npm run build
