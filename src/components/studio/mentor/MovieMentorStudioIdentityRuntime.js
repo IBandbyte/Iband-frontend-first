@@ -1,9 +1,18 @@
 import createCreatorMemory, { PROJECT_STATUSES } from "./CreatorMemory.js";
 
-const MOVIE_MENTOR_STUDIO_IDENTITY_RUNTIME_VERSION = "1.0.0";
+const MOVIE_MENTOR_STUDIO_IDENTITY_RUNTIME_VERSION = "1.1.0";
 
 function clean(value) {
   return typeof value === "string" ? value.trim() : "";
+}
+
+function clone(value) {
+  if (value === undefined) return undefined;
+  try {
+    return JSON.parse(JSON.stringify(value));
+  } catch {
+    return value;
+  }
 }
 
 function issueWorkingSessionId({ cryptoImpl = globalThis?.crypto } = {}) {
@@ -24,11 +33,51 @@ function isMovieMentorProject(project) {
   );
 }
 
+function conversationBelongsToProject(conversation, projectId) {
+  const pid = clean(projectId);
+  if (!pid || !conversation) return false;
+  const related = Array.isArray(conversation.relatedProjectIds)
+    ? conversation.relatedProjectIds.map(clean)
+    : [];
+  return related.includes(pid) || clean(conversation.metadata?.projectId) === pid;
+}
+
+function conversationToMessages(conversation) {
+  const messages = [];
+  const creatorText = clean(conversation?.creatorMessage);
+  const mentorText = clean(conversation?.mentorResponse);
+  const baseId = clean(conversation?.id) || `conversation-${Date.now()}`;
+  if (creatorText) {
+    messages.push({
+      id: `${baseId}:creator`,
+      role: "creator",
+      type: "text",
+      behaviour: "discuss",
+      text: creatorText,
+      createdAt: conversation?.createdAt || null,
+      metadata: { restoredFromConversationId: baseId },
+    });
+  }
+  if (mentorText) {
+    messages.push({
+      id: `${baseId}:mentor`,
+      role: "mentor",
+      type: "text",
+      behaviour: "discuss",
+      text: mentorText,
+      createdAt: conversation?.updatedAt || conversation?.createdAt || null,
+      metadata: { restoredFromConversationId: baseId },
+    });
+  }
+  return messages;
+}
+
 function createMovieMentorStudioIdentityRuntime({
   memory = createCreatorMemory(),
   cryptoImpl = globalThis?.crypto,
 } = {}) {
   const creatorSessionId = issueWorkingSessionId({ cryptoImpl });
+  const pendingCreatorMessageByProject = new Map();
 
   function getActiveProject() {
     const project = memory.getActiveProject?.() || null;
@@ -64,14 +113,93 @@ function createMovieMentorStudioIdentityRuntime({
     });
   }
 
+  function getProjectConversationMessages(projectId, { limit = 40 } = {}) {
+    const pid = clean(projectId);
+    if (!pid) return [];
+    const conversations = (memory.getRecentConversations?.(Math.max(limit, 1) * 2) || [])
+      .filter((conversation) => conversationBelongsToProject(conversation, pid))
+      .slice(0, limit)
+      .reverse();
+    return conversations.flatMap(conversationToMessages);
+  }
+
+  function getProjectHandoff(projectId) {
+    const pid = clean(projectId);
+    return pid ? memory.getLatestSessionHandoff?.(pid) || null : null;
+  }
+
+  function recordConversationMessage(projectId, message, { projectJourney = null } = {}) {
+    const pid = clean(projectId);
+    const role = clean(message?.role);
+    const text = clean(message?.text);
+    if (!pid || !text || !["creator", "mentor"].includes(role)) return null;
+
+    if (role === "creator") {
+      pendingCreatorMessageByProject.set(pid, clone(message));
+      return { status: "creator-message-pending", projectId: pid };
+    }
+
+    const creatorMessage = pendingCreatorMessageByProject.get(pid) || null;
+    pendingCreatorMessageByProject.delete(pid);
+    const conversation = memory.rememberConversation?.({
+      summary: creatorMessage
+        ? `Creator: ${clean(creatorMessage.text)}\nMentor: ${text}`
+        : `Mentor: ${text}`,
+      creatorMessage: clean(creatorMessage?.text),
+      mentorResponse: text,
+      creatorStage: clean(projectJourney?.currentStageId || projectJourney?.stageId) || null,
+      relatedProjectIds: [pid],
+      metadata: {
+        projectId: pid,
+        creatorSessionId,
+        source: "movie-mentor-conversation",
+      },
+    }) || null;
+
+    const handoff = memory.saveSessionHandoff?.({
+      projectId: pid,
+      sessionId: creatorSessionId,
+      title: "Movie Mentor conversation continuation",
+      content: creatorMessage
+        ? `Continue after the creator said: ${clean(creatorMessage.text)}`
+        : "Continue from the latest Movie Mentor response.",
+      value: {
+        conversationId: conversation?.id || null,
+        lastCreatorMessage: clean(creatorMessage?.text) || null,
+        lastMentorResponse: text,
+        projectJourney: clone(projectJourney),
+      },
+      metadata: {
+        projectId: pid,
+        creatorSessionId,
+        conversationId: conversation?.id || null,
+        source: "movie-mentor-conversation",
+      },
+    }) || null;
+
+    return { status: "conversation-persisted", projectId: pid, conversation, handoff };
+  }
+
+  function resumeProjectConversation(projectId) {
+    const pid = clean(projectId);
+    if (!pid) return { messages: [], handoff: null };
+    const handoff = getProjectHandoff(pid);
+    const messages = getProjectConversationMessages(pid);
+    if (handoff?.id) memory.markSessionHandoffResumed?.(handoff.id);
+    return { messages, handoff };
+  }
+
   function getResumeSnapshot() {
     const project = getActiveProject();
     if (!project) return null;
+    const conversation = resumeProjectConversation(project.id);
     return {
       project,
       projectId: project.id,
       creatorSessionId,
-      projectJourney: project.metadata?.projectJourney || null,
+      projectJourney: project.metadata?.projectJourney || conversation.handoff?.value?.projectJourney || null,
+      conversationMessages: conversation.messages,
+      sessionHandoff: conversation.handoff,
     };
   }
 
@@ -82,6 +210,10 @@ function createMovieMentorStudioIdentityRuntime({
     getActiveProject,
     ensureProject,
     persistJourney,
+    getProjectConversationMessages,
+    getProjectHandoff,
+    recordConversationMessage,
+    resumeProjectConversation,
     getResumeSnapshot,
   };
 }
@@ -90,6 +222,8 @@ export {
   MOVIE_MENTOR_STUDIO_IDENTITY_RUNTIME_VERSION,
   issueWorkingSessionId,
   isMovieMentorProject,
+  conversationBelongsToProject,
+  conversationToMessages,
   createMovieMentorStudioIdentityRuntime,
 };
 
