@@ -7,12 +7,15 @@ on:
       - "src/components/studio/mentor/MovieMentorDurableStateSync.js"
       - "src/components/studio/mentor/MovieMentorTurnClient.js"
       - "src/components/studio/mentor/MovieMentorLiveGatewayService.js"
+      - "src/components/studio/mentor/MovieMentorProjectIdentity.js"
+      - "src/components/studio/mentor/CreatorMemory.js"
       - "src/App.jsx"
       - "src/main.jsx"
       - "scripts/verify-movie-mentor-durable-state-sync.mjs"
       - "scripts/verify-movie-mentor-live-gateway.mjs"
       - "scripts/verify-movie-mentor-single-brain.mjs"
       - "scripts/verify-movie-mentor-conversation-parity.mjs"
+      - "scripts/verify-movie-mentor-project-identity.mjs"
       - "package.json"
       - ".github/workflows/verify-movie-mentor-durable-sync.yml"
   pull_request:
@@ -40,5 +43,7 @@ jobs:
         run: npm run verify:movie-mentor-single-brain
       - name: Verify Movie Mentor conversation UI parity
         run: npm run verify:movie-mentor-conversation-parity
+      - name: Verify Movie Mentor canonical project identity
+        run: npm run verify:movie-mentor-project-identity
       - name: Build frontend
         run: npm run build
