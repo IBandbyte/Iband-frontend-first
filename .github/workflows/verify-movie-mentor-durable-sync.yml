@@ -3,6 +3,7 @@ on:
   push:
     branches: [main]
     paths:
+      - "src/components/studio/mentor/MovieMentorConversation.jsx"
       - "src/components/studio/mentor/MovieMentorDurableStateSync.js"
       - "src/components/studio/mentor/MovieMentorTurnClient.js"
       - "src/components/studio/mentor/MovieMentorLiveGatewayService.js"
@@ -10,6 +11,7 @@ on:
       - "src/main.jsx"
       - "scripts/verify-movie-mentor-durable-state-sync.mjs"
       - "scripts/verify-movie-mentor-live-gateway.mjs"
+      - "scripts/verify-movie-mentor-single-brain.mjs"
       - "package.json"
       - ".github/workflows/verify-movie-mentor-durable-sync.yml"
   pull_request:
@@ -33,3 +35,7 @@ jobs:
         run: npm run verify:movie-mentor-durable-sync
       - name: Verify Movie Mentor live backend turn gateway
         run: npm run verify:movie-mentor-live-gateway
+      - name: Verify Movie Mentor single-brain architecture
+        run: npm run verify:movie-mentor-single-brain
+      - name: Build frontend
+        run: npm run build
