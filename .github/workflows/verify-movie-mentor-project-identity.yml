@@ -3,11 +3,17 @@ on:
   push:
     branches: [main]
     paths:
+      - "src/components/studio/CreatorWorkspace.jsx"
       - "src/components/studio/mentor/CreatorMemory.js"
       - "src/components/studio/mentor/CreatorMemoryCore.js"
       - "src/components/studio/mentor/MovieMentorProjectIdentity.js"
+      - "src/components/studio/mentor/MovieMentorStudioIdentityRuntime.js"
+      - "src/components/studio/mentor/MovieMentorLiveGatewayService.js"
+      - "src/components/studio/mentor/MovieMentorConversation.jsx"
       - "src/components/studio/mentor/MovieMentorDurableStateSync.js"
       - "scripts/verify-movie-mentor-project-identity-continuity.mjs"
+      - "scripts/verify-movie-mentor-studio-cockpit-continuity.mjs"
+      - "package.json"
       - ".github/workflows/verify-movie-mentor-project-identity.yml"
   pull_request:
     branches: [main]
@@ -25,5 +31,7 @@ jobs:
       - run: npm i --no-audit --no-fund
       - name: Verify canonical project identity continuity
         run: node scripts/verify-movie-mentor-project-identity-continuity.mjs
+      - name: Verify live Studio cockpit identity continuity
+        run: npm run verify:movie-mentor-studio-cockpit
       - name: Build frontend
         run: npm run build
