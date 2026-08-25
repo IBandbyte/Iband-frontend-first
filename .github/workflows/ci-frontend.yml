@@ -30,5 +30,7 @@ jobs:
         run: npm run verify:movie-mentor-synthesis
       - name: Verify Movie Mentor creator-facing integration
         run: npm run verify:movie-mentor-creator-facing
+      - name: Verify Movie Mentor durable state sync
+        run: npm run verify:movie-mentor-durable-sync
       - name: Build frontend
         run: npm run build
