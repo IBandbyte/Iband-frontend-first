@@ -4,8 +4,12 @@ on:
     branches: [main]
     paths:
       - "src/components/studio/mentor/MovieMentorDurableStateSync.js"
+      - "src/components/studio/mentor/MovieMentorTurnClient.js"
+      - "src/components/studio/mentor/MovieMentorLiveGatewayService.js"
+      - "src/App.jsx"
       - "src/main.jsx"
       - "scripts/verify-movie-mentor-durable-state-sync.mjs"
+      - "scripts/verify-movie-mentor-live-gateway.mjs"
       - "package.json"
       - ".github/workflows/verify-movie-mentor-durable-sync.yml"
   pull_request:
@@ -27,3 +31,5 @@ jobs:
         run: npm i --no-audit --no-fund
       - name: Verify Movie Mentor durable state sync
         run: npm run verify:movie-mentor-durable-sync
+      - name: Verify Movie Mentor live backend turn gateway
+        run: npm run verify:movie-mentor-live-gateway
