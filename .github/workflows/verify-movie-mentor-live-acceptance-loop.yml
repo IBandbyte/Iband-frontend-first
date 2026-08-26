@@ -37,6 +37,10 @@ jobs:
       - name: Install frontend dependencies
         run: npm install --no-audit --no-fund --ignore-scripts
 
+      - name: Install backend dependencies
+        working-directory: iband-backend
+        run: npm install --no-audit --no-fund --ignore-scripts
+
       - name: Check Door 11D4 harness syntax
         run: node --check scripts/verify-movie-mentor-live-acceptance-loop.mjs
 
