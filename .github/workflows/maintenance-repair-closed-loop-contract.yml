@@ -1,0 +1,66 @@
+name: Repair Closed Loop Contract
+
+on:
+  push:
+    paths:
+      - '.github/workflows/maintenance-repair-closed-loop-contract.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Normalize Mentor imports and restore fallback diagnostic contract
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          root = Path('src/components/studio/mentor')
+          pattern = re.compile(r'(?P<prefix>\bfrom\s+|\bimport\s+)(?P<quote>["\'])(?P<spec>\.{1,2}/[^"\']+)(?P=quote)')
+          for path in sorted(root.rglob('*')):
+              if path.suffix not in {'.js', '.jsx', '.mjs'}:
+                  continue
+              text = path.read_text()
+              def repl(match):
+                  spec = match.group('spec')
+                  if Path(spec).suffix:
+                      return match.group(0)
+                  base = path.parent / spec
+                  for suffix in ('.js', '.jsx', '.mjs'):
+                      if Path(str(base) + suffix).exists():
+                          return f"{match.group('prefix')}{match.group('quote')}{spec}{suffix}{match.group('quote')}"
+                  return match.group(0)
+              path.write_text(pattern.sub(repl, text))
+
+          service = Path('src/components/studio/mentor/MovieMentorResponseService.js')
+          text = service.read_text()
+          anchor = 'adaptiveAction:getAdaptiveAction(result)||null,questionPolicy:getQuestionPolicy(result)||null,blockedFromAdvancingWithoutSemanticIntelligence:true'
+          replacement = 'adaptiveAction:getAdaptiveAction(result)||null,adaptiveAdvanceSignalObserved:["move-to-next-task","move-to-next-stage","advance","advance-task","advance-stage"].includes(getAdaptiveAction(result)),questionPolicy:getQuestionPolicy(result)||null,blockedFromAdvancingWithoutSemanticIntelligence:true'
+          if anchor in text:
+              text = text.replace(anchor, replacement, 1)
+          elif 'adaptiveAdvanceSignalObserved:' not in text:
+              raise SystemExit('fallback metadata anchor missing')
+          service.write_text(text)
+          PY
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund || npm i --no-audit --no-fund
+      - name: Verify closed loop
+        run: npm run verify:movie-mentor
+      - name: Verify live Journey projection
+        run: node scripts/verify-movie-mentor-live-journey-projection.mjs
+      - name: Build frontend
+        run: npm run build
+      - name: Commit repair
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src/components/studio/mentor
+          git commit -m 'Repair Movie Mentor closed-loop ESM and fallback contract' || exit 0
+          git push origin HEAD:main
