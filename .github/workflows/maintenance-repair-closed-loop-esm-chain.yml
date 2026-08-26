@@ -1,0 +1,60 @@
+name: Repair Closed Loop ESM Chain
+
+on:
+  push:
+    paths:
+      - '.github/workflows/maintenance-repair-closed-loop-esm-chain.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Repair known extensionless imports
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          changes = {
+            'src/components/studio/mentor/ResponseGenerator.js': {
+              'from "./AdaptiveMentorEngine";': 'from "./AdaptiveMentorEngine.js";',
+              'from "./ResponseComposer";': 'from "./ResponseComposer.js";',
+              'from "./CommunicationVoiceEngine";': 'from "./CommunicationVoiceEngine.js";',
+              'from "./CreatorMemory";': 'from "./CreatorMemory.js";',
+            },
+            'src/components/studio/mentor/MovieSemanticResponseProvider.js': {
+              'from "../../../services/api";': 'from "../../../services/api.js";',
+            },
+          }
+
+          for filename, replacements in changes.items():
+              path = Path(filename)
+              text = path.read_text()
+              for old, new in replacements.items():
+                  if old in text:
+                      text = text.replace(old, new, 1)
+                  elif new not in text:
+                      raise SystemExit(f'missing expected import in {filename}: {old}')
+              path.write_text(text)
+          PY
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund || npm i --no-audit --no-fund
+      - name: Verify closed loop
+        run: npm run verify:movie-mentor
+      - name: Verify live Journey projection
+        run: node scripts/verify-movie-mentor-live-journey-projection.mjs
+      - name: Build frontend
+        run: npm run build
+      - name: Commit repair
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src/components/studio/mentor/ResponseGenerator.js src/components/studio/mentor/MovieSemanticResponseProvider.js
+          git commit -m 'Repair closed-loop ESM import chain' || exit 0
+          git push origin HEAD:main
