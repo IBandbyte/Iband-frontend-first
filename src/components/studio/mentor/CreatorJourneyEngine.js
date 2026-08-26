@@ -70,7 +70,9 @@
  * - Clear permission already given should not be repeatedly requested.
  */
 
-const CREATOR_JOURNEY_ENGINE_VERSION = "1.1.0";
+import { reconcileAuthoritativeCreatorTruth } from "./CreatorJourneyAuthoritativeProjection.js";
+
+const CREATOR_JOURNEY_ENGINE_VERSION = "1.2.0";
 
 const DEFAULT_DELETED_SCENE_RETENTION_DAYS = 30;
 
@@ -3183,6 +3185,8 @@ function createCreatorJourneyEngine(
     revisitStage,
 
     recordDecision,
+
+    reconcileAuthoritativeCreatorTruth,
 
     setNextAction,
 
