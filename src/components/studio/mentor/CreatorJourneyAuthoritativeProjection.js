@@ -1,4 +1,4 @@
-const CREATOR_JOURNEY_AUTHORITATIVE_PROJECTION_VERSION = "1.0.0";
+const CREATOR_JOURNEY_AUTHORITATIVE_PROJECTION_VERSION = "1.0.1";
 const PROJECTION_SOURCE = "durable-post-commit-creator-state";
 
 function cleanString(value) { return typeof value === "string" ? value.trim() : ""; }
@@ -89,20 +89,28 @@ function reconcileAuthoritativeCreatorTruth(journey, authority) {
 
   const next = clone(original);
   next.decisions = asArray(next.decisions);
-  const incomingIds = new Set(truth.map(item => cleanString(item.decisionId)).filter(Boolean));
-  const incomingKeys = new Set(truth.map(item => cleanString(item.decisionKey)).filter(Boolean));
+  const incomingByKey = new Map(truth.map(item => [cleanString(item.decisionKey), item]).filter(([key]) => key));
   const now = new Date().toISOString();
 
+  // Supersede only projected durable creator decisions whose durable key is
+  // explicitly replaced in this authority revision. Absence is never deletion.
+  // Preserve the replacement decision identity at the moment supersession occurs.
   for (const decision of next.decisions) {
     if (decision?.authority !== "creator" || decision?.status !== "active") continue;
     const durableId = cleanString(decision?.metadata?.durableDecisionId);
     const durableKey = cleanString(decision?.metadata?.durableDecisionKey);
     if (!durableId || !durableKey) continue;
-    if (!incomingIds.has(durableId) && incomingKeys.has(durableKey)) {
-      decision.status = "superseded";
-      decision.supersededAt = now;
-      decision.metadata = { ...(decision.metadata || {}), supersededByAuthorityRevision: revision };
-    }
+    const replacement = incomingByKey.get(durableKey);
+    if (!replacement) continue;
+    const replacementId = cleanString(replacement.decisionId);
+    if (!replacementId || replacementId === durableId) continue;
+    decision.status = "superseded";
+    decision.supersededAt = now;
+    decision.metadata = {
+      ...(decision.metadata || {}),
+      supersededByDecisionId: replacementId,
+      supersededByAuthorityRevision: revision,
+    };
   }
 
   for (const item of truth) {
@@ -117,13 +125,22 @@ function reconcileAuthoritativeCreatorTruth(journey, authority) {
       if (decision?.authority === "creator" && decision?.status === "active" && sameDurableDecisionKey(decision, item)) {
         decision.status = "superseded";
         decision.supersededAt = now;
-        decision.metadata = { ...(decision.metadata || {}), supersededByDecisionId: cleanString(item.decisionId), supersededByAuthorityRevision: revision };
+        decision.metadata = {
+          ...(decision.metadata || {}),
+          supersededByDecisionId: cleanString(item.decisionId),
+          supersededByAuthorityRevision: revision,
+        };
       }
     }
     next.decisions.push(projectedDecision(item, revision));
   }
 
-  next.metadata = { ...(next.metadata || {}), authoritativeCreatorProjectionRevision: revision, authoritativeCreatorProjectionSource: PROJECTION_SOURCE, authoritativeCreatorProjectionVersion: CREATOR_JOURNEY_AUTHORITATIVE_PROJECTION_VERSION };
+  next.metadata = {
+    ...(next.metadata || {}),
+    authoritativeCreatorProjectionRevision: revision,
+    authoritativeCreatorProjectionSource: PROJECTION_SOURCE,
+    authoritativeCreatorProjectionVersion: CREATOR_JOURNEY_AUTHORITATIVE_PROJECTION_VERSION,
+  };
 
   const positionAfter = {
     currentStageId: next.currentStageId ?? null,
