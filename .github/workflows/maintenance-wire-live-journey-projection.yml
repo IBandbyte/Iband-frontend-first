@@ -1,0 +1,93 @@
+name: Wire Live Journey Projection
+on:
+  push:
+    paths:
+      - '.github/workflows/maintenance-wire-live-journey-projection.yml'
+jobs:
+  wire:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Wire post-commit authority through UI and Workspace
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          conversation = Path('src/components/studio/mentor/MovieMentorConversation.jsx')
+          s = conversation.read_text()
+          old = '''        turnContextProof: cloneValue(turn?.turnContextProof || null),
+        semanticIntelligence: cloneValue(turn?.semanticIntelligence || null),'''
+          new = '''        turnContextProof: cloneValue(turn?.turnContextProof || null),
+        postCommitCreatorAuthority: cloneValue(turn?.postCommitCreatorAuthority || null),
+        semanticIntelligence: cloneValue(turn?.semanticIntelligence || null),'''
+          assert old in s, 'turnResult insertion anchor missing'
+          s = s.replace(old, new, 1)
+          old = '''          turnContextProof: turn.turnContextProof || null,
+          semanticIntelligence: turn.semanticIntelligence || null,'''
+          new = '''          turnContextProof: turn.turnContextProof || null,
+          postCommitCreatorAuthority: turn.postCommitCreatorAuthority || null,
+          semanticIntelligence: turn.semanticIntelligence || null,'''
+          assert old in s, 'mentor metadata insertion anchor missing'
+          s = s.replace(old, new, 1)
+          conversation.write_text(s)
+
+          workspace = Path('src/components/studio/CreatorWorkspace.jsx')
+          s = workspace.read_text()
+          old = 'import createMovieMentorStudioIdentityRuntime from "./mentor/MovieMentorStudioIdentityRuntime.js";'
+          new = old + '\nimport projectCommittedCreatorAuthorityIntoJourney from "./mentor/MovieMentorJourneyProjectionRuntime.js";'
+          assert old in s, 'workspace import anchor missing'
+          s = s.replace(old, new, 1)
+          old = '''  const handleMovieMentorTurnResult = (turnResult) => {
+    const planning = movieJourneyIntelligenceBridge.consumeTurnForJourneyPlanning(
+      projectJourney,
+      turnResult,
+      {
+        source: "MovieMentorConversation",
+        turnStatus: turnResult?.status || null,
+        turnRevision: turnResult?.turnContextProof?.revision ?? null,
+      }
+    );
+    setMovieJourneyPlanningEvidence(planning.journeyPlanningEvidence || null);
+  };'''
+          new = '''  const handleMovieMentorTurnResult = (turnResult) => {
+    const projection = projectCommittedCreatorAuthorityIntoJourney({
+      journeyEngine: creatorJourneyEngine,
+      identityRuntime,
+      projectJourney,
+      projectId: activeMovieProject?.id || null,
+      turnResult,
+    });
+    const authoritativeJourney = projection.projectJourney || projectJourney;
+    if (projection.projected) setProjectJourney(authoritativeJourney);
+
+    const planning = movieJourneyIntelligenceBridge.consumeTurnForJourneyPlanning(
+      authoritativeJourney,
+      turnResult,
+      {
+        source: "MovieMentorConversation",
+        turnStatus: turnResult?.status || null,
+        turnRevision: turnResult?.turnContextProof?.revision ?? null,
+      }
+    );
+    setMovieJourneyPlanningEvidence(planning.journeyPlanningEvidence || null);
+  };'''
+          assert old in s, 'workspace handler anchor missing'
+          s = s.replace(old, new, 1)
+          workspace.write_text(s)
+          PY
+      - name: Run live projection furnace
+        run: node scripts/verify-movie-mentor-live-journey-projection.mjs
+      - name: Build frontend
+        run: npm ci && npm run build
+      - name: Commit wiring
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src/components/studio/CreatorWorkspace.jsx src/components/studio/mentor/MovieMentorConversation.jsx
+          git commit -m 'Wire durable creator authority into live Journey' || exit 0
+          git push
