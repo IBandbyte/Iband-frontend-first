@@ -1,0 +1,1 @@
+Door 11E2 full-CI trigger after commit 740b2d98c812f585ef26729fb25224a37c0ce2e7 repaired the pre-existing Movie Mentor ESM import chain and restored the safe-fallback adaptive advance diagnostic contract.
