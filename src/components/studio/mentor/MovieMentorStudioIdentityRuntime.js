@@ -6,7 +6,7 @@ import createCreatorMemory, {
 import createCreatorJourneyEngine from "./CreatorJourneyEngine.js";
 import createMovieJourneyIntelligenceBridge from "./MovieJourneyIntelligenceBridge.js";
 
-const MOVIE_MENTOR_STUDIO_IDENTITY_RUNTIME_VERSION = "1.3.0";
+const MOVIE_MENTOR_STUDIO_IDENTITY_RUNTIME_VERSION = "1.3.1";
 const RECOMMENDATION_REFERENCE_DOMAIN = "iband.movie-mentor.journey-recommendation-reference";
 const RECOMMENDATION_REFERENCE_SCHEMA = 1;
 
@@ -89,7 +89,7 @@ function createMovieMentorStudioIdentityRuntime({ memory = createCreatorMemory()
     const handoff=memory.saveSessionHandoff?.({projectId:pid,sessionId:creatorSessionId,title:"Movie Mentor conversation continuation",content:creatorMessage?`Continue after the creator said: ${clean(creatorMessage.text)}`:"Continue from the latest Movie Mentor response.",value:{conversationId:conversation?.id||null,lastCreatorMessage:clean(creatorMessage?.text)||null,lastMentorResponse:text,projectJourney:clone(projectJourney)},metadata:{projectId:pid,creatorSessionId,conversationId:conversation?.id||null,source:"movie-mentor-conversation"}})||null;
     let recommendationReference=null;
     if(message?.metadata?.liveBackendTurn===true&&projectJourney){
-      const postCommitCreatorAuthority=clone(message?.metadata?.postCommitCreatorAuthority||null);
+      const postCommitCreatorAuthority=clone(message?.metadata?.postCommitCreatorAuthority||message?.metadata?.backendMetadata?.postCommitCreatorAuthority||null);
       const planning=recommendationJourneyBridge.consumeTurnForJourneyPlanning(projectJourney,{status:message?.metadata?.backendMetadata?.status||null,turnContextProof:clone(message?.metadata?.turnContextProof||null),postCommitCreatorAuthority,semanticIntelligence:clone(message?.metadata?.semanticIntelligence||null),specialistResult:clone(message?.metadata?.specialistResult||null),continuityConsequenceEnvelope:clone(message?.metadata?.continuityConsequenceEnvelope||null),authority:clone(message?.metadata?.authority||null),mayAdvanceJourney:message?.metadata?.mayAdvanceJourney===true},{source:"MovieMentorStudioIdentityRuntime",turnRevision:message?.metadata?.turnContextProof?.revision??null});
       const recommendationRevision=planning?.journeyPlanningEvidence?.provenance?.authorityRevision??message?.metadata?.turnContextProof?.revision??null;
       recommendationReference=recordRecommendationReference(pid,planning?.journeyPlanningEvidence||null,{turnRevision:recommendationRevision});
