@@ -1,12 +1,23 @@
 import {
   flushMovieMentorDurableStateSync,
   getDurableSyncStatus,
+  rememberRevision,
 } from "./MovieMentorDurableStateSync.js";
 
-const MOVIE_MENTOR_TURN_CLIENT_VERSION = "1.0.0";
+const MOVIE_MENTOR_TURN_CLIENT_VERSION = "1.1.0";
 
 function cleanString(value) {
   return typeof value === "string" ? value.trim() : "";
+}
+
+function clone(value) {
+  if (value === undefined) return undefined;
+  try { return JSON.parse(JSON.stringify(value)); } catch { return value; }
+}
+
+function safeRevision(value) {
+  const number = Number(value);
+  return Number.isSafeInteger(number) && number >= 0 ? number : null;
 }
 
 function apiBase() {
@@ -35,29 +46,37 @@ function resolveIdentity({ projectId, creatorSessionId } = {}) {
     );
   }
 
-  return {
-    projectId: project || null,
-    creatorSessionId: session || null,
-  };
+  return { projectId: project || null, creatorSessionId: session || null };
 }
 
 function assertDurableRealityAcknowledged(status) {
-  if (!status) return;
-
-  if (status.status === "acknowledged") return;
-
-  if (
-    status.status === "queued" ||
-    status.status === "syncing" ||
-    status.status === "retry-pending" ||
-    status.status === "conflict-pending"
-  ) {
+  if (!status || status.status === "acknowledged") return;
+  if (["queued", "syncing", "retry-pending", "conflict-pending"].includes(status.status)) {
     throw createTurnError(
       "MOVIE_MENTOR_DURABLE_REALITY_NOT_ACKNOWLEDGED",
       "The creator's latest durable reality has not been acknowledged yet, so Movie Mentor will not reason against an older snapshot.",
       { durableSyncStatus: status }
     );
   }
+}
+
+function normalisePostCommitCreatorAuthority(input, turnContextProof = null) {
+  if (input == null) return null;
+  if (!input || typeof input !== "object") {
+    throw createTurnError("MOVIE_MENTOR_POST_COMMIT_AUTHORITY_INVALID", "Movie Mentor returned malformed post-commit creator authority.");
+  }
+  const revision = safeRevision(input.revision);
+  const priorRevision = safeRevision(turnContextProof?.revision);
+  const creatorConfirmedContext = Array.isArray(input.creatorConfirmedContext)
+    ? clone(input.creatorConfirmedContext)
+    : null;
+  if (revision === null || creatorConfirmedContext === null) {
+    throw createTurnError("MOVIE_MENTOR_POST_COMMIT_AUTHORITY_INVALID", "Movie Mentor returned incomplete post-commit creator authority.");
+  }
+  if (priorRevision !== null && revision <= priorRevision) {
+    throw createTurnError("MOVIE_MENTOR_POST_COMMIT_AUTHORITY_NOT_NEWER", "Post-commit creator authority must be newer than the turn snapshot it supersedes.", { priorRevision, revision });
+  }
+  return { ...clone(input), revision, creatorConfirmedContext };
 }
 
 async function requestMovieMentorTurn({
@@ -68,78 +87,47 @@ async function requestMovieMentorTurn({
   storage = globalThis?.localStorage,
 } = {}) {
   const creatorMessage = cleanString(message);
-  if (!creatorMessage) {
-    throw createTurnError(
-      "MOVIE_MENTOR_TURN_MESSAGE_REQUIRED",
-      "A creator message is required for a live Movie Mentor turn."
-    );
-  }
-
-  if (typeof fetchImpl !== "function") {
-    throw createTurnError(
-      "MOVIE_MENTOR_TURN_FETCH_UNAVAILABLE",
-      "Movie Mentor cannot reach the backend turn gateway because fetch is unavailable."
-    );
-  }
+  if (!creatorMessage) throw createTurnError("MOVIE_MENTOR_TURN_MESSAGE_REQUIRED", "A creator message is required for a live Movie Mentor turn.");
+  if (typeof fetchImpl !== "function") throw createTurnError("MOVIE_MENTOR_TURN_FETCH_UNAVAILABLE", "Movie Mentor cannot reach the backend turn gateway because fetch is unavailable.");
 
   const identity = resolveIdentity({ projectId, creatorSessionId });
-
-  await flushMovieMentorDurableStateSync({
-    ...identity,
-    fetchImpl,
-    storage,
-  });
-
-  const durableStatus = getDurableSyncStatus({
-    ...identity,
-    storage,
-  });
+  await flushMovieMentorDurableStateSync({ ...identity, fetchImpl, storage });
+  const durableStatus = getDurableSyncStatus({ ...identity, storage });
   assertDurableRealityAcknowledged(durableStatus);
 
   const response = await fetchImpl(`${apiBase()}/api/movie-mentor/turn`, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      ...identity,
-      message: creatorMessage,
-    }),
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ...identity, message: creatorMessage }),
   });
-
   const payload = await response.json().catch(() => ({}));
-
   if (!response.ok || payload?.success !== true) {
     throw createTurnError(
       cleanString(payload?.code) || "MOVIE_MENTOR_LIVE_TURN_FAILED",
-      cleanString(payload?.message) ||
-        "The authoritative Movie Mentor turn did not complete.",
-      {
-        status: response.status,
-        validationIssues: Array.isArray(payload?.validationIssues)
-          ? payload.validationIssues
-          : [],
-      }
+      cleanString(payload?.message) || "The authoritative Movie Mentor turn did not complete.",
+      { status: response.status, validationIssues: Array.isArray(payload?.validationIssues) ? payload.validationIssues : [] }
     );
   }
 
   const text = cleanString(payload?.text);
-  if (!text) {
-    throw createTurnError(
-      "MOVIE_MENTOR_LIVE_TURN_EMPTY_RESPONSE",
-      "The authoritative Movie Mentor turn returned no creator-facing response."
-    );
+  if (!text) throw createTurnError("MOVIE_MENTOR_LIVE_TURN_EMPTY_RESPONSE", "The authoritative Movie Mentor turn returned no creator-facing response.");
+
+  const postCommitCreatorAuthority = normalisePostCommitCreatorAuthority(payload?.postCommitCreatorAuthority, payload?.turnContextProof);
+  if (postCommitCreatorAuthority) {
+    rememberRevision({ ...identity, revision: postCommitCreatorAuthority.revision, storage });
   }
 
   return {
     ...payload,
     text,
+    postCommitCreatorAuthority,
     durableSyncStatus: durableStatus,
     metadata: {
       ...(payload?.metadata || {}),
       turnClientVersion: MOVIE_MENTOR_TURN_CLIENT_VERSION,
       liveBackendTurn: true,
       localResponseGeneratorUsed: false,
+      postCommitCreatorAuthorityTransported: postCommitCreatorAuthority !== null,
     },
   };
 }
@@ -148,6 +136,7 @@ export {
   MOVIE_MENTOR_TURN_CLIENT_VERSION,
   resolveIdentity,
   assertDurableRealityAcknowledged,
+  normalisePostCommitCreatorAuthority,
   requestMovieMentorTurn,
 };
 
