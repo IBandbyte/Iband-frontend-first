@@ -9,6 +9,7 @@ import createCreatorJourneyEngine from "./mentor/CreatorJourneyEngine";
 import createMovieJourneyIntelligenceBridge from "./mentor/MovieJourneyIntelligenceBridge";
 import MovieMentorConversation from "./mentor/MovieMentorConversation.jsx";
 import createMovieMentorStudioIdentityRuntime from "./mentor/MovieMentorStudioIdentityRuntime.js";
+import projectCommittedCreatorAuthorityIntoJourney from "./mentor/MovieMentorJourneyProjectionRuntime.js";
 import { resolveMovieMentorCreatorFacingMessage, resolveMovieMentorPreview } from "./mentor/MovieMentorCreatorFacingPresenter";
 
 const creatorJourneyEngine = createCreatorJourneyEngine();
@@ -120,8 +121,18 @@ const CreatorWorkspace = ({ creatorName = "Creator", initialCreator = "", onGene
   };
 
   const handleMovieMentorTurnResult = (turnResult) => {
-    const planning = movieJourneyIntelligenceBridge.consumeTurnForJourneyPlanning(
+    const projection = projectCommittedCreatorAuthorityIntoJourney({
+      journeyEngine: creatorJourneyEngine,
+      identityRuntime,
       projectJourney,
+      projectId: activeMovieProject?.id || null,
+      turnResult,
+    });
+    const authoritativeJourney = projection.projectJourney || projectJourney;
+    if (projection.projected) setProjectJourney(authoritativeJourney);
+
+    const planning = movieJourneyIntelligenceBridge.consumeTurnForJourneyPlanning(
+      authoritativeJourney,
       turnResult,
       {
         source: "MovieMentorConversation",
