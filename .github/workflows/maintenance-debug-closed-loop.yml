@@ -1,0 +1,28 @@
+name: Diagnose Closed Loop
+
+on:
+  push:
+    paths:
+      - ".github/workflows/maintenance-debug-closed-loop.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: npm ci --no-audit --no-fund || npm i --no-audit --no-fund
+      - name: Capture closed-loop result
+        run: |
+          mkdir -p verification-results
+          npm run verify:movie-mentor > verification-results/closed-loop-ci-diagnostic.txt 2>&1 || true
+          cat verification-results/closed-loop-ci-diagnostic.txt
+      - name: Commit diagnostic
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add verification-results/closed-loop-ci-diagnostic.txt
+          git commit -m "Capture closed-loop CI diagnostic" || exit 0
+          git push origin HEAD:main
