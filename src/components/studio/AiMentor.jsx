@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import resolveMovieMentorJourneyRecommendation from "./mentor/MovieMentorJourneyRecommendationPresenter.js";
 
 const FONT_STACK =
   '"TikTok Sans", Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
@@ -35,6 +36,18 @@ export default function AiMentor({
 
   const journeyMessage =
     JOURNEY_MESSAGES[currentJourney] || JOURNEY_MESSAGES.guide;
+
+  const journeyRecommendation = useMemo(
+    () =>
+      resolveMovieMentorJourneyRecommendation(
+        mentorContext?.journeyPlanningEvidence || null
+      ),
+    [mentorContext?.journeyPlanningEvidence]
+  );
+
+  const showJourneyRecommendation =
+    journeyRecommendation?.mode === "recommendation" ||
+    journeyRecommendation?.mode === "clarification";
 
   return (
     <div
@@ -91,6 +104,84 @@ export default function AiMentor({
           {journeyMessage}
         </div>
       </div>
+
+      {showJourneyRecommendation && (
+        <div
+          data-movie-mentor-journey-recommendation={journeyRecommendation.mode}
+          style={{
+            padding: 18,
+            borderRadius: 18,
+            background: "#ffffff",
+            border: "1px solid rgba(17,24,39,0.08)",
+            boxShadow: "0 6px 20px rgba(17,24,39,0.04)",
+          }}
+        >
+          <div
+            style={{
+              fontSize: 12,
+              fontWeight: 800,
+              color: "#7b8190",
+              textTransform: "uppercase",
+              letterSpacing: "0.1em",
+              marginBottom: 8,
+            }}
+          >
+            {journeyRecommendation.mode === "clarification"
+              ? "Before we continue"
+              : "Suggested next step"}
+          </div>
+
+          <div
+            style={{
+              fontSize: 17,
+              fontWeight: 750,
+              lineHeight: 1.5,
+              color: "#20232a",
+            }}
+          >
+            {journeyRecommendation.message}
+          </div>
+
+          {journeyRecommendation.explanation && (
+            <div
+              style={{
+                marginTop: 8,
+                fontSize: 15,
+                lineHeight: 1.55,
+                color: "#5f6673",
+              }}
+            >
+              {journeyRecommendation.explanation}
+            </div>
+          )}
+
+          {journeyRecommendation.mode === "recommendation" &&
+            journeyRecommendation.alternatives.length > 0 && (
+              <div
+                style={{
+                  marginTop: 12,
+                  fontSize: 14,
+                  lineHeight: 1.5,
+                  color: "#5f6673",
+                }}
+              >
+                Other directions we can explore: {journeyRecommendation.alternatives.join(" • ")}
+              </div>
+            )}
+
+          <div
+            style={{
+              marginTop: 10,
+              fontSize: 13,
+              fontWeight: 700,
+              lineHeight: 1.45,
+              color: "#4d3dd9",
+            }}
+          >
+            Your choice decides what happens next.
+          </div>
+        </div>
+      )}
 
       <div
         style={{
