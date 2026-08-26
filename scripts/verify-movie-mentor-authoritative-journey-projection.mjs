@@ -39,4 +39,4 @@ assert.equal(absentDoesNotDelete.decisions.find(d => d.metadata?.durableDecision
 
 assert.throws(() => engine.reconcileAuthoritativeCreatorTruth(journeyN, { revision: 8, currentCreatorTruth: [{ key: "bad", decisionKey: "semantic.bad", decisionId: "bad", authority: "mentor", current: true }] }), error => error.code === "CREATOR_JOURNEY_AUTHORITY_INVALID");
 
-console.log("Movie Mentor authoritative Journey projection torture: PASS — N→N+1 projection preserves durable identity, replay/restart are idempotent, stale authority is denied, N+2 supersedes by durable key, absence never deletes, and stage/task position never moves.");
+console.log("Movie Mentor canonical CreatorJourneyEngine projection torture: PASS — N→N+1 preserves durable identity, replay/restart are idempotent, stale authority is denied, N+2 records replacement identity, absence never deletes, and stage/task position never moves.");
