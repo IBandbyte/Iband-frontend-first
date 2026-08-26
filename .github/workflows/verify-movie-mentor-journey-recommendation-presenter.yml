@@ -1,0 +1,35 @@
+name: Verify Movie Mentor Journey Recommendation Presenter
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "src/components/studio/AiMentor.jsx"
+      - "src/components/studio/CreatorWorkspace.jsx"
+      - "src/components/studio/mentor/MovieMentorJourneyRecommendationPresenter.js"
+      - "scripts/verify-movie-mentor-journey-recommendation-presenter.mjs"
+      - ".github/workflows/verify-movie-mentor-journey-recommendation-presenter.yml"
+  pull_request:
+    paths:
+      - "src/components/studio/AiMentor.jsx"
+      - "src/components/studio/CreatorWorkspace.jsx"
+      - "src/components/studio/mentor/MovieMentorJourneyRecommendationPresenter.js"
+      - "scripts/verify-movie-mentor-journey-recommendation-presenter.mjs"
+      - ".github/workflows/verify-movie-mentor-journey-recommendation-presenter.yml"
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Verify Journey recommendation presenter
+        run: node scripts/verify-movie-mentor-journey-recommendation-presenter.mjs
