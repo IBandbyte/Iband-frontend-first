@@ -40,7 +40,7 @@ const CreatorWorkspace = ({ creatorName = "Creator", initialCreator = "", onGene
   const [projectJourney, setProjectJourney] = useState(resumeSnapshot?.projectJourney || null);
   const [activeMovieProject, setActiveMovieProject] = useState(resumeSnapshot?.project || null);
   const [movieMessages, setMovieMessages] = useState(resumeSnapshot?.conversationMessages || []);
-  const [movieContinuityPlanningAdvice, setMovieContinuityPlanningAdvice] = useState(null);
+  const [movieJourneyPlanningEvidence, setMovieJourneyPlanningEvidence] = useState(null);
   const [showCreatorChoices, setShowCreatorChoices] = useState(resumedMovie ? false : !Boolean(initialCreator));
   const [showCreatorModeChoices, setShowCreatorModeChoices] = useState(resumedMovie ? false : Boolean(initialCreator));
   const [mentorMessage, setMentorMessage] = useState(resumedMovie ? `Welcome back. Your movie project “${resumeSnapshot.project.title}” is ready to continue.` : "I've got your back. Choose what you would like to create, then tell me about your idea.");
@@ -48,7 +48,7 @@ const CreatorWorkspace = ({ creatorName = "Creator", initialCreator = "", onGene
   const activeCreator = useMemo(() => CREATOR_OPTIONS.find((creator) => creator.id === selectedCreator) || null, [selectedCreator]);
   const projectJourneySnapshot = useMemo(() => projectJourney ? creatorJourneyEngine.createSnapshot(projectJourney) : null, [projectJourney]);
   const projectJourneyOrientation = useMemo(() => projectJourney ? creatorJourneyEngine.getOrientation(projectJourney) : null, [projectJourney]);
-  const movieJourneyPlanningContext = useMemo(() => projectJourney ? movieJourneyIntelligenceBridge.buildResponseContext(projectJourney, { continuityPlanningAdvice: movieContinuityPlanningAdvice }) : null, [projectJourney, movieContinuityPlanningAdvice]);
+  const movieJourneyPlanningContext = useMemo(() => projectJourney ? movieJourneyIntelligenceBridge.buildResponseContext(projectJourney, { journeyPlanningEvidence: movieJourneyPlanningEvidence }) : null, [projectJourney, movieJourneyPlanningEvidence]);
   const journeyReady = Boolean(activeCreator) && Boolean(selectedCreatorMode) && !showCreatorChoices && !showCreatorModeChoices;
   const movieCockpitActive = journeyReady && selectedCreatorMode === "ai-movie" && Boolean(activeMovieProject?.id);
 
@@ -64,14 +64,14 @@ const CreatorWorkspace = ({ creatorName = "Creator", initialCreator = "", onGene
     projectJourney: projectJourneySnapshot,
     projectJourneyOrientation,
     movieJourneyPlanningContext,
-    continuityPlanningAdvice: movieContinuityPlanningAdvice,
+    journeyPlanningEvidence: movieJourneyPlanningEvidence,
     idea,
     projectStatus,
     hasGeneratedIdea: Boolean(generatedIdea),
-  }), [creatorName, selectedCreator, activeCreator, selectedCreatorMode, selectedCreatorModeLabel, creatorJourney, activeMovieProject, identityRuntime, projectJourneySnapshot, projectJourneyOrientation, movieJourneyPlanningContext, movieContinuityPlanningAdvice, idea, projectStatus, generatedIdea]);
+  }), [creatorName, selectedCreator, activeCreator, selectedCreatorMode, selectedCreatorModeLabel, creatorJourney, activeMovieProject, identityRuntime, projectJourneySnapshot, projectJourneyOrientation, movieJourneyPlanningContext, movieJourneyPlanningEvidence, idea, projectStatus, generatedIdea]);
 
   const canGenerate = journeyReady && selectedCreatorMode !== "ai-movie" && Boolean(idea.trim()) && projectStatus !== "generating";
-  const createProjectPayload = () => ({ projectId: activeMovieProject?.id || null, creatorSessionId: identityRuntime.creatorSessionId, creatorType: selectedCreator, creatorLabel: activeCreator?.label || selectedCreator, creatorMode: selectedCreatorMode || null, creatorModeLabel: selectedCreatorModeLabel || null, creatorJourney, projectJourney, projectJourneySnapshot, projectJourneyOrientation, movieContinuityPlanningAdvice, idea: idea.trim(), generatedIdea });
+  const createProjectPayload = () => ({ projectId: activeMovieProject?.id || null, creatorSessionId: identityRuntime.creatorSessionId, creatorType: selectedCreator, creatorLabel: activeCreator?.label || selectedCreator, creatorMode: selectedCreatorMode || null, creatorModeLabel: selectedCreatorModeLabel || null, creatorJourney, projectJourney, projectJourneySnapshot, projectJourneyOrientation, movieJourneyPlanningEvidence, idea: idea.trim(), generatedIdea });
   const createMovieJourney = ({ creatorModeLabel, workingMode = creatorJourney } = {}) => creatorJourneyEngine.createMovieJourney({ creatorType: "video", creatorMode: "ai-movie", creatorJourney: workingMode, metadata: { creatorModeLabel: creatorModeLabel || "AI Movie Making", createdFrom: "CreatorWorkspace" } });
   const persistMovieJourney = (nextJourney, project = activeMovieProject) => { if (project?.id && nextJourney) identityRuntime.persistJourney(project.id, nextJourney); };
 
@@ -81,7 +81,7 @@ const CreatorWorkspace = ({ creatorName = "Creator", initialCreator = "", onGene
     setShowCreatorChoices(false);
     setShowCreatorModeChoices(true);
     if (creatorChanged) {
-      setSelectedCreatorMode(""); setSelectedCreatorModeLabel(""); setIdea(""); setGeneratedIdea(""); setProjectStatus("idle"); setProjectJourney(null); setActiveMovieProject(null); setMovieMessages([]); setMovieContinuityPlanningAdvice(null);
+      setSelectedCreatorMode(""); setSelectedCreatorModeLabel(""); setIdea(""); setGeneratedIdea(""); setProjectStatus("idle"); setProjectJourney(null); setActiveMovieProject(null); setMovieMessages([]); setMovieJourneyPlanningEvidence(null);
     }
     const messages = { video: "Let's create something visual. Choose what you'd like to make, and we'll take it from there.", image: "Let's create something visual. Choose what kind of image you'd like to make, and we'll shape it together.", music: "Let's create something with music. Choose where you'd like to begin, and we'll build from there.", podcast: "Let's build your podcast project. Choose what you'd like to create, and we'll take it one step at a time.", story: "Let's build your story. Choose what you'd like to create, and we'll develop it together.", marketing: "Let's create something that gets attention. Choose the kind of marketing project you want to make.", social: "Let's create something for social media. Choose what you'd like to make, and we'll shape it together." };
     setMentorMessage(messages[creator.id] || "Tell me what you'd like to create. We can shape the idea together.");
@@ -95,9 +95,9 @@ const CreatorWorkspace = ({ creatorName = "Creator", initialCreator = "", onGene
       const nextJourney = existing?.metadata?.projectJourney || createMovieJourney({ creatorModeLabel: mode.label });
       const project = existing || identityRuntime.ensureProject({ projectJourney: nextJourney });
       const continuation = existing ? identityRuntime.resumeProjectConversation(project.id) : { messages: [] };
-      setActiveMovieProject(project); setProjectJourney(nextJourney); setProjectStatus(existing ? "saved" : "creating"); setMovieMessages(continuation.messages || []); setMovieContinuityPlanningAdvice(null); persistMovieJourney(nextJourney, project);
+      setActiveMovieProject(project); setProjectJourney(nextJourney); setProjectStatus(existing ? "saved" : "creating"); setMovieMessages(continuation.messages || []); setMovieJourneyPlanningEvidence(null); persistMovieJourney(nextJourney, project);
     } else if (modeChanged) {
-      setActiveMovieProject(null); setProjectJourney(null); setProjectStatus("idle"); setMovieMessages([]); setMovieContinuityPlanningAdvice(null);
+      setActiveMovieProject(null); setProjectJourney(null); setProjectStatus("idle"); setMovieMessages([]); setMovieJourneyPlanningEvidence(null);
     }
     if (modeChanged) { setIdea(""); setGeneratedIdea(""); }
     const messages = { "ai-movie": "Welcome. You don't need to know how to make a movie. I'll help you through it one step at a time. Tell me the idea in your head—even if it's only one sentence.", "movie-scene": "Let's build your scene together. Tell me what you imagine happening, even if you only know one moment, character or location.", "music-video": "Let's turn your music into a visual story. Tell me about the song and anything you already imagine seeing on screen.", advert: "Let's create a video advert that gets attention. Tell me what you're promoting and the main thing you want people to remember.", "short-reel": "Let's make something short, clear and engaging. Tell me the idea, message or moment you want the Reel or Short to capture.", "lyric-video": "Let's bring your lyrics to life visually. Tell me about the song, its mood and any visual ideas you already have.", "animation-cartoon": "Let's build your animated world. Tell me the idea, character or scene you have in mind, even if it's only the beginning.", documentary: "Let's shape your documentary one step at a time. Tell me the real story, subject or question you want to explore." };
@@ -120,16 +120,16 @@ const CreatorWorkspace = ({ creatorName = "Creator", initialCreator = "", onGene
   };
 
   const handleMovieMentorTurnResult = (turnResult) => {
-    const planning = movieJourneyIntelligenceBridge.consumeContinuityConsequenceForPlanning(
+    const planning = movieJourneyIntelligenceBridge.consumeTurnForJourneyPlanning(
       projectJourney,
-      turnResult?.continuityConsequenceEnvelope || null,
+      turnResult,
       {
+        source: "MovieMentorConversation",
         turnStatus: turnResult?.status || null,
         turnRevision: turnResult?.turnContextProof?.revision ?? null,
-        source: "MovieMentorConversation",
       }
     );
-    setMovieContinuityPlanningAdvice(planning.continuityPlanningAdvice || null);
+    setMovieJourneyPlanningEvidence(planning.journeyPlanningEvidence || null);
   };
 
   const handleChangeCreator = () => { setShowCreatorChoices(true); setShowCreatorModeChoices(false); };
