@@ -103,7 +103,7 @@ const result = await generateMovieMentorLiveResponse(
     idea: "A detective finds a red door that should not exist.",
     projectJourneySnapshot: { stageId: "idea", taskId: "premise" },
   },
-  { fetchImpl, storage }
+  { fetchImpl, storage, sessionStorage: storage }
 );
 
 assert.equal(calls.length, 2);
