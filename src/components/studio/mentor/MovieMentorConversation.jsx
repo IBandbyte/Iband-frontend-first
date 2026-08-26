@@ -47,6 +47,11 @@ function now() {
   return new Date().toISOString();
 }
 
+function cloneValue(value) {
+  if (value === undefined) return undefined;
+  try { return JSON.parse(JSON.stringify(value)); } catch { return value; }
+}
+
 function normaliseMessages(messages) {
   if (Array.isArray(messages) && messages.length) return messages;
   return [{
@@ -177,6 +182,7 @@ export default function MovieMentorConversation({
   allowAttachments = true,
   allowVoice = true,
   onSendMessage,
+  onMentorTurnResult,
   onStartPointSelect,
   onStageSelect,
   onAction,
@@ -248,6 +254,23 @@ export default function MovieMentorConversation({
 
     try {
       const turn = await requestMovieMentorTurn({ message: text, projectId, creatorSessionId });
+      const continuityConsequenceEnvelope = cloneValue(turn?.continuityConsequenceEnvelope || null);
+      const turnResult = {
+        status: turn?.status || null,
+        text: turn?.text || "",
+        durableSyncStatus: cloneValue(turn?.durableSyncStatus || null),
+        turnContextProof: cloneValue(turn?.turnContextProof || null),
+        semanticIntelligence: cloneValue(turn?.semanticIntelligence || null),
+        specialistPlan: cloneValue(turn?.specialistPlan || null),
+        specialistResult: cloneValue(turn?.specialistResult || null),
+        synthesisResult: cloneValue(turn?.synthesisResult || null),
+        continuityConsequenceEnvelope,
+        authority: cloneValue(turn?.authority || null),
+        mayAdvanceJourney: turn?.mayAdvanceJourney === true,
+        metadata: cloneValue(turn?.metadata || null),
+      };
+
+      onMentorTurnResult?.(turnResult);
       onSendMessage?.({
         id: createId("mentor-message"),
         role: "mentor",
@@ -264,6 +287,7 @@ export default function MovieMentorConversation({
           specialistPlan: turn.specialistPlan || null,
           specialistResult: turn.specialistResult || null,
           synthesisResult: turn.synthesisResult || null,
+          continuityConsequenceEnvelope,
           authority: turn.authority || null,
           mayAdvanceJourney: turn.mayAdvanceJourney === true,
           backendMetadata: turn.metadata || null,

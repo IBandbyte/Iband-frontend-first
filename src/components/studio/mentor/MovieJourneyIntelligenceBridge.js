@@ -12,12 +12,14 @@
  * - Keep materially ambiguous meaning from silently becoming truth.
  * - Build a clean journey context for ResponseGenerator/provider layers.
  * - Expose active creator-confirmed decisions to semantic intelligence.
+ * - Preserve derived Continuity as advisory journey-planning evidence only.
  * - Return updated journey, snapshot, orientation and creator-facing
  *   clarification guidance as one integration result.
  *
  * This bridge DOES NOT:
  * - Guess what unfamiliar language means.
  * - Invent creator decisions.
+ * - Let derived Continuity create canon or silently move the journey.
  * - Call a language model.
  * - Own persistence.
  * - Generate final Mentor wording beyond safe clarification fallback text.
@@ -25,7 +27,7 @@
 
 import createCreatorJourneyEngine from "./CreatorJourneyEngine.js";
 
-const MOVIE_JOURNEY_INTELLIGENCE_BRIDGE_VERSION = "1.2.2";
+const MOVIE_JOURNEY_INTELLIGENCE_BRIDGE_VERSION = "1.3.0";
 
 const DEFAULT_CLARIFICATION_MESSAGE =
   "I’m sorry, I lost you there. Can you explain what you mean a little further?";
@@ -45,9 +47,6 @@ function normaliseIntelligence(input = {}) {
   const source = input && typeof input === "object" ? input : {};
   const requestedStageId = cleanString(source.recommendedStageId);
   const readyToAdvance = source.readyToAdvance === true;
-  // Semantic readiness means the Idea gate has been cleared. A provider may
-  // describe the current semantic scope as "idea", but it must not pull the
-  // canonical journey back into Idea after CreatorJourneyEngine completes it.
   const recommendedStageId =
     readyToAdvance && (!requestedStageId || requestedStageId === "idea")
       ? "story-direction"
@@ -71,6 +70,45 @@ function extractGenerationIntelligence(result) {
   if (!result || typeof result !== "object") return null;
   const candidate = result.movieJourneyIntelligence || result.journeyIntelligence || result.creatorJourneyIntelligence || result?.metadata?.movieJourneyIntelligence || result?.metadata?.journeyIntelligence || null;
   return candidate && typeof candidate === "object" ? candidate : null;
+}
+
+function normaliseContinuityConsequenceEnvelope(input) {
+  if (!input || typeof input !== "object") return null;
+  return {
+    status: cleanString(input.status) || "unknown",
+    authority: cleanString(input.authority) || "derived-continuity",
+    creatorConfirmed: input.creatorConfirmed === true,
+    mayCreateCanon: input.mayCreateCanon === true,
+    requiresClarification: input.requiresClarification === true,
+    derivedConstraints: cloneValue(asArray(input.derivedConstraints)),
+    conflicts: cloneValue(asArray(input.conflicts)),
+    unresolvedQuestions: cloneValue(asArray(input.unresolvedQuestions)),
+  };
+}
+
+function createContinuityPlanningAdvice(input, metadata = {}) {
+  const envelope = normaliseContinuityConsequenceEnvelope(input);
+  if (!envelope) return null;
+  return {
+    source: "derived-continuity",
+    authority: "advisory-only",
+    status: envelope.status,
+    requiresClarification: envelope.requiresClarification,
+    derivedConstraints: cloneValue(envelope.derivedConstraints),
+    conflicts: cloneValue(envelope.conflicts),
+    unresolvedQuestions: cloneValue(envelope.unresolvedQuestions),
+    creatorConfirmed: false,
+    mayCreateCanon: false,
+    mayAdvanceJourney: false,
+    metadata: {
+      ...cloneValue(metadata),
+      originalAuthority: envelope.authority,
+      originalCreatorConfirmed: envelope.creatorConfirmed,
+      originalMayCreateCanon: envelope.mayCreateCanon,
+      bridgeVersion: MOVIE_JOURNEY_INTELLIGENCE_BRIDGE_VERSION,
+      creatorTruthDominates: true,
+    },
+  };
 }
 
 function getClarificationMessage(orientation) {
@@ -125,6 +163,24 @@ function createMovieJourneyIntelligenceBridge({ journeyEngine = null } = {}) {
     return captureInitialIdea(journey,{ originalIdea:idea, intelligence, source, metadata:{ generationId:result?.id || null, generationStatus:result?.status || null } });
   }
 
+  function consumeContinuityConsequenceForPlanning(journey, envelope, metadata = {}) {
+    const described = describeJourney(journey);
+    const continuityPlanningAdvice = createContinuityPlanningAdvice(envelope, metadata);
+    return {
+      ...described,
+      continuityPlanningAdvice,
+      journeyMutated: false,
+      creatorCanonChanged: false,
+      stageChanged: false,
+      authority: {
+        creatorTruthDominates: true,
+        continuityIsAdvisoryOnly: true,
+        continuityMayCreateCanon: false,
+        continuityMayAdvanceJourney: false,
+      },
+    };
+  }
+
   function buildResponseContext(journey,context = {}) {
     const described = describeJourney(journey);
     const orientation = described.orientation;
@@ -142,8 +198,8 @@ function createMovieJourneyIntelligenceBridge({ journeyEngine = null } = {}) {
     };
   }
 
-  return { version:MOVIE_JOURNEY_INTELLIGENCE_BRIDGE_VERSION, captureInitialIdea, applyGenerationResult, buildResponseContext, describeJourney, extractGenerationIntelligence, getClarificationMessage, getCreatorConfirmedContext };
+  return { version:MOVIE_JOURNEY_INTELLIGENCE_BRIDGE_VERSION, captureInitialIdea, applyGenerationResult, consumeContinuityConsequenceForPlanning, buildResponseContext, describeJourney, extractGenerationIntelligence, getClarificationMessage, getCreatorConfirmedContext };
 }
 
-export { MOVIE_JOURNEY_INTELLIGENCE_BRIDGE_VERSION, DEFAULT_CLARIFICATION_MESSAGE, normaliseIntelligence, extractGenerationIntelligence, getClarificationMessage, getCreatorConfirmedContext, createMovieJourneyIntelligenceBridge };
+export { MOVIE_JOURNEY_INTELLIGENCE_BRIDGE_VERSION, DEFAULT_CLARIFICATION_MESSAGE, normaliseIntelligence, extractGenerationIntelligence, normaliseContinuityConsequenceEnvelope, createContinuityPlanningAdvice, getClarificationMessage, getCreatorConfirmedContext, createMovieJourneyIntelligenceBridge };
 export default createMovieJourneyIntelligenceBridge;

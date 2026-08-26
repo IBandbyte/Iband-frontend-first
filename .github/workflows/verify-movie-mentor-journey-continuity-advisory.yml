@@ -1,0 +1,36 @@
+name: Verify Movie Mentor Journey Continuity Advisory
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "src/components/studio/CreatorWorkspace.jsx"
+      - "src/components/studio/mentor/MovieMentorConversation.jsx"
+      - "src/components/studio/mentor/MovieJourneyIntelligenceBridge.js"
+      - "scripts/verify-movie-mentor-journey-continuity-advisory.mjs"
+      - ".github/workflows/verify-movie-mentor-journey-continuity-advisory.yml"
+      - "package.json"
+
+permissions:
+  contents: read
+
+jobs:
+  verify-journey-continuity-advisory:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Use Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund || npm i --no-audit --no-fund
+
+      - name: Verify live turn continuity remains advisory to Journey
+        run: npm run verify:movie-mentor-journey-continuity-advisory
