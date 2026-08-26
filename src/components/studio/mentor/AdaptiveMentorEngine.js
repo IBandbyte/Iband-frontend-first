@@ -75,10 +75,10 @@
  * - Complexity belongs behind the conversation.
  */
 
-import createConversationPlanner from "./ConversationPlanner";
-import createReflectionEngine from "./ReflectionEngine";
-import createProgressionEngine from "./ProgressionEngine";
-import createCreatorMemoryEngine from "./CreatorMemoryEngine";
+import createConversationPlanner from "./ConversationPlanner.js";
+import createReflectionEngine from "./ReflectionEngine.js";
+import createProgressionEngine from "./ProgressionEngine.js";
+import createCreatorMemoryEngine from "./CreatorMemoryEngine.js";
 
 const ADAPTIVE_MENTOR_ENGINE_VERSION =
   "2.4.0";

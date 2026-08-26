@@ -55,10 +55,10 @@
  * - Every failure should degrade into a safe, useful response.
  */
 
-import createAdaptiveMentorEngine from "./AdaptiveMentorEngine";
-import createResponseComposer from "./ResponseComposer";
-import createCommunicationVoiceEngine from "./CommunicationVoiceEngine";
-import createCreatorMemory from "./CreatorMemory";
+import createAdaptiveMentorEngine from "./AdaptiveMentorEngine.js";
+import createResponseComposer from "./ResponseComposer.js";
+import createCommunicationVoiceEngine from "./CommunicationVoiceEngine.js";
+import createCreatorMemory from "./CreatorMemory.js";
 
 const RESPONSE_GENERATOR_VERSION = "3.0.0";
 

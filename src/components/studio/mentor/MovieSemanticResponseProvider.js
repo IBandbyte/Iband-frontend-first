@@ -1,4 +1,4 @@
-import { API_BASE } from "../../../services/api";
+import { API_BASE } from "../../../services/api.js";
 
 const MOVIE_SEMANTIC_RESPONSE_PROVIDER_VERSION = "1.0.0";
 const DEFAULT_ENDPOINT = "/api/movie-mentor-semantic/interpret";

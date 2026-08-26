@@ -82,7 +82,7 @@
  * - Complexity belongs behind the conversation.
  */
 
-import analyseCreatorMessage from "./TheCreatorEngine";
+import analyseCreatorMessage from "./TheCreatorEngine.js";
 
 const CONVERSATION_PLANNER_VERSION = "2.3.0";
 

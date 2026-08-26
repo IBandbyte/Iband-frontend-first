@@ -1,4 +1,4 @@
-import { API_BASE } from "../../../services/api";
+import { API_BASE } from "../../../services/api.js";
 const MOVIE_MENTOR_SYNTHESIS_PROVIDER_VERSION="1.0.0"; const DEFAULT_ENDPOINT="/api/movie-mentor-synthesis/synthesize";
 function cleanString(v){return typeof v==="string"?v.trim():"";}
 function createMovieMentorSynthesisProvider({apiBase=API_BASE,endpoint=DEFAULT_ENDPOINT,fetchImpl=globalThis.fetch}={}){
