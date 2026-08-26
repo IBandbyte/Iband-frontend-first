@@ -1,0 +1,44 @@
+name: Verify Movie Mentor Live Acceptance Loop
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "src/components/studio/mentor/MovieMentorStudioIdentityRuntime.js"
+      - "src/components/studio/mentor/MovieJourneyIntelligenceBridge.js"
+      - "src/components/studio/mentor/MovieMentorTurnClient.js"
+      - "src/components/studio/mentor/CreatorMemory.js"
+      - "src/components/studio/mentor/CreatorMemoryCore.js"
+      - "scripts/verify-movie-mentor-live-acceptance-loop.mjs"
+      - ".github/workflows/verify-movie-mentor-live-acceptance-loop.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout frontend
+        uses: actions/checkout@v4
+
+      - name: Checkout backend authority controls
+        uses: actions/checkout@v4
+        with:
+          repository: IBandbyte/iband-backend-first
+          path: iband-backend
+
+      - name: Use Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install frontend dependencies
+        run: npm install --no-audit --no-fund --ignore-scripts
+
+      - name: Check Door 11D4 harness syntax
+        run: node --check scripts/verify-movie-mentor-live-acceptance-loop.mjs
+
+      - name: Verify uninterrupted recommendation acceptance loop
+        run: node scripts/verify-movie-mentor-live-acceptance-loop.mjs
