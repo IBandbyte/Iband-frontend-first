@@ -31,6 +31,9 @@ jobs:
             'src/components/studio/mentor/MovieSemanticResponseProvider.js': {
               'from "../../../services/api";': 'from "../../../services/api.js";',
             },
+            'src/components/studio/mentor/MovieMentorSynthesisProvider.js': {
+              'from "../../../services/api";': 'from "../../../services/api.js";',
+            },
           }
 
           for filename, replacements in changes.items():
@@ -55,6 +58,6 @@ jobs:
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add src/components/studio/mentor/ResponseGenerator.js src/components/studio/mentor/MovieSemanticResponseProvider.js
+          git add src/components/studio/mentor/ResponseGenerator.js src/components/studio/mentor/MovieSemanticResponseProvider.js src/components/studio/mentor/MovieMentorSynthesisProvider.js
           git commit -m 'Repair closed-loop ESM import chain' || exit 0
           git push origin HEAD:main
