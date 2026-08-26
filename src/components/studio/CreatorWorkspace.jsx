@@ -9,10 +9,7 @@ import createCreatorJourneyEngine from "./mentor/CreatorJourneyEngine";
 import createMovieJourneyIntelligenceBridge from "./mentor/MovieJourneyIntelligenceBridge";
 import MovieMentorConversation from "./mentor/MovieMentorConversation.jsx";
 import createMovieMentorStudioIdentityRuntime from "./mentor/MovieMentorStudioIdentityRuntime.js";
-import {
-  resolveMovieMentorCreatorFacingMessage,
-  resolveMovieMentorPreview,
-} from "./mentor/MovieMentorCreatorFacingPresenter";
+import { resolveMovieMentorCreatorFacingMessage, resolveMovieMentorPreview } from "./mentor/MovieMentorCreatorFacingPresenter";
 
 const creatorJourneyEngine = createCreatorJourneyEngine();
 const movieJourneyIntelligenceBridge = createMovieJourneyIntelligenceBridge({ journeyEngine: creatorJourneyEngine });
@@ -28,16 +25,7 @@ const CREATOR_OPTIONS = [
   { id: "other", icon: "✨", label: "Something Else", description: "Start with an idea and let the Mentor help shape it." },
 ];
 
-const CreatorWorkspace = ({
-  creatorName = "Creator",
-  initialCreator = "",
-  onGenerate,
-  onSave,
-  onEdit,
-  onPublish,
-  renderCreatorControls,
-  renderPreview,
-}) => {
+const CreatorWorkspace = ({ creatorName = "Creator", initialCreator = "", onGenerate, onSave, onEdit, onPublish, renderCreatorControls, renderPreview }) => {
   const identityRuntime = useMemo(() => createMovieMentorStudioIdentityRuntime(), []);
   const resumeSnapshot = useMemo(() => identityRuntime.getResumeSnapshot(), [identityRuntime]);
   const resumedMovie = Boolean(resumeSnapshot?.projectId);
@@ -51,81 +39,37 @@ const CreatorWorkspace = ({
   const [creatorJourney, setCreatorJourney] = useState(resumeSnapshot?.projectJourney?.creatorJourney || "guide");
   const [projectJourney, setProjectJourney] = useState(resumeSnapshot?.projectJourney || null);
   const [activeMovieProject, setActiveMovieProject] = useState(resumeSnapshot?.project || null);
-  const [movieMessages, setMovieMessages] = useState([]);
+  const [movieMessages, setMovieMessages] = useState(resumeSnapshot?.conversationMessages || []);
   const [showCreatorChoices, setShowCreatorChoices] = useState(resumedMovie ? false : !Boolean(initialCreator));
   const [showCreatorModeChoices, setShowCreatorModeChoices] = useState(resumedMovie ? false : Boolean(initialCreator));
-  const [mentorMessage, setMentorMessage] = useState(
-    resumedMovie
-      ? `Welcome back. Your movie project “${resumeSnapshot.project.title}” is ready to continue.`
-      : "I've got your back. Choose what you would like to create, then tell me about your idea."
-  );
+  const [mentorMessage, setMentorMessage] = useState(resumedMovie ? `Welcome back. Your movie project “${resumeSnapshot.project.title}” is ready to continue.` : "I've got your back. Choose what you would like to create, then tell me about your idea.");
 
-  const activeCreator = useMemo(
-    () => CREATOR_OPTIONS.find((creator) => creator.id === selectedCreator) || null,
-    [selectedCreator]
-  );
-
-  const projectJourneySnapshot = useMemo(() => {
-    if (!projectJourney) return null;
-    return creatorJourneyEngine.createSnapshot(projectJourney);
-  }, [projectJourney]);
-
-  const projectJourneyOrientation = useMemo(() => {
-    if (!projectJourney) return null;
-    return creatorJourneyEngine.getOrientation(projectJourney);
-  }, [projectJourney]);
-
+  const activeCreator = useMemo(() => CREATOR_OPTIONS.find((creator) => creator.id === selectedCreator) || null, [selectedCreator]);
+  const projectJourneySnapshot = useMemo(() => projectJourney ? creatorJourneyEngine.createSnapshot(projectJourney) : null, [projectJourney]);
+  const projectJourneyOrientation = useMemo(() => projectJourney ? creatorJourneyEngine.getOrientation(projectJourney) : null, [projectJourney]);
   const journeyReady = Boolean(activeCreator) && Boolean(selectedCreatorMode) && !showCreatorChoices && !showCreatorModeChoices;
   const movieCockpitActive = journeyReady && selectedCreatorMode === "ai-movie" && Boolean(activeMovieProject?.id);
 
-  const mentorContext = useMemo(
-    () => ({
-      creatorName,
-      creatorType: selectedCreator || null,
-      creatorLabel: activeCreator?.label || null,
-      creatorMode: selectedCreatorMode || null,
-      creatorModeLabel: selectedCreatorModeLabel || null,
-      creatorJourney,
-      projectId: activeMovieProject?.id || null,
-      creatorSessionId: identityRuntime.creatorSessionId,
-      projectJourney: projectJourneySnapshot,
-      projectJourneyOrientation,
-      idea,
-      projectStatus,
-      hasGeneratedIdea: Boolean(generatedIdea),
-    }),
-    [creatorName, selectedCreator, activeCreator, selectedCreatorMode, selectedCreatorModeLabel, creatorJourney, activeMovieProject, identityRuntime, projectJourneySnapshot, projectJourneyOrientation, idea, projectStatus, generatedIdea]
-  );
-
-  const canGenerate = journeyReady && selectedCreatorMode !== "ai-movie" && Boolean(idea.trim()) && projectStatus !== "generating";
-
-  const createProjectPayload = () => ({
-    projectId: activeMovieProject?.id || null,
-    creatorSessionId: identityRuntime.creatorSessionId,
-    creatorType: selectedCreator,
-    creatorLabel: activeCreator?.label || selectedCreator,
+  const mentorContext = useMemo(() => ({
+    creatorName,
+    creatorType: selectedCreator || null,
+    creatorLabel: activeCreator?.label || null,
     creatorMode: selectedCreatorMode || null,
     creatorModeLabel: selectedCreatorModeLabel || null,
     creatorJourney,
-    projectJourney,
-    projectJourneySnapshot,
+    projectId: activeMovieProject?.id || null,
+    creatorSessionId: identityRuntime.creatorSessionId,
+    projectJourney: projectJourneySnapshot,
     projectJourneyOrientation,
-    idea: idea.trim(),
-    generatedIdea,
-  });
+    idea,
+    projectStatus,
+    hasGeneratedIdea: Boolean(generatedIdea),
+  }), [creatorName, selectedCreator, activeCreator, selectedCreatorMode, selectedCreatorModeLabel, creatorJourney, activeMovieProject, identityRuntime, projectJourneySnapshot, projectJourneyOrientation, idea, projectStatus, generatedIdea]);
 
-  const createMovieJourney = ({ creatorModeLabel, workingMode = creatorJourney } = {}) =>
-    creatorJourneyEngine.createMovieJourney({
-      creatorType: "video",
-      creatorMode: "ai-movie",
-      creatorJourney: workingMode,
-      metadata: { creatorModeLabel: creatorModeLabel || "AI Movie Making", createdFrom: "CreatorWorkspace" },
-    });
-
-  const persistMovieJourney = (nextJourney, project = activeMovieProject) => {
-    if (!project?.id || !nextJourney) return;
-    identityRuntime.persistJourney(project.id, nextJourney);
-  };
+  const canGenerate = journeyReady && selectedCreatorMode !== "ai-movie" && Boolean(idea.trim()) && projectStatus !== "generating";
+  const createProjectPayload = () => ({ projectId: activeMovieProject?.id || null, creatorSessionId: identityRuntime.creatorSessionId, creatorType: selectedCreator, creatorLabel: activeCreator?.label || selectedCreator, creatorMode: selectedCreatorMode || null, creatorModeLabel: selectedCreatorModeLabel || null, creatorJourney, projectJourney, projectJourneySnapshot, projectJourneyOrientation, idea: idea.trim(), generatedIdea });
+  const createMovieJourney = ({ creatorModeLabel, workingMode = creatorJourney } = {}) => creatorJourneyEngine.createMovieJourney({ creatorType: "video", creatorMode: "ai-movie", creatorJourney: workingMode, metadata: { creatorModeLabel: creatorModeLabel || "AI Movie Making", createdFrom: "CreatorWorkspace" } });
+  const persistMovieJourney = (nextJourney, project = activeMovieProject) => { if (project?.id && nextJourney) identityRuntime.persistJourney(project.id, nextJourney); };
 
   const handleCreatorSelect = (creator) => {
     const creatorChanged = selectedCreator !== creator.id;
@@ -133,69 +77,26 @@ const CreatorWorkspace = ({
     setShowCreatorChoices(false);
     setShowCreatorModeChoices(true);
     if (creatorChanged) {
-      setSelectedCreatorMode("");
-      setSelectedCreatorModeLabel("");
-      setIdea("");
-      setGeneratedIdea("");
-      setProjectStatus("idle");
-      setProjectJourney(null);
-      setActiveMovieProject(null);
-      setMovieMessages([]);
+      setSelectedCreatorMode(""); setSelectedCreatorModeLabel(""); setIdea(""); setGeneratedIdea(""); setProjectStatus("idle"); setProjectJourney(null); setActiveMovieProject(null); setMovieMessages([]);
     }
-    const messages = {
-      video: "Let's create something visual. Choose what you'd like to make, and we'll take it from there.",
-      image: "Let's create something visual. Choose what kind of image you'd like to make, and we'll shape it together.",
-      music: "Let's create something with music. Choose where you'd like to begin, and we'll build from there.",
-      podcast: "Let's build your podcast project. Choose what you'd like to create, and we'll take it one step at a time.",
-      story: "Let's build your story. Choose what you'd like to create, and we'll develop it together.",
-      marketing: "Let's create something that gets attention. Choose the kind of marketing project you want to make.",
-      social: "Let's create something for social media. Choose what you'd like to make, and we'll shape it together.",
-    };
+    const messages = { video: "Let's create something visual. Choose what you'd like to make, and we'll take it from there.", image: "Let's create something visual. Choose what kind of image you'd like to make, and we'll shape it together.", music: "Let's create something with music. Choose where you'd like to begin, and we'll build from there.", podcast: "Let's build your podcast project. Choose what you'd like to create, and we'll take it one step at a time.", story: "Let's build your story. Choose what you'd like to create, and we'll develop it together.", marketing: "Let's create something that gets attention. Choose the kind of marketing project you want to make.", social: "Let's create something for social media. Choose what you'd like to make, and we'll shape it together." };
     setMentorMessage(messages[creator.id] || "Tell me what you'd like to create. We can shape the idea together.");
   };
 
   const handleCreatorModeSelect = (mode) => {
     const modeChanged = selectedCreatorMode !== mode.id;
-    setSelectedCreatorMode(mode.id);
-    setSelectedCreatorModeLabel(mode.label);
-    setShowCreatorModeChoices(false);
-
+    setSelectedCreatorMode(mode.id); setSelectedCreatorModeLabel(mode.label); setShowCreatorModeChoices(false);
     if (mode.id === "ai-movie") {
       const existing = identityRuntime.getActiveProject();
       const nextJourney = existing?.metadata?.projectJourney || createMovieJourney({ creatorModeLabel: mode.label });
       const project = existing || identityRuntime.ensureProject({ projectJourney: nextJourney });
-      setActiveMovieProject(project);
-      setProjectJourney(nextJourney);
-      setProjectStatus(existing ? "saved" : "creating");
-      persistMovieJourney(nextJourney, project);
+      const continuation = existing ? identityRuntime.resumeProjectConversation(project.id) : { messages: [] };
+      setActiveMovieProject(project); setProjectJourney(nextJourney); setProjectStatus(existing ? "saved" : "creating"); setMovieMessages(continuation.messages || []); persistMovieJourney(nextJourney, project);
     } else if (modeChanged) {
-      setActiveMovieProject(null);
-      setProjectJourney(null);
-      setProjectStatus("idle");
+      setActiveMovieProject(null); setProjectJourney(null); setProjectStatus("idle"); setMovieMessages([]);
     }
-
-    if (modeChanged) {
-      setIdea("");
-      setGeneratedIdea("");
-      setMovieMessages([]);
-    }
-
-    const messages = {
-      "ai-movie": "Welcome. You don't need to know how to make a movie. I'll help you through it one step at a time. Tell me the idea in your head—even if it's only one sentence.",
-      "movie-scene": "Let's build your scene together. Tell me what you imagine happening, even if you only know one moment, character or location.",
-      "music-video": "Let's turn your music into a visual story. Tell me about the song and anything you already imagine seeing on screen.",
-      advert: "Let's create a video advert that gets attention. Tell me what you're promoting and the main thing you want people to remember.",
-      "short-reel": "Let's make something short, clear and engaging. Tell me the idea, message or moment you want the Reel or Short to capture.",
-      "lyric-video": "Let's bring your lyrics to life visually. Tell me about the song, its mood and any visual ideas you already have.",
-      "animation-cartoon": "Let's build your animated world. Tell me the idea, character or scene you have in mind, even if it's only the beginning.",
-      documentary: "Let's shape your documentary one step at a time. Tell me the real story, subject or question you want to explore.",
-      songwriting: "Let's write your song together. Start with anything you have—a feeling, title, story, phrase or even a single line.",
-      lyrics: "Let's work on the lyrics. Give me what you already have, or tell me what you want the song to say.",
-      "full-song": "Let's build the whole song together. Tell me the feeling, story or idea you want at the heart of it.",
-      instrumental: "Let's shape the instrumental. Tell me the mood, energy or atmosphere you want it to create.",
-      "soundtrack-score": "Let's create music for the story on screen. Tell me about the scene, emotion or journey the score needs to support.",
-      "music-idea": "Let's explore the idea together. Tell me anything you already hear or feel, even if you can't describe it in musical terms.",
-    };
+    if (modeChanged) { setIdea(""); setGeneratedIdea(""); }
+    const messages = { "ai-movie": "Welcome. You don't need to know how to make a movie. I'll help you through it one step at a time. Tell me the idea in your head—even if it's only one sentence.", "movie-scene": "Let's build your scene together. Tell me what you imagine happening, even if you only know one moment, character or location.", "music-video": "Let's turn your music into a visual story. Tell me about the song and anything you already imagine seeing on screen.", advert: "Let's create a video advert that gets attention. Tell me what you're promoting and the main thing you want people to remember.", "short-reel": "Let's make something short, clear and engaging. Tell me the idea, message or moment you want the Reel or Short to capture.", "lyric-video": "Let's bring your lyrics to life visually. Tell me about the song, its mood and any visual ideas you already have.", "animation-cartoon": "Let's build your animated world. Tell me the idea, character or scene you have in mind, even if it's only the beginning.", documentary: "Let's shape your documentary one step at a time. Tell me the real story, subject or question you want to explore." };
     setMentorMessage(messages[mode.id] || `Great choice. Let's create your ${mode.label.toLowerCase()} together. Tell me what you already have in mind, even if it's only a rough idea.`);
   };
 
@@ -203,185 +104,53 @@ const CreatorWorkspace = ({
     setCreatorJourney(nextWorkingMode);
     setProjectJourney((currentJourney) => {
       const nextJourney = currentJourney ? { ...currentJourney, creatorJourney: nextWorkingMode, updatedAt: new Date().toISOString() } : currentJourney;
-      persistMovieJourney(nextJourney);
-      return nextJourney;
+      persistMovieJourney(nextJourney); return nextJourney;
     });
   };
 
-  const handleChangeCreator = () => {
-    setShowCreatorChoices(true);
-    setShowCreatorModeChoices(false);
+  const handleMovieMessage = (message) => {
+    setMovieMessages((current) => [...current, message]);
+    if (activeMovieProject?.id) {
+      identityRuntime.recordConversationMessage(activeMovieProject.id, message, { projectJourney: projectJourneySnapshot || projectJourney });
+    }
   };
 
-  const handleChangeCreatorMode = () => {
-    setShowCreatorChoices(false);
-    setShowCreatorModeChoices(true);
-  };
+  const handleChangeCreator = () => { setShowCreatorChoices(true); setShowCreatorModeChoices(false); };
+  const handleChangeCreatorMode = () => { setShowCreatorChoices(false); setShowCreatorModeChoices(true); };
 
   const handleGenerate = async () => {
-    if (!canGenerate) {
-      setMentorMessage("Choose what you would like to create, choose your Creator Mode, and tell me a little about your idea. We can shape the rest together.");
-      return;
-    }
-
-    let workingProjectJourney = projectJourney;
-    let workingProjectJourneySnapshot = projectJourneySnapshot;
-    let workingProjectJourneyOrientation = projectJourneyOrientation;
-    const request = {
-      ...createProjectPayload(),
-      projectJourney: workingProjectJourney,
-      projectJourneySnapshot: workingProjectJourneySnapshot,
-      projectJourneyOrientation: workingProjectJourneyOrientation,
-      movieJourneyContext: null,
-      idea: idea.trim(),
-    };
-
-    setProjectStatus("generating");
-    setMentorMessage("Great—your idea is taking shape. I’m preparing the first version now.");
-
+    if (!canGenerate) { setMentorMessage("Choose what you would like to create, choose your Creator Mode, and tell me a little about your idea. We can shape the rest together."); return; }
+    const request = { ...createProjectPayload(), projectJourney, projectJourneySnapshot, projectJourneyOrientation, movieJourneyContext: null, idea: idea.trim() };
+    setProjectStatus("generating"); setMentorMessage("Great—your idea is taking shape. I’m preparing the first version now.");
     try {
-      let result = null;
-      if (typeof onGenerate === "function") result = await onGenerate(request);
+      const result = typeof onGenerate === "function" ? await onGenerate(request) : null;
       const generatedPreview = result?.prompt || result?.content || result?.preview || idea.trim();
-      setGeneratedIdea(generatedPreview);
-      setProjectStatus("generated");
-      setMentorMessage("Your first version is ready. Take a look at the preview. Nothing is final—you can edit and develop it as much as you like.");
-    } catch (error) {
-      console.error("CreatorWorkspace generate error:", error);
-      setProjectStatus("idle");
-      setMentorMessage("Nothing has been lost. I couldn’t complete that generation just now, but your idea is still here and ready to try again.");
-    }
+      setGeneratedIdea(generatedPreview); setProjectStatus("generated"); setMentorMessage("Your first version is ready. Take a look at the preview. Nothing is final—you can edit and develop it as much as you like.");
+    } catch (error) { console.error("CreatorWorkspace generate error:", error); setProjectStatus("idle"); setMentorMessage("Nothing has been lost. I couldn’t complete that generation just now, but your idea is still here and ready to try again."); }
   };
 
-  const handleSave = async () => {
-    const project = createProjectPayload();
-    try {
-      if (typeof onSave === "function") await onSave(project);
-      setProjectStatus("saved");
-      setMentorMessage("Your project has been saved safely. You can return and continue whenever you are ready.");
-    } catch (error) {
-      console.error("CreatorWorkspace save error:", error);
-      setMentorMessage("Your work is still here. The save did not complete, so please try once more when you're ready.");
-    }
-  };
-
-  const handleEdit = () => {
-    setProjectStatus("editing");
-    setMentorMessage("Let's keep developing it. Make any changes you need, then generate another version when you're ready.");
-    if (typeof onEdit === "function") onEdit(createProjectPayload());
-  };
-
-  const handlePublish = async () => {
-    const project = createProjectPayload();
-    try {
-      if (typeof onPublish === "function") await onPublish(project);
-      setProjectStatus("published");
-      setMentorMessage("Your creation is ready for its audience. You brought the idea to life.");
-    } catch (error) {
-      console.error("CreatorWorkspace publish error:", error);
-      setMentorMessage("Your creation is safe. Publishing did not complete, so nothing has been lost.");
-    }
-  };
+  const handleSave = async () => { const project = createProjectPayload(); try { if (typeof onSave === "function") await onSave(project); setProjectStatus("saved"); setMentorMessage("Your project has been saved safely. You can return and continue whenever you are ready."); } catch (error) { console.error("CreatorWorkspace save error:", error); setMentorMessage("Your work is still here. The save did not complete, so please try once more when you're ready."); } };
+  const handleEdit = () => { setProjectStatus("editing"); setMentorMessage("Let's keep developing it. Make any changes you need, then generate another version when you're ready."); if (typeof onEdit === "function") onEdit(createProjectPayload()); };
+  const handlePublish = async () => { const project = createProjectPayload(); try { if (typeof onPublish === "function") await onPublish(project); setProjectStatus("published"); setMentorMessage("Your creation is ready for its audience. You brought the idea to life."); } catch (error) { console.error("CreatorWorkspace publish error:", error); setMentorMessage("Your creation is safe. Publishing did not complete, so nothing has been lost."); } };
 
   return (
     <main style={styles.workspace}>
-      <section style={styles.welcomeSection}>
-        <p style={styles.eyebrow}>iBand Studio</p>
-        <h1 style={styles.title}>Welcome back, {creatorName}.</h1>
-        <p style={styles.subtitle}>What would you like to create today?</p>
-      </section>
-
-      <section style={styles.section}>
-        <AiMentor message={mentorMessage} creatorJourney={creatorJourney} mentorContext={mentorContext} />
-      </section>
-
-      {showCreatorChoices && (
-        <section style={styles.section}>
-          <div style={styles.sectionHeadingRow}><div><p style={styles.sectionEyebrow}>Quick Create</p><h2 style={styles.sectionTitle}>Choose your starting point</h2></div></div>
-          <div style={styles.creatorGrid}>
-            {CREATOR_OPTIONS.map((creator) => {
-              const isSelected = selectedCreator === creator.id;
-              return (
-                <button key={creator.id} type="button" aria-pressed={isSelected} onClick={() => handleCreatorSelect(creator)} style={{ ...styles.creatorCard, ...(isSelected ? styles.creatorCardActive : {}) }}>
-                  <span style={styles.creatorIcon}>{creator.icon}</span>
-                  <span style={styles.creatorCopy}><span style={styles.creatorLabel}>{creator.label}</span><span style={styles.creatorDescription}>{creator.description}</span></span>
-                  <span aria-hidden="true" style={{ ...styles.creatorArrow, ...(isSelected ? styles.creatorArrowActive : {}) }}>›</span>
-                </button>
-              );
-            })}
-          </div>
-        </section>
-      )}
-
-      {!showCreatorChoices && activeCreator && (
-        <section style={styles.section}><div style={styles.choiceSummary}><div style={styles.choiceSummaryCopy}><span style={styles.choiceSummaryEyebrow}>Starting Point</span><span style={styles.choiceSummaryValue}>{activeCreator.icon} {activeCreator.label}</span></div><button type="button" onClick={handleChangeCreator} style={styles.changeButton}>Change</button></div></section>
-      )}
-
-      {!showCreatorChoices && activeCreator && showCreatorModeChoices && (
-        <section style={styles.section}><CreatorModeSelector creatorType={selectedCreator} selectedMode={selectedCreatorMode} onSelect={handleCreatorModeSelect} /></section>
-      )}
-
-      {!showCreatorChoices && activeCreator && selectedCreatorMode && !showCreatorModeChoices && (
-        <section style={styles.section}><div style={styles.choiceSummary}><div style={styles.choiceSummaryCopy}><span style={styles.choiceSummaryEyebrow}>Creator Mode</span><span style={styles.choiceSummaryValue}>{selectedCreatorModeLabel}</span>{activeMovieProject?.id && <span style={styles.projectIdentity}>Project: {activeMovieProject.id}</span>}</div><button type="button" onClick={handleChangeCreatorMode} style={styles.changeButton}>Change</button></div></section>
-      )}
-
-      {movieCockpitActive ? (
-        <section style={styles.section}>
-          <MovieMentorConversation
-            creatorName={creatorName}
-            projectId={activeMovieProject.id}
-            creatorSessionId={identityRuntime.creatorSessionId}
-            messages={movieMessages}
-            activeStage={projectJourneyOrientation?.currentStageId || projectJourneySnapshot?.currentStageId || "idea"}
-            onSendMessage={(message) => setMovieMessages((current) => [...current, message])}
-            onJourneyChange={handleCreatorJourneyChange}
-          />
-        </section>
-      ) : journeyReady ? (
-        <section style={styles.section}>
-          <MentorConversation creator={activeCreator} creatorMode={selectedCreatorMode} creatorModeLabel={selectedCreatorModeLabel} message={mentorMessage} idea={idea} projectStatus={projectStatus} creatorJourney={creatorJourney} onJourneyChange={handleCreatorJourneyChange} projectJourney={projectJourneySnapshot} projectJourneyOrientation={projectJourneyOrientation} />
-        </section>
-      ) : null}
-
-      {journeyReady && selectedCreatorMode !== "ai-movie" && (
-        <section style={styles.section}>
-          <PromptBuilder creatorType={selectedCreator} creatorLabel={activeCreator.label} creatorMode={selectedCreatorMode} creatorModeLabel={selectedCreatorModeLabel} creatorJourney={creatorJourney} value={idea} projectStatus={projectStatus} onChange={(value) => { setIdea(value); if (projectStatus !== "idle" && projectStatus !== "generating") setProjectStatus("editing"); }} renderCreatorControls={() => typeof renderCreatorControls === "function" ? renderCreatorControls({ selectedCreator, activeCreator, selectedCreatorMode, selectedCreatorModeLabel, creatorJourney, projectJourney, projectJourneySnapshot, projectJourneyOrientation, idea, setIdea, projectStatus }) : null} />
-          <GenerateButton creatorJourney={creatorJourney} onClick={handleGenerate} generating={projectStatus === "generating"} disabled={!canGenerate} />
-        </section>
-      )}
-
-      {selectedCreatorMode !== "ai-movie" && (generatedIdea || projectStatus === "generating") && (
-        <PreviewPanel creator={activeCreator} generatedIdea={generatedIdea} creatorJourney={creatorJourney} projectStatus={projectStatus} renderPreview={renderPreview} onSave={handleSave} onEdit={handleEdit} onPublish={handlePublish} />
-      )}
+      <section style={styles.welcomeSection}><p style={styles.eyebrow}>iBand Studio</p><h1 style={styles.title}>Welcome back, {creatorName}.</h1><p style={styles.subtitle}>What would you like to create today?</p></section>
+      <section style={styles.section}><AiMentor message={mentorMessage} creatorJourney={creatorJourney} mentorContext={mentorContext} /></section>
+      {showCreatorChoices && <section style={styles.section}><div style={styles.sectionHeadingRow}><div><p style={styles.sectionEyebrow}>Quick Create</p><h2 style={styles.sectionTitle}>Choose your starting point</h2></div></div><div style={styles.creatorGrid}>{CREATOR_OPTIONS.map((creator) => { const isSelected = selectedCreator === creator.id; return <button key={creator.id} type="button" aria-pressed={isSelected} onClick={() => handleCreatorSelect(creator)} style={{ ...styles.creatorCard, ...(isSelected ? styles.creatorCardActive : {}) }}><span style={styles.creatorIcon}>{creator.icon}</span><span style={styles.creatorCopy}><span style={styles.creatorLabel}>{creator.label}</span><span style={styles.creatorDescription}>{creator.description}</span></span><span aria-hidden="true" style={{ ...styles.creatorArrow, ...(isSelected ? styles.creatorArrowActive : {}) }}>›</span></button>; })}</div></section>}
+      {!showCreatorChoices && activeCreator && <section style={styles.section}><div style={styles.choiceSummary}><div style={styles.choiceSummaryCopy}><span style={styles.choiceSummaryEyebrow}>Starting Point</span><span style={styles.choiceSummaryValue}>{activeCreator.icon} {activeCreator.label}</span></div><button type="button" onClick={handleChangeCreator} style={styles.changeButton}>Change</button></div></section>}
+      {!showCreatorChoices && activeCreator && showCreatorModeChoices && <section style={styles.section}><CreatorModeSelector creatorType={selectedCreator} selectedMode={selectedCreatorMode} onSelect={handleCreatorModeSelect} /></section>}
+      {!showCreatorChoices && activeCreator && selectedCreatorMode && !showCreatorModeChoices && <section style={styles.section}><div style={styles.choiceSummary}><div style={styles.choiceSummaryCopy}><span style={styles.choiceSummaryEyebrow}>Creator Mode</span><span style={styles.choiceSummaryValue}>{selectedCreatorModeLabel}</span>{activeMovieProject?.id && <span style={styles.projectIdentity}>Project: {activeMovieProject.id}</span>}</div><button type="button" onClick={handleChangeCreatorMode} style={styles.changeButton}>Change</button></div></section>}
+      {movieCockpitActive ? <section style={styles.section}><MovieMentorConversation creatorName={creatorName} projectId={activeMovieProject.id} creatorSessionId={identityRuntime.creatorSessionId} messages={movieMessages} activeStage={projectJourneyOrientation?.currentStageId || projectJourneySnapshot?.currentStageId || "idea"} onSendMessage={handleMovieMessage} onJourneyChange={handleCreatorJourneyChange} /></section> : journeyReady ? <section style={styles.section}><MentorConversation creator={activeCreator} creatorMode={selectedCreatorMode} creatorModeLabel={selectedCreatorModeLabel} message={mentorMessage} idea={idea} projectStatus={projectStatus} creatorJourney={creatorJourney} onJourneyChange={handleCreatorJourneyChange} projectJourney={projectJourneySnapshot} projectJourneyOrientation={projectJourneyOrientation} /></section> : null}
+      {journeyReady && selectedCreatorMode !== "ai-movie" && <section style={styles.section}><PromptBuilder creatorType={selectedCreator} creatorLabel={activeCreator.label} creatorMode={selectedCreatorMode} creatorModeLabel={selectedCreatorModeLabel} creatorJourney={creatorJourney} value={idea} projectStatus={projectStatus} onChange={(value) => { setIdea(value); if (projectStatus !== "idle" && projectStatus !== "generating") setProjectStatus("editing"); }} renderCreatorControls={() => typeof renderCreatorControls === "function" ? renderCreatorControls({ selectedCreator, activeCreator, selectedCreatorMode, selectedCreatorModeLabel, creatorJourney, projectJourney, projectJourneySnapshot, projectJourneyOrientation, idea, setIdea, projectStatus }) : null} /><GenerateButton creatorJourney={creatorJourney} onClick={handleGenerate} generating={projectStatus === "generating"} disabled={!canGenerate} /></section>}
+      {selectedCreatorMode !== "ai-movie" && (generatedIdea || projectStatus === "generating") && <PreviewPanel creator={activeCreator} generatedIdea={generatedIdea} creatorJourney={creatorJourney} projectStatus={projectStatus} renderPreview={renderPreview} onSave={handleSave} onEdit={handleEdit} onPublish={handlePublish} />}
     </main>
   );
 };
 
 const styles = {
   workspace: { width: "100%", maxWidth: "760px", margin: "0 auto", padding: "22px 16px 120px", boxSizing: "border-box" },
-  welcomeSection: { marginBottom: "22px" },
-  eyebrow: { margin: "0 0 6px", color: "#777d89", fontSize: "12px", fontWeight: "800", letterSpacing: "0.12em", textTransform: "uppercase" },
-  title: { margin: "0", color: "#111319", fontSize: "clamp(28px, 8vw, 42px)", lineHeight: "1.08", letterSpacing: "-0.04em" },
-  subtitle: { margin: "10px 0 0", color: "#616875", fontSize: "17px", lineHeight: "1.5" },
-  section: { marginTop: "18px" },
-  sectionHeadingRow: { display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: "12px", marginBottom: "12px" },
-  sectionEyebrow: { margin: "0 0 4px", color: "#737a88", fontSize: "11px", fontWeight: "800", letterSpacing: "0.12em", textTransform: "uppercase" },
-  sectionTitle: { margin: "0", color: "#16181d", fontSize: "21px", lineHeight: "1.2", letterSpacing: "-0.025em" },
-  creatorGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(245px, 1fr))", gap: "10px" },
-  creatorCard: { width: "100%", minHeight: "92px", display: "flex", alignItems: "center", gap: "12px", padding: "15px", border: "1px solid rgba(20, 24, 32, 0.09)", borderRadius: "20px", background: "#ffffff", boxShadow: "0 8px 24px rgba(17, 24, 39, 0.05)", color: "#17191f", textAlign: "left", cursor: "pointer", WebkitTapHighlightColor: "transparent", transition: "transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease" },
-  creatorCardActive: { border: "1px solid rgba(96, 77, 255, 0.52)", background: "linear-gradient(145deg, rgba(96, 77, 255, 0.1), rgba(255, 255, 255, 1))", boxShadow: "0 12px 30px rgba(96, 77, 255, 0.13)", transform: "translateY(-1px)" },
-  creatorIcon: { width: "46px", height: "46px", flexShrink: "0", display: "grid", placeItems: "center", borderRadius: "15px", background: "#f3f4f7", fontSize: "23px" },
-  creatorCopy: { minWidth: "0", display: "flex", flex: "1", flexDirection: "column", gap: "4px" },
-  creatorLabel: { fontSize: "15px", fontWeight: "800" },
-  creatorDescription: { color: "#69707c", fontSize: "12px", lineHeight: "1.4" },
-  creatorArrow: { color: "#b0b4bc", fontSize: "27px", lineHeight: "1" },
-  creatorArrowActive: { color: "#604dff" },
-  choiceSummary: { width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "14px", padding: "15px 16px", boxSizing: "border-box", borderRadius: "18px", border: "1px solid rgba(96, 77, 255, 0.2)", background: "linear-gradient(145deg, rgba(96,77,255,0.08), rgba(255,255,255,1))", boxShadow: "0 8px 24px rgba(17,24,39,0.04)" },
-  choiceSummaryCopy: { minWidth: 0, display: "flex", flexDirection: "column", gap: "4px" },
-  choiceSummaryEyebrow: { color: "#777d89", fontSize: "10px", fontWeight: "800", letterSpacing: "0.12em", textTransform: "uppercase" },
-  choiceSummaryValue: { color: "#17191f", fontSize: "16px", fontWeight: "800", lineHeight: "1.3" },
-  projectIdentity: { color: "#777d89", fontSize: "10px", overflowWrap: "anywhere" },
-  changeButton: { flexShrink: 0, appearance: "none", border: "1px solid rgba(96,77,255,0.22)", borderRadius: "999px", background: "#ffffff", color: "#5140d8", padding: "8px 12px", fontSize: "12px", fontWeight: "800", cursor: "pointer", WebkitTapHighlightColor: "transparent" },
+  welcomeSection: { marginBottom: "22px" }, eyebrow: { margin: "0 0 6px", color: "#777d89", fontSize: "12px", fontWeight: "800", letterSpacing: "0.12em", textTransform: "uppercase" }, title: { margin: "0", color: "#111319", fontSize: "clamp(28px, 8vw, 42px)", lineHeight: "1.08", letterSpacing: "-0.04em" }, subtitle: { margin: "10px 0 0", color: "#616875", fontSize: "17px", lineHeight: "1.5" }, section: { marginTop: "18px" }, sectionHeadingRow: { display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: "12px", marginBottom: "12px" }, sectionEyebrow: { margin: "0 0 4px", color: "#737a88", fontSize: "11px", fontWeight: "800", letterSpacing: "0.12em", textTransform: "uppercase" }, sectionTitle: { margin: "0", color: "#16181d", fontSize: "21px", lineHeight: "1.2", letterSpacing: "-0.025em" }, creatorGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(245px, 1fr))", gap: "10px" }, creatorCard: { width: "100%", minHeight: "92px", display: "flex", alignItems: "center", gap: "12px", padding: "15px", border: "1px solid rgba(20, 24, 32, 0.09)", borderRadius: "20px", background: "#ffffff", boxShadow: "0 8px 24px rgba(17, 24, 39, 0.05)", color: "#17191f", textAlign: "left", cursor: "pointer", WebkitTapHighlightColor: "transparent", transition: "transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease" }, creatorCardActive: { border: "1px solid rgba(96, 77, 255, 0.52)", background: "linear-gradient(145deg, rgba(96, 77, 255, 0.1), rgba(255, 255, 255, 1))", boxShadow: "0 12px 30px rgba(96, 77, 255, 0.13)", transform: "translateY(-1px)" }, creatorIcon: { width: "46px", height: "46px", flexShrink: "0", display: "grid", placeItems: "center", borderRadius: "15px", background: "#f3f4f7", fontSize: "23px" }, creatorCopy: { minWidth: "0", display: "flex", flex: "1", flexDirection: "column", gap: "4px" }, creatorLabel: { fontSize: "15px", fontWeight: "800" }, creatorDescription: { color: "#69707c", fontSize: "12px", lineHeight: "1.4" }, creatorArrow: { color: "#b0b4bc", fontSize: "27px", lineHeight: "1" }, creatorArrowActive: { color: "#604dff" }, choiceSummary: { width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "14px", padding: "15px 16px", boxSizing: "border-box", borderRadius: "18px", border: "1px solid rgba(96, 77, 255, 0.2)", background: "linear-gradient(145deg, rgba(96,77,255,0.08), rgba(255,255,255,1))", boxShadow: "0 8px 24px rgba(17,24,39,0.04)" }, choiceSummaryCopy: { minWidth: 0, display: "flex", flexDirection: "column", gap: "4px" }, choiceSummaryEyebrow: { color: "#777d89", fontSize: "10px", fontWeight: "800", letterSpacing: "0.12em", textTransform: "uppercase" }, choiceSummaryValue: { color: "#17191f", fontSize: "16px", fontWeight: "800", lineHeight: "1.3" }, projectIdentity: { color: "#777d89", fontSize: "10px", overflowWrap: "anywhere" }, changeButton: { flexShrink: 0, appearance: "none", border: "1px solid rgba(96,77,255,0.22)", borderRadius: "999px", background: "#ffffff", color: "#5140d8", padding: "8px 12px", fontSize: "12px", fontWeight: "800", cursor: "pointer", WebkitTapHighlightColor: "transparent" },
 };
 
 export default CreatorWorkspace;
