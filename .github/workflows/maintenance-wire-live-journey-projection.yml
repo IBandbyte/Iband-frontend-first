@@ -1,47 +1,53 @@
 name: Wire Live Journey Projection
+
 on:
   push:
     paths:
-      - '.github/workflows/maintenance-wire-live-journey-projection.yml'
+      - ".github/workflows/maintenance-wire-live-journey-projection.yml"
+
+permissions:
+  contents: write
+
 jobs:
   wire:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
         with:
           node-version: 20
+
       - name: Wire post-commit authority through UI and Workspace
         run: |
-          python3 - <<'PY'
+          python - <<'PY'
           from pathlib import Path
 
           conversation = Path('src/components/studio/mentor/MovieMentorConversation.jsx')
           s = conversation.read_text()
-          old = '''        turnContextProof: cloneValue(turn?.turnContextProof || null),
-        semanticIntelligence: cloneValue(turn?.semanticIntelligence || null),'''
-          new = '''        turnContextProof: cloneValue(turn?.turnContextProof || null),
-        postCommitCreatorAuthority: cloneValue(turn?.postCommitCreatorAuthority || null),
-        semanticIntelligence: cloneValue(turn?.semanticIntelligence || null),'''
-          assert old in s, 'turnResult insertion anchor missing'
-          s = s.replace(old, new, 1)
-          old = '''          turnContextProof: turn.turnContextProof || null,
-          semanticIntelligence: turn.semanticIntelligence || null,'''
-          new = '''          turnContextProof: turn.turnContextProof || null,
-          postCommitCreatorAuthority: turn.postCommitCreatorAuthority || null,
-          semanticIntelligence: turn.semanticIntelligence || null,'''
-          assert old in s, 'mentor metadata insertion anchor missing'
-          s = s.replace(old, new, 1)
+          old = '        turnContextProof: cloneValue(turn?.turnContextProof || null),\n        semanticIntelligence: cloneValue(turn?.semanticIntelligence || null),'
+          new = '        turnContextProof: cloneValue(turn?.turnContextProof || null),\n        postCommitCreatorAuthority: cloneValue(turn?.postCommitCreatorAuthority || null),\n        semanticIntelligence: cloneValue(turn?.semanticIntelligence || null),'
+          if 'postCommitCreatorAuthority: cloneValue(turn?.postCommitCreatorAuthority || null)' not in s:
+              if old not in s: raise SystemExit('turnResult insertion anchor missing')
+              s = s.replace(old, new, 1)
+          old = '          turnContextProof: turn.turnContextProof || null,\n          semanticIntelligence: turn.semanticIntelligence || null,'
+          new = '          turnContextProof: turn.turnContextProof || null,\n          postCommitCreatorAuthority: turn.postCommitCreatorAuthority || null,\n          semanticIntelligence: turn.semanticIntelligence || null,'
+          if 'postCommitCreatorAuthority: turn.postCommitCreatorAuthority || null' not in s:
+              if old not in s: raise SystemExit('mentor metadata insertion anchor missing')
+              s = s.replace(old, new, 1)
           conversation.write_text(s)
 
           workspace = Path('src/components/studio/CreatorWorkspace.jsx')
           s = workspace.read_text()
-          old = 'import createMovieMentorStudioIdentityRuntime from "./mentor/MovieMentorStudioIdentityRuntime.js";'
-          new = old + '\nimport projectCommittedCreatorAuthorityIntoJourney from "./mentor/MovieMentorJourneyProjectionRuntime.js";'
-          assert old in s, 'workspace import anchor missing'
-          s = s.replace(old, new, 1)
+          import_anchor = 'import createMovieMentorStudioIdentityRuntime from "./mentor/MovieMentorStudioIdentityRuntime.js";'
+          projection_import = 'import projectCommittedCreatorAuthorityIntoJourney from "./mentor/MovieMentorJourneyProjectionRuntime.js";'
+          if projection_import not in s:
+              if import_anchor not in s: raise SystemExit('workspace import anchor missing')
+              s = s.replace(import_anchor, import_anchor + '\n' + projection_import, 1)
           old = '''  const handleMovieMentorTurnResult = (turnResult) => {
     const planning = movieJourneyIntelligenceBridge.consumeTurnForJourneyPlanning(
       projectJourney,
@@ -76,18 +82,26 @@ jobs:
     );
     setMovieJourneyPlanningEvidence(planning.journeyPlanningEvidence || null);
   };'''
-          assert old in s, 'workspace handler anchor missing'
-          s = s.replace(old, new, 1)
+          if 'projectCommittedCreatorAuthorityIntoJourney({' not in s:
+              if old not in s: raise SystemExit('workspace handler anchor missing')
+              s = s.replace(old, new, 1)
           workspace.write_text(s)
           PY
-      - name: Run live projection furnace
+
+      - name: Verify live projection restart furnace
         run: node scripts/verify-movie-mentor-live-journey-projection.mjs
+
       - name: Build frontend
         run: npm ci && npm run build
-      - name: Commit wiring
+
+      - name: Commit live wiring
         run: |
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add src/components/studio/CreatorWorkspace.jsx src/components/studio/mentor/MovieMentorConversation.jsx
-          git commit -m 'Wire durable creator authority into live Journey' || exit 0
-          git push
+          if git diff --cached --quiet; then
+            echo "No live wiring changes required"
+            exit 0
+          fi
+          git commit -m "Wire durable creator authority into live Journey"
+          git push origin HEAD:main
