@@ -4,7 +4,7 @@ import {
 } from "./MovieMentorDurableStateSync.js";
 import requestMovieMentorTurn from "./MovieMentorTurnClient.js";
 
-const MOVIE_MENTOR_LIVE_GATEWAY_SERVICE_VERSION = "1.1.0";
+const MOVIE_MENTOR_LIVE_GATEWAY_SERVICE_VERSION = "1.2.0";
 const WORKSPACE_SESSION_KEY = "iband.movie-mentor.workspace-session";
 
 function cleanString(value) {
@@ -141,6 +141,11 @@ async function syncWorkspaceReality({
 function toCreatorWorkspaceResult(turn) {
   const text = cleanString(turn?.text);
   const semanticIntelligence = clone(turn?.semanticIntelligence || null);
+  const continuityConsequenceEnvelope =
+    turn?.continuityConsequenceEnvelope &&
+    typeof turn.continuityConsequenceEnvelope === "object"
+      ? clone(turn.continuityConsequenceEnvelope)
+      : null;
 
   return {
     success: true,
@@ -152,9 +157,11 @@ function toCreatorWorkspaceResult(turn) {
       text,
       structured: {
         movieJourneyIntelligence: semanticIntelligence,
+        continuityConsequenceEnvelope,
       },
     },
     movieJourneyIntelligence: semanticIntelligence,
+    continuityConsequenceEnvelope,
     specialistAgentPlan: clone(turn?.specialistPlan || null),
     specialistExecution: clone(turn?.specialistResult || null),
     mentorSynthesis: clone(turn?.synthesisResult || null),
