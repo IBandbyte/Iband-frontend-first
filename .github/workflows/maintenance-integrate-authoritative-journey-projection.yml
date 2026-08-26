@@ -1,0 +1,73 @@
+name: Integrate Authoritative Journey Projection
+
+on:
+  push:
+    paths:
+      - ".github/workflows/maintenance-integrate-authoritative-journey-projection.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  integrate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Integrate proven projection into canonical engine API
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          engine_path = Path('src/components/studio/mentor/CreatorJourneyEngine.js')
+          engine = engine_path.read_text()
+
+          version_marker = 'const CREATOR_JOURNEY_ENGINE_VERSION = "1.1.0";'
+          if 'CreatorJourneyAuthoritativeProjection.js' not in engine:
+              replacement = 'import { reconcileAuthoritativeCreatorTruth } from "./CreatorJourneyAuthoritativeProjection.js";\n\nconst CREATOR_JOURNEY_ENGINE_VERSION = "1.2.0";'
+              if version_marker not in engine:
+                  raise SystemExit('CreatorJourneyEngine version marker not found')
+              engine = engine.replace(version_marker, replacement, 1)
+          else:
+              engine = engine.replace('const CREATOR_JOURNEY_ENGINE_VERSION = "1.1.0";', 'const CREATOR_JOURNEY_ENGINE_VERSION = "1.2.0";', 1)
+
+          api_marker = '    recordDecision,\n\n    setNextAction,'
+          if '    reconcileAuthoritativeCreatorTruth,\n\n    setNextAction,' not in engine:
+              if api_marker not in engine:
+                  raise SystemExit('CreatorJourneyEngine API insertion marker not found')
+              engine = engine.replace(api_marker, '    recordDecision,\n\n    reconcileAuthoritativeCreatorTruth,\n\n    setNextAction,', 1)
+
+          engine_path.write_text(engine)
+
+          test_path = Path('scripts/verify-movie-mentor-authoritative-journey-projection.mjs')
+          test = test_path.read_text()
+          test = test.replace(
+              'import { reconcileAuthoritativeCreatorTruth } from "../src/components/studio/mentor/CreatorJourneyAuthoritativeProjection.js";',
+              'import createCreatorJourneyEngine from "../src/components/studio/mentor/CreatorJourneyEngine.js";\n\nconst engine = createCreatorJourneyEngine();\nassert.equal(typeof engine.reconcileAuthoritativeCreatorTruth, "function", "canonical CreatorJourneyEngine must own the authoritative projection API");'
+          )
+          test = test.replace('reconcileAuthoritativeCreatorTruth(', 'engine.reconcileAuthoritativeCreatorTruth(')
+          test_path.write_text(test)
+          PY
+
+      - name: Verify canonical engine torture
+        run: node scripts/verify-movie-mentor-authoritative-journey-projection.mjs
+
+      - name: Commit canonical integration
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/components/studio/mentor/CreatorJourneyEngine.js scripts/verify-movie-mentor-authoritative-journey-projection.mjs
+          if git diff --cached --quiet; then
+            echo "No integration changes required"
+            exit 0
+          fi
+          git commit -m "Integrate authoritative projection into CreatorJourneyEngine"
+          git push origin HEAD:main
