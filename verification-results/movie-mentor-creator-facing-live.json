@@ -1,11 +1,11 @@
 {
-  "generatedAt": "2026-08-26T18:44:17.190Z",
+  "generatedAt": "2026-08-26T19:09:33.743Z",
   "baseUrl": "https://iband-backend-first-1.onrender.com",
   "passed": false,
   "cases": [],
   "error": {
-    "message": "/api/movie-mentor-synthesis/synthesize failed (400): {\"success\":false,\"code\":\"MENTOR_SYNTHESIS_REQUEST_INVALID\",\"message\":\"Movie Mentor synthesis request failed authority validation.\",\"validationIssues\":[\"continuity_consequence_envelope_required\"],\"retryable\":false,\"authority\":{\"creatorTruthDominates\":true,\"validatedSemanticsOutrankSpecialists\":true,\"specialistsRemainProvisional\":true,\"specialistContentBecomesCanonicalTruth\":false,\"mayAdvanceJourney\":false,\"singleCreatorFacingMentor\":true}}\n\nfalse !== true\n",
+    "message": "clear-language: synthesis text missing\n\nfalse !== true\n",
     "code": "ERR_ASSERTION",
-    "stack": "AssertionError [ERR_ASSERTION]: /api/movie-mentor-synthesis/synthesize failed (400): {\"success\":false,\"code\":\"MENTOR_SYNTHESIS_REQUEST_INVALID\",\"message\":\"Movie Mentor synthesis request failed authority validation.\",\"validationIssues\":[\"continuity_consequence_envelope_required\"],\"retryable\":false,\"authority\":{\"creatorTruthDominates\":true,\"validatedSemanticsOutrankSpecialists\":true,\"specialistsRemainProvisional\":true,\"specialistContentBecomesCanonicalTruth\":false,\"mayAdvanceJourney\":false,\"singleCreatorFacingMentor\":true}}\n\nfalse !== true\n\n    at post (file:///home/runner/work/Iband-frontend-first/Iband-frontend-first/scripts/verify-movie-mentor-creator-facing-live.mjs:15:401)\n    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\n    at async runCase (file:///home/runner/work/Iband-frontend-first/Iband-frontend-first/scripts/verify-movie-mentor-creator-facing-live.mjs:32:18)\n    at async run (file:///home/runner/work/Iband-frontend-first/Iband-frontend-first/scripts/verify-movie-mentor-creator-facing-live.mjs:61:2)\n    at async file:///home/runner/work/Iband-frontend-first/Iband-frontend-first/scripts/verify-movie-mentor-creator-facing-live.mjs:72:5"
+    "stack": "AssertionError [ERR_ASSERTION]: clear-language: synthesis text missing\n\nfalse !== true\n\n    at runCase (file:///home/runner/work/Iband-frontend-first/Iband-frontend-first/scripts/verify-movie-mentor-creator-facing-live.mjs:46:11)\n    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\n    at async run (file:///home/runner/work/Iband-frontend-first/Iband-frontend-first/scripts/verify-movie-mentor-creator-facing-live.mjs:61:2)\n    at async file:///home/runner/work/Iband-frontend-first/Iband-frontend-first/scripts/verify-movie-mentor-creator-facing-live.mjs:72:5"
   }
 }
