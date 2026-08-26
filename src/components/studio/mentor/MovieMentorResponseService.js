@@ -1,8 +1,8 @@
-import createResponseGenerator from "./ResponseGenerator";
-import createMovieSemanticResponseProvider from "./MovieSemanticResponseProvider";
-import createMovieMentorAgentPlan from "./MovieMentorAgentOrchestrator";
-import createMovieSpecialistAgentProvider from "./MovieSpecialistAgentProvider";
-import createMovieMentorSynthesisProvider from "./MovieMentorSynthesisProvider";
+import createResponseGenerator from "./ResponseGenerator.js";
+import createMovieSemanticResponseProvider from "./MovieSemanticResponseProvider.js";
+import createMovieMentorAgentPlan from "./MovieMentorAgentOrchestrator.js";
+import createMovieSpecialistAgentProvider from "./MovieSpecialistAgentProvider.js";
+import createMovieMentorSynthesisProvider from "./MovieMentorSynthesisProvider.js";
 
 const MOVIE_MENTOR_RESPONSE_SERVICE_VERSION="1.6.0";
 const semanticResponseProvider=createMovieSemanticResponseProvider(); const specialistAgentProvider=createMovieSpecialistAgentProvider(); const mentorSynthesisProvider=createMovieMentorSynthesisProvider(); const responseGenerator=createResponseGenerator({responseProvider:semanticResponseProvider});
