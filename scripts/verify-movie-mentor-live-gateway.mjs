@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import {
   generateMovieMentorLiveResponse,
   resolveWorkspaceIdentity,
+  toCreatorWorkspaceResult,
 } from "../src/components/studio/mentor/MovieMentorLiveGatewayService.js";
 
 const storageMap = new Map();
@@ -17,6 +18,25 @@ assert.equal(
   resolveWorkspaceIdentity({ request: {}, storage }).creatorSessionId,
   identity.creatorSessionId
 );
+
+const continuityConsequenceEnvelope = {
+  status: "consistent",
+  authority: "derived-continuity",
+  creatorConfirmed: false,
+  mayCreateCanon: false,
+  requiresClarification: false,
+  derivedConstraints: [
+    {
+      constraintId: "continuity-1",
+      key: "character.maya.location",
+      value: "hidden-tunnel",
+      creatorConfirmed: false,
+      mayCreateCanon: false,
+    },
+  ],
+  conflicts: [],
+  unresolvedQuestions: [],
+};
 
 const calls = [];
 const fetchImpl = async (url, options = {}) => {
@@ -61,11 +81,12 @@ const fetchImpl = async (url, options = {}) => {
           readyToAdvance: true,
           recommendedStageId: "story-direction",
         },
-        specialistPlan: { workOrders: [{ agentId: "story" }, { agentId: "character" }] },
-        specialistResult: { contributions: [{ agentId: "story" }] },
+        specialistPlan: { workOrders: [{ agentId: "story" }, { agentId: "character" }, { agentId: "continuity" }] },
+        specialistResult: { contributions: [{ agentId: "story" }, { agentId: "continuity" }] },
         synthesisResult: { success: true, text: "That red door gives us a strong mystery engine. Let’s decide what makes opening it dangerous." },
+        continuityConsequenceEnvelope,
         turnContextProof: { verified: true, revision: 1 },
-        authority: { singleCreatorFacingMentor: true },
+        authority: { singleCreatorFacingMentor: true, derivedContinuityIsNotCanon: true },
         mayAdvanceJourney: false,
       }),
     };
@@ -95,4 +116,62 @@ assert.equal(result.metadata.localResponseGeneratorUsed, false);
 assert.equal(result.turnContextProof.verified, true);
 assert.equal(result.authority.singleCreatorFacingMentor, true);
 
-console.log("Movie Mentor live backend turn gateway verification: PASS");
+assert.deepEqual(
+  result.continuityConsequenceEnvelope,
+  continuityConsequenceEnvelope,
+  "live gateway must preserve the backend continuity consequence envelope exactly"
+);
+assert.deepEqual(
+  result.response.structured.continuityConsequenceEnvelope,
+  continuityConsequenceEnvelope,
+  "structured creator-workspace result must retain the same continuity consequence envelope"
+);
+assert.notStrictEqual(
+  result.continuityConsequenceEnvelope,
+  continuityConsequenceEnvelope,
+  "gateway must clone backend continuity data rather than expose the backend object by reference"
+);
+assert.equal(result.continuityConsequenceEnvelope.creatorConfirmed, false);
+assert.equal(result.continuityConsequenceEnvelope.mayCreateCanon, false);
+assert.equal(result.mayAdvanceJourney, false, "transport must not silently advance the Creator Journey");
+
+const missingEnvelopeResult = toCreatorWorkspaceResult({
+  status: "mentor-response-ready",
+  text: "No continuity envelope on this turn.",
+  semanticIntelligence: { readyToAdvance: true },
+});
+assert.equal(
+  missingEnvelopeResult.continuityConsequenceEnvelope,
+  null,
+  "frontend must not manufacture continuity consequences when the backend omitted them"
+);
+assert.equal(
+  missingEnvelopeResult.response.structured.continuityConsequenceEnvelope,
+  null
+);
+
+const clarificationEnvelope = {
+  status: "conflict",
+  authority: "derived-continuity",
+  creatorConfirmed: false,
+  mayCreateCanon: false,
+  requiresClarification: true,
+  derivedConstraints: [],
+  conflicts: [{ key: "location", reason: "Two incompatible current locations." }],
+  unresolvedQuestions: [{ question: "Which location should remain current?" }],
+};
+const clarificationResult = toCreatorWorkspaceResult({
+  status: "continuity-clarification-required",
+  text: "Which location should remain current?",
+  semanticIntelligence: { readyToAdvance: true },
+  continuityConsequenceEnvelope: clarificationEnvelope,
+  mayAdvanceJourney: false,
+});
+assert.deepEqual(
+  clarificationResult.continuityConsequenceEnvelope,
+  clarificationEnvelope,
+  "continuity clarification envelopes must survive the same gateway unchanged"
+);
+assert.equal(clarificationResult.mayAdvanceJourney, false);
+
+console.log("Movie Mentor live backend turn gateway verification: PASS — continuity consequence envelope survives transport without becoming creator truth or Journey authority.");
