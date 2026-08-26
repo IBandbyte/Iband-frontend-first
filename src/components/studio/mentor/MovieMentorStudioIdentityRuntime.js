@@ -1,6 +1,14 @@
-import createCreatorMemory, { PROJECT_STATUSES } from "./CreatorMemory.js";
+import createCreatorMemory, {
+  PROJECT_STATUSES,
+  MEMORY_SOURCES,
+  MEMORY_CERTAINTY,
+} from "./CreatorMemory.js";
+import createCreatorJourneyEngine from "./CreatorJourneyEngine.js";
+import createMovieJourneyIntelligenceBridge from "./MovieJourneyIntelligenceBridge.js";
 
-const MOVIE_MENTOR_STUDIO_IDENTITY_RUNTIME_VERSION = "1.1.0";
+const MOVIE_MENTOR_STUDIO_IDENTITY_RUNTIME_VERSION = "1.2.0";
+const RECOMMENDATION_REFERENCE_DOMAIN = "iband.movie-mentor.journey-recommendation-reference";
+const RECOMMENDATION_REFERENCE_SCHEMA = 1;
 
 function clean(value) {
   return typeof value === "string" ? value.trim() : "";
@@ -13,6 +21,97 @@ function clone(value) {
   } catch {
     return value;
   }
+}
+
+function safeRevision(value) {
+  const number = Number(value);
+  return Number.isSafeInteger(number) && number >= 0 ? number : null;
+}
+
+function recommendationNextStep(planningEvidence = {}) {
+  const action = planningEvidence?.semanticDirection?.nextAction;
+  return (
+    clean(action?.label) ||
+    clean(action?.text) ||
+    clean(action?.description) ||
+    clean(planningEvidence?.recommendation?.recommendedTaskId) ||
+    clean(planningEvidence?.recommendation?.recommendedStageId) ||
+    null
+  );
+}
+
+function recommendationIdentityPart(value) {
+  return clean(value)
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 80) || "none";
+}
+
+function buildRecommendationReferenceEvidence({
+  projectId,
+  creatorSessionId,
+  planningEvidence,
+  turnRevision = null,
+} = {}) {
+  const pid = clean(projectId);
+  const recommendation = planningEvidence?.recommendation;
+  if (!pid || !planningEvidence || typeof planningEvidence !== "object") return null;
+  if (!recommendation || typeof recommendation !== "object") return null;
+  if (planningEvidence?.clarification?.required === true) return null;
+  if (planningEvidence.authority !== "advisory-only") return null;
+  if (planningEvidence.creatorConfirmed !== false) return null;
+  if (planningEvidence.mayCreateCanon !== false) return null;
+  if (planningEvidence.mayAdvanceJourney !== false) return null;
+
+  const recommendedStageId = clean(recommendation.recommendedStageId) || null;
+  const recommendedTaskId = clean(recommendation.recommendedTaskId) || null;
+  const recommendedNextStep = recommendationNextStep(planningEvidence);
+  if (!recommendedStageId && !recommendedTaskId && !recommendedNextStep) return null;
+
+  const revision = safeRevision(turnRevision ?? planningEvidence?.provenance?.turnRevision);
+  const recommendationId = [
+    "journey-recommendation",
+    recommendationIdentityPart(pid),
+    revision === null ? "revision-unknown" : `revision-${revision}`,
+    recommendationIdentityPart(recommendedStageId),
+    recommendationIdentityPart(recommendedTaskId),
+    recommendationIdentityPart(recommendedNextStep),
+  ].join(":");
+
+  return {
+    domain: RECOMMENDATION_REFERENCE_DOMAIN,
+    schema: RECOMMENDATION_REFERENCE_SCHEMA,
+    recommendationId,
+    projectId: pid,
+    creatorSessionId: clean(creatorSessionId) || null,
+    authority: "mentor-advisory",
+    creatorConfirmed: false,
+    mayCreateCanon: false,
+    mayAdvanceJourney: false,
+    recommendation: {
+      recommendedStageId,
+      recommendedTaskId,
+      recommendedNextStep,
+      explanation: null,
+      alternatives: clone(recommendation.alternatives || []),
+      reasonCodes: clone(recommendation.reasonCodes || []),
+      confidence: Number.isFinite(Number(recommendation.confidence))
+        ? Number(recommendation.confidence)
+        : null,
+    },
+    provenance: {
+      turnRevision: revision,
+      planningContractVersion: clean(planningEvidence.contractVersion) || null,
+      bridgeVersion: clean(planningEvidence?.provenance?.bridgeVersion) || null,
+      sourceEvidence: clone(planningEvidence.provenance || null),
+    },
+    lifecycle: {
+      current: true,
+      supersededByRecommendationId: null,
+    },
+    createdAt: new Date().toISOString(),
+  };
 }
 
 function issueWorkingSessionId({ cryptoImpl = globalThis?.crypto } = {}) {
@@ -78,6 +177,10 @@ function createMovieMentorStudioIdentityRuntime({
 } = {}) {
   const creatorSessionId = issueWorkingSessionId({ cryptoImpl });
   const pendingCreatorMessageByProject = new Map();
+  const recommendationJourneyEngine = createCreatorJourneyEngine();
+  const recommendationJourneyBridge = createMovieJourneyIntelligenceBridge({
+    journeyEngine: recommendationJourneyEngine,
+  });
 
   function getActiveProject() {
     const project = memory.getActiveProject?.() || null;
@@ -126,6 +229,31 @@ function createMovieMentorStudioIdentityRuntime({
   function getProjectHandoff(projectId) {
     const pid = clean(projectId);
     return pid ? memory.getLatestSessionHandoff?.(pid) || null : null;
+  }
+
+  function recordRecommendationReference(projectId, planningEvidence, { turnRevision = null } = {}) {
+    const evidence = buildRecommendationReferenceEvidence({
+      projectId,
+      creatorSessionId,
+      planningEvidence,
+      turnRevision,
+    });
+    if (!evidence) return null;
+
+    return memory.saveProjectMemory?.({
+      projectId: evidence.projectId,
+      memoryKey: `journey-recommendation:${evidence.recommendationId}`,
+      content: evidence.recommendation.recommendedNextStep || "Movie Mentor Journey recommendation",
+      source: MEMORY_SOURCES.MENTOR,
+      certainty: MEMORY_CERTAINTY.OBSERVED,
+      confidence: evidence.recommendation.confidence ?? 1,
+      metadata: {
+        projectId: evidence.projectId,
+        creatorSessionId,
+        source: "movie-mentor-journey-recommendation",
+        recommendationReference: clone(evidence),
+      },
+    }) || null;
   }
 
   function recordConversationMessage(projectId, message, { projectJourney = null } = {}) {
@@ -177,7 +305,37 @@ function createMovieMentorStudioIdentityRuntime({
       },
     }) || null;
 
-    return { status: "conversation-persisted", projectId: pid, conversation, handoff };
+    let recommendationReference = null;
+    if (message?.metadata?.liveBackendTurn === true && projectJourney) {
+      const planning = recommendationJourneyBridge.consumeTurnForJourneyPlanning(
+        projectJourney,
+        {
+          status: message?.metadata?.backendMetadata?.status || null,
+          semanticIntelligence: clone(message?.metadata?.semanticIntelligence || null),
+          specialistResult: clone(message?.metadata?.specialistResult || null),
+          continuityConsequenceEnvelope: clone(message?.metadata?.continuityConsequenceEnvelope || null),
+          authority: clone(message?.metadata?.authority || null),
+          mayAdvanceJourney: message?.metadata?.mayAdvanceJourney === true,
+        },
+        {
+          source: "MovieMentorStudioIdentityRuntime",
+          turnRevision: message?.metadata?.turnContextProof?.revision ?? null,
+        }
+      );
+      recommendationReference = recordRecommendationReference(
+        pid,
+        planning?.journeyPlanningEvidence || null,
+        { turnRevision: message?.metadata?.turnContextProof?.revision ?? null }
+      );
+    }
+
+    return {
+      status: "conversation-persisted",
+      projectId: pid,
+      conversation,
+      handoff,
+      recommendationReference,
+    };
   }
 
   function resumeProjectConversation(projectId) {
@@ -212,6 +370,7 @@ function createMovieMentorStudioIdentityRuntime({
     persistJourney,
     getProjectConversationMessages,
     getProjectHandoff,
+    recordRecommendationReference,
     recordConversationMessage,
     resumeProjectConversation,
     getResumeSnapshot,
@@ -220,6 +379,9 @@ function createMovieMentorStudioIdentityRuntime({
 
 export {
   MOVIE_MENTOR_STUDIO_IDENTITY_RUNTIME_VERSION,
+  RECOMMENDATION_REFERENCE_DOMAIN,
+  RECOMMENDATION_REFERENCE_SCHEMA,
+  buildRecommendationReferenceEvidence,
   issueWorkingSessionId,
   isMovieMentorProject,
   conversationBelongsToProject,
