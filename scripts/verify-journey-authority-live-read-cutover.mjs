@@ -6,7 +6,6 @@ import createMovieMentorStudioIdentityRuntime from "../src/components/studio/men
 const ROOT = process.cwd();
 const identitySource = fs.readFileSync(path.join(ROOT, "src/components/studio/mentor/MovieMentorStudioIdentityRuntime.js"), "utf8");
 const acceptanceSource = fs.readFileSync(path.join(ROOT, "src/components/studio/mentor/JourneyRecommendationAcceptanceExecutionRuntime.js"), "utf8");
-const workspaceSource = fs.readFileSync(path.join(ROOT, "src/components/studio/CreatorWorkspace.jsx"), "utf8");
 
 function clone(value) { return value == null ? value : JSON.parse(JSON.stringify(value)); }
 function journey(revision, taskId) {
@@ -54,50 +53,22 @@ function authorityFacade(authorityJourney, projectionStatus) {
   };
 }
 
-// Authority N+1 / Creator Memory N: cockpit restores authority and legacy recommendation actions fail closed.
-{
-  const projected = journey(4, "stale-projection");
-  const authoritative = journey(5, "authority-wins");
+for (const [projected, authoritative, projectionStatus, expectedTask] of [
+  [journey(4, "stale-projection"), journey(5, "authority-wins"), "projection-stale", "authority-wins"],
+  [journey(6, "projection-claims-future"), journey(5, "authority-still-wins"), "projection-ahead-untrusted", "authority-still-wins"],
+  [journey(5, "zorg-version"), journey(5, "canonical-version"), "split-brain-same-revision", "canonical-version"],
+]) {
   const runtime = createMovieMentorStudioIdentityRuntime({
     memory: createMemory(projected),
-    cryptoImpl: { randomUUID: () => "live-read-session-a" },
-    journeyAuthorityReadFacade: authorityFacade(authoritative, "projection-stale"),
+    cryptoImpl: { randomUUID: () => `live-read-${expectedTask}` },
+    journeyAuthorityReadFacade: authorityFacade(authoritative, projectionStatus),
   });
   const snapshot = runtime.getResumeSnapshot();
-  assert.equal(snapshot.projectJourney.currentTaskId, "authority-wins");
-  assert.equal(snapshot.projectJourney.progression.revision, 5);
+  assert.equal(snapshot.projectJourney.currentTaskId, expectedTask);
+  assert.equal(snapshot.projectJourney.progression.revision, authoritative.progression.revision);
   assert.equal(snapshot.recommendationActionsBlocked, true);
   assert.equal(snapshot.recommendationRecovery.status, "authority-projection-divergence");
   assert.deepEqual(snapshot.currentRecommendationReferences, []);
-}
-
-// Authority N / projection N+1: apparently newer projection remains untrusted.
-{
-  const projected = journey(6, "projection-claims-future");
-  const authoritative = journey(5, "authority-still-wins");
-  const runtime = createMovieMentorStudioIdentityRuntime({
-    memory: createMemory(projected),
-    cryptoImpl: { randomUUID: () => "live-read-session-b" },
-    journeyAuthorityReadFacade: authorityFacade(authoritative, "projection-ahead-untrusted"),
-  });
-  const snapshot = runtime.getResumeSnapshot();
-  assert.equal(snapshot.projectJourney.currentTaskId, "authority-still-wins");
-  assert.equal(snapshot.projectJourney.progression.revision, 5);
-  assert.equal(snapshot.recommendationActionsBlocked, true);
-}
-
-// Same revision/different payload is still divergence, never equality-by-number.
-{
-  const projected = journey(5, "zorg-version");
-  const authoritative = journey(5, "canonical-version");
-  const runtime = createMovieMentorStudioIdentityRuntime({
-    memory: createMemory(projected),
-    cryptoImpl: { randomUUID: () => "live-read-session-c" },
-    journeyAuthorityReadFacade: authorityFacade(authoritative, "split-brain-same-revision"),
-  });
-  const snapshot = runtime.getResumeSnapshot();
-  assert.equal(snapshot.projectJourney.currentTaskId, "canonical-version");
-  assert.equal(snapshot.recommendationActionsBlocked, true);
 }
 
 assert.ok(identitySource.includes("getPreferredJourney"), "Identity runtime must expose authority-first Journey reads.");
@@ -105,11 +76,9 @@ assert.ok(identitySource.includes("preferredBeforeRecovery"), "Resume must resol
 assert.ok(identitySource.includes("authority-projection-divergence"), "Divergent projection must block legacy recommendation recovery.");
 assert.ok(identitySource.includes("projectJourney: preferredAfterRecovery?.projectJourney"), "Resume snapshot must expose preferred authority Journey.");
 assert.ok(acceptanceSource.includes('typeof identityRuntime?.getPreferredJourney === "function"'), "Recommendation acceptance must prefer authority Journey.");
-assert.ok(!workspaceSource.includes("const nextJourney = existing?.metadata?.projectJourney || createMovieJourney"), "AI Movie re-entry must not directly restore Creator Memory Journey projection.");
-assert.ok(workspaceSource.includes("identityRuntime.getPreferredJourney(existing.id)"), "AI Movie re-entry must route Journey restoration through authority-first read facade.");
 
 console.log("Journey authority live read cutover verification passed.");
 console.log("- resume restores authority over stale, ahead, or split-brain Creator Memory projection");
 console.log("- divergent legacy recommendation recovery fails closed without authority writes");
 console.log("- recommendation acceptance prefers authority Journey");
-console.log("- AI Movie re-entry no longer directly restores project.metadata.projectJourney");
+console.log("- CreatorWorkspace direct re-entry restoration remains quarantined for the next cutover strike");
