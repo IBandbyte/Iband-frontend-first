@@ -1,8 +1,11 @@
 import createRecommendationAcceptanceAuthority from "./JourneyRecommendationAcceptanceAuthority.js";
-import { consumeRecommendationWithoutMovement } from "./JourneyRecommendationLifecyclePersistence.js";
+import createJourneyDurableAuthorityStore from "./JourneyDurableAuthorityStore.js";
+import createJourneyProgressionAuthorityAdapter from "./JourneyProgressionAuthorityAdapter.js";
+import commitJourneyAuthorityTransitionUnderLock from "./JourneyAuthorityAtomicTransition.js";
+import { findAuthorityRecommendation } from "./JourneyAuthorityRecommendationLifecycle.js";
 import { withJourneyProgressionProjectLock } from "./JourneyProgressionProjectLock.js";
 
-const JOURNEY_RECOMMENDATION_ACCEPTANCE_EXECUTION_VERSION = "1.4.0";
+const JOURNEY_RECOMMENDATION_ACCEPTANCE_EXECUTION_VERSION = "1.5.0";
 
 function cleanString(value) {
   return typeof value === "string" ? value.trim() : "";
@@ -75,13 +78,22 @@ function findCommittedAcceptanceReceipt(projectJourney, operationId) {
   return cloneValue(receipts.find((receipt) => cleanString(receipt?.operationId) === operationId) || null);
 }
 
-function createJourneyRecommendationAcceptanceExecutionRuntime({ identityRuntime, progressionRuntime } = {}) {
+function createJourneyRecommendationAcceptanceExecutionRuntime({
+  identityRuntime,
+  progressionRuntime,
+  authorityStore = createJourneyDurableAuthorityStore(),
+  authorityAdapter = null,
+} = {}) {
   if (!identityRuntime?.memory?.getProject) {
     fail("JOURNEY_RECOMMENDATION_ACCEPTANCE_DURABLE_RUNTIME_REQUIRED", "Recommendation acceptance execution requires durable Journey access.");
   }
   if (typeof progressionRuntime?.execute !== "function") {
     fail("JOURNEY_RECOMMENDATION_ACCEPTANCE_PROGRESSION_RUNTIME_REQUIRED", "Recommendation acceptance execution requires the transactional Journey progression runtime.");
   }
+  const resolvedAuthorityAdapter = authorityAdapter || createJourneyProgressionAuthorityAdapter({
+    identityRuntime,
+    authorityStore,
+  });
 
   async function consumeNoMovementUnderProjectLock({
     pid,
@@ -92,26 +104,72 @@ function createJourneyRecommendationAcceptanceExecutionRuntime({ identityRuntime
     return withJourneyProgressionProjectLock({
       projectId: pid,
       callback: async (lockProof) => {
-        // Fresh preferred Journey reality is read only after the same per-project
-        // cross-tab serialization boundary used by Journey movement is acquired.
-        // Once authority exists, Creator Memory projection cannot replace it here.
-        const lockedJourney = getDurableJourney(identityRuntime, pid);
-        if (!lockedJourney) {
+        const preferredJourney = getDurableJourney(identityRuntime, pid);
+        if (!preferredJourney) {
           fail("JOURNEY_RECOMMENDATION_ACCEPTANCE_DURABLE_JOURNEY_REQUIRED", "Recommendation no-op acceptance could not load durable Journey reality inside the project lock.");
         }
 
-        const noOpResult = consumeRecommendationWithoutMovement({
-          identityRuntime,
+        const resolvedAuthority = resolvedAuthorityAdapter.resolveUnderLock({
           projectId: pid,
-          recommendationId,
-          recommendationFingerprint: recommendationEnvelope?.fingerprint || null,
-          expectedProgressionRevision: lockedJourney?.progression?.revision ?? 0,
-          operationId: createRecommendationNoOpOperationId(recommendationId),
-          creatorActId,
+          fallbackJourney: preferredJourney,
+          serialization: lockProof,
         });
+        const authoritativeJourney = cloneValue(resolvedAuthority.projectJourney);
+        const operationId = createRecommendationNoOpOperationId(recommendationId);
+        const existingAuthorityRecommendation = findAuthorityRecommendation(
+          resolvedAuthority?.authorityRecord?.recommendations,
+          recommendationId
+        );
+
+        if (
+          existingAuthorityRecommendation?.lifecycle?.current === false &&
+          existingAuthorityRecommendation?.lifecycle?.terminalReason === "consumed" &&
+          cleanString(existingAuthorityRecommendation?.lifecycle?.operationId) === operationId
+        ) {
+          return Object.freeze({
+            status: "already-consumed-no-movement",
+            recommendationId,
+            operationId,
+            creatorActId: cleanString(existingAuthorityRecommendation?.lifecycle?.creatorActId) || null,
+            projectJourney: authoritativeJourney,
+            progressionRevision: authoritativeJourney?.progression?.revision ?? 0,
+            authorityGeneration: resolvedAuthority.authorityGeneration,
+            authorityCommitted: true,
+            newCreatorAuthorityIssued: false,
+            recommendationPromotedToAuthority: false,
+            serialization: Object.freeze({
+              mode: lockProof.mode,
+              lockName: lockProof.lockName,
+              crossTabSerialized: lockProof.crossTabSerialized,
+            }),
+          });
+        }
+
+        const authorityCommit = commitJourneyAuthorityTransitionUnderLock({
+          authorityStore,
+          resolvedAuthority,
+          nextJourney: authoritativeJourney,
+          operationId,
+          acceptedRecommendationId: recommendationId,
+          recommendationFingerprint: recommendationEnvelope?.fingerprint || null,
+          acceptedRecommendationReference: createAuthorityMaterializationReference(recommendationEnvelope, pid),
+          creatorActId,
+          withoutMovement: true,
+          serialization: lockProof,
+        });
+        const committedJourney = cloneValue(authorityCommit?.record?.journey || authoritativeJourney);
 
         return Object.freeze({
-          ...cloneValue(noOpResult),
+          status: "accepted-no-movement-required",
+          recommendationId,
+          operationId,
+          creatorActId: cleanString(creatorActId) || null,
+          projectJourney: committedJourney,
+          progressionRevision: committedJourney?.progression?.revision ?? 0,
+          authorityGeneration: authorityCommit?.authorityGeneration ?? null,
+          authorityCommitStatus: authorityCommit?.status || null,
+          authorityCommitted: true,
+          newCreatorAuthorityIssued: false,
           recommendationPromotedToAuthority: false,
           serialization: Object.freeze({
             mode: lockProof.mode,
