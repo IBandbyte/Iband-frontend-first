@@ -1,9 +1,33 @@
 import assert from "node:assert/strict";
-import createCreatorMemoryEngine from "../src/components/studio/mentor/CreatorMemoryEngine.js";
-import createMovieMentorStudioIdentityRuntime from "../src/components/studio/mentor/MovieMentorStudioIdentityRuntime.js";
 import createJourneyDurableAuthorityStore from "../src/components/studio/mentor/JourneyDurableAuthorityStore.js";
 import createJourneyCreatorTruthProjectionExecutionRuntime from "../src/components/studio/mentor/JourneyCreatorTruthProjectionExecutionRuntime.js";
 import { projectCommittedCreatorAuthorityIntoJourney } from "../src/components/studio/mentor/MovieMentorJourneyProjectionRuntime.js";
+
+function clone(value) { return value == null ? value : JSON.parse(JSON.stringify(value)); }
+function storageAdapter() {
+  const map = new Map();
+  return {
+    getItem(key) { return map.has(key) ? map.get(key) : null; },
+    setItem(key, value) { map.set(key, String(value)); },
+    removeItem(key) { map.delete(key); },
+  };
+}
+function memoryHarness(projectJourney) {
+  const project = {
+    id: projectJourney.projectId,
+    creatorType: "video",
+    identity: { domain: "iband.movie-mentor.project", schema: 1, issuance: "secure-web-crypto", legacy: false },
+    metadata: { creatorMode: "ai-movie", creatorModeLabel: "AI Movie Making", projectJourney: clone(projectJourney) },
+  };
+  let writes = 0;
+  return {
+    getProject: () => clone(project),
+    getPersistedProject: () => clone(project),
+    getWriteCount: () => writes,
+    updateProject() { writes += 1; throw new Error("Creator Memory write forbidden in live authority torture."); },
+    replaceState() { writes += 1; throw new Error("Creator Memory replaceState forbidden in live authority torture."); },
+  };
+}
 
 const projectId = "p-11e2-live-authority";
 const position = {
@@ -19,47 +43,38 @@ const position = {
 };
 const journey = {
   projectId,
-  ...structuredClone(position),
+  ...clone(position),
   stages: [
     { id: "story-direction", status: "active", tasks: [{ id: "story-foundation", status: "active" }] },
     { id: "characters", status: "not-started", tasks: [{ id: "main-characters", status: "not-started" }] },
   ],
   decisions: [],
-  progression: { revision: 7 },
+  progression: { schemaVersion: 1, revision: 7, lastCommittedOperation: null, committedOperations: [] },
   metadata: {},
 };
-
-const memory = createCreatorMemoryEngine({
-  initialState: {
-    projects: [{ id: projectId, metadata: { projectJourney: structuredClone(journey) } }],
-  },
-});
-const identityRuntime = createMovieMentorStudioIdentityRuntime({ memory });
-const authorityStore = createJourneyDurableAuthorityStore();
-const projectionRuntime = createJourneyCreatorTruthProjectionExecutionRuntime({
-  identityRuntime,
-  authorityStore,
-});
+const memory = memoryHarness(journey);
+const identityRuntime = { memory };
+const storage = storageAdapter();
+const authorityStore = createJourneyDurableAuthorityStore({ storage, browserRuntime: false });
+const projectionRuntime = createJourneyCreatorTruthProjectionExecutionRuntime({ identityRuntime, authorityStore });
 
 const authority = {
   revision: 12,
   currentCreatorTruth: [{
-    key: "creatorDecision.semantic.story.route",
-    value: "Zorgachu's tunnel",
     authority: "creator",
-    confidenceSource: "creator-confirmed",
-    decisionKey: "semantic.story.route",
-    decisionId: "decision-route-12",
-    decisionFingerprint: "fp-12",
-    decisionIntent: "adoption",
-    evidence: "Use Zorgachu's tunnel",
-    evidenceSource: "creator-explicit-semantic",
     current: true,
+    decisionId: "decision-route-12",
+    decisionKey: "semantic.story.route",
+    semanticKey: "story.route",
+    value: "Zorgachu's tunnel",
+    evidence: "Use Zorgachu's tunnel",
+    evidenceSource: "creator-message",
+    decisionIntent: "confirm",
     createdAt: "2026-08-27T00:01:00.000Z",
   }],
 };
 
-const beforeMemory = structuredClone(memory.getProject(projectId));
+const beforeMemory = clone(memory.getProject(projectId));
 const result = await projectCommittedCreatorAuthorityIntoJourney({
   identityRuntime,
   projectJourney: journey,
@@ -67,26 +82,15 @@ const result = await projectCommittedCreatorAuthorityIntoJourney({
   turnResult: { postCommitCreatorAuthority: authority, mayAdvanceJourney: false },
   creatorTruthProjectionRuntime: projectionRuntime,
 });
-
 assert.equal(result.authorityCommitted, true);
 assert.equal(result.authorityRevision, 12);
 assert.equal(result.progressionRevision, 7);
 assert.equal(result.projectJourney.metadata.authoritativeCreatorProjectionRevision, 12);
-assert.equal(
-  result.projectJourney.decisions.find((decision) => decision.metadata?.durableDecisionId === "decision-route-12")?.value,
-  "Zorgachu's tunnel"
-);
-assert.deepEqual(
-  {
-    currentStageId: result.projectJourney.currentStageId,
-    currentTaskId: result.projectJourney.currentTaskId,
-    resumePoint: result.projectJourney.resumePoint,
-  },
-  position,
-  "live authority projection must not move Journey position"
-);
-assert.deepEqual(result.projectJourney.stages, journey.stages, "live authority projection must not alter stage/task statuses");
-assert.deepEqual(memory.getProject(projectId), beforeMemory, "Creator Memory must receive zero authoritative Journey writes");
+assert.equal(result.projectJourney.decisions.find((decision) => decision.id === "decision-route-12")?.value, "Zorgachu's tunnel");
+assert.deepEqual({ currentStageId: result.projectJourney.currentStageId, currentTaskId: result.projectJourney.currentTaskId, resumePoint: result.projectJourney.resumePoint }, position);
+assert.deepEqual(result.projectJourney.stages, journey.stages);
+assert.equal(memory.getWriteCount(), 0);
+assert.deepEqual(memory.getProject(projectId), beforeMemory);
 
 const retry = await projectCommittedCreatorAuthorityIntoJourney({
   identityRuntime,
@@ -95,28 +99,17 @@ const retry = await projectCommittedCreatorAuthorityIntoJourney({
   turnResult: { postCommitCreatorAuthority: authority, mayAdvanceJourney: false },
   creatorTruthProjectionRuntime: projectionRuntime,
 });
-assert.equal(retry.status, "already-projected", "same creator-authority revision retry must be idempotent");
-assert.equal(retry.authorityGeneration, result.authorityGeneration, "idempotent retry must not advance authority generation");
-assert.deepEqual(memory.getProject(projectId), beforeMemory, "retry must not write authoritative Journey state into Creator Memory");
+assert.equal(retry.status, "already-projected");
+assert.equal(retry.authorityGeneration, result.authorityGeneration);
+assert.equal(memory.getWriteCount(), 0);
 
 const reloaded = createJourneyCreatorTruthProjectionExecutionRuntime({ identityRuntime, authorityStore });
 const restartRetry = await reloaded.execute({ projectId, postCommitCreatorAuthority: authority });
-assert.equal(restartRetry.status, "already-projected", "restart must resolve committed creator truth from Journey Authority");
-assert.equal(
-  restartRetry.projectJourney.decisions.find((decision) => decision.metadata?.durableDecisionId === "decision-route-12")?.value,
-  "Zorgachu's tunnel",
-  "restart must expose durable N+1 creator truth from Journey Authority"
-);
-assert.deepEqual(
-  {
-    currentStageId: restartRetry.projectJourney.currentStageId,
-    currentTaskId: restartRetry.projectJourney.currentTaskId,
-    resumePoint: restartRetry.projectJourney.resumePoint,
-  },
-  position,
-  "restart must retain frozen Journey position"
-);
-assert.deepEqual(memory.getProject(projectId), beforeMemory, "restart authority resolution must not restore Creator Memory sovereignty");
+assert.equal(restartRetry.status, "already-projected");
+assert.equal(restartRetry.projectJourney.decisions.find((decision) => decision.id === "decision-route-12")?.value, "Zorgachu's tunnel");
+assert.deepEqual({ currentStageId: restartRetry.projectJourney.currentStageId, currentTaskId: restartRetry.projectJourney.currentTaskId, resumePoint: restartRetry.projectJourney.resumePoint }, position);
+assert.equal(memory.getWriteCount(), 0);
+assert.deepEqual(memory.getProject(projectId), beforeMemory);
 
 const noAuthority = await projectCommittedCreatorAuthorityIntoJourney({
   identityRuntime,
@@ -126,7 +119,7 @@ const noAuthority = await projectCommittedCreatorAuthorityIntoJourney({
   creatorTruthProjectionRuntime: reloaded,
 });
 assert.equal(noAuthority.status, "no-post-commit-authority");
-assert.deepEqual(noAuthority.projectJourney, restartRetry.projectJourney, "mayAdvanceJourney alone must never mutate Journey truth or position");
-assert.deepEqual(memory.getProject(projectId), beforeMemory, "no-authority path must leave Creator Memory untouched");
+assert.deepEqual(noAuthority.projectJourney, restartRetry.projectJourney);
+assert.equal(memory.getWriteCount(), 0);
 
-console.log("Movie Mentor live Journey Authority projection furnace: PASS — N+1 committed creator truth projects through Journey Authority, survives authority-runtime restart, retries idempotently, preserves progression/position, and Creator Memory receives zero authoritative Journey writes.");
+console.log("Movie Mentor live Journey Authority projection furnace: PASS — committed creator truth projects through Journey Authority, survives authority-runtime restart, retries idempotently, preserves progression/position, and Creator Memory receives zero authoritative Journey writes.");
