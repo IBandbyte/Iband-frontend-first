@@ -78,6 +78,9 @@ function createCreatorMemory(options = {}) {
   const getCoreActiveProject = typeof memory.getActiveProject === "function"
     ? memory.getActiveProject.bind(memory)
     : null;
+  const getCoreProjectMemories = typeof memory.getProjectMemories === "function"
+    ? memory.getProjectMemories.bind(memory)
+    : null;
 
   /**
    * Cross-context durability read.
@@ -126,6 +129,31 @@ function createCreatorMemory(options = {}) {
         projectJourney: clone(preferred.projectJourney),
       },
     };
+  }
+
+  /**
+   * Recommendation lifecycle compatibility projection.
+   *
+   * Creator Memory remains the rich advisory/history store. Once a creator act
+   * causes a recommendation to enter Journey Authority, however, the authority
+   * lifecycle must outrank any stale `current:true` advisory flag on reads. This
+   * overlays only returned clones and never writes authority lifecycle back into
+   * the general Creator Memory blob.
+   */
+  function getProjectMemories(query = {}) {
+    const entries = clone(getCoreProjectMemories?.(query) || []);
+    const projectId = typeof query?.projectId === "string" ? query.projectId.trim() : "";
+    if (!projectId || typeof journeyAuthorityReadFacade?.overlayRecommendationReferences !== "function") {
+      return entries;
+    }
+
+    const project = getPersistedProject(projectId);
+    if (!isMovieMentorProject(project)) return entries;
+
+    return clone(journeyAuthorityReadFacade.overlayRecommendationReferences({
+      project,
+      entries,
+    }));
   }
 
   function saveProject({
@@ -216,6 +244,7 @@ function createCreatorMemory(options = {}) {
     readPersistedState,
     getPersistedProject,
     getActiveProject,
+    getProjectMemories,
     saveProject,
     updateProject,
   };
