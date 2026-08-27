@@ -145,10 +145,10 @@ function ConversationMessage({ message, mentorName, onAction }) {
 
 export default function MovieMentorConversation({
   creatorName = "Creator", mentorName = "Movie Mentor", projectId = null, creatorSessionId = null,
-  messages = [], journeyStages = [], activeStage = "idea", completedStages = [], startPoint = null,
+  messages = [], journeyStages = [], activeStage = "idea", completedStages = [], currentStage = null, currentTask = null, startPoint = null,
   isThinking = false, isGenerating = false, placeholder = "Tell Movie Mentor what's on your mind...", quickActions = [],
   showJourney = true, showStartPointChooser = true, allowAttachments = true, allowVoice = true,
-  onSendMessage, onMentorTurnResult, onStartPointSelect, onStageSelect, onAction, onAttach, onVoice,
+  onSendMessage, onMentorTurnResult, onStartPointSelect, onStageSelect, onCompleteTask, onCompleteStage, onAction, onAttach, onVoice,
   onDemonstrate, onTeach, onContinue, onThinkingChange, renderComposerExtra, renderAboveConversation, renderBelowConversation,
 }) {
   const [draft, setDraft] = useState("");
@@ -161,6 +161,8 @@ export default function MovieMentorConversation({
   const completed = useMemo(() => new Set([...(completedStages || []), ...canonicalStages.filter((stage) => stage.status === "completed-for-now").map((stage) => stage.id)]), [completedStages, canonicalStages]);
   const activeStageDefinition = useMemo(() => canonicalStages.find((stage) => stage.id === activeStage) || canonicalStages[0] || null, [canonicalStages, activeStage]);
   const hasCreatorMessage = normalisedMessages.some((message) => message.role === "creator");
+  const currentTaskComplete = currentTask?.status === "completed-for-now";
+  const currentStageComplete = currentStage?.status === "completed-for-now";
 
   useEffect(() => { if (startPoint) setLocalStartPoint(startPoint); }, [startPoint]);
   useEffect(() => { endRef.current?.scrollIntoView?.({ behavior: "smooth", block: "nearest" }); }, [normalisedMessages.length, effectiveThinking, isGenerating]);
@@ -219,6 +221,26 @@ export default function MovieMentorConversation({
         </div>
       )}
 
+      {currentStage && (
+        <div style={styles.progressCard} aria-label="Current Journey work">
+          <div style={styles.progressCopy}>
+            <span style={styles.progressEyebrow}>CURRENT STAGE</span>
+            <strong style={styles.progressStage}>{currentStage.label || currentStage.shortLabel || currentStage.id}</strong>
+            {currentTask && <span style={styles.progressTask}>Current task: {currentTask.label || currentTask.title || currentTask.id}</span>}
+          </div>
+          <div style={styles.progressActions}>
+            {currentTask && (
+              <button type="button" onClick={() => onCompleteTask?.()} disabled={currentTaskComplete} style={{ ...styles.completionButton, ...(currentTaskComplete ? styles.completionButtonDone : {}) }}>
+                {currentTaskComplete ? "✓ Task complete" : "Mark task complete"}
+              </button>
+            )}
+            <button type="button" onClick={() => onCompleteStage?.()} disabled={currentStageComplete} style={{ ...styles.completionButton, ...(currentStageComplete ? styles.completionButtonDone : {}) }}>
+              {currentStageComplete ? "✓ Stage complete" : "Mark stage complete"}
+            </button>
+          </div>
+        </div>
+      )}
+
       {renderAboveConversation?.()}
       <div style={styles.viewport}>
         {normalisedMessages.map((message, index) => <ConversationMessage key={message.id || `message-${index}`} message={message} mentorName={mentorName} onAction={handleAction} />)}
@@ -243,7 +265,10 @@ const styles = {
   header: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, paddingBottom: 16 }, identity: { display: "flex", alignItems: "center", gap: 12 },
   avatar: { width: 42, height: 42, flex: "0 0 42px", borderRadius: "50%", display: "grid", placeItems: "center", background: "linear-gradient(135deg,#7b61ff,#2dd4bf)", fontSize: 20, boxShadow: "0 0 26px rgba(123,97,255,.35)" },
   eyebrow: { fontSize: 10, letterSpacing: 2, opacity: .65 }, title: { fontSize: 20, fontWeight: 800 }, subtitle: { fontSize: 12, opacity: .65, marginTop: 2 }, badge: { fontSize: 12, padding: "8px 11px", borderRadius: 999, background: "rgba(255,255,255,.07)" },
-  journey: { display: "flex", gap: 6, overflowX: "auto", padding: "10px 0 16px" }, stage: { minWidth: 30, height: 30, borderRadius: "50%", border: "1px solid rgba(255,255,255,.14)", background: "rgba(255,255,255,.04)", color: "#aeb4c3", cursor: "pointer" }, stageActive: { background: "#f6f7fb", color: "#11131a", fontWeight: 800 }, stageComplete: { borderColor: "rgba(45,212,191,.55)" },
+  journey: { display: "flex", gap: 6, overflowX: "auto", padding: "10px 0 12px" }, stage: { minWidth: 30, height: 30, borderRadius: "50%", border: "1px solid rgba(255,255,255,.14)", background: "rgba(255,255,255,.04)", color: "#aeb4c3", cursor: "pointer" }, stageActive: { background: "#f6f7fb", color: "#11131a", fontWeight: 800 }, stageComplete: { borderColor: "rgba(45,212,191,.55)" },
+  progressCard: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: 12, marginBottom: 8, borderRadius: 14, border: "1px solid rgba(255,255,255,.09)", background: "rgba(255,255,255,.045)" },
+  progressCopy: { minWidth: 0, display: "grid", gap: 3 }, progressEyebrow: { fontSize: 9, letterSpacing: 1.4, opacity: .55 }, progressStage: { fontSize: 14 }, progressTask: { fontSize: 11, opacity: .66, overflowWrap: "anywhere" }, progressActions: { display: "flex", gap: 7, flexWrap: "wrap", justifyContent: "flex-end" },
+  completionButton: { border: "1px solid rgba(45,212,191,.32)", background: "rgba(45,212,191,.08)", color: "#e8fffb", borderRadius: 999, padding: "7px 10px", fontSize: 11, fontWeight: 800, cursor: "pointer", whiteSpace: "nowrap" }, completionButtonDone: { opacity: .55, cursor: "default" },
   viewport: { minHeight: 360, maxHeight: "58vh", overflowY: "auto", padding: "14px 2px", display: "flex", flexDirection: "column", gap: 14 }, mentorRow: { display: "flex", alignItems: "flex-start", gap: 10, maxWidth: "92%" }, creatorRow: { display: "flex", justifyContent: "flex-end", alignSelf: "flex-end", maxWidth: "88%" }, mentorBubble: { padding: "12px 14px", borderRadius: "6px 18px 18px 18px", background: "rgba(255,255,255,.08)", lineHeight: 1.5 }, creatorBubble: { padding: "12px 14px", borderRadius: "18px 6px 18px 18px", background: "#f3f4f7", color: "#11131a", lineHeight: 1.5 }, behaviourLabel: { fontSize: 10, letterSpacing: 1.1, opacity: .62, marginBottom: 5, textTransform: "uppercase" }, messageTitle: { display: "block", marginBottom: 5 }, systemMessage: { alignSelf: "center", fontSize: 12, opacity: .58, padding: "6px 10px" }, thinking: { padding: "12px 14px", opacity: .7, fontSize: 13 },
   startHeader: { fontSize: 10, letterSpacing: 1.8, opacity: .62, marginTop: 4 }, startTitle: { fontWeight: 800, fontSize: 18, margin: "4px 0 10px" }, startGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(210px,1fr))", gap: 8, margin: "8px 0" }, startCard: { display: "flex", gap: 10, alignItems: "flex-start", textAlign: "left", padding: 13, borderRadius: 14, border: "1px solid rgba(255,255,255,.1)", background: "rgba(255,255,255,.045)", color: "#f6f7fb", cursor: "pointer" }, startIcon: { fontSize: 20 }, startDescription: { display: "block", marginTop: 4, fontSize: 12, lineHeight: 1.4, opacity: .64, fontWeight: 400 },
   quickActions: { display: "flex", gap: 8, overflowX: "auto", padding: "8px 0" }, actionRow: { display: "flex", flexWrap: "wrap", gap: 7, marginTop: 12 }, secondaryButton: { border: "1px solid rgba(255,255,255,.14)", background: "rgba(255,255,255,.06)", color: "inherit", borderRadius: 999, padding: "7px 10px", cursor: "pointer", whiteSpace: "nowrap" }, primaryButton: { border: 0, background: "#f6f7fb", color: "#11131a", borderRadius: 999, padding: "8px 12px", cursor: "pointer", fontWeight: 800 },
