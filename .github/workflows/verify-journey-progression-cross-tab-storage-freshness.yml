@@ -1,0 +1,32 @@
+name: Verify Journey Progression Cross-Tab Storage Freshness
+
+on:
+  push:
+    paths:
+      - "src/components/studio/mentor/CreatorMemory.js"
+      - "src/components/studio/mentor/JourneyProgressionProjectLock.js"
+      - "src/components/studio/mentor/JourneyProgressionExecutionRuntime.js"
+      - "src/components/studio/mentor/JourneyRecommendationLifecyclePersistence.js"
+      - "scripts/verify-journey-progression-cross-tab-storage-freshness.mjs"
+      - ".github/workflows/verify-journey-progression-cross-tab-storage-freshness.yml"
+  pull_request:
+    paths:
+      - "src/components/studio/mentor/CreatorMemory.js"
+      - "src/components/studio/mentor/JourneyProgressionProjectLock.js"
+      - "src/components/studio/mentor/JourneyProgressionExecutionRuntime.js"
+      - "src/components/studio/mentor/JourneyRecommendationLifecyclePersistence.js"
+      - "scripts/verify-journey-progression-cross-tab-storage-freshness.mjs"
+      - ".github/workflows/verify-journey-progression-cross-tab-storage-freshness.yml"
+
+jobs:
+  cross-tab-storage-freshness:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Use Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Torture cross-tab persisted Journey freshness
+        run: node scripts/verify-journey-progression-cross-tab-storage-freshness.mjs
