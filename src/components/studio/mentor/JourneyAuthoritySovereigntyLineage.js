@@ -127,12 +127,14 @@ function createJourneyAuthoritySovereigntyLineage({
   function writeVerified(project, candidate) {
     const key = sovereigntyLineageStorageKey(project?.id || project?.projectId);
     const serialized = JSON.stringify(candidate);
-    storage.setItem(key, serialized);
+    let writeError = null;
+    try { storage.setItem(key, serialized); } catch (error) { writeError = error; }
     const reread = parse(storage.getItem(key), project);
-    if (!reread || JSON.stringify(reread.record) !== serialized) {
-      fail("JOURNEY_AUTHORITY_LINEAGE_PERSISTENCE_VERIFICATION_FAILED", "Journey authority lineage write could not be verified.");
+    if (reread && JSON.stringify(reread.record) === serialized) {
+      return cloneValue(reread.record);
     }
-    return cloneValue(reread.record);
+    if (writeError) throw writeError;
+    fail("JOURNEY_AUTHORITY_LINEAGE_PERSISTENCE_VERIFICATION_FAILED", "Journey authority lineage write could not be verified.");
   }
 
   function read(projectId, { project = null } = {}) {
