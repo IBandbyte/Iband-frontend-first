@@ -6,8 +6,9 @@ import createCreatorMemory, {
 import createCreatorJourneyEngine from "./CreatorJourneyEngine.js";
 import createMovieJourneyIntelligenceBridge from "./MovieJourneyIntelligenceBridge.js";
 import createJourneyRecommendationEnvelope from "./JourneyRecommendationEnvelope.js";
+import certifyJourneyRecommendationResume from "./JourneyRecommendationResumeRecovery.js";
 
-const MOVIE_MENTOR_STUDIO_IDENTITY_RUNTIME_VERSION = "1.5.0";
+const MOVIE_MENTOR_STUDIO_IDENTITY_RUNTIME_VERSION = "1.6.0";
 const RECOMMENDATION_REFERENCE_DOMAIN = "iband.movie-mentor.journey-recommendation-reference";
 const RECOMMENDATION_REFERENCE_SCHEMA = 2;
 
@@ -310,9 +311,23 @@ function createMovieMentorStudioIdentityRuntime({ memory = createCreatorMemory()
   }
 
   function getResumeSnapshot() {
-    const project = getActiveProject();
-    if (!project) return null;
+    const initiallyActiveProject = getActiveProject();
+    if (!initiallyActiveProject) return null;
+
+    const recommendationRecovery = certifyJourneyRecommendationResume({
+      identityRuntime: {
+        memory,
+      },
+      projectId: initiallyActiveProject.id,
+    });
+
+    // Recovery runs before recommendation references are exposed. Re-read durable
+    // project reality afterwards so the resume snapshot never carries the pre-repair state.
+    const project = memory.getProject?.(initiallyActiveProject.id) || null;
+    if (!isMovieMentorProject(project)) return null;
     const conversation = resumeProjectConversation(project.id);
+    const recommendationActionsBlocked = recommendationRecovery?.recommendationActionsBlocked === true;
+
     return {
       project,
       projectId: project.id,
@@ -320,7 +335,9 @@ function createMovieMentorStudioIdentityRuntime({ memory = createCreatorMemory()
       projectJourney: project.metadata?.projectJourney || conversation.handoff?.value?.projectJourney || null,
       conversationMessages: conversation.messages,
       sessionHandoff: conversation.handoff,
-      currentRecommendationReferences: getCurrentRecommendationReferences(project.id),
+      currentRecommendationReferences: recommendationActionsBlocked ? [] : getCurrentRecommendationReferences(project.id),
+      recommendationRecovery,
+      recommendationActionsBlocked,
     };
   }
 
