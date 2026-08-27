@@ -1,0 +1,30 @@
+name: Verify Journey Recommendation Action Surface
+
+on:
+  push:
+    paths:
+      - "src/components/studio/mentor/JourneyRecommendationEnvelope.js"
+      - "src/components/studio/mentor/JourneyRecommendationAcceptanceExecutionRuntime.js"
+      - "src/components/studio/mentor/JourneyRecommendationActionSurface.js"
+      - "scripts/verify-journey-recommendation-action-surface.mjs"
+      - ".github/workflows/verify-journey-recommendation-action-surface.yml"
+  pull_request:
+    paths:
+      - "src/components/studio/mentor/JourneyRecommendationEnvelope.js"
+      - "src/components/studio/mentor/JourneyRecommendationAcceptanceExecutionRuntime.js"
+      - "src/components/studio/mentor/JourneyRecommendationActionSurface.js"
+      - "scripts/verify-journey-recommendation-action-surface.mjs"
+      - ".github/workflows/verify-journey-recommendation-action-surface.yml"
+
+jobs:
+  recommendation-action-surface:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Use Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Verify Workspace-owned recommendation action surface
+        run: node scripts/verify-journey-recommendation-action-surface.mjs
