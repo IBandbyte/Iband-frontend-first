@@ -1,0 +1,28 @@
+name: Verify Journey Acceptance Authority Materialization Handoff
+
+on:
+  push:
+    paths:
+      - "src/components/studio/mentor/JourneyRecommendationAcceptanceExecutionRuntime.js"
+      - "src/components/studio/mentor/JourneyAuthorityRecommendationLifecycle.js"
+      - "scripts/verify-journey-acceptance-authority-materialization-handoff.mjs"
+      - ".github/workflows/verify-journey-acceptance-authority-materialization-handoff.yml"
+  pull_request:
+    paths:
+      - "src/components/studio/mentor/JourneyRecommendationAcceptanceExecutionRuntime.js"
+      - "src/components/studio/mentor/JourneyAuthorityRecommendationLifecycle.js"
+      - "scripts/verify-journey-acceptance-authority-materialization-handoff.mjs"
+      - ".github/workflows/verify-journey-acceptance-authority-materialization-handoff.yml"
+
+jobs:
+  acceptance-authority-materialization-handoff:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Use Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Torture acceptance authority materialization handoff
+        run: node scripts/verify-journey-acceptance-authority-materialization-handoff.mjs
