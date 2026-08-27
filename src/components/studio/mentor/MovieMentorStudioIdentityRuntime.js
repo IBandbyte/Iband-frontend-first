@@ -7,8 +7,9 @@ import createCreatorJourneyEngine from "./CreatorJourneyEngine.js";
 import createMovieJourneyIntelligenceBridge from "./MovieJourneyIntelligenceBridge.js";
 import createJourneyRecommendationEnvelope from "./JourneyRecommendationEnvelope.js";
 import certifyJourneyRecommendationResume from "./JourneyRecommendationResumeRecovery.js";
+import createJourneyAuthorityReadFacade from "./JourneyAuthorityReadFacade.js";
 
-const MOVIE_MENTOR_STUDIO_IDENTITY_RUNTIME_VERSION = "1.6.0";
+const MOVIE_MENTOR_STUDIO_IDENTITY_RUNTIME_VERSION = "1.7.0";
 const RECOMMENDATION_REFERENCE_DOMAIN = "iband.movie-mentor.journey-recommendation-reference";
 const RECOMMENDATION_REFERENCE_SCHEMA = 2;
 
@@ -102,7 +103,11 @@ function conversationToMessages(conversation) {
   return messages;
 }
 
-function createMovieMentorStudioIdentityRuntime({ memory = createCreatorMemory(), cryptoImpl = globalThis?.crypto } = {}) {
+function createMovieMentorStudioIdentityRuntime({
+  memory = createCreatorMemory(),
+  cryptoImpl = globalThis?.crypto,
+  journeyAuthorityReadFacade = createJourneyAuthorityReadFacade(),
+} = {}) {
   const creatorSessionId = issueWorkingSessionId({ cryptoImpl });
   const pendingCreatorMessageByProject = new Map();
   const recommendationJourneyEngine = createCreatorJourneyEngine();
@@ -111,6 +116,19 @@ function createMovieMentorStudioIdentityRuntime({ memory = createCreatorMemory()
   function getActiveProject() {
     const project = memory.getActiveProject?.() || null;
     return isMovieMentorProject(project) ? project : null;
+  }
+
+  function getPreferredJourney(projectId, { fallbackJourney = null } = {}) {
+    const pid = clean(projectId);
+    if (!pid) return null;
+    const project = typeof memory.getPersistedProject === "function"
+      ? memory.getPersistedProject(pid)
+      : memory.getProject?.(pid) || null;
+    if (!isMovieMentorProject(project)) return null;
+    return journeyAuthorityReadFacade.readPreferred({
+      project,
+      projectedJourney: project?.metadata?.projectJourney || fallbackJourney || null,
+    });
   }
 
   function ensureProject({ projectJourney = null, title = "Untitled Movie" } = {}) {
@@ -310,29 +328,56 @@ function createMovieMentorStudioIdentityRuntime({ memory = createCreatorMemory()
     return { messages, handoff };
   }
 
+  function blockedDivergentProjectionRecovery(projectId, preferredJourney) {
+    return Object.freeze({
+      status: "authority-projection-divergence",
+      projectId,
+      recommendationActionsBlocked: true,
+      recoveryResult: null,
+      recoveryAttempts: 0,
+      errorCode: "JOURNEY_RECOMMENDATION_LEGACY_PROJECTION_UNCERTIFIED",
+      errorMessage: "Legacy recommendation recovery is blocked because Journey Authority and Creator Memory projection disagree.",
+      journeySource: preferredJourney?.source || null,
+      projectionStatus: preferredJourney?.projectionStatus || null,
+    });
+  }
+
   function getResumeSnapshot() {
     const initiallyActiveProject = getActiveProject();
     if (!initiallyActiveProject) return null;
 
-    const recommendationRecovery = certifyJourneyRecommendationResume({
-      identityRuntime: {
-        memory,
-      },
-      projectId: initiallyActiveProject.id,
-    });
+    const preferredBeforeRecovery = getPreferredJourney(initiallyActiveProject.id);
+    const authorityProjectionDiverged = preferredBeforeRecovery?.status === "authority" &&
+      preferredBeforeRecovery?.projectionStatus !== "in-sync";
 
-    // Recovery runs before recommendation references are exposed. Re-read durable
-    // project reality afterwards so the resume snapshot never carries the pre-repair state.
-    const project = memory.getProject?.(initiallyActiveProject.id) || null;
+    const recommendationRecovery = authorityProjectionDiverged
+      ? blockedDivergentProjectionRecovery(initiallyActiveProject.id, preferredBeforeRecovery)
+      : certifyJourneyRecommendationResume({
+          identityRuntime: { memory },
+          projectId: initiallyActiveProject.id,
+        });
+
+    // Recovery may change only recommendation metadata. Re-read both Creator Memory
+    // and Journey Authority afterwards so the snapshot cannot expose pre-repair or
+    // stale projected Journey reality.
+    const project = typeof memory.getPersistedProject === "function"
+      ? memory.getPersistedProject(initiallyActiveProject.id)
+      : memory.getProject?.(initiallyActiveProject.id) || null;
     if (!isMovieMentorProject(project)) return null;
     const conversation = resumeProjectConversation(project.id);
-    const recommendationActionsBlocked = recommendationRecovery?.recommendationActionsBlocked === true;
+    const preferredAfterRecovery = getPreferredJourney(project.id, {
+      fallbackJourney: conversation.handoff?.value?.projectJourney || null,
+    });
+    const authorityStillDiverged = preferredAfterRecovery?.status === "authority" &&
+      preferredAfterRecovery?.projectionStatus !== "in-sync";
+    const recommendationActionsBlocked = recommendationRecovery?.recommendationActionsBlocked === true || authorityStillDiverged;
 
     return {
       project,
       projectId: project.id,
       creatorSessionId,
-      projectJourney: project.metadata?.projectJourney || conversation.handoff?.value?.projectJourney || null,
+      projectJourney: preferredAfterRecovery?.projectJourney || conversation.handoff?.value?.projectJourney || null,
+      journeyAuthorityRead: clone(preferredAfterRecovery),
       conversationMessages: conversation.messages,
       sessionHandoff: conversation.handoff,
       currentRecommendationReferences: recommendationActionsBlocked ? [] : getCurrentRecommendationReferences(project.id),
@@ -346,6 +391,7 @@ function createMovieMentorStudioIdentityRuntime({ memory = createCreatorMemory()
     memory,
     creatorSessionId,
     getActiveProject,
+    getPreferredJourney,
     ensureProject,
     persistJourney,
     getProjectConversationMessages,
