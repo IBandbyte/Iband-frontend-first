@@ -1,4 +1,6 @@
-const MOVIE_MENTOR_JOURNEY_PROJECTION_RUNTIME_VERSION = "1.0.0";
+import createJourneyCreatorTruthProjectionExecutionRuntime from "./JourneyCreatorTruthProjectionExecutionRuntime.js";
+
+const MOVIE_MENTOR_JOURNEY_PROJECTION_RUNTIME_VERSION = "2.0.0";
 
 function clone(value) {
   if (value === undefined) return undefined;
@@ -14,12 +16,12 @@ function positionOf(journey = {}) {
   };
 }
 
-function projectCommittedCreatorAuthorityIntoJourney({
-  journeyEngine,
+async function projectCommittedCreatorAuthorityIntoJourney({
   identityRuntime,
   projectJourney,
   projectId,
   turnResult,
+  creatorTruthProjectionRuntime = null,
 } = {}) {
   const authority = turnResult?.postCommitCreatorAuthority || null;
   if (!authority) {
@@ -30,39 +32,38 @@ function projectCommittedCreatorAuthorityIntoJourney({
     error.code = "MOVIE_MENTOR_LIVE_JOURNEY_PROJECTION_CONTEXT_REQUIRED";
     throw error;
   }
-  if (!journeyEngine || typeof journeyEngine.reconcileAuthoritativeCreatorTruth !== "function") {
-    const error = new Error("Canonical CreatorJourneyEngine projection API is required.");
-    error.code = "MOVIE_MENTOR_LIVE_JOURNEY_PROJECTION_ENGINE_REQUIRED";
-    throw error;
-  }
-  if (!identityRuntime || typeof identityRuntime.persistJourney !== "function") {
-    const error = new Error("Movie Mentor identity runtime persistence is required.");
-    error.code = "MOVIE_MENTOR_LIVE_JOURNEY_PROJECTION_PERSISTENCE_REQUIRED";
+  if (!identityRuntime?.memory?.getProject) {
+    const error = new Error("Movie Mentor identity runtime project access is required.");
+    error.code = "MOVIE_MENTOR_LIVE_JOURNEY_PROJECTION_RUNTIME_REQUIRED";
     throw error;
   }
 
-  const before = positionOf(projectJourney);
-  const projectedJourney = journeyEngine.reconcileAuthoritativeCreatorTruth(projectJourney, authority);
-  const after = positionOf(projectedJourney);
-  if (JSON.stringify(before) !== JSON.stringify(after)) {
-    const error = new Error("Live creator authority projection attempted to move Journey position.");
-    error.code = "MOVIE_MENTOR_LIVE_JOURNEY_PROJECTION_MOVED_POSITION";
+  const runtime = creatorTruthProjectionRuntime || createJourneyCreatorTruthProjectionExecutionRuntime({ identityRuntime });
+  if (!runtime || typeof runtime.execute !== "function") {
+    const error = new Error("Journey Authority creator-truth projection runtime is required.");
+    error.code = "MOVIE_MENTOR_LIVE_JOURNEY_PROJECTION_AUTHORITY_RUNTIME_REQUIRED";
     throw error;
   }
 
-  const persistedProject = identityRuntime.persistJourney(projectId, projectedJourney);
-  if (!persistedProject) {
-    const error = new Error("Projected creator authority could not be persisted into the active Movie Mentor project.");
-    error.code = "MOVIE_MENTOR_LIVE_JOURNEY_PROJECTION_PERSIST_FAILED";
+  const result = await runtime.execute({ projectId, postCommitCreatorAuthority: authority });
+  const authoritativeJourney = clone(result?.projectJourney || null);
+  if (!authoritativeJourney) {
+    const error = new Error("Projected creator authority could not be verified in Journey Authority.");
+    error.code = "MOVIE_MENTOR_LIVE_JOURNEY_PROJECTION_AUTHORITY_COMMIT_FAILED";
     throw error;
   }
 
   return {
-    status: "projected-and-persisted",
-    projectJourney: projectedJourney,
-    persistedProject,
-    projected: true,
-    authorityRevision: authority.revision ?? null,
+    status: result.status,
+    projectJourney: authoritativeJourney,
+    persistedProject: null,
+    projected: result.status !== "already-projected",
+    authorityCommitted: result.authorityCommitted === true,
+    authorityGeneration: result.authorityGeneration ?? null,
+    progressionRevision: result.progressionRevision ?? null,
+    authorityRevision: result.creatorAuthorityRevision ?? authority.revision ?? null,
+    operationId: result.operationId ?? null,
+    serialization: clone(result.serialization ?? null),
   };
 }
 
