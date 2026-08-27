@@ -1,0 +1,28 @@
+name: Verify Journey Recommendation No-Op Project Lock
+
+on:
+  push:
+    paths:
+      - "src/components/studio/mentor/JourneyRecommendationAcceptanceExecutionRuntime.js"
+      - "src/components/studio/mentor/JourneyProgressionProjectLock.js"
+      - "scripts/verify-journey-recommendation-noop-project-lock.mjs"
+      - ".github/workflows/verify-journey-recommendation-noop-project-lock.yml"
+  pull_request:
+    paths:
+      - "src/components/studio/mentor/JourneyRecommendationAcceptanceExecutionRuntime.js"
+      - "src/components/studio/mentor/JourneyProgressionProjectLock.js"
+      - "scripts/verify-journey-recommendation-noop-project-lock.mjs"
+      - ".github/workflows/verify-journey-recommendation-noop-project-lock.yml"
+
+jobs:
+  recommendation-noop-project-lock:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Use Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Torture recommendation no-op project serialization
+        run: node scripts/verify-journey-recommendation-noop-project-lock.mjs
