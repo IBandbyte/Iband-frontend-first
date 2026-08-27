@@ -28,6 +28,9 @@ export default function AiMentor({
   message,
   creatorJourney,
   mentorContext = {},
+  journeyRecommendationAction = null,
+  onAcceptJourneyRecommendation,
+  onDismissJourneyRecommendation,
 }) {
   const [selectedSuggestion, setSelectedSuggestion] = useState(null);
 
@@ -48,6 +51,12 @@ export default function AiMentor({
   const showJourneyRecommendation =
     journeyRecommendation?.mode === "recommendation" ||
     journeyRecommendation?.mode === "clarification";
+
+  const showRecommendationActions =
+    journeyRecommendation?.mode === "recommendation" &&
+    Boolean(journeyRecommendationAction?.recommendationId) &&
+    journeyRecommendationAction?.mayAdvanceJourney === false &&
+    journeyRecommendationAction?.creatorChoiceRequired === true;
 
   return (
     <div
@@ -180,6 +189,56 @@ export default function AiMentor({
           >
             Your choice decides what happens next.
           </div>
+
+          {showRecommendationActions && (
+            <div
+              data-movie-mentor-recommendation-actions="creator-choice"
+              style={{
+                display: "flex",
+                flexWrap: "wrap",
+                gap: 8,
+                marginTop: 14,
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => onAcceptJourneyRecommendation?.()}
+                style={{
+                  appearance: "none",
+                  border: 0,
+                  borderRadius: 999,
+                  background: "#604dff",
+                  color: "#ffffff",
+                  padding: "10px 14px",
+                  fontSize: 13,
+                  fontWeight: 800,
+                  cursor: "pointer",
+                  WebkitTapHighlightColor: "transparent",
+                }}
+              >
+                {journeyRecommendationAction.label || "Continue to suggested next step"}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => onDismissJourneyRecommendation?.()}
+                style={{
+                  appearance: "none",
+                  border: "1px solid rgba(17,24,39,0.12)",
+                  borderRadius: 999,
+                  background: "#ffffff",
+                  color: "#4b5563",
+                  padding: "10px 14px",
+                  fontSize: 13,
+                  fontWeight: 800,
+                  cursor: "pointer",
+                  WebkitTapHighlightColor: "transparent",
+                }}
+              >
+                {journeyRecommendationAction.dismissLabel || "Stay here"}
+              </button>
+            </div>
+          )}
         </div>
       )}
 
