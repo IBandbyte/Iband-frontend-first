@@ -6,7 +6,7 @@ import {
   invalidateAuthorityRecommendations,
 } from "./JourneyAuthorityRecommendationLifecycle.js";
 
-const JOURNEY_AUTHORITY_ATOMIC_TRANSITION_VERSION = "1.1.0";
+const JOURNEY_AUTHORITY_ATOMIC_TRANSITION_VERSION = "1.2.0";
 
 function cleanString(value) {
   return typeof value === "string" ? value.trim() : "";
@@ -139,6 +139,45 @@ function transitionRecommendations({
   });
 }
 
+function reconcileAlreadyConsumedTransition({
+  resolvedAuthority,
+  acceptedRecommendationId,
+  recommendationFingerprint,
+  operationId,
+  toRevision,
+  withoutMovement,
+} = {}) {
+  const acceptedId = cleanString(acceptedRecommendationId);
+  if (!acceptedId) return null;
+  const current = findAuthorityRecommendation(
+    resolvedAuthority?.authorityRecord?.recommendations,
+    acceptedId
+  );
+  if (!current || current.lifecycle?.current === true || current.lifecycle?.terminalReason !== "consumed") return null;
+
+  const sameOperation = cleanString(current.lifecycle?.operationId) === cleanString(operationId);
+  const sameFingerprint = !cleanString(recommendationFingerprint) ||
+    cleanString(current.fingerprint) === cleanString(recommendationFingerprint);
+  const sameTerminalRevision = safeRevision(current.lifecycle?.terminalProgressionRevision) === safeRevision(toRevision);
+  const sameMovementClass = current.lifecycle?.consumedWithoutMovement === (withoutMovement === true);
+
+  if (sameOperation && sameFingerprint && sameTerminalRevision && sameMovementClass) {
+    return Object.freeze({
+      status: "already-committed",
+      record: cloneValue(resolvedAuthority.authorityRecord),
+      authorityGeneration: safeRevision(resolvedAuthority.authorityGeneration),
+      progressionRevision: safeRevision(resolvedAuthority.progressionRevision),
+      consumedRecommendation: cloneValue(current),
+      idempotent: true,
+    });
+  }
+
+  fail(
+    "JOURNEY_AUTHORITY_RECOMMENDATION_CONSUMPTION_CONFLICT",
+    "Recommendation is already consumed under different authoritative lineage."
+  );
+}
+
 function commitJourneyAuthorityTransitionUnderLock({
   authorityStore,
   resolvedAuthority,
@@ -162,6 +201,16 @@ function commitJourneyAuthorityTransitionUnderLock({
   if (!project || !projectId || expectedGeneration === null || fromRevision === null || toRevision === null) {
     fail("JOURNEY_AUTHORITY_TRANSITION_CONTEXT_INVALID", "Atomic Journey authority transition requires resolved authority context and exact revisions.");
   }
+
+  const alreadyCommitted = reconcileAlreadyConsumedTransition({
+    resolvedAuthority,
+    acceptedRecommendationId,
+    recommendationFingerprint,
+    operationId,
+    toRevision,
+    withoutMovement,
+  });
+  if (alreadyCommitted) return alreadyCommitted;
 
   return authorityStore.compareAndCommitUnderLock({
     project,
@@ -201,6 +250,7 @@ export {
   JOURNEY_AUTHORITY_ATOMIC_TRANSITION_VERSION,
   materialiseAcceptedRecommendation,
   transitionRecommendations,
+  reconcileAlreadyConsumedTransition,
   commitJourneyAuthorityTransitionUnderLock,
 };
 
