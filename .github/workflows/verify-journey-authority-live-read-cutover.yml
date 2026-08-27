@@ -1,0 +1,28 @@
+name: Verify Journey Authority Live Read Cutover
+
+on:
+  push:
+    paths:
+      - "src/components/studio/mentor/MovieMentorStudioIdentityRuntime.js"
+      - "src/components/studio/mentor/JourneyRecommendationAcceptanceExecutionRuntime.js"
+      - "src/components/studio/mentor/JourneyAuthorityReadFacade.js"
+      - "scripts/verify-journey-authority-live-read-cutover.mjs"
+      - ".github/workflows/verify-journey-authority-live-read-cutover.yml"
+  pull_request:
+    paths:
+      - "src/components/studio/mentor/MovieMentorStudioIdentityRuntime.js"
+      - "src/components/studio/mentor/JourneyRecommendationAcceptanceExecutionRuntime.js"
+      - "src/components/studio/mentor/JourneyAuthorityReadFacade.js"
+      - "scripts/verify-journey-authority-live-read-cutover.mjs"
+      - ".github/workflows/verify-journey-authority-live-read-cutover.yml"
+
+jobs:
+  authority-live-read-cutover:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Torture live authority read cutover
+        run: node scripts/verify-journey-authority-live-read-cutover.mjs
