@@ -9,7 +9,7 @@ import createJourneyRecommendationEnvelope from "./JourneyRecommendationEnvelope
 import certifyJourneyRecommendationResume from "./JourneyRecommendationResumeRecovery.js";
 import createJourneyAuthorityReadFacade from "./JourneyAuthorityReadFacade.js";
 
-const MOVIE_MENTOR_STUDIO_IDENTITY_RUNTIME_VERSION = "1.7.0";
+const MOVIE_MENTOR_STUDIO_IDENTITY_RUNTIME_VERSION = "1.8.0";
 const RECOMMENDATION_REFERENCE_DOMAIN = "iband.movie-mentor.journey-recommendation-reference";
 const RECOMMENDATION_REFERENCE_SCHEMA = 2;
 
@@ -17,6 +17,9 @@ function clean(value) { return typeof value === "string" ? value.trim() : ""; }
 function clone(value) { if (value === undefined) return undefined; try { return JSON.parse(JSON.stringify(value)); } catch { return value; } }
 function safeRevision(value) { const number = Number(value); return Number.isSafeInteger(number) && number >= 0 ? number : null; }
 function effectiveProgressionRevision(projectJourney) { const revision = safeRevision(projectJourney?.progression?.revision); return revision === null && (projectJourney?.progression === undefined || projectJourney?.progression === null) ? 0 : revision; }
+function sameSemanticValue(a, b) {
+  try { return JSON.stringify(a ?? null) === JSON.stringify(b ?? null); } catch { return a === b; }
+}
 function recommendationNextStep(planningEvidence = {}) {
   const action = planningEvidence?.semanticDirection?.nextAction;
   return clean(action?.label) || clean(action?.text) || clean(action?.description) || clean(planningEvidence?.recommendation?.recommendedTaskId) || clean(planningEvidence?.recommendation?.recommendedStageId) || null;
@@ -113,7 +116,7 @@ function createMovieMentorStudioIdentityRuntime({
   const recommendationJourneyEngine = createCreatorJourneyEngine();
   const recommendationJourneyBridge = createMovieJourneyIntelligenceBridge({ journeyEngine: recommendationJourneyEngine });
 
-  function getActiveProject() {
+  function getActiveMemoryProject() {
     const project = memory.getActiveProject?.() || null;
     return isMovieMentorProject(project) ? project : null;
   }
@@ -131,9 +134,25 @@ function createMovieMentorStudioIdentityRuntime({
     });
   }
 
+  function getActiveProject() {
+    const project = getActiveMemoryProject();
+    if (!project) return null;
+    const preferredJourney = getPreferredJourney(project.id, {
+      fallbackJourney: project?.metadata?.projectJourney || null,
+    });
+    const preferredProjectJourney = preferredJourney?.projectJourney || project?.metadata?.projectJourney || null;
+    return {
+      ...clone(project),
+      metadata: {
+        ...(clone(project.metadata) || {}),
+        projectJourney: clone(preferredProjectJourney),
+      },
+    };
+  }
+
   function ensureProject({ projectJourney = null, title = "Untitled Movie" } = {}) {
-    const existing = getActiveProject();
-    if (existing) return existing;
+    const existing = getActiveMemoryProject();
+    if (existing) return getActiveProject();
     return memory.saveProject({
       title,
       creatorType: "video",
@@ -145,6 +164,16 @@ function createMovieMentorStudioIdentityRuntime({
   function persistJourney(projectId, projectJourney, { expectedProgressionRevision = null } = {}) {
     const project = memory.getProject?.(projectId);
     if (!project) return null;
+
+    // Once Journey Authority exists, callers may receive its canonical Journey via
+    // getActiveProject(). Re-persisting that identical Journey through Creator Memory
+    // would only perform a stale whole-memory projection write. Treat that redundant
+    // mirror request as a no-op; authority remains the source of truth.
+    const preferred = getPreferredJourney(projectId, { fallbackJourney: projectJourney });
+    if (preferred?.status === "authority" && sameSemanticValue(preferred.projectJourney, projectJourney)) {
+      return clone(project);
+    }
+
     if (expectedProgressionRevision !== null && expectedProgressionRevision !== undefined) {
       const expected = safeRevision(expectedProgressionRevision);
       const current = effectiveProgressionRevision(project?.metadata?.projectJourney);
@@ -343,7 +372,7 @@ function createMovieMentorStudioIdentityRuntime({
   }
 
   function getResumeSnapshot() {
-    const initiallyActiveProject = getActiveProject();
+    const initiallyActiveProject = getActiveMemoryProject();
     if (!initiallyActiveProject) return null;
 
     const preferredBeforeRecovery = getPreferredJourney(initiallyActiveProject.id);
