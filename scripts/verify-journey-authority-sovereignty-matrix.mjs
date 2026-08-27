@@ -2,6 +2,8 @@ import { spawnSync } from "node:child_process";
 
 const scripts = [
   "scripts/verify-journey-durable-authority-store.mjs",
+  "scripts/verify-journey-authority-sovereignty-lineage.mjs",
+  "scripts/verify-journey-authority-destruction-detection.mjs",
   "scripts/verify-journey-authority-read-facade.mjs",
   "scripts/verify-journey-progression-authority-adapter.mjs",
   "scripts/verify-journey-authority-atomic-transition.mjs",
@@ -33,5 +35,6 @@ for (const script of scripts) {
 }
 
 console.log("\nJourney Authority sovereignty matrix: PASS");
-console.log(`- ${scripts.length} authority, CAS, recovery, reload, lifecycle, creator-truth and live-callback gates passed in one run`);
+console.log(`- ${scripts.length} authority, lineage, destruction, CAS, recovery, reload, lifecycle, creator-truth and live-callback gates passed in one run`);
 console.log("- Creator Memory remains projection/context storage, never mechanical Journey sovereignty");
+console.log("- established sovereignty lineage prevents missing authority from being mistaken for first birth");
