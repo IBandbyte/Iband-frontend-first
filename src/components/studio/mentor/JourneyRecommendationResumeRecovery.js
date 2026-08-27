@@ -1,9 +1,9 @@
 import executeJourneyRecommendationLifecycleRecovery from "./JourneyRecommendationLifecycleRecovery.js";
+import quarantineJourneyRecommendationRecoveryConflicts from "./JourneyRecommendationRecoveryConflictQuarantine.js";
 
-const JOURNEY_RECOMMENDATION_RESUME_RECOVERY_VERSION = "1.1.0";
+const JOURNEY_RECOMMENDATION_RESUME_RECOVERY_VERSION = "1.2.0";
 
 const NON_RETRYABLE_RECOVERY_CODES = new Set([
-  "JOURNEY_RECOMMENDATION_RECOVERY_PROOF_CONFLICT",
   "JOURNEY_RECOMMENDATION_RECOVERY_JOURNEY_MALFORMED",
   "JOURNEY_RECOMMENDATION_RECOVERY_PROJECT_NOT_FOUND",
   "JOURNEY_RECOMMENDATION_RECOVERY_PERSISTENCE_REQUIRED",
@@ -18,14 +18,15 @@ function cloneValue(value) {
   try { return JSON.parse(JSON.stringify(value)); } catch { return value; }
 }
 
-function successResult(pid, recoveryResult, attempts) {
+function successResult(pid, recoveryResult, attempts, extras = {}) {
   return Object.freeze({
-    status: recoveryResult?.status === "repaired" ? "repaired" : "certified",
+    status: extras.status || (recoveryResult?.status === "repaired" ? "repaired" : "certified"),
     projectId: pid,
     recommendationActionsBlocked: false,
     recoveryResult: cloneValue(recoveryResult),
     recoveryAttempts: attempts,
     errorCode: null,
+    ...extras,
   });
 }
 
@@ -66,6 +67,23 @@ function certifyJourneyRecommendationResume({ identityRuntime, projectId } = {})
   }
 
   const firstCode = cleanString(firstError?.code);
+
+  // Contradictory receipt/reference proof is not guessed into consumed or invalidated.
+  // It is durably quarantined as historical evidence, then recovery is re-run from
+  // the new non-actionable state before resume recommendation exposure is certified.
+  if (firstCode === "JOURNEY_RECOMMENDATION_RECOVERY_PROOF_CONFLICT") {
+    try {
+      const quarantineResult = quarantineJourneyRecommendationRecoveryConflicts({ identityRuntime, projectId: pid });
+      const recoveryResult = executeJourneyRecommendationLifecycleRecovery({ identityRuntime, projectId: pid });
+      return successResult(pid, recoveryResult, 2, {
+        status: "proof-conflict-quarantined",
+        quarantineResult: cloneValue(quarantineResult),
+      });
+    } catch (quarantineError) {
+      return blockedResult(pid, quarantineError || firstError, 2);
+    }
+  }
+
   if (NON_RETRYABLE_RECOVERY_CODES.has(firstCode)) {
     return blockedResult(pid, firstError, 1);
   }
