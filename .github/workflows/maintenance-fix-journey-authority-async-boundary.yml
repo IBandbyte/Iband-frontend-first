@@ -1,0 +1,28 @@
+name: One-shot Journey Authority Async Boundary Patch
+
+on:
+  push:
+    paths:
+      - ".github/workflows/maintenance-fix-journey-authority-async-boundary.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Apply exact async boundary patch
+        run: python scripts/maintenance-fix-journey-authority-async-boundary.py
+      - name: Commit patched runtime files
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/components/studio/CreatorWorkspace.jsx src/components/studio/mentor/MovieMentorConversation.jsx
+          git diff --cached --quiet && exit 1
+          git commit -m "Await live Journey Authority projection boundary"
+          git push origin HEAD:main
