@@ -1,7 +1,8 @@
 import createRecommendationAcceptanceAuthority from "./JourneyRecommendationAcceptanceAuthority.js";
 import { consumeRecommendationWithoutMovement } from "./JourneyRecommendationLifecyclePersistence.js";
+import { withJourneyProgressionProjectLock } from "./JourneyProgressionProjectLock.js";
 
-const JOURNEY_RECOMMENDATION_ACCEPTANCE_EXECUTION_VERSION = "1.1.0";
+const JOURNEY_RECOMMENDATION_ACCEPTANCE_EXECUTION_VERSION = "1.2.0";
 
 function cleanString(value) {
   return typeof value === "string" ? value.trim() : "";
@@ -22,10 +23,7 @@ function fail(code, message, extras = {}) {
 function createRecommendationAcceptanceOperationId(recommendationId) {
   const id = cleanString(recommendationId);
   if (!id) {
-    fail(
-      "JOURNEY_RECOMMENDATION_ACCEPTANCE_ID_REQUIRED",
-      "Recommendation acceptance execution requires an immutable recommendationId."
-    );
+    fail("JOURNEY_RECOMMENDATION_ACCEPTANCE_ID_REQUIRED", "Recommendation acceptance execution requires an immutable recommendationId.");
   }
   return `journey-recommendation-acceptance:${id}`;
 }
@@ -33,16 +31,16 @@ function createRecommendationAcceptanceOperationId(recommendationId) {
 function createRecommendationNoOpOperationId(recommendationId) {
   const id = cleanString(recommendationId);
   if (!id) {
-    fail(
-      "JOURNEY_RECOMMENDATION_ACCEPTANCE_ID_REQUIRED",
-      "Recommendation no-op consumption requires an immutable recommendationId."
-    );
+    fail("JOURNEY_RECOMMENDATION_ACCEPTANCE_ID_REQUIRED", "Recommendation no-op consumption requires an immutable recommendationId.");
   }
   return `journey-recommendation-noop:${id}`;
 }
 
 function getDurableJourney(identityRuntime, projectId) {
-  const project = identityRuntime?.memory?.getProject?.(projectId) || null;
+  const memory = identityRuntime?.memory;
+  const project = typeof memory?.getPersistedProject === "function"
+    ? memory.getPersistedProject(projectId)
+    : memory?.getProject?.(projectId) || null;
   return cloneValue(project?.metadata?.projectJourney || null);
 }
 
@@ -50,26 +48,54 @@ function findCommittedAcceptanceReceipt(projectJourney, operationId) {
   const receipts = Array.isArray(projectJourney?.progression?.committedOperations)
     ? projectJourney.progression.committedOperations
     : [];
-  return cloneValue(
-    receipts.find((receipt) => cleanString(receipt?.operationId) === operationId) || null
-  );
+  return cloneValue(receipts.find((receipt) => cleanString(receipt?.operationId) === operationId) || null);
 }
 
-function createJourneyRecommendationAcceptanceExecutionRuntime({
-  identityRuntime,
-  progressionRuntime,
-} = {}) {
+function createJourneyRecommendationAcceptanceExecutionRuntime({ identityRuntime, progressionRuntime } = {}) {
   if (!identityRuntime?.memory?.getProject) {
-    fail(
-      "JOURNEY_RECOMMENDATION_ACCEPTANCE_DURABLE_RUNTIME_REQUIRED",
-      "Recommendation acceptance execution requires durable Journey access."
-    );
+    fail("JOURNEY_RECOMMENDATION_ACCEPTANCE_DURABLE_RUNTIME_REQUIRED", "Recommendation acceptance execution requires durable Journey access.");
   }
   if (typeof progressionRuntime?.execute !== "function") {
-    fail(
-      "JOURNEY_RECOMMENDATION_ACCEPTANCE_PROGRESSION_RUNTIME_REQUIRED",
-      "Recommendation acceptance execution requires the transactional Journey progression runtime."
-    );
+    fail("JOURNEY_RECOMMENDATION_ACCEPTANCE_PROGRESSION_RUNTIME_REQUIRED", "Recommendation acceptance execution requires the transactional Journey progression runtime.");
+  }
+
+  async function consumeNoMovementUnderProjectLock({
+    pid,
+    recommendationEnvelope,
+    recommendationId,
+    creatorActId,
+  }) {
+    return withJourneyProgressionProjectLock({
+      projectId: pid,
+      callback: async (lockProof) => {
+        // Fresh durable reality is read only after the same per-project cross-tab
+        // serialization boundary used by Journey movement has been acquired.
+        const lockedJourney = getDurableJourney(identityRuntime, pid);
+        if (!lockedJourney) {
+          fail("JOURNEY_RECOMMENDATION_ACCEPTANCE_DURABLE_JOURNEY_REQUIRED", "Recommendation no-op acceptance could not load durable Journey reality inside the project lock.");
+        }
+
+        const noOpResult = consumeRecommendationWithoutMovement({
+          identityRuntime,
+          projectId: pid,
+          recommendationId,
+          recommendationFingerprint: recommendationEnvelope?.fingerprint || null,
+          expectedProgressionRevision: lockedJourney?.progression?.revision ?? 0,
+          operationId: createRecommendationNoOpOperationId(recommendationId),
+          creatorActId,
+        });
+
+        return Object.freeze({
+          ...cloneValue(noOpResult),
+          recommendationPromotedToAuthority: false,
+          serialization: Object.freeze({
+            mode: lockProof.mode,
+            lockName: lockProof.lockName,
+            crossTabSerialized: lockProof.crossTabSerialized,
+          }),
+        });
+      },
+    });
   }
 
   async function execute({
@@ -85,19 +111,13 @@ function createJourneyRecommendationAcceptanceExecutionRuntime({
     const pid = cleanString(projectId);
     const recommendationId = cleanString(recommendationEnvelope?.recommendationId);
     if (!pid) {
-      fail(
-        "JOURNEY_RECOMMENDATION_ACCEPTANCE_PROJECT_REQUIRED",
-        "Recommendation acceptance execution requires a projectId."
-      );
+      fail("JOURNEY_RECOMMENDATION_ACCEPTANCE_PROJECT_REQUIRED", "Recommendation acceptance execution requires a projectId.");
     }
 
     const operationId = createRecommendationAcceptanceOperationId(recommendationId);
     const durableJourney = getDurableJourney(identityRuntime, pid);
     if (!durableJourney) {
-      fail(
-        "JOURNEY_RECOMMENDATION_ACCEPTANCE_DURABLE_JOURNEY_REQUIRED",
-        "Recommendation acceptance execution could not load durable Journey reality."
-      );
+      fail("JOURNEY_RECOMMENDATION_ACCEPTANCE_DURABLE_JOURNEY_REQUIRED", "Recommendation acceptance execution could not load durable Journey reality.");
     }
 
     const existingReceipt = findCommittedAcceptanceReceipt(durableJourney, operationId);
@@ -127,19 +147,7 @@ function createJourneyRecommendationAcceptanceExecutionRuntime({
     });
 
     if (acceptance.status === "accepted-no-movement-required") {
-      const noOpResult = consumeRecommendationWithoutMovement({
-        identityRuntime,
-        projectId: pid,
-        recommendationId,
-        recommendationFingerprint: recommendationEnvelope?.fingerprint || null,
-        expectedProgressionRevision: durableJourney?.progression?.revision ?? 0,
-        operationId: createRecommendationNoOpOperationId(recommendationId),
-        creatorActId,
-      });
-      return Object.freeze({
-        ...cloneValue(noOpResult),
-        recommendationPromotedToAuthority: false,
-      });
+      return consumeNoMovementUnderProjectLock({ pid, recommendationEnvelope, recommendationId, creatorActId });
     }
 
     const result = await progressionRuntime.execute({
