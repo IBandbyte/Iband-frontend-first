@@ -1,9 +1,12 @@
 import {
+  createAuthorityRecommendationRecord,
+  findAuthorityRecommendation,
+  upsertAuthorityRecommendation,
   consumeAuthorityRecommendation,
   invalidateAuthorityRecommendations,
 } from "./JourneyAuthorityRecommendationLifecycle.js";
 
-const JOURNEY_AUTHORITY_ATOMIC_TRANSITION_VERSION = "1.0.0";
+const JOURNEY_AUTHORITY_ATOMIC_TRANSITION_VERSION = "1.1.0";
 
 function cleanString(value) {
   return typeof value === "string" ? value.trim() : "";
@@ -26,6 +29,41 @@ function fail(code, message, extras = {}) {
   throw error;
 }
 
+function materialiseAcceptedRecommendation(records, acceptedRecommendationReference, {
+  projectId,
+  recommendationId,
+  fingerprint,
+  expectedProgressionRevision,
+} = {}) {
+  const rid = cleanString(recommendationId);
+  if (!rid) return Array.isArray(records) ? cloneValue(records) : [];
+
+  const existing = findAuthorityRecommendation(records, rid);
+  if (existing) return Array.isArray(records) ? cloneValue(records) : [];
+  if (!acceptedRecommendationReference) {
+    fail(
+      "JOURNEY_AUTHORITY_RECOMMENDATION_NOT_FOUND",
+      "Accepted recommendation is absent from Journey Authority and no certified materialization evidence was supplied."
+    );
+  }
+
+  const materialised = createAuthorityRecommendationRecord(acceptedRecommendationReference);
+  if (
+    cleanString(materialised.recommendationId) !== rid ||
+    cleanString(materialised.projectId) !== cleanString(projectId) ||
+    safeRevision(materialised.issuedAgainstProgressionRevision) !== safeRevision(expectedProgressionRevision) ||
+    (cleanString(fingerprint) && cleanString(materialised.fingerprint) !== cleanString(fingerprint)) ||
+    materialised.lifecycle?.current !== true
+  ) {
+    fail(
+      "JOURNEY_AUTHORITY_RECOMMENDATION_MATERIALIZATION_CONFLICT",
+      "Certified recommendation materialization evidence does not match the accepted recommendation reality."
+    );
+  }
+
+  return upsertAuthorityRecommendation(records, materialised);
+}
+
 function transitionRecommendations({
   records,
   projectId,
@@ -34,6 +72,7 @@ function transitionRecommendations({
   operationId,
   acceptedRecommendationId = null,
   recommendationFingerprint = null,
+  acceptedRecommendationReference = null,
   creatorActId = null,
   withoutMovement = false,
 } = {}) {
@@ -60,6 +99,17 @@ function transitionRecommendations({
   let consumed = null;
 
   if (acceptedId) {
+    // Advisory recommendation issuance does not itself need an authoritative write.
+    // If this exact, already-certified recommendation has not previously entered the
+    // authority record, materialise it here and consume it in the same generation.
+    // Existing authority lifecycle always wins and is never overwritten by caller evidence.
+    nextRecords = materialiseAcceptedRecommendation(nextRecords, acceptedRecommendationReference, {
+      projectId: pid,
+      recommendationId: acceptedId,
+      fingerprint: recommendationFingerprint,
+      expectedProgressionRevision: from,
+    });
+
     const consumption = consumeAuthorityRecommendation(nextRecords, {
       recommendationId: acceptedId,
       fingerprint: recommendationFingerprint,
@@ -96,6 +146,7 @@ function commitJourneyAuthorityTransitionUnderLock({
   operationId,
   acceptedRecommendationId = null,
   recommendationFingerprint = null,
+  acceptedRecommendationReference = null,
   creatorActId = null,
   withoutMovement = false,
   serialization = null,
@@ -127,6 +178,7 @@ function commitJourneyAuthorityTransitionUnderLock({
         operationId,
         acceptedRecommendationId,
         recommendationFingerprint,
+        acceptedRecommendationReference,
         creatorActId,
         withoutMovement,
       });
@@ -147,6 +199,7 @@ function commitJourneyAuthorityTransitionUnderLock({
 
 export {
   JOURNEY_AUTHORITY_ATOMIC_TRANSITION_VERSION,
+  materialiseAcceptedRecommendation,
   transitionRecommendations,
   commitJourneyAuthorityTransitionUnderLock,
 };
