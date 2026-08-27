@@ -1,0 +1,26 @@
+name: Verify Journey Progression Browser Lock Fail Closed
+
+on:
+  push:
+    paths:
+      - "src/components/studio/mentor/JourneyProgressionProjectLock.js"
+      - "scripts/verify-journey-progression-browser-lock-fail-closed.mjs"
+      - ".github/workflows/verify-journey-progression-browser-lock-fail-closed.yml"
+  pull_request:
+    paths:
+      - "src/components/studio/mentor/JourneyProgressionProjectLock.js"
+      - "scripts/verify-journey-progression-browser-lock-fail-closed.mjs"
+      - ".github/workflows/verify-journey-progression-browser-lock-fail-closed.yml"
+
+jobs:
+  browser-lock-fail-closed:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Use Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Torture browser lock fail-closed semantics
+        run: node scripts/verify-journey-progression-browser-lock-fail-closed.mjs
