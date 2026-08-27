@@ -6,6 +6,7 @@ on:
       - "src/components/studio/mentor/MovieMentorStudioIdentityRuntime.js"
       - "src/components/studio/mentor/JourneyRecommendationResumeRecovery.js"
       - "src/components/studio/mentor/JourneyRecommendationLifecycleRecovery.js"
+      - "src/components/studio/mentor/JourneyRecommendationRecoveryConflictQuarantine.js"
       - "scripts/verify-movie-mentor-resume-recovery-integration.mjs"
       - ".github/workflows/verify-movie-mentor-resume-recovery-integration.yml"
   pull_request:
@@ -13,6 +14,7 @@ on:
       - "src/components/studio/mentor/MovieMentorStudioIdentityRuntime.js"
       - "src/components/studio/mentor/JourneyRecommendationResumeRecovery.js"
       - "src/components/studio/mentor/JourneyRecommendationLifecycleRecovery.js"
+      - "src/components/studio/mentor/JourneyRecommendationRecoveryConflictQuarantine.js"
       - "scripts/verify-movie-mentor-resume-recovery-integration.mjs"
       - ".github/workflows/verify-movie-mentor-resume-recovery-integration.yml"
 
