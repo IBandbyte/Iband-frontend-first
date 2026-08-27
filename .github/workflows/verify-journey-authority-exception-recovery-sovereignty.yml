@@ -1,0 +1,26 @@
+name: Verify Journey Authority Exception Recovery Sovereignty
+
+on:
+  push:
+    paths:
+      - "src/components/studio/mentor/CreatorMemory.js"
+      - "scripts/verify-journey-authority-exception-recovery-sovereignty.mjs"
+      - ".github/workflows/verify-journey-authority-exception-recovery-sovereignty.yml"
+  pull_request:
+    paths:
+      - "src/components/studio/mentor/CreatorMemory.js"
+      - "scripts/verify-journey-authority-exception-recovery-sovereignty.mjs"
+      - ".github/workflows/verify-journey-authority-exception-recovery-sovereignty.yml"
+
+jobs:
+  exception-recovery-sovereignty:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Use Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Torture exception recovery sovereignty
+        run: node scripts/verify-journey-authority-exception-recovery-sovereignty.mjs
