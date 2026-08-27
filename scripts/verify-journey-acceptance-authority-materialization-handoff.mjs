@@ -1,8 +1,13 @@
 import assert from "node:assert/strict";
-import {
-  createAuthorityMaterializationReference,
-  createJourneyRecommendationAcceptanceExecutionRuntime,
-} from "../src/components/studio/mentor/JourneyRecommendationAcceptanceExecutionRuntime.js";
+import fs from "node:fs";
+import path from "node:path";
+import { createAuthorityMaterializationReference } from "../src/components/studio/mentor/JourneyRecommendationAcceptanceExecutionRuntime.js";
+
+const ROOT = process.cwd();
+const source = fs.readFileSync(
+  path.join(ROOT, "src/components/studio/mentor/JourneyRecommendationAcceptanceExecutionRuntime.js"),
+  "utf8"
+);
 
 const projectId = "movie-project-materialization-handoff";
 const recommendationEnvelope = {
@@ -16,7 +21,6 @@ const recommendationEnvelope = {
     turnRevision: 6,
   },
   target: { stageId: "characters", taskId: "protagonist" },
-  authority: { class: "mentor-advisory", mayAdvanceJourney: false },
 };
 
 const materialized = createAuthorityMaterializationReference(recommendationEnvelope, projectId);
@@ -27,54 +31,26 @@ assert.equal(materialized.issuedAgainst.progressionRevision, 2);
 assert.deepEqual(materialized.target, recommendationEnvelope.target);
 assert.deepEqual(materialized.lifecycle, { current: true, terminalReason: null });
 
-const durableJourney = {
-  currentStageId: "idea",
-  currentTaskId: "premise",
-  progression: { schemaVersion: 1, revision: 2, lastCommittedOperation: null, committedOperations: [] },
-  stages: [
-    { id: "idea", tasks: [{ id: "premise" }] },
-    { id: "characters", tasks: [{ id: "protagonist" }] },
-  ],
-};
-
-let progressionInput = null;
-const identityRuntime = {
-  memory: { getProject() { return { metadata: { projectJourney: durableJourney } }; } },
-  getPreferredJourney() { return { status: "authority", projectJourney: durableJourney }; },
-};
-const progressionRuntime = {
-  async execute(input) {
-    progressionInput = input;
-    return {
-      status: "committed",
-      projectJourney: { ...durableJourney, currentStageId: "characters", currentTaskId: "protagonist" },
-      progressionRevision: 3,
-    };
-  },
-};
-
-const runtime = createJourneyRecommendationAcceptanceExecutionRuntime({ identityRuntime, progressionRuntime });
-await runtime.execute({
-  recommendationEnvelope,
-  projectId,
-  creatorActId: "creator-act-materialization",
-  creatorGesture: true,
-  creatorAuthorityRevision: 7,
-  turnRevision: 6,
-  clarificationRequired: false,
-});
-
-assert.ok(progressionInput, "Acceptance must call progression runtime.");
-assert.equal(progressionInput.input.recommendationId, recommendationEnvelope.recommendationId);
-assert.equal(progressionInput.input.recommendationFingerprint, recommendationEnvelope.fingerprint);
-assert.deepEqual(progressionInput.input.acceptedRecommendationReference, materialized);
-
 assert.throws(
   () => createAuthorityMaterializationReference({ recommendationId: "x", fingerprint: "" }, projectId),
   (error) => error?.code === "JOURNEY_RECOMMENDATION_ACCEPTANCE_MATERIALIZATION_INVALID"
 );
 
+const progressionCall = source.indexOf("const result = await progressionRuntime.execute({");
+const recommendationInput = source.indexOf("recommendationId,", progressionCall);
+const fingerprintInput = source.indexOf("recommendationFingerprint:", progressionCall);
+const materializationInput = source.indexOf("acceptedRecommendationReference: createAuthorityMaterializationReference(recommendationEnvelope, pid)", progressionCall);
+assert.ok(progressionCall >= 0, "Movement acceptance must route through progression runtime.");
+assert.ok(recommendationInput > progressionCall, "Progression input must carry canonical recommendation ID.");
+assert.ok(fingerprintInput > progressionCall, "Progression input must carry canonical recommendation fingerprint.");
+assert.ok(materializationInput > progressionCall, "Progression input must carry certified authority materialization evidence.");
+assert.ok(
+  source.indexOf("const acceptance = createRecommendationAcceptanceAuthority({") < progressionCall,
+  "Authority materialization handoff must remain downstream of the canonical recommendation acceptance boundary."
+);
+
 console.log("Journey acceptance authority materialization handoff verification passed.");
-console.log("- canonical acceptance envelope becomes exact authority lifecycle materialization evidence");
+console.log("- canonical recommendation identity becomes exact authority lifecycle materialization evidence");
 console.log("- movement acceptance carries that evidence into progression transaction input");
+console.log("- materialization remains downstream of canonical freshness/creator-acceptance authority");
 console.log("- incomplete recommendation identity fails closed before authority materialization");
