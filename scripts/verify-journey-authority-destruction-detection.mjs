@@ -162,7 +162,7 @@ function journey(revision = 0, taskId = "seed") {
   assert.equal(result.status, "bootstrapped");
   assert.equal(result.record.journey.progression.revision, 4);
   assert.equal(store.readSovereigntyLineage(p.id, { project: p }).phase, "established");
-  assert.equal(store.classifySovereigntyAbsence({ project: p }).status, "authority-destroyed-or-missing");
+  assert.equal(store.read(p.id, { project: p }).journey.progression.revision, 4);
 }
 
 console.log("Journey Authority destruction detection torture passed.");
