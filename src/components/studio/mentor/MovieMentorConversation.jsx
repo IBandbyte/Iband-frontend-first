@@ -10,6 +10,11 @@ import requestMovieMentorTurn from "./MovieMentorTurnClient.js";
  *   This component is UI, never a Mentor brain.
  *   Every creator turn is settled against durable creator reality and
  *   answered by the authoritative backend through MovieMentorTurnClient.
+ *
+ * Journey rule:
+ *   The canonical Journey is supplied by CreatorWorkspace. This surface
+ *   never owns a second hard-coded progression map and never mutates
+ *   Journey state directly.
  */
 
 const CREATOR_START_POINTS = Object.freeze([
@@ -23,13 +28,6 @@ const CREATOR_START_POINTS = Object.freeze([
   { id: "video", icon: "🎥", label: "I already have video", description: "We can watch what you've created and work on the next stage together." },
   { id: "explore", icon: "✨", label: "I'd just like to explore", description: "No pressure. We can play with possibilities and see what sparks." },
 ]);
-
-const CREATIVE_STAGES = Object.freeze([
-  ["idea", "Idea"], ["characters", "Characters"], ["world", "World"], ["story", "Story"],
-  ["attention", "Capture Attention"], ["structure", "Story Structure"], ["curiosity", "Audience Curiosity"],
-  ["emotion", "Emotional Impact"], ["pacing", "Pacing"], ["editing", "Editing Rhythm"],
-  ["sound", "Music & Sound"], ["cliffhanger", "Cliffhangers"], ["packaging", "Title & Thumbnail"], ["publish", "Publish"],
-].map(([id, label]) => ({ id, label })));
 
 const BEHAVIOUR_LABELS = Object.freeze({
   demonstrate: "Demonstration",
@@ -64,6 +62,18 @@ function normaliseMessages(messages) {
   }];
 }
 
+function normaliseJourneyStages(stages) {
+  if (!Array.isArray(stages)) return [];
+  return stages
+    .filter((stage) => stage && typeof stage.id === "string" && stage.id.trim())
+    .map((stage) => ({
+      id: stage.id,
+      label: stage.label || stage.shortLabel || stage.id,
+      shortLabel: stage.shortLabel || stage.label || stage.id,
+      status: stage.status || "not-started",
+    }));
+}
+
 function MentorAvatar({ mentorName }) {
   return <div aria-label={`${mentorName} avatar`} style={styles.avatar}>✦</div>;
 }
@@ -73,12 +83,7 @@ function ActionButtons({ actions = [], message, onAction }) {
   return (
     <div style={styles.actionRow}>
       {actions.map((action) => (
-        <button
-          key={action.id || action.action || action.label}
-          type="button"
-          style={action.primary ? styles.primaryButton : styles.secondaryButton}
-          onClick={() => onAction?.(action, message)}
-        >
+        <button key={action.id || action.action || action.label} type="button" style={action.primary ? styles.primaryButton : styles.secondaryButton} onClick={() => onAction?.(action, message)}>
           {action.label}
         </button>
       ))}
@@ -90,25 +95,14 @@ function DemonstrationCard({ message, onAction }) {
   const media = message.media || null;
   const actions = Array.isArray(message.actions) && message.actions.length
     ? message.actions
-    : [
-        { id: "play", label: "Play Scene", action: "play-demo" },
-        { id: "thoughts", label: "Tell Mentor What I Think", action: "respond-to-demo" },
-      ];
+    : [{ id: "play", label: "Play Scene", action: "play-demo" }, { id: "thoughts", label: "Tell Mentor What I Think", action: "respond-to-demo" }];
   return (
     <div style={styles.richCard}>
       <div style={styles.cardEyebrow}>{BEHAVIOUR_LABELS[message.behaviour] || "DEMONSTRATION"}</div>
       {message.title && <div style={styles.cardTitle}>{message.title}</div>}
       {message.description && <div style={styles.cardDescription}>{message.description}</div>}
       <div style={styles.mediaShell}>
-        {media?.thumbnailUrl ? (
-          <img src={media.thumbnailUrl} alt={media.alt || "Movie Mentor demonstration"} style={styles.mediaImage} />
-        ) : (
-          <div style={styles.mediaPlaceholder}>
-            <div style={styles.playOrb}>▶</div>
-            <strong>Scene Preview</strong>
-            <span style={styles.muted}>A generated or edited scene can appear here.</span>
-          </div>
-        )}
+        {media?.thumbnailUrl ? <img src={media.thumbnailUrl} alt={media.alt || "Movie Mentor demonstration"} style={styles.mediaImage} /> : <div style={styles.mediaPlaceholder}><div style={styles.playOrb}>▶</div><strong>Scene Preview</strong><span style={styles.muted}>A generated or edited scene can appear here.</span></div>}
       </div>
       {message.text && <div style={styles.cardDescription}>{message.text}</div>}
       <ActionButtons actions={actions} message={message} onAction={onAction} />
@@ -123,19 +117,8 @@ function LessonCard({ message, onAction }) {
       <div style={styles.cardEyebrow}>CREATIVE INSIGHT</div>
       <div style={styles.cardTitle}>{lesson.title || message.title || "Why that worked"}</div>
       {(lesson.summary || message.text) && <div style={styles.cardDescription}>{lesson.summary || message.text}</div>}
-      {Array.isArray(lesson.points) && lesson.points.length > 0 && (
-        <div style={styles.lessonPoints}>
-          {lesson.points.map((point, index) => (
-            <div key={`${index}-${point}`} style={styles.lessonPoint}>
-              <span style={styles.lessonNumber}>{index + 1}</span>
-              <span>{point}</span>
-            </div>
-          ))}
-        </div>
-      )}
-      {lesson.takeaway && (
-        <div style={styles.takeaway}><strong>TAKEAWAY</strong><span>{lesson.takeaway}</span></div>
-      )}
+      {Array.isArray(lesson.points) && lesson.points.length > 0 && <div style={styles.lessonPoints}>{lesson.points.map((point, index) => <div key={`${index}-${point}`} style={styles.lessonPoint}><span style={styles.lessonNumber}>{index + 1}</span><span>{point}</span></div>)}</div>}
+      {lesson.takeaway && <div style={styles.takeaway}><strong>TAKEAWAY</strong><span>{lesson.takeaway}</span></div>}
       <ActionButtons actions={[{ id: "continue", label: "Continue Creating", action: "continue-after-lesson", primary: true }]} message={message} onAction={onAction} />
     </div>
   );
@@ -145,12 +128,8 @@ function ConversationMessage({ message, mentorName, onAction }) {
   const creator = message.role === "creator";
   const system = message.role === "system";
   if (system) return <div style={styles.systemMessage}>{message.text}</div>;
-  if (!creator && message.type === "demonstration") {
-    return <div style={styles.mentorRow}><MentorAvatar mentorName={mentorName} /><DemonstrationCard message={message} onAction={onAction} /></div>;
-  }
-  if (!creator && message.type === "lesson") {
-    return <div style={styles.mentorRow}><MentorAvatar mentorName={mentorName} /><LessonCard message={message} onAction={onAction} /></div>;
-  }
+  if (!creator && message.type === "demonstration") return <div style={styles.mentorRow}><MentorAvatar mentorName={mentorName} /><DemonstrationCard message={message} onAction={onAction} /></div>;
+  if (!creator && message.type === "lesson") return <div style={styles.mentorRow}><MentorAvatar mentorName={mentorName} /><LessonCard message={message} onAction={onAction} /></div>;
   return (
     <div style={creator ? styles.creatorRow : styles.mentorRow}>
       {!creator && <MentorAvatar mentorName={mentorName} />}
@@ -165,190 +144,75 @@ function ConversationMessage({ message, mentorName, onAction }) {
 }
 
 export default function MovieMentorConversation({
-  creatorName = "Creator",
-  mentorName = "Movie Mentor",
-  projectId = null,
-  creatorSessionId = null,
-  messages = [],
-  activeStage = "idea",
-  completedStages = [],
-  startPoint = null,
-  isThinking = false,
-  isGenerating = false,
-  placeholder = "Tell Movie Mentor what's on your mind...",
-  quickActions = [],
-  showJourney = true,
-  showStartPointChooser = true,
-  allowAttachments = true,
-  allowVoice = true,
-  onSendMessage,
-  onMentorTurnResult,
-  onStartPointSelect,
-  onStageSelect,
-  onAction,
-  onAttach,
-  onVoice,
-  onDemonstrate,
-  onTeach,
-  onContinue,
-  onThinkingChange,
-  renderComposerExtra,
-  renderAboveConversation,
-  renderBelowConversation,
+  creatorName = "Creator", mentorName = "Movie Mentor", projectId = null, creatorSessionId = null,
+  messages = [], journeyStages = [], activeStage = "idea", completedStages = [], startPoint = null,
+  isThinking = false, isGenerating = false, placeholder = "Tell Movie Mentor what's on your mind...", quickActions = [],
+  showJourney = true, showStartPointChooser = true, allowAttachments = true, allowVoice = true,
+  onSendMessage, onMentorTurnResult, onStartPointSelect, onStageSelect, onAction, onAttach, onVoice,
+  onDemonstrate, onTeach, onContinue, onThinkingChange, renderComposerExtra, renderAboveConversation, renderBelowConversation,
 }) {
   const [draft, setDraft] = useState("");
   const [localStartPoint, setLocalStartPoint] = useState(startPoint);
   const [localIsThinking, setLocalIsThinking] = useState(false);
   const endRef = useRef(null);
   const normalisedMessages = useMemo(() => normaliseMessages(messages), [messages]);
+  const canonicalStages = useMemo(() => normaliseJourneyStages(journeyStages), [journeyStages]);
   const effectiveThinking = isThinking || localIsThinking;
-  const completed = useMemo(() => new Set(completedStages || []), [completedStages]);
+  const completed = useMemo(() => new Set([...(completedStages || []), ...canonicalStages.filter((stage) => stage.status === "completed-for-now").map((stage) => stage.id)]), [completedStages, canonicalStages]);
+  const activeStageDefinition = useMemo(() => canonicalStages.find((stage) => stage.id === activeStage) || canonicalStages[0] || null, [canonicalStages, activeStage]);
   const hasCreatorMessage = normalisedMessages.some((message) => message.role === "creator");
 
-  useEffect(() => {
-    if (startPoint) setLocalStartPoint(startPoint);
-  }, [startPoint]);
-
-  useEffect(() => {
-    endRef.current?.scrollIntoView?.({ behavior: "smooth", block: "nearest" });
-  }, [normalisedMessages.length, effectiveThinking, isGenerating]);
+  useEffect(() => { if (startPoint) setLocalStartPoint(startPoint); }, [startPoint]);
+  useEffect(() => { endRef.current?.scrollIntoView?.({ behavior: "smooth", block: "nearest" }); }, [normalisedMessages.length, effectiveThinking, isGenerating]);
 
   function handleAction(action, message = null) {
     onAction?.(action, message);
     switch (action?.action) {
-      case "demonstrate":
-      case "show-example":
-      case "play-demo":
-        onDemonstrate?.(action, message);
-        break;
-      case "teach":
-      case "explain":
-        onTeach?.(action, message);
-        break;
-      case "continue":
-      case "continue-after-lesson":
-        onContinue?.(action, message);
-        break;
-      default:
-        break;
+      case "demonstrate": case "show-example": case "play-demo": onDemonstrate?.(action, message); break;
+      case "teach": case "explain": onTeach?.(action, message); break;
+      case "continue": case "continue-after-lesson": onContinue?.(action, message); break;
+      default: break;
     }
   }
 
   async function handleSend() {
     const text = draft.trim();
     if (!text || effectiveThinking || isGenerating) return;
-
-    const creatorMessage = {
-      id: createId("creator-message"),
-      role: "creator",
-      type: "text",
-      behaviour: "discuss",
-      text,
-      createdAt: now(),
-    };
-
+    const creatorMessage = { id: createId("creator-message"), role: "creator", type: "text", behaviour: "discuss", text, createdAt: now() };
     onSendMessage?.(creatorMessage);
-    setDraft("");
-    setLocalIsThinking(true);
-    onThinkingChange?.(true);
-
+    setDraft(""); setLocalIsThinking(true); onThinkingChange?.(true);
     try {
       const turn = await requestMovieMentorTurn({ message: text, projectId, creatorSessionId });
       const continuityConsequenceEnvelope = cloneValue(turn?.continuityConsequenceEnvelope || null);
       const turnResult = {
-        status: turn?.status || null,
-        text: turn?.text || "",
-        durableSyncStatus: cloneValue(turn?.durableSyncStatus || null),
-        turnContextProof: cloneValue(turn?.turnContextProof || null),
-        postCommitCreatorAuthority: cloneValue(turn?.postCommitCreatorAuthority || null),
-        semanticIntelligence: cloneValue(turn?.semanticIntelligence || null),
-        specialistPlan: cloneValue(turn?.specialistPlan || null),
-        specialistResult: cloneValue(turn?.specialistResult || null),
-        synthesisResult: cloneValue(turn?.synthesisResult || null),
-        continuityConsequenceEnvelope,
-        authority: cloneValue(turn?.authority || null),
-        mayAdvanceJourney: turn?.mayAdvanceJourney === true,
+        status: turn?.status || null, text: turn?.text || "", durableSyncStatus: cloneValue(turn?.durableSyncStatus || null),
+        turnContextProof: cloneValue(turn?.turnContextProof || null), postCommitCreatorAuthority: cloneValue(turn?.postCommitCreatorAuthority || null),
+        semanticIntelligence: cloneValue(turn?.semanticIntelligence || null), specialistPlan: cloneValue(turn?.specialistPlan || null),
+        specialistResult: cloneValue(turn?.specialistResult || null), synthesisResult: cloneValue(turn?.synthesisResult || null),
+        continuityConsequenceEnvelope, authority: cloneValue(turn?.authority || null), mayAdvanceJourney: turn?.mayAdvanceJourney === true,
         metadata: cloneValue(turn?.metadata || null),
       };
-
       onMentorTurnResult?.(turnResult);
-      onSendMessage?.({
-        id: createId("mentor-message"),
-        role: "mentor",
-        type: "text",
-        behaviour: turn?.status === "clarification-required" ? "ask" : "discuss",
-        text: turn.text,
-        createdAt: now(),
-        metadata: {
-          liveBackendTurn: true,
-          localResponseGeneratorUsed: false,
-          durableSyncStatus: turn.durableSyncStatus || null,
-          turnContextProof: turn.turnContextProof || null,
-          postCommitCreatorAuthority: turn.postCommitCreatorAuthority || null,
-          semanticIntelligence: turn.semanticIntelligence || null,
-          specialistPlan: turn.specialistPlan || null,
-          specialistResult: turn.specialistResult || null,
-          synthesisResult: turn.synthesisResult || null,
-          continuityConsequenceEnvelope,
-          authority: turn.authority || null,
-          mayAdvanceJourney: turn.mayAdvanceJourney === true,
-          backendMetadata: turn.metadata || null,
-        },
-      });
+      onSendMessage?.({ id: createId("mentor-message"), role: "mentor", type: "text", behaviour: turn?.status === "clarification-required" ? "ask" : "discuss", text: turn.text, createdAt: now(), metadata: { liveBackendTurn: true, localResponseGeneratorUsed: false, durableSyncStatus: turn.durableSyncStatus || null, turnContextProof: turn.turnContextProof || null, postCommitCreatorAuthority: turn.postCommitCreatorAuthority || null, semanticIntelligence: turn.semanticIntelligence || null, specialistPlan: turn.specialistPlan || null, specialistResult: turn.specialistResult || null, synthesisResult: turn.synthesisResult || null, continuityConsequenceEnvelope, authority: turn.authority || null, mayAdvanceJourney: turn.mayAdvanceJourney === true, backendMetadata: turn.metadata || null } });
     } catch (error) {
       console.error("MovieMentorConversation authoritative turn error:", error);
-      onSendMessage?.({
-        id: createId("mentor-error-message"),
-        role: "mentor",
-        type: "text",
-        behaviour: "continue",
-        text: "I’m still with you. Your latest creative reality has not been lost, but I couldn't safely complete that turn yet. Please try again.",
-        createdAt: now(),
-        metadata: {
-          generationError: true,
-          authoritativeTurnFailed: true,
-          errorCode: error?.code || "MOVIE_MENTOR_LIVE_TURN_FAILED",
-          durableSyncStatus: error?.durableSyncStatus || null,
-        },
-      });
-    } finally {
-      setLocalIsThinking(false);
-      onThinkingChange?.(false);
-    }
+      onSendMessage?.({ id: createId("mentor-error-message"), role: "mentor", type: "text", behaviour: "continue", text: "I’m still with you. Your latest creative reality has not been lost, but I couldn't safely complete that turn yet. Please try again.", createdAt: now(), metadata: { generationError: true, authoritativeTurnFailed: true, errorCode: error?.code || "MOVIE_MENTOR_LIVE_TURN_FAILED", durableSyncStatus: error?.durableSyncStatus || null } });
+    } finally { setLocalIsThinking(false); onThinkingChange?.(false); }
   }
 
-  function handleKeyDown(event) {
-    if (event.key === "Enter" && !event.shiftKey) {
-      event.preventDefault();
-      handleSend();
-    }
-  }
+  function handleKeyDown(event) { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); handleSend(); } }
 
   return (
     <section style={styles.shell}>
       <header style={styles.header}>
-        <div style={styles.identity}>
-          <MentorAvatar mentorName={mentorName} />
-          <div>
-            <div style={styles.eyebrow}>MOVIE MENTOR</div>
-            <div style={styles.title}>{mentorName}</div>
-            <div style={styles.subtitle}>Creating with {creatorName}</div>
-          </div>
-        </div>
-        <div style={styles.badge}>● {CREATIVE_STAGES.find((stage) => stage.id === activeStage)?.label || "Idea"}</div>
+        <div style={styles.identity}><MentorAvatar mentorName={mentorName} /><div><div style={styles.eyebrow}>MOVIE MENTOR</div><div style={styles.title}>{mentorName}</div><div style={styles.subtitle}>Creating with {creatorName}</div></div></div>
+        <div style={styles.badge}>● {activeStageDefinition?.label || "Creative Journey"}</div>
       </header>
 
-      {showJourney && (
+      {showJourney && canonicalStages.length > 0 && (
         <div style={styles.journey} aria-label="Your creative journey">
-          {CREATIVE_STAGES.map((stage, index) => (
-            <button
-              key={stage.id}
-              type="button"
-              onClick={() => onStageSelect?.(stage.id)}
-              aria-current={stage.id === activeStage ? "step" : undefined}
-              style={{ ...styles.stage, ...(stage.id === activeStage ? styles.stageActive : {}), ...(completed.has(stage.id) ? styles.stageComplete : {}) }}
-              title={stage.label}
-            >
+          {canonicalStages.map((stage, index) => (
+            <button key={stage.id} type="button" onClick={() => onStageSelect?.(stage.id)} aria-current={stage.id === activeStage ? "step" : undefined} style={{ ...styles.stage, ...(stage.id === activeStage ? styles.stageActive : {}), ...(completed.has(stage.id) ? styles.stageComplete : {}) }} title={stage.label}>
               {completed.has(stage.id) ? "✓" : index + 1}
             </button>
           ))}
@@ -356,111 +220,33 @@ export default function MovieMentorConversation({
       )}
 
       {renderAboveConversation?.()}
-
       <div style={styles.viewport}>
-        {normalisedMessages.map((message, index) => (
-          <ConversationMessage key={message.id || `message-${index}`} message={message} mentorName={mentorName} onAction={handleAction} />
-        ))}
-
-        {showStartPointChooser && !localStartPoint && !hasCreatorMessage && (
-          <div>
-            <div style={styles.startHeader}>WHERE ARE YOU STARTING?</div>
-            <div style={styles.startTitle}>Bring whatever you have.</div>
-            <div style={styles.startGrid}>
-              {CREATOR_START_POINTS.map((option) => (
-                <button
-                  key={option.id}
-                  type="button"
-                  style={styles.startCard}
-                  onClick={() => { setLocalStartPoint(option); onStartPointSelect?.(option); }}
-                >
-                  <span style={styles.startIcon}>{option.icon}</span>
-                  <span><strong>{option.label}</strong><span style={styles.startDescription}>{option.description}</span></span>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {effectiveThinking && (
-          <div style={styles.mentorRow}>
-            <MentorAvatar mentorName={mentorName} />
-            <div style={styles.thinking}>● ● ● Thinking with you...</div>
-          </div>
-        )}
+        {normalisedMessages.map((message, index) => <ConversationMessage key={message.id || `message-${index}`} message={message} mentorName={mentorName} onAction={handleAction} />)}
+        {showStartPointChooser && !localStartPoint && !hasCreatorMessage && <div><div style={styles.startHeader}>WHERE ARE YOU STARTING?</div><div style={styles.startTitle}>Bring whatever you have.</div><div style={styles.startGrid}>{CREATOR_START_POINTS.map((option) => <button key={option.id} type="button" style={styles.startCard} onClick={() => { setLocalStartPoint(option); onStartPointSelect?.(option); }}><span style={styles.startIcon}>{option.icon}</span><span><strong>{option.label}</strong><span style={styles.startDescription}>{option.description}</span></span></button>)}</div></div>}
+        {effectiveThinking && <div style={styles.mentorRow}><MentorAvatar mentorName={mentorName} /><div style={styles.thinking}>● ● ● Thinking with you...</div></div>}
         <div ref={endRef} />
       </div>
-
-      {Array.isArray(quickActions) && quickActions.length > 0 && (
-        <div style={styles.quickActions}>
-          {quickActions.map((action) => (
-            <button key={action.id || action.action || action.label} type="button" style={styles.secondaryButton} onClick={() => handleAction(action)}>
-              {action.icon || ""} {action.label}
-            </button>
-          ))}
-        </div>
-      )}
-
+      {Array.isArray(quickActions) && quickActions.length > 0 && <div style={styles.quickActions}>{quickActions.map((action) => <button key={action.id || action.action || action.label} type="button" style={styles.secondaryButton} onClick={() => handleAction(action)}>{action.icon || ""} {action.label}</button>)}</div>}
       <div style={styles.composer}>
         {allowAttachments && <button type="button" style={styles.iconButton} onClick={onAttach} aria-label="Attach">＋</button>}
         <textarea value={draft} onChange={(event) => setDraft(event.target.value)} onKeyDown={handleKeyDown} placeholder={placeholder} disabled={effectiveThinking || isGenerating} style={styles.textarea} rows={2} />
         {allowVoice && <button type="button" style={styles.iconButton} onClick={onVoice} aria-label="Voice">🎙</button>}
         <button type="button" onClick={handleSend} disabled={!draft.trim() || effectiveThinking || isGenerating} style={styles.sendButton}>Send</button>
       </div>
-
-      {renderComposerExtra?.()}
-      {renderBelowConversation?.()}
+      {renderComposerExtra?.()}{renderBelowConversation?.()}
     </section>
   );
 }
 
 const styles = {
   shell: { maxWidth: 900, margin: "0 auto", padding: 18, borderRadius: 24, background: "linear-gradient(180deg,#10131d,#090b11)", color: "#f6f7fb", boxShadow: "0 24px 70px rgba(0,0,0,.28)", fontFamily: "Inter, system-ui, sans-serif" },
-  header: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, paddingBottom: 16 },
-  identity: { display: "flex", alignItems: "center", gap: 12 },
+  header: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, paddingBottom: 16 }, identity: { display: "flex", alignItems: "center", gap: 12 },
   avatar: { width: 42, height: 42, flex: "0 0 42px", borderRadius: "50%", display: "grid", placeItems: "center", background: "linear-gradient(135deg,#7b61ff,#2dd4bf)", fontSize: 20, boxShadow: "0 0 26px rgba(123,97,255,.35)" },
-  eyebrow: { fontSize: 10, letterSpacing: 2, opacity: .65 },
-  title: { fontSize: 20, fontWeight: 800 },
-  subtitle: { fontSize: 12, opacity: .65, marginTop: 2 },
-  badge: { fontSize: 12, padding: "8px 11px", borderRadius: 999, background: "rgba(255,255,255,.07)" },
-  journey: { display: "flex", gap: 6, overflowX: "auto", padding: "10px 0 16px" },
-  stage: { minWidth: 30, height: 30, borderRadius: "50%", border: "1px solid rgba(255,255,255,.14)", background: "rgba(255,255,255,.04)", color: "#aeb4c3", cursor: "pointer" },
-  stageActive: { background: "#f6f7fb", color: "#11131a", fontWeight: 800 },
-  stageComplete: { borderColor: "rgba(45,212,191,.55)" },
-  viewport: { minHeight: 360, maxHeight: "58vh", overflowY: "auto", padding: "14px 2px", display: "flex", flexDirection: "column", gap: 14 },
-  mentorRow: { display: "flex", alignItems: "flex-start", gap: 10, maxWidth: "92%" },
-  creatorRow: { display: "flex", justifyContent: "flex-end", alignSelf: "flex-end", maxWidth: "88%" },
-  mentorBubble: { padding: "12px 14px", borderRadius: "6px 18px 18px 18px", background: "rgba(255,255,255,.08)", lineHeight: 1.5 },
-  creatorBubble: { padding: "12px 14px", borderRadius: "18px 6px 18px 18px", background: "#f3f4f7", color: "#11131a", lineHeight: 1.5 },
-  behaviourLabel: { fontSize: 10, letterSpacing: 1.1, opacity: .62, marginBottom: 5, textTransform: "uppercase" },
-  messageTitle: { display: "block", marginBottom: 5 },
-  systemMessage: { alignSelf: "center", fontSize: 12, opacity: .58, padding: "6px 10px" },
-  thinking: { padding: "12px 14px", opacity: .7, fontSize: 13 },
-  startHeader: { fontSize: 10, letterSpacing: 1.8, opacity: .62, marginTop: 4 },
-  startTitle: { fontWeight: 800, fontSize: 18, margin: "4px 0 10px" },
-  startGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(210px,1fr))", gap: 8, margin: "8px 0" },
-  startCard: { display: "flex", gap: 10, alignItems: "flex-start", textAlign: "left", padding: 13, borderRadius: 14, border: "1px solid rgba(255,255,255,.1)", background: "rgba(255,255,255,.045)", color: "#f6f7fb", cursor: "pointer" },
-  startIcon: { fontSize: 20 },
-  startDescription: { display: "block", marginTop: 4, fontSize: 12, lineHeight: 1.4, opacity: .64, fontWeight: 400 },
-  quickActions: { display: "flex", gap: 8, overflowX: "auto", padding: "8px 0" },
-  actionRow: { display: "flex", flexWrap: "wrap", gap: 7, marginTop: 12 },
-  secondaryButton: { border: "1px solid rgba(255,255,255,.14)", background: "rgba(255,255,255,.06)", color: "inherit", borderRadius: 999, padding: "7px 10px", cursor: "pointer", whiteSpace: "nowrap" },
-  primaryButton: { border: 0, background: "#f6f7fb", color: "#11131a", borderRadius: 999, padding: "8px 12px", cursor: "pointer", fontWeight: 800 },
-  richCard: { flex: 1, padding: 15, borderRadius: 18, border: "1px solid rgba(255,255,255,.11)", background: "linear-gradient(180deg,rgba(255,255,255,.08),rgba(255,255,255,.045))" },
-  cardEyebrow: { fontSize: 10, letterSpacing: 1.6, opacity: .6 },
-  cardTitle: { fontSize: 18, fontWeight: 800, marginTop: 4 },
-  cardDescription: { lineHeight: 1.5, opacity: .84, marginTop: 7 },
-  mediaShell: { marginTop: 12, overflow: "hidden", borderRadius: 14, background: "rgba(0,0,0,.26)", minHeight: 180 },
-  mediaImage: { width: "100%", display: "block", objectFit: "cover", maxHeight: 360 },
-  mediaPlaceholder: { minHeight: 180, display: "grid", placeItems: "center", gap: 5, alignContent: "center" },
-  playOrb: { width: 44, height: 44, display: "grid", placeItems: "center", borderRadius: "50%", background: "rgba(255,255,255,.12)" },
-  muted: { fontSize: 12, opacity: .58 },
-  lessonPoints: { display: "grid", gap: 8, marginTop: 12 },
-  lessonPoint: { display: "flex", gap: 9, alignItems: "flex-start" },
-  lessonNumber: { width: 22, height: 22, flex: "0 0 22px", borderRadius: "50%", display: "grid", placeItems: "center", background: "rgba(255,255,255,.1)", fontSize: 11 },
-  takeaway: { display: "grid", gap: 3, marginTop: 12, padding: 11, borderRadius: 12, background: "rgba(45,212,191,.08)" },
-  composer: { display: "flex", alignItems: "flex-end", gap: 8, paddingTop: 14, borderTop: "1px solid rgba(255,255,255,.08)" },
-  textarea: { flex: 1, resize: "none", border: "1px solid rgba(255,255,255,.12)", outline: "none", borderRadius: 16, background: "rgba(255,255,255,.06)", color: "#f6f7fb", padding: "12px 13px", font: "inherit" },
-  iconButton: { width: 40, height: 40, borderRadius: "50%", border: "1px solid rgba(255,255,255,.12)", background: "rgba(255,255,255,.05)", color: "#f6f7fb", cursor: "pointer" },
-  sendButton: { height: 40, border: 0, borderRadius: 999, padding: "0 17px", fontWeight: 800, cursor: "pointer" },
+  eyebrow: { fontSize: 10, letterSpacing: 2, opacity: .65 }, title: { fontSize: 20, fontWeight: 800 }, subtitle: { fontSize: 12, opacity: .65, marginTop: 2 }, badge: { fontSize: 12, padding: "8px 11px", borderRadius: 999, background: "rgba(255,255,255,.07)" },
+  journey: { display: "flex", gap: 6, overflowX: "auto", padding: "10px 0 16px" }, stage: { minWidth: 30, height: 30, borderRadius: "50%", border: "1px solid rgba(255,255,255,.14)", background: "rgba(255,255,255,.04)", color: "#aeb4c3", cursor: "pointer" }, stageActive: { background: "#f6f7fb", color: "#11131a", fontWeight: 800 }, stageComplete: { borderColor: "rgba(45,212,191,.55)" },
+  viewport: { minHeight: 360, maxHeight: "58vh", overflowY: "auto", padding: "14px 2px", display: "flex", flexDirection: "column", gap: 14 }, mentorRow: { display: "flex", alignItems: "flex-start", gap: 10, maxWidth: "92%" }, creatorRow: { display: "flex", justifyContent: "flex-end", alignSelf: "flex-end", maxWidth: "88%" }, mentorBubble: { padding: "12px 14px", borderRadius: "6px 18px 18px 18px", background: "rgba(255,255,255,.08)", lineHeight: 1.5 }, creatorBubble: { padding: "12px 14px", borderRadius: "18px 6px 18px 18px", background: "#f3f4f7", color: "#11131a", lineHeight: 1.5 }, behaviourLabel: { fontSize: 10, letterSpacing: 1.1, opacity: .62, marginBottom: 5, textTransform: "uppercase" }, messageTitle: { display: "block", marginBottom: 5 }, systemMessage: { alignSelf: "center", fontSize: 12, opacity: .58, padding: "6px 10px" }, thinking: { padding: "12px 14px", opacity: .7, fontSize: 13 },
+  startHeader: { fontSize: 10, letterSpacing: 1.8, opacity: .62, marginTop: 4 }, startTitle: { fontWeight: 800, fontSize: 18, margin: "4px 0 10px" }, startGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(210px,1fr))", gap: 8, margin: "8px 0" }, startCard: { display: "flex", gap: 10, alignItems: "flex-start", textAlign: "left", padding: 13, borderRadius: 14, border: "1px solid rgba(255,255,255,.1)", background: "rgba(255,255,255,.045)", color: "#f6f7fb", cursor: "pointer" }, startIcon: { fontSize: 20 }, startDescription: { display: "block", marginTop: 4, fontSize: 12, lineHeight: 1.4, opacity: .64, fontWeight: 400 },
+  quickActions: { display: "flex", gap: 8, overflowX: "auto", padding: "8px 0" }, actionRow: { display: "flex", flexWrap: "wrap", gap: 7, marginTop: 12 }, secondaryButton: { border: "1px solid rgba(255,255,255,.14)", background: "rgba(255,255,255,.06)", color: "inherit", borderRadius: 999, padding: "7px 10px", cursor: "pointer", whiteSpace: "nowrap" }, primaryButton: { border: 0, background: "#f6f7fb", color: "#11131a", borderRadius: 999, padding: "8px 12px", cursor: "pointer", fontWeight: 800 },
+  richCard: { flex: 1, padding: 15, borderRadius: 18, border: "1px solid rgba(255,255,255,.11)", background: "linear-gradient(180deg,rgba(255,255,255,.08),rgba(255,255,255,.045))" }, cardEyebrow: { fontSize: 10, letterSpacing: 1.6, opacity: .6 }, cardTitle: { fontSize: 18, fontWeight: 800, marginTop: 4 }, cardDescription: { lineHeight: 1.5, opacity: .84, marginTop: 7 }, mediaShell: { marginTop: 12, overflow: "hidden", borderRadius: 14, background: "rgba(0,0,0,.26)", minHeight: 180 }, mediaImage: { width: "100%", display: "block", objectFit: "cover", maxHeight: 360 }, mediaPlaceholder: { minHeight: 180, display: "grid", placeItems: "center", gap: 5, alignContent: "center" }, playOrb: { width: 44, height: 44, display: "grid", placeItems: "center", borderRadius: "50%", background: "rgba(255,255,255,.12)" }, muted: { fontSize: 12, opacity: .58 }, lessonPoints: { display: "grid", gap: 8, marginTop: 12 }, lessonPoint: { display: "flex", gap: 9, alignItems: "flex-start" }, lessonNumber: { width: 22, height: 22, flex: "0 0 22px", borderRadius: "50%", display: "grid", placeItems: "center", background: "rgba(255,255,255,.1)", fontSize: 11 }, takeaway: { display: "grid", gap: 3, marginTop: 12, padding: 11, borderRadius: 12, background: "rgba(45,212,191,.08)" },
+  composer: { display: "flex", alignItems: "flex-end", gap: 8, paddingTop: 14, borderTop: "1px solid rgba(255,255,255,.08)" }, textarea: { flex: 1, resize: "none", border: "1px solid rgba(255,255,255,.12)", outline: "none", borderRadius: 16, background: "rgba(255,255,255,.06)", color: "#f6f7fb", padding: "12px 13px", font: "inherit" }, iconButton: { width: 40, height: 40, borderRadius: "50%", border: "1px solid rgba(255,255,255,.12)", background: "rgba(255,255,255,.05)", color: "#f6f7fb", cursor: "pointer" }, sendButton: { height: 40, border: 0, borderRadius: 999, padding: "0 17px", fontWeight: 800, cursor: "pointer" },
 };
