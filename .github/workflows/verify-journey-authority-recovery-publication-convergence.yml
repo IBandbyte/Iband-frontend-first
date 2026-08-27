@@ -1,0 +1,30 @@
+name: Verify Journey Authority Recovery Publication Convergence
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/verify-journey-authority-recovery-publication-convergence.yml"
+      - "scripts/verify-journey-authority-recovery-publication-convergence.mjs"
+      - "src/components/studio/mentor/JourneyAuthorityRecoveryPublicationRuntime.js"
+      - "src/components/studio/mentor/JourneyAuthorityRecoveryEnvelope.js"
+      - "src/components/studio/mentor/JourneyAuthoritySovereigntyLineage.js"
+      - "src/components/studio/mentor/JourneyDurableAuthorityStore.js"
+
+permissions:
+  contents: read
+
+jobs:
+  recovery-publication-convergence:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Use Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Torture recovery publication lag and convergence
+        run: node scripts/verify-journey-authority-recovery-publication-convergence.mjs
