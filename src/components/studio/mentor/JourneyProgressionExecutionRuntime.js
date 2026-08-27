@@ -3,7 +3,7 @@ import {
   validateJourneyPositionAuthority,
 } from "./JourneyPositionAuthorityControl.js";
 
-const JOURNEY_PROGRESSION_RUNTIME_VERSION = "1.0.0";
+const JOURNEY_PROGRESSION_RUNTIME_VERSION = "1.0.1";
 const JOURNEY_PROGRESSION_SCHEMA_VERSION = 1;
 const MAX_COMMITTED_PROGRESSION_OPERATIONS = 64;
 
@@ -172,6 +172,11 @@ function getCommittedReceipt(journey, operationId, authorityId) {
   );
 }
 
+function getDurableJourney(identityRuntime, projectId) {
+  const project = identityRuntime?.memory?.getProject?.(projectId) || null;
+  return clone(project?.metadata?.projectJourney || null);
+}
+
 function assertExactTargetExists(journeyEngine, journey, action, target = {}) {
   if (!journeyEngine) fail("JOURNEY_PROGRESSION_ENGINE_REQUIRED", "Journey progression execution requires CreatorJourneyEngine.");
 
@@ -314,7 +319,9 @@ async function executeJourneyProgression({
   if (!projectJourney || typeof projectJourney !== "object") fail("JOURNEY_PROGRESSION_JOURNEY_REQUIRED", "Journey progression execution requires the current project Journey.");
   if (!identityRuntime || typeof identityRuntime.persistJourney !== "function") fail("JOURNEY_PROGRESSION_PERSISTENCE_REQUIRED", "Journey progression execution requires a Journey persistence runtime.");
 
-  const normalised = normaliseJourneyForProgression(projectJourney);
+  const durableJourney = getDurableJourney(identityRuntime, pid);
+  const sourceJourney = durableJourney || projectJourney;
+  const normalised = normaliseJourneyForProgression(sourceJourney);
   const currentJourney = normalised.journey;
   const currentRevision = normalised.revision;
   const authorityId = cleanString(authorityEnvelope?.authorityId);
@@ -328,8 +335,8 @@ async function executeJourneyProgression({
       projected: false,
       operationId: existingReceipt.operationId,
       receipt: existingReceipt,
-      projectJourney: clone(projectJourney),
-      progressionRevision: safeRevision(projectJourney?.progression?.revision) ?? currentRevision,
+      projectJourney: clone(sourceJourney),
+      progressionRevision: currentRevision,
     });
   }
 
