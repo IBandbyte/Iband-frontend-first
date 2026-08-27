@@ -1,0 +1,30 @@
+name: Verify Journey Authority Acceptance Materialization
+
+on:
+  push:
+    paths:
+      - "src/components/studio/mentor/JourneyDurableAuthorityStore.js"
+      - "src/components/studio/mentor/JourneyAuthorityRecommendationLifecycle.js"
+      - "src/components/studio/mentor/JourneyAuthorityAtomicTransition.js"
+      - "scripts/verify-journey-authority-acceptance-materialization.mjs"
+      - ".github/workflows/verify-journey-authority-acceptance-materialization.yml"
+  pull_request:
+    paths:
+      - "src/components/studio/mentor/JourneyDurableAuthorityStore.js"
+      - "src/components/studio/mentor/JourneyAuthorityRecommendationLifecycle.js"
+      - "src/components/studio/mentor/JourneyAuthorityAtomicTransition.js"
+      - "scripts/verify-journey-authority-acceptance-materialization.mjs"
+      - ".github/workflows/verify-journey-authority-acceptance-materialization.yml"
+
+jobs:
+  authority-acceptance-materialization:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Use Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Torture certified recommendation materialization
+        run: node scripts/verify-journey-authority-acceptance-materialization.mjs
