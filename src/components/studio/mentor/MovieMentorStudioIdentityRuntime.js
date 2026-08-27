@@ -6,13 +6,14 @@ import createCreatorMemory, {
 import createCreatorJourneyEngine from "./CreatorJourneyEngine.js";
 import createMovieJourneyIntelligenceBridge from "./MovieJourneyIntelligenceBridge.js";
 
-const MOVIE_MENTOR_STUDIO_IDENTITY_RUNTIME_VERSION = "1.3.1";
+const MOVIE_MENTOR_STUDIO_IDENTITY_RUNTIME_VERSION = "1.4.0";
 const RECOMMENDATION_REFERENCE_DOMAIN = "iband.movie-mentor.journey-recommendation-reference";
 const RECOMMENDATION_REFERENCE_SCHEMA = 1;
 
 function clean(value) { return typeof value === "string" ? value.trim() : ""; }
 function clone(value) { if (value === undefined) return undefined; try { return JSON.parse(JSON.stringify(value)); } catch { return value; } }
 function safeRevision(value) { const number = Number(value); return Number.isSafeInteger(number) && number >= 0 ? number : null; }
+function effectiveProgressionRevision(projectJourney) { const revision = safeRevision(projectJourney?.progression?.revision); return revision === null && (projectJourney?.progression === undefined || projectJourney?.progression === null) ? 0 : revision; }
 function recommendationNextStep(planningEvidence = {}) {
   const action = planningEvidence?.semanticDirection?.nextAction;
   return clean(action?.label) || clean(action?.text) || clean(action?.description) || clean(planningEvidence?.recommendation?.recommendedTaskId) || clean(planningEvidence?.recommendation?.recommendedStageId) || null;
@@ -48,7 +49,19 @@ function createMovieMentorStudioIdentityRuntime({ memory = createCreatorMemory()
   const recommendationJourneyBridge = createMovieJourneyIntelligenceBridge({ journeyEngine: recommendationJourneyEngine });
   function getActiveProject(){const project=memory.getActiveProject?.()||null;return isMovieMentorProject(project)?project:null;}
   function ensureProject({projectJourney=null,title="Untitled Movie"}={}){const existing=getActiveProject();if(existing)return existing;return memory.saveProject({title,creatorType:"video",status:PROJECT_STATUSES.CREATING,metadata:{creatorMode:"ai-movie",creatorModeLabel:"AI Movie Making",projectJourney,createdFrom:"CreatorWorkspace"}});}
-  function persistJourney(projectId,projectJourney){const project=memory.getProject?.(projectId);if(!project)return null;return memory.updateProject(projectId,{metadata:{...(project.metadata||{}),creatorMode:"ai-movie",creatorModeLabel:project.metadata?.creatorModeLabel||"AI Movie Making",projectJourney}});}
+  function persistJourney(projectId,projectJourney,{expectedProgressionRevision=null}={}){
+    const project=memory.getProject?.(projectId);if(!project)return null;
+    if(expectedProgressionRevision!==null&&expectedProgressionRevision!==undefined){
+      const expected=safeRevision(expectedProgressionRevision);
+      const current=effectiveProgressionRevision(project?.metadata?.projectJourney);
+      if(expected===null){const error=new Error("Journey persistence requires a valid expected progression revision.");error.code="MOVIE_MENTOR_JOURNEY_EXPECTED_REVISION_INVALID";throw error;}
+      if(current===null){const error=new Error("Persisted Journey progression metadata is malformed.");error.code="MOVIE_MENTOR_JOURNEY_PROGRESSION_RECOVERY_REQUIRED";throw error;}
+      if(current!==expected){const error=new Error("Persisted Journey changed before this progression operation could commit.");error.code="MOVIE_MENTOR_JOURNEY_PROGRESSION_STALE";error.expectedProgressionRevision=expected;error.currentProgressionRevision=current;throw error;}
+    }
+    const updated=memory.updateProject(projectId,{metadata:{...(project.metadata||{}),creatorMode:"ai-movie",creatorModeLabel:project.metadata?.creatorModeLabel||"AI Movie Making",projectJourney}});
+    if(!updated){const error=new Error("Movie Mentor Journey persistence failed.");error.code="MOVIE_MENTOR_JOURNEY_PERSIST_FAILED";throw error;}
+    return updated;
+  }
   function getProjectConversationMessages(projectId,{limit=40}={}){const pid=clean(projectId);if(!pid)return[];const conversations=(memory.getRecentConversations?.(Math.max(limit,1)*2)||[]).filter(c=>conversationBelongsToProject(c,pid)).slice(0,limit).reverse();return conversations.flatMap(conversationToMessages);}
   function getProjectHandoff(projectId){const pid=clean(projectId);return pid?memory.getLatestSessionHandoff?.(pid)||null:null;}
 
