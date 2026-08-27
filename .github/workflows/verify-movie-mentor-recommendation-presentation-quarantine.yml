@@ -1,0 +1,26 @@
+name: Verify Movie Mentor Recommendation Presentation Quarantine
+
+on:
+  push:
+    paths:
+      - "src/components/studio/AiMentor.jsx"
+      - "scripts/verify-movie-mentor-recommendation-presentation-quarantine.mjs"
+      - ".github/workflows/verify-movie-mentor-recommendation-presentation-quarantine.yml"
+  pull_request:
+    paths:
+      - "src/components/studio/AiMentor.jsx"
+      - "scripts/verify-movie-mentor-recommendation-presentation-quarantine.mjs"
+      - ".github/workflows/verify-movie-mentor-recommendation-presentation-quarantine.yml"
+
+jobs:
+  recommendation-presentation-quarantine:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Use Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Verify recommendation presentation quarantine
+        run: node scripts/verify-movie-mentor-recommendation-presentation-quarantine.mjs
