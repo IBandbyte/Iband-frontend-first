@@ -1,0 +1,30 @@
+name: Verify Movie Mentor Resume Recovery Integration
+
+on:
+  push:
+    paths:
+      - "src/components/studio/mentor/MovieMentorStudioIdentityRuntime.js"
+      - "src/components/studio/mentor/JourneyRecommendationResumeRecovery.js"
+      - "src/components/studio/mentor/JourneyRecommendationLifecycleRecovery.js"
+      - "scripts/verify-movie-mentor-resume-recovery-integration.mjs"
+      - ".github/workflows/verify-movie-mentor-resume-recovery-integration.yml"
+  pull_request:
+    paths:
+      - "src/components/studio/mentor/MovieMentorStudioIdentityRuntime.js"
+      - "src/components/studio/mentor/JourneyRecommendationResumeRecovery.js"
+      - "src/components/studio/mentor/JourneyRecommendationLifecycleRecovery.js"
+      - "scripts/verify-movie-mentor-resume-recovery-integration.mjs"
+      - ".github/workflows/verify-movie-mentor-resume-recovery-integration.yml"
+
+jobs:
+  resume-recovery-integration:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Use Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Torture Studio resume recommendation recovery
+        run: node scripts/verify-movie-mentor-resume-recovery-integration.mjs
