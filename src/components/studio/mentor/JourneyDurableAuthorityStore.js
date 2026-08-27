@@ -1,6 +1,7 @@
 import { withJourneyProgressionProjectLock } from "./JourneyProgressionProjectLock.js";
+import createJourneyAuthoritySovereigntyLineage from "./JourneyAuthoritySovereigntyLineage.js";
 
-const JOURNEY_DURABLE_AUTHORITY_STORE_VERSION = "1.1.0";
+const JOURNEY_DURABLE_AUTHORITY_STORE_VERSION = "1.2.0";
 const JOURNEY_AUTHORITY_DOMAIN = "iband.movie-mentor.journey-authority";
 const JOURNEY_AUTHORITY_SCHEMA = 1;
 const JOURNEY_AUTHORITY_STORAGE_PREFIX = "iband:movie-mentor:journey-authority";
@@ -184,10 +185,42 @@ function createJourneyDurableAuthorityStore({
   if (!storage || typeof storage.getItem !== "function" || typeof storage.setItem !== "function") {
     fail("JOURNEY_AUTHORITY_STORAGE_REQUIRED", "Journey authority store requires getItem/setItem storage.");
   }
+  const sovereigntyLineage = createJourneyAuthoritySovereigntyLineage({ storage });
 
   function read(projectId, { project = null } = {}) {
     const parsed = parseAuthority(storage.getItem(authorityStorageKey(projectId)), project);
-    return parsed ? cloneValue(parsed.record) : null;
+    if (!parsed) {
+      if (project) {
+        const absence = sovereigntyLineage.classifyAbsence({ project });
+        if (absence.status === "authority-destroyed-or-missing") {
+          fail(
+            "JOURNEY_AUTHORITY_RECOVERY_REQUIRED",
+            "Journey authority is missing but sovereignty lineage proves authority previously existed.",
+            { reason: "authority-missing-after-established-lineage" }
+          );
+        }
+      }
+      return null;
+    }
+
+    const lineageRecord = sovereigntyLineage.read(projectId, { project });
+    if (lineageRecord) {
+      const generation = safeInteger(parsed.record?.authority?.generation);
+      const progressionRevision = effectiveProgressionRevision(parsed.record?.journey);
+      if (generation < lineageRecord.highestKnownGeneration || progressionRevision < lineageRecord.highestKnownProgressionRevision) {
+        fail(
+          "JOURNEY_AUTHORITY_ROLLBACK_DETECTED",
+          "Journey authority is below the established sovereignty lineage floor.",
+          {
+            authorityGeneration: generation,
+            highestKnownGeneration: lineageRecord.highestKnownGeneration,
+            authorityProgressionRevision: progressionRevision,
+            highestKnownProgressionRevision: lineageRecord.highestKnownProgressionRevision,
+          }
+        );
+      }
+    }
+    return cloneValue(parsed.record);
   }
 
   function writeCandidate(key, candidate, { project } = {}) {
@@ -206,10 +239,11 @@ function createJourneyDurableAuthorityStore({
     const identity = normaliseProjectIdentity(project);
     const source = nativeJourney ? "native" : "legacy-creator-memory";
     const sourceJourney = nativeJourney || legacyJourney;
-    validateJourney(sourceJourney, "JOURNEY_AUTHORITY_BOOTSTRAP_SOURCE_INVALID");
+    const sourceJourneyInspection = validateJourney(sourceJourney, "JOURNEY_AUTHORITY_BOOTSTRAP_SOURCE_INVALID");
     const key = authorityStorageKey(identity.projectId);
     const existing = parseAuthority(storage.getItem(key), project);
     if (existing) {
+      sovereigntyLineage.observeAuthorityUnderLock({ project, authorityRecord: existing.record, allowAdoption: true });
       return Object.freeze({
         status: "already-bootstrapped",
         record: cloneValue(existing.record),
@@ -218,8 +252,14 @@ function createJourneyDurableAuthorityStore({
         serialization: cloneValue(serialization),
       });
     }
+    sovereigntyLineage.beginBirthUnderLock({
+      project,
+      birthJourneyFingerprint: sourceJourneyInspection.fingerprint,
+      birthProgressionRevision: sourceJourneyInspection.progressionRevision,
+    });
     const candidate = buildAuthorityRecord({ project, projectJourney: sourceJourney, bootstrapSource: source, generation: 0 });
     const persisted = writeCandidate(key, candidate, { project });
+    sovereigntyLineage.observeAuthorityUnderLock({ project, authorityRecord: persisted.record });
     return Object.freeze({
       status: persisted.acknowledgementLost ? "bootstrapped-after-ack-loss" : "bootstrapped",
       record: cloneValue(persisted.record),
@@ -244,6 +284,7 @@ function createJourneyDurableAuthorityStore({
     const key = authorityStorageKey(identity.projectId);
     const current = parseAuthority(storage.getItem(key), project);
     if (!current) fail("JOURNEY_AUTHORITY_NOT_INITIALISED", "Journey authority must be bootstrapped before commit.");
+    sovereigntyLineage.observeAuthorityUnderLock({ project, authorityRecord: current.record, allowAdoption: true });
     if (current.inspection.generation !== expectedGen) {
       fail("JOURNEY_AUTHORITY_GENERATION_STALE", "Journey authority generation changed before commit.", {
         expectedGeneration: expectedGen,
@@ -278,6 +319,7 @@ function createJourneyDurableAuthorityStore({
     }
 
     const persisted = writeCandidate(key, candidate, { project });
+    sovereigntyLineage.observeAuthorityUnderLock({ project, authorityRecord: persisted.record });
     const inspection = inspectAuthorityRecord(persisted.record, { project });
     return Object.freeze({
       status: persisted.acknowledgementLost ? "committed-after-ack-loss" : "committed",
@@ -342,6 +384,8 @@ function createJourneyDurableAuthorityStore({
     compareAndCommit,
     compareAndCommitUnderLock,
     compareProjection,
+    readSovereigntyLineage: (projectId, options = {}) => sovereigntyLineage.read(projectId, options),
+    classifySovereigntyAbsence: (options = {}) => sovereigntyLineage.classifyAbsence(options),
   });
 }
 
