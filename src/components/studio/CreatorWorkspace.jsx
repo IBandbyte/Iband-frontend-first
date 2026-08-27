@@ -79,6 +79,13 @@ const CreatorWorkspace = ({ creatorName = "Creator", initialCreator = "", onGene
     const taskId = projectJourneyOrientation?.present?.task?.id || projectJourney?.currentTaskId || null;
     return (canonicalMovieCurrentStage?.tasks || []).find((task) => task?.id === taskId) || null;
   }, [canonicalMovieCurrentStage, projectJourneyOrientation, projectJourney]);
+  const canonicalMovieNextTask = useMemo(() => {
+    const tasks = Array.isArray(canonicalMovieCurrentStage?.tasks) ? canonicalMovieCurrentStage.tasks : [];
+    const currentIndex = tasks.findIndex((task) => task?.id === canonicalMovieCurrentTask?.id);
+    const remaining = currentIndex >= 0 ? tasks.slice(currentIndex + 1) : tasks;
+    return remaining.find((task) => task?.status !== "completed-for-now") || null;
+  }, [canonicalMovieCurrentStage, canonicalMovieCurrentTask]);
+  const canonicalMovieNextStage = projectJourneyOrientation?.next?.nextStage || null;
   const canonicalMovieCompletedStages = useMemo(() => canonicalMovieJourneyStages.filter((stage) => stage?.status === "completed-for-now").map((stage) => stage.id), [canonicalMovieJourneyStages]);
   const movieJourneyPlanningContext = useMemo(() => projectJourney ? movieJourneyIntelligenceBridge.buildResponseContext(projectJourney, { journeyPlanningEvidence: movieJourneyPlanningEvidence }) : null, [projectJourney, movieJourneyPlanningEvidence]);
   const journeyReady = Boolean(activeCreator) && Boolean(selectedCreatorMode) && !showCreatorChoices && !showCreatorModeChoices;
@@ -239,7 +246,7 @@ const CreatorWorkspace = ({ creatorName = "Creator", initialCreator = "", onGene
       target: { stageId: canonicalMovieCurrentStage.id, taskId: canonicalMovieCurrentTask.id },
       creatorActPrefix: "journey-task-complete",
       operationPrefix: "journey-task-completion",
-      successMessage: "That task is marked complete for now. We can keep building from here whenever you're ready.",
+      successMessage: "That task is marked complete for now. You can choose what happens next when you're ready.",
     });
   };
 
@@ -252,6 +259,30 @@ const CreatorWorkspace = ({ creatorName = "Creator", initialCreator = "", onGene
       creatorActPrefix: "journey-stage-complete",
       operationPrefix: "journey-stage-completion",
       successMessage: "That stage is marked complete for now. I haven't moved you anywhere else—the next step stays your choice.",
+    });
+  };
+
+  const handleMovieContinueTask = async () => {
+    if (!canonicalMovieCurrentTask || canonicalMovieCurrentTask.status !== "completed-for-now" || !canonicalMovieNextTask?.id || !canonicalMovieCurrentStage?.id) return;
+    await executeCreatorJourneyOperation({
+      source: POSITION_AUTHORITY_SOURCES.STAGE_CLICK_UI,
+      action: POSITION_ACTIONS.SET_POSITION,
+      target: { stageId: canonicalMovieCurrentStage.id, taskId: canonicalMovieNextTask.id },
+      creatorActPrefix: "journey-continue-task",
+      operationPrefix: "journey-task-continuation",
+      successMessage: `You're now on “${canonicalMovieNextTask.label || canonicalMovieNextTask.id}”.`,
+    });
+  };
+
+  const handleMovieContinueStage = async () => {
+    if (canonicalMovieCurrentStage?.status !== "completed-for-now" || !canonicalMovieNextStage?.id) return;
+    await executeCreatorJourneyOperation({
+      source: POSITION_AUTHORITY_SOURCES.STAGE_CLICK_UI,
+      action: POSITION_ACTIONS.SET_POSITION,
+      target: { stageId: canonicalMovieNextStage.id },
+      creatorActPrefix: "journey-continue-stage",
+      operationPrefix: "journey-stage-continuation",
+      successMessage: `You're now on “${canonicalMovieNextStage.label || canonicalMovieNextStage.id}”.`,
     });
   };
 
@@ -281,7 +312,7 @@ const CreatorWorkspace = ({ creatorName = "Creator", initialCreator = "", onGene
       {!showCreatorChoices && activeCreator && <section style={styles.section}><div style={styles.choiceSummary}><div style={styles.choiceSummaryCopy}><span style={styles.choiceSummaryEyebrow}>Starting Point</span><span style={styles.choiceSummaryValue}>{activeCreator.icon} {activeCreator.label}</span></div><button type="button" onClick={handleChangeCreator} style={styles.changeButton}>Change</button></div></section>}
       {!showCreatorChoices && activeCreator && showCreatorModeChoices && <section style={styles.section}><CreatorModeSelector creatorType={selectedCreator} selectedMode={selectedCreatorMode} onSelect={handleCreatorModeSelect} /></section>}
       {!showCreatorChoices && activeCreator && selectedCreatorMode && !showCreatorModeChoices && <section style={styles.section}><div style={styles.choiceSummary}><div style={styles.choiceSummaryCopy}><span style={styles.choiceSummaryEyebrow}>Creator Mode</span><span style={styles.choiceSummaryValue}>{selectedCreatorModeLabel}</span>{activeMovieProject?.id && <span style={styles.projectIdentity}>Project: {activeMovieProject.id}</span>}</div><button type="button" onClick={handleChangeCreatorMode} style={styles.changeButton}>Change</button></div></section>}
-      {movieCockpitActive ? <section style={styles.section}><MovieMentorConversation creatorName={creatorName} projectId={activeMovieProject.id} creatorSessionId={identityRuntime.creatorSessionId} messages={movieMessages} journeyStages={canonicalMovieJourneyStages} activeStage={canonicalMovieActiveStage} completedStages={canonicalMovieCompletedStages} currentStage={canonicalMovieCurrentStage} currentTask={canonicalMovieCurrentTask} onStageSelect={handleMovieStageSelect} onCompleteTask={handleMovieTaskComplete} onCompleteStage={handleMovieStageComplete} onSendMessage={handleMovieMessage} onMentorTurnResult={handleMovieMentorTurnResult} /></section> : journeyReady ? <section style={styles.section}><MentorConversation creator={activeCreator} creatorMode={selectedCreatorMode} creatorModeLabel={selectedCreatorModeLabel} message={mentorMessage} idea={idea} projectStatus={projectStatus} creatorJourney={creatorJourney} onJourneyChange={handleCreatorJourneyChange} projectJourney={projectJourneySnapshot} projectJourneyOrientation={projectJourneyOrientation} /></section> : null}
+      {movieCockpitActive ? <section style={styles.section}><MovieMentorConversation creatorName={creatorName} projectId={activeMovieProject.id} creatorSessionId={identityRuntime.creatorSessionId} messages={movieMessages} journeyStages={canonicalMovieJourneyStages} activeStage={canonicalMovieActiveStage} completedStages={canonicalMovieCompletedStages} currentStage={canonicalMovieCurrentStage} currentTask={canonicalMovieCurrentTask} nextTask={canonicalMovieNextTask} nextStage={canonicalMovieNextStage} onStageSelect={handleMovieStageSelect} onCompleteTask={handleMovieTaskComplete} onCompleteStage={handleMovieStageComplete} onContinueTask={handleMovieContinueTask} onContinueStage={handleMovieContinueStage} onSendMessage={handleMovieMessage} onMentorTurnResult={handleMovieMentorTurnResult} /></section> : journeyReady ? <section style={styles.section}><MentorConversation creator={activeCreator} creatorMode={selectedCreatorMode} creatorModeLabel={selectedCreatorModeLabel} message={mentorMessage} idea={idea} projectStatus={projectStatus} creatorJourney={creatorJourney} onJourneyChange={handleCreatorJourneyChange} projectJourney={projectJourneySnapshot} projectJourneyOrientation={projectJourneyOrientation} /></section> : null}
       {journeyReady && selectedCreatorMode !== "ai-movie" && <section style={styles.section}><PromptBuilder creatorType={selectedCreator} creatorLabel={activeCreator.label} creatorMode={selectedCreatorMode} creatorModeLabel={selectedCreatorModeLabel} creatorJourney={creatorJourney} value={idea} projectStatus={projectStatus} onChange={(value) => { setIdea(value); if (projectStatus !== "idle" && projectStatus !== "generating") setProjectStatus("editing"); }} renderCreatorControls={() => typeof renderCreatorControls === "function" ? renderCreatorControls({ selectedCreator, activeCreator, selectedCreatorMode, selectedCreatorModeLabel, creatorJourney, projectJourney, projectJourneySnapshot, projectJourneyOrientation, idea, setIdea, projectStatus }) : null} /><GenerateButton creatorJourney={creatorJourney} onClick={handleGenerate} generating={projectStatus === "generating"} disabled={!canGenerate} /></section>}
       {selectedCreatorMode !== "ai-movie" && (generatedIdea || projectStatus === "generating") && <PreviewPanel creator={activeCreator} generatedIdea={generatedIdea} creatorJourney={creatorJourney} projectStatus={projectStatus} renderPreview={renderPreview} onSave={handleSave} onEdit={handleEdit} onPublish={handlePublish} />}
     </main>
