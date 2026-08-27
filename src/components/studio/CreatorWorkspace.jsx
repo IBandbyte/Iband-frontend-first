@@ -32,8 +32,14 @@ const CREATOR_OPTIONS = [
   { id: "other", icon: "✨", label: "Something Else", description: "Start with an idea and let the Mentor help shape it." },
 ];
 
+let creatorActSequence = 0;
+
 function createCreatorActId(prefix = "creator-act") {
-  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+  creatorActSequence += 1;
+  const durableUuid = globalThis?.crypto?.randomUUID?.();
+  return durableUuid
+    ? `${prefix}-${durableUuid}`
+    : `${prefix}-${Date.now()}-${creatorActSequence}`;
 }
 
 const CreatorWorkspace = ({ creatorName = "Creator", initialCreator = "", onGenerate, onSave, onEdit, onPublish, renderCreatorControls, renderPreview }) => {
