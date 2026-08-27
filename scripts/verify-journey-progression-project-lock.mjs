@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
+import createJourneyDurableAuthorityStore from "../src/components/studio/mentor/JourneyDurableAuthorityStore.js";
 import createJourneyProgressionExecutionRuntime from "../src/components/studio/mentor/JourneyProgressionExecutionRuntime.js";
 import {
   POSITION_ACTIONS,
@@ -15,6 +16,15 @@ const lockSource = fs.readFileSync(path.join(ROOT, "src/components/studio/mentor
 
 function clone(value) {
   return JSON.parse(JSON.stringify(value));
+}
+
+function createStorage() {
+  const values = new Map();
+  return {
+    getItem(key) { return values.has(key) ? values.get(key) : null; },
+    setItem(key, value) { values.set(key, String(value)); },
+    removeItem(key) { values.delete(key); },
+  };
 }
 
 function createJourney(projectId = "movie-project-lock") {
@@ -42,13 +52,16 @@ function createMemory(projectJourney) {
     projects: [{
       id: projectJourney.projectId,
       creatorType: "video",
-      identity: { immutable: true },
+      identity: { domain: "iband.movie-mentor.project", schema: 1, issuance: "secure-web-crypto", legacy: false },
       metadata: { creatorMode: "ai-movie", projectJourney: clone(projectJourney) },
     }],
     projectMemories: [],
   };
   return {
     getProject(projectId) {
+      return clone(state.projects.find((project) => project.id === projectId) || null);
+    },
+    getPersistedProject(projectId) {
       return clone(state.projects.find((project) => project.id === projectId) || null);
     },
     getState() {
@@ -87,16 +100,27 @@ function createJourneyEngine() {
 }
 
 function createIdentityRuntime(memory) {
-  return {
-    memory,
-    persistJourney(projectId, projectJourney) {
-      const state = memory.getState();
-      const index = state.projects.findIndex((project) => project.id === projectId);
-      state.projects[index].metadata.projectJourney = clone(projectJourney);
-      memory.replaceState(state);
-      return memory.getProject(projectId);
-    },
-  };
+  return { memory };
+}
+
+function createAuthorityHarness(projectJourney) {
+  const memory = createMemory(projectJourney);
+  const authorityStore = createJourneyDurableAuthorityStore({
+    storage: createStorage(),
+    locksApi: globalThis?.navigator?.locks || null,
+    browserRuntime: false,
+  });
+  const runtime = createJourneyProgressionExecutionRuntime({
+    journeyEngine: createJourneyEngine(),
+    identityRuntime: createIdentityRuntime(memory),
+    authorityStore,
+  });
+  return { memory, authorityStore, runtime };
+}
+
+function readAuthorityJourney(harness, projectId) {
+  const project = harness.memory.getProject(projectId);
+  return clone(harness.authorityStore.read(projectId, { project })?.journey || null);
 }
 
 function issueStageClick(projectId, stageId, creatorActId, revision = 0) {
@@ -145,11 +169,8 @@ Object.defineProperty(globalThis, "navigator", {
 try {
   const projectId = "movie-project-lock";
   const journey = createJourney(projectId);
-  const memory = createMemory(journey);
-  const runtime = createJourneyProgressionExecutionRuntime({
-    journeyEngine: createJourneyEngine(),
-    identityRuntime: createIdentityRuntime(memory),
-  });
+  const harness = createAuthorityHarness(journey);
+  const { memory, runtime } = harness;
 
   const authorityA = issueStageClick(projectId, "story", "creator-act-A", 0);
   const authorityB = issueStageClick(projectId, "character", "creator-act-B", 0);
@@ -162,34 +183,34 @@ try {
   assert.equal(resultA.status, "fulfilled", "First creator act must commit.");
   assert.equal(resultA.value.status, "committed");
   assert.equal(resultA.value.progressionRevision, 1);
+  assert.equal(resultA.value.authorityCommitted, true);
+  assert.equal(resultA.value.projected, false);
   assert.equal(resultA.value.serialization.mode, "web-locks");
   assert.equal(resultA.value.serialization.crossTabSerialized, true);
 
   assert.equal(resultB.status, "rejected", "Second creator act issued against stale N must not overwrite N+1.");
   assert.equal(resultB.reason?.code, "JOURNEY_POSITION_AUTHORITY_STALE");
 
-  const durableAfterRace = memory.getProject(projectId).metadata.projectJourney;
-  assert.equal(durableAfterRace.progression.revision, 1, "Concurrent different acts must produce exactly one N to N+1 commit.");
-  assert.equal(durableAfterRace.currentStageId, "story", "First committed creator act must remain durable; last-writer-wins overwrite is forbidden.");
+  const durableAfterRace = readAuthorityJourney(harness, projectId);
+  assert.equal(durableAfterRace.progression.revision, 1, "Concurrent different acts must produce exactly one authoritative N to N+1 commit.");
+  assert.equal(durableAfterRace.currentStageId, "story", "First committed creator act must remain authoritative; last-writer-wins overwrite is forbidden.");
   assert.equal(durableAfterRace.progression.committedOperations.length, 1);
   assert.equal(durableAfterRace.progression.committedOperations[0].operationId, "operation-A");
+  assert.equal(memory.getProject(projectId).metadata.projectJourney.progression.revision, 0, "Creator Memory projection may remain stale and must not define Journey truth.");
 
-  // Same operation in two callers: second caller must reconcile the original receipt,
+  // Same operation in two callers: second caller must reconcile the original authority receipt,
   // not fail stale or create revision N+2.
   const journey2 = createJourney("movie-project-lock-duplicate");
-  const memory2 = createMemory(journey2);
-  const runtime2 = createJourneyProgressionExecutionRuntime({
-    journeyEngine: createJourneyEngine(),
-    identityRuntime: createIdentityRuntime(memory2),
-  });
+  const harness2 = createAuthorityHarness(journey2);
   const sameAuthority = issueStageClick(journey2.projectId, "story", "creator-act-same", 0);
   const duplicateResults = await Promise.all([
-    runtime2.execute({ projectId: journey2.projectId, projectJourney: journey2, authorityEnvelope: sameAuthority, operationId: "operation-same" }),
-    runtime2.execute({ projectId: journey2.projectId, projectJourney: journey2, authorityEnvelope: sameAuthority, operationId: "operation-same" }),
+    harness2.runtime.execute({ projectId: journey2.projectId, projectJourney: journey2, authorityEnvelope: sameAuthority, operationId: "operation-same" }),
+    harness2.runtime.execute({ projectId: journey2.projectId, projectJourney: journey2, authorityEnvelope: sameAuthority, operationId: "operation-same" }),
   ]);
   assert.equal(duplicateResults[0].status, "committed");
   assert.equal(duplicateResults[1].status, "already-committed");
-  assert.equal(memory2.getProject(journey2.projectId).metadata.projectJourney.progression.revision, 1);
+  assert.equal(readAuthorityJourney(harness2, journey2.projectId).progression.revision, 1);
+  assert.equal(harness2.memory.getProject(journey2.projectId).metadata.projectJourney.progression.revision, 0);
 
   // Lock release after callback failure.
   const lockEvents = [];
@@ -200,22 +221,23 @@ try {
   await withJourneyProgressionProjectLock({ projectId: "release-test", callback: async () => { lockEvents.push("second"); } });
   assert.deepEqual(lockEvents, ["first", "second"], "A failed transaction must release the project lock.");
 
-  // Structural law: public execute acquires lock before private transaction body performs durable read.
+  // Structural law: public execute acquires the project lock before authority resolve/bootstrap and mutation.
   const publicExecute = runtimeSource.indexOf("async function executeJourneyProgression(input = {})");
   const lockCall = runtimeSource.indexOf("withJourneyProgressionProjectLock({", publicExecute);
-  const unlockedCall = runtimeSource.indexOf("executeJourneyProgressionUnlocked(input)", lockCall);
+  const unlockedCall = runtimeSource.indexOf("executeJourneyProgressionUnlocked({", lockCall);
   const privateBody = runtimeSource.indexOf("async function executeJourneyProgressionUnlocked");
-  const durableRead = runtimeSource.indexOf("const durableJourney = getDurableJourney", privateBody);
+  const authorityResolve = runtimeSource.indexOf("authorityAdapter.resolveUnderLock({", privateBody);
   assert.ok(publicExecute >= 0 && lockCall > publicExecute && unlockedCall > lockCall, "Public progression execution must enter the project lock before invoking transaction logic.");
-  assert.ok(privateBody >= 0 && durableRead > privateBody, "Durable Journey read must live inside the locked transaction body.");
+  assert.ok(privateBody >= 0 && authorityResolve > privateBody, "Journey Authority resolve/bootstrap must live inside the locked transaction body.");
   assert.ok(lockSource.includes('locksApi = globalThis?.navigator?.locks || null'), "Browser Web Locks must be the primary same-origin cross-tab serializer.");
   assert.ok(lockSource.includes('mode: "in-process-fallback"'), "A single-runtime fallback mutex must remain available for tests/non-Web-Locks environments.");
 
   console.log("Journey progression project lock verification passed.");
   console.log("- different concurrent creator acts cannot overwrite one another from the same N");
-  console.log("- same-operation concurrency reconciles the original durable receipt");
+  console.log("- same-operation concurrency reconciles the original Journey Authority receipt");
+  console.log("- Creator Memory projection may remain stale without becoming truth");
   console.log("- lock release survives transaction failure");
-  console.log("- durable Journey read occurs inside the project serialization boundary");
+  console.log("- Journey Authority resolve/bootstrap occurs inside project serialization");
   console.log("- browser Web Locks provide same-origin cross-tab serialization");
 } finally {
   if (originalNavigator === undefined) {
