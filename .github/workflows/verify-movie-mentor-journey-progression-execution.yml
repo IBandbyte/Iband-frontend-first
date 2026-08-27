@@ -1,0 +1,38 @@
+name: Verify Movie Mentor Journey Progression Execution
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "src/components/studio/mentor/CreatorJourneyEngine.js"
+      - "src/components/studio/mentor/JourneyPositionAuthorityControl.js"
+      - "src/components/studio/mentor/JourneyProgressionExecutionRuntime.js"
+      - "src/components/studio/mentor/MovieMentorStudioIdentityRuntime.js"
+      - "scripts/verify-movie-mentor-journey-progression-execution.mjs"
+      - ".github/workflows/verify-movie-mentor-journey-progression-execution.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "src/components/studio/mentor/CreatorJourneyEngine.js"
+      - "src/components/studio/mentor/JourneyPositionAuthorityControl.js"
+      - "src/components/studio/mentor/JourneyProgressionExecutionRuntime.js"
+      - "src/components/studio/mentor/MovieMentorStudioIdentityRuntime.js"
+      - "scripts/verify-movie-mentor-journey-progression-execution.mjs"
+      - ".github/workflows/verify-movie-mentor-journey-progression-execution.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  journey-progression-execution:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Use Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Verify transactional Journey progression execution
+        run: node scripts/verify-movie-mentor-journey-progression-execution.mjs
