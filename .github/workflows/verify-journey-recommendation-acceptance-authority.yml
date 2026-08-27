@@ -1,0 +1,30 @@
+name: Verify Journey Recommendation Acceptance Authority
+
+on:
+  push:
+    paths:
+      - "src/components/studio/mentor/JourneyRecommendationEnvelope.js"
+      - "src/components/studio/mentor/JourneyRecommendationAcceptanceAuthority.js"
+      - "src/components/studio/mentor/JourneyPositionAuthorityControl.js"
+      - "scripts/verify-journey-recommendation-acceptance-authority.mjs"
+      - ".github/workflows/verify-journey-recommendation-acceptance-authority.yml"
+  pull_request:
+    paths:
+      - "src/components/studio/mentor/JourneyRecommendationEnvelope.js"
+      - "src/components/studio/mentor/JourneyRecommendationAcceptanceAuthority.js"
+      - "src/components/studio/mentor/JourneyPositionAuthorityControl.js"
+      - "scripts/verify-journey-recommendation-acceptance-authority.mjs"
+      - ".github/workflows/verify-journey-recommendation-acceptance-authority.yml"
+
+jobs:
+  acceptance-authority:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Use Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Verify recommendation acceptance authority
+        run: node scripts/verify-journey-recommendation-acceptance-authority.mjs
