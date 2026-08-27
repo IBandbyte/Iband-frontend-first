@@ -140,9 +140,35 @@ function journey(revision = 0, taskId = "seed") {
   assert.equal(birth.record.journey.progression.revision, 0);
 }
 
+// Lost lineage acknowledgement is reconciled from durable bytes, just like authority ACK loss.
+{
+  const base = storageAdapter();
+  let throwAfterLineageWrite = true;
+  const p = project("movie-project-lineage-ack-loss");
+  const lineagePrefix = "iband:movie-mentor:journey-authority-lineage:";
+  const storage = {
+    getItem: base.getItem,
+    removeItem: base.removeItem,
+    setItem(key, value) {
+      base.setItem(key, value);
+      if (throwAfterLineageWrite && key.startsWith(lineagePrefix)) {
+        throwAfterLineageWrite = false;
+        throw new Error("simulated lineage acknowledgement loss");
+      }
+    },
+  };
+  const store = createJourneyDurableAuthorityStore({ storage, browserRuntime: false });
+  const result = store.bootstrapUnderLock({ project: p, legacyJourney: journey(4, "ack-loss-birth") });
+  assert.equal(result.status, "bootstrapped");
+  assert.equal(result.record.journey.progression.revision, 4);
+  assert.equal(store.readSovereigntyLineage(p.id, { project: p }).phase, "established");
+  assert.equal(store.classifySovereigntyAbsence({ project: p }).status, "authority-destroyed-or-missing");
+}
+
 console.log("Journey Authority destruction detection torture passed.");
 console.log("- first sovereignty birth establishes a durable lineage marker");
-console.log("- deleting authority while lineage survives cannot resurrect stale Creator Memory")
-console.log("- valid pre-5G authority is adopted under lock without changing sovereign truth")
-console.log("- interrupted first birth resumes only the same birth source")
-console.log("- structurally valid rollback below lineage floors is rejected")
+console.log("- deleting authority while lineage survives cannot resurrect stale Creator Memory");
+console.log("- valid pre-5G authority is adopted under lock without changing sovereign truth");
+console.log("- interrupted first birth resumes only the same birth source");
+console.log("- structurally valid rollback below lineage floors is rejected");
+console.log("- lost lineage acknowledgement is reconciled from durable bytes");
