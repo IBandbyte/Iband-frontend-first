@@ -1,0 +1,28 @@
+name: Verify Journey Recommendation Lifecycle Recovery
+
+on:
+  push:
+    paths:
+      - "src/components/studio/mentor/JourneyRecommendationLifecyclePersistence.js"
+      - "src/components/studio/mentor/JourneyRecommendationLifecycleRecovery.js"
+      - "scripts/verify-journey-recommendation-lifecycle-recovery.mjs"
+      - ".github/workflows/verify-journey-recommendation-lifecycle-recovery.yml"
+  pull_request:
+    paths:
+      - "src/components/studio/mentor/JourneyRecommendationLifecyclePersistence.js"
+      - "src/components/studio/mentor/JourneyRecommendationLifecycleRecovery.js"
+      - "scripts/verify-journey-recommendation-lifecycle-recovery.mjs"
+      - ".github/workflows/verify-journey-recommendation-lifecycle-recovery.yml"
+
+jobs:
+  lifecycle-recovery:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Use Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Torture recommendation lifecycle recovery
+        run: node scripts/verify-journey-recommendation-lifecycle-recovery.mjs
