@@ -2,7 +2,7 @@ import createRecommendationAcceptanceAuthority from "./JourneyRecommendationAcce
 import { consumeRecommendationWithoutMovement } from "./JourneyRecommendationLifecyclePersistence.js";
 import { withJourneyProgressionProjectLock } from "./JourneyProgressionProjectLock.js";
 
-const JOURNEY_RECOMMENDATION_ACCEPTANCE_EXECUTION_VERSION = "1.3.0";
+const JOURNEY_RECOMMENDATION_ACCEPTANCE_EXECUTION_VERSION = "1.4.0";
 
 function cleanString(value) {
   return typeof value === "string" ? value.trim() : "";
@@ -34,6 +34,26 @@ function createRecommendationNoOpOperationId(recommendationId) {
     fail("JOURNEY_RECOMMENDATION_ACCEPTANCE_ID_REQUIRED", "Recommendation no-op consumption requires an immutable recommendationId.");
   }
   return `journey-recommendation-noop:${id}`;
+}
+
+function createAuthorityMaterializationReference(recommendationEnvelope, projectId) {
+  const recommendationId = cleanString(recommendationEnvelope?.recommendationId);
+  const fingerprint = cleanString(recommendationEnvelope?.fingerprint);
+  const pid = cleanString(projectId);
+  if (!recommendationId || !fingerprint || !pid) {
+    fail(
+      "JOURNEY_RECOMMENDATION_ACCEPTANCE_MATERIALIZATION_INVALID",
+      "Recommendation acceptance requires canonical recommendation identity before authority materialization."
+    );
+  }
+  return Object.freeze({
+    recommendationId,
+    recommendationFingerprint: fingerprint,
+    projectId: pid,
+    issuedAgainst: cloneValue(recommendationEnvelope?.issuedAgainst || null),
+    target: cloneValue(recommendationEnvelope?.target || null),
+    lifecycle: Object.freeze({ current: true, terminalReason: null }),
+  });
 }
 
 function getDurableJourney(identityRuntime, projectId) {
@@ -163,6 +183,7 @@ function createJourneyRecommendationAcceptanceExecutionRuntime({ identityRuntime
       input: {
         recommendationId,
         recommendationFingerprint: recommendationEnvelope?.fingerprint || null,
+        acceptedRecommendationReference: createAuthorityMaterializationReference(recommendationEnvelope, pid),
       },
     });
 
@@ -179,6 +200,7 @@ function createJourneyRecommendationAcceptanceExecutionRuntime({ identityRuntime
     version: JOURNEY_RECOMMENDATION_ACCEPTANCE_EXECUTION_VERSION,
     createOperationId: createRecommendationAcceptanceOperationId,
     createNoOpOperationId: createRecommendationNoOpOperationId,
+    createAuthorityMaterializationReference,
     findCommittedReceipt: findCommittedAcceptanceReceipt,
     execute,
   });
@@ -188,6 +210,7 @@ export {
   JOURNEY_RECOMMENDATION_ACCEPTANCE_EXECUTION_VERSION,
   createRecommendationAcceptanceOperationId,
   createRecommendationNoOpOperationId,
+  createAuthorityMaterializationReference,
   findCommittedAcceptanceReceipt,
   createJourneyRecommendationAcceptanceExecutionRuntime,
 };
