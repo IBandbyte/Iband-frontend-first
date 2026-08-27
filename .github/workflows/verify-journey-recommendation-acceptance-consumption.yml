@@ -1,0 +1,32 @@
+name: Verify Journey Recommendation Acceptance Consumption
+
+on:
+  push:
+    paths:
+      - "src/components/studio/mentor/JourneyRecommendationAcceptanceAuthority.js"
+      - "src/components/studio/mentor/JourneyRecommendationAcceptanceExecutionRuntime.js"
+      - "src/components/studio/mentor/JourneyRecommendationEnvelope.js"
+      - "src/components/studio/mentor/JourneyProgressionExecutionRuntime.js"
+      - "scripts/verify-journey-recommendation-acceptance-consumption.mjs"
+      - ".github/workflows/verify-journey-recommendation-acceptance-consumption.yml"
+  pull_request:
+    paths:
+      - "src/components/studio/mentor/JourneyRecommendationAcceptanceAuthority.js"
+      - "src/components/studio/mentor/JourneyRecommendationAcceptanceExecutionRuntime.js"
+      - "src/components/studio/mentor/JourneyRecommendationEnvelope.js"
+      - "src/components/studio/mentor/JourneyProgressionExecutionRuntime.js"
+      - "scripts/verify-journey-recommendation-acceptance-consumption.mjs"
+      - ".github/workflows/verify-journey-recommendation-acceptance-consumption.yml"
+
+jobs:
+  recommendation-acceptance-consumption:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Use Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Verify acceptance consumption and lost-response recovery
+        run: node scripts/verify-journey-recommendation-acceptance-consumption.mjs
