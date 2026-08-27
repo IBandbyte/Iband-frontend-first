@@ -1,0 +1,32 @@
+name: Verify Journey Progression Project Lock
+
+on:
+  push:
+    paths:
+      - "src/components/studio/mentor/JourneyProgressionProjectLock.js"
+      - "src/components/studio/mentor/JourneyProgressionExecutionRuntime.js"
+      - "src/components/studio/mentor/JourneyPositionAuthorityControl.js"
+      - "src/components/studio/mentor/JourneyRecommendationLifecyclePersistence.js"
+      - "scripts/verify-journey-progression-project-lock.mjs"
+      - ".github/workflows/verify-journey-progression-project-lock.yml"
+  pull_request:
+    paths:
+      - "src/components/studio/mentor/JourneyProgressionProjectLock.js"
+      - "src/components/studio/mentor/JourneyProgressionExecutionRuntime.js"
+      - "src/components/studio/mentor/JourneyPositionAuthorityControl.js"
+      - "src/components/studio/mentor/JourneyRecommendationLifecyclePersistence.js"
+      - "scripts/verify-journey-progression-project-lock.mjs"
+      - ".github/workflows/verify-journey-progression-project-lock.yml"
+
+jobs:
+  project-lock:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Use Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Torture per-project progression serialization
+        run: node scripts/verify-journey-progression-project-lock.mjs
