@@ -2,10 +2,12 @@ import {
   POSITION_ACTIONS,
   validateJourneyPositionAuthority,
 } from "./JourneyPositionAuthorityControl.js";
-import { persistJourneyAndRecommendationLifecycle } from "./JourneyRecommendationLifecyclePersistence.js";
+import createJourneyDurableAuthorityStore from "./JourneyDurableAuthorityStore.js";
+import createJourneyProgressionAuthorityAdapter from "./JourneyProgressionAuthorityAdapter.js";
+import commitJourneyAuthorityTransitionUnderLock from "./JourneyAuthorityAtomicTransition.js";
 import withJourneyProgressionProjectLock from "./JourneyProgressionProjectLock.js";
 
-const JOURNEY_PROGRESSION_RUNTIME_VERSION = "1.3.0";
+const JOURNEY_PROGRESSION_RUNTIME_VERSION = "1.4.0";
 const JOURNEY_PROGRESSION_SCHEMA_VERSION = 1;
 const MAX_COMMITTED_PROGRESSION_OPERATIONS = 64;
 
@@ -140,14 +142,6 @@ function getCommittedReceipt(journey, operationId, authorityId) {
   ) || null);
 }
 
-function getDurableJourney(identityRuntime, projectId) {
-  const memory = identityRuntime?.memory;
-  const project = typeof memory?.getPersistedProject === "function"
-    ? memory.getPersistedProject(projectId)
-    : memory?.getProject?.(projectId) || null;
-  return clone(project?.metadata?.projectJourney || null);
-}
-
 function assertExactTargetExists(journeyEngine, journey, action, target = {}) {
   if (!journeyEngine) fail("JOURNEY_PROGRESSION_ENGINE_REQUIRED", "Journey progression execution requires CreatorJourneyEngine.");
   const stageId = cleanString(target.stageId);
@@ -274,26 +268,35 @@ function buildCommittedReceipt({ operationId, authorityEnvelope, validation, fro
   });
 }
 
-async function persistCandidateJourney({ identityRuntime, projectId, candidateJourney, currentRevision, receipt, input, authorityEnvelope }) {
-  const atomicProject = persistJourneyAndRecommendationLifecycle({
-    identityRuntime,
-    projectId,
-    candidateJourney,
-    expectedProgressionRevision: currentRevision,
+function persistCandidateJourney({
+  authorityStore,
+  resolvedAuthority,
+  candidateJourney,
+  receipt,
+  input,
+  authorityEnvelope,
+  serialization,
+}) {
+  return commitJourneyAuthorityTransitionUnderLock({
+    authorityStore,
+    resolvedAuthority,
+    nextJourney: candidateJourney,
+    operationId: receipt?.operationId || null,
     acceptedRecommendationId: cleanString(input?.recommendationId) || null,
     recommendationFingerprint: cleanString(input?.recommendationFingerprint) || null,
-    operationId: receipt?.operationId || null,
+    acceptedRecommendationReference: clone(input?.acceptedRecommendationReference || null),
     creatorActId: cleanString(authorityEnvelope?.creatorActId) || null,
-  });
-  if (atomicProject) return atomicProject;
-  return identityRuntime.persistJourney(projectId, candidateJourney, {
-    expectedProgressionRevision: currentRevision,
+    withoutMovement: false,
+    serialization,
   });
 }
 
 async function executeJourneyProgressionUnlocked({
   journeyEngine,
   identityRuntime,
+  authorityStore,
+  authorityAdapter,
+  serialization = null,
   projectId,
   projectJourney,
   authorityEnvelope,
@@ -303,12 +306,22 @@ async function executeJourneyProgressionUnlocked({
   const pid = cleanString(projectId);
   if (!pid) fail("JOURNEY_PROGRESSION_PROJECT_REQUIRED", "Journey progression execution requires a projectId.");
   if (!projectJourney || typeof projectJourney !== "object") fail("JOURNEY_PROGRESSION_JOURNEY_REQUIRED", "Journey progression execution requires the current project Journey.");
-  if (!identityRuntime || typeof identityRuntime.persistJourney !== "function") fail("JOURNEY_PROGRESSION_PERSISTENCE_REQUIRED", "Journey progression execution requires a Journey persistence runtime.");
+  if (!identityRuntime?.memory?.getProject) {
+    fail("JOURNEY_PROGRESSION_AUTHORITY_RUNTIME_REQUIRED", "Journey progression execution requires canonical project identity for Journey Authority.");
+  }
+  if (!authorityStore?.compareAndCommitUnderLock || !authorityAdapter?.resolveUnderLock) {
+    fail("JOURNEY_PROGRESSION_AUTHORITY_STORE_REQUIRED", "Journey progression execution requires the durable Journey Authority transaction boundary.");
+  }
 
-  // Cross-tab law: this durable read occurs after project-lock acquisition and
-  // prefers a fresh persisted storage view over this tab's cached memory state.
-  const durableJourney = getDurableJourney(identityRuntime, pid);
-  const sourceJourney = durableJourney || projectJourney;
+  // Sovereignty law: after project-lock acquisition, resolve/bootstrap Journey Authority
+  // and use only its Journey for mechanical validation and mutation. Creator Memory is
+  // now merely the legacy bootstrap/projection source and is never the commit target.
+  const resolvedAuthority = authorityAdapter.resolveUnderLock({
+    projectId: pid,
+    fallbackJourney: projectJourney,
+    serialization,
+  });
+  const sourceJourney = clone(resolvedAuthority.projectJourney);
   const normalised = normaliseJourneyForProgression(sourceJourney);
   const currentJourney = normalised.journey;
   const currentRevision = normalised.revision;
@@ -321,6 +334,8 @@ async function executeJourneyProgressionUnlocked({
     return Object.freeze({
       status: "already-committed",
       projected: false,
+      authorityCommitted: true,
+      authorityGeneration: resolvedAuthority.authorityGeneration,
       operationId: existingReceipt.operationId,
       receipt: existingReceipt,
       projectJourney: clone(sourceJourney),
@@ -329,7 +344,7 @@ async function executeJourneyProgressionUnlocked({
   }
 
   const consumedAuthorityIds = (currentJourney.progression.committedOperations || [])
-    .map((receipt) => cleanString(receipt?.authorityId))
+    .map((receiptItem) => cleanString(receiptItem?.authorityId))
     .filter(Boolean);
   const validation = validateJourneyPositionAuthority(authorityEnvelope, {
     projectId: pid,
@@ -364,21 +379,21 @@ async function executeJourneyProgressionUnlocked({
     },
   };
 
-  const persistedProject = await persistCandidateJourney({
-    identityRuntime,
-    projectId: pid,
+  const authorityCommit = persistCandidateJourney({
+    authorityStore,
+    resolvedAuthority,
     candidateJourney,
-    currentRevision,
     receipt,
     input,
     authorityEnvelope,
+    serialization,
   });
-  const persistedJourney = persistedProject?.metadata?.projectJourney || null;
-  if (!persistedJourney) fail("JOURNEY_PROGRESSION_PERSISTENCE_FAILED", "Journey progression persistence did not return the committed Journey.");
+  const persistedJourney = authorityCommit?.record?.journey || null;
+  if (!persistedJourney) fail("JOURNEY_PROGRESSION_PERSISTENCE_FAILED", "Journey Authority did not return the committed Journey.");
 
   const persistedInspection = inspectJourneyProgression(persistedJourney);
   if (persistedInspection.status !== PROGRESSION_HEALTH.HEALTHY || persistedInspection.revision !== nextRevision) {
-    fail("JOURNEY_PROGRESSION_PERSISTENCE_VERIFICATION_FAILED", "Persisted Journey progression reality did not match the committed revision.", {
+    fail("JOURNEY_PROGRESSION_PERSISTENCE_VERIFICATION_FAILED", "Journey Authority reality did not match the committed revision.", {
       expectedRevision: nextRevision,
       actualRevision: persistedInspection.revision,
       progressionStatus: persistedInspection.status,
@@ -387,7 +402,10 @@ async function executeJourneyProgressionUnlocked({
 
   return Object.freeze({
     status: "committed",
-    projected: true,
+    projected: false,
+    authorityCommitted: true,
+    authorityCommitStatus: authorityCommit?.status || null,
+    authorityGeneration: authorityCommit?.authorityGeneration ?? null,
     operationId: resolvedOperationId,
     receipt: clone(receipt),
     projectJourney: clone(persistedJourney),
@@ -399,10 +417,21 @@ async function executeJourneyProgression(input = {}) {
   const pid = cleanString(input?.projectId);
   if (!pid) fail("JOURNEY_PROGRESSION_PROJECT_REQUIRED", "Journey progression execution requires a projectId.");
 
+  const authorityStore = input.authorityStore || createJourneyDurableAuthorityStore();
+  const authorityAdapter = input.authorityAdapter || createJourneyProgressionAuthorityAdapter({
+    identityRuntime: input.identityRuntime,
+    authorityStore,
+  });
+
   return withJourneyProgressionProjectLock({
     projectId: pid,
     callback: async (lockProof) => {
-      const result = await executeJourneyProgressionUnlocked(input);
+      const result = await executeJourneyProgressionUnlocked({
+        ...input,
+        authorityStore,
+        authorityAdapter,
+        serialization: lockProof,
+      });
       return Object.freeze({
         ...result,
         serialization: Object.freeze({
@@ -415,12 +444,27 @@ async function executeJourneyProgression(input = {}) {
   });
 }
 
-function createJourneyProgressionExecutionRuntime({ journeyEngine, identityRuntime } = {}) {
+function createJourneyProgressionExecutionRuntime({
+  journeyEngine,
+  identityRuntime,
+  authorityStore = createJourneyDurableAuthorityStore(),
+  authorityAdapter = null,
+} = {}) {
+  const resolvedAdapter = authorityAdapter || createJourneyProgressionAuthorityAdapter({
+    identityRuntime,
+    authorityStore,
+  });
   return Object.freeze({
     version: JOURNEY_PROGRESSION_RUNTIME_VERSION,
     inspect: inspectJourneyProgression,
     execute(input = {}) {
-      return executeJourneyProgression({ journeyEngine, identityRuntime, ...input });
+      return executeJourneyProgression({
+        journeyEngine,
+        identityRuntime,
+        authorityStore,
+        authorityAdapter: resolvedAdapter,
+        ...input,
+      });
     },
   });
 }
