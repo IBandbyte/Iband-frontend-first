@@ -53,6 +53,27 @@ function createCreatorMemory(options = {}) {
   const memory = createCreatorMemoryCore(coreOptions);
   ensureLegacyIdentityMetadata(memory);
 
+  /**
+   * Cross-context durability read.
+   *
+   * CreatorMemoryCore intentionally keeps an in-memory working state. A second
+   * browser tab can therefore have an older working snapshot even after another
+   * tab commits to the shared storage adapter. This helper constructs a fresh
+   * read-only Core view against the same storage configuration and returns its
+   * hydrated persisted state without mutating or persisting the current runtime.
+   */
+  function readPersistedState() {
+    const freshReader = createCreatorMemoryCore(coreOptions);
+    return clone(freshReader.getState());
+  }
+
+  function getPersistedProject(projectId) {
+    const pid = typeof projectId === "string" ? projectId.trim() : "";
+    if (!pid) return null;
+    const state = readPersistedState();
+    return clone((state.projects || []).find((project) => project?.id === pid) || null);
+  }
+
   function saveProject({
     title = "",
     description = "",
@@ -113,6 +134,8 @@ function createCreatorMemory(options = {}) {
 
   return {
     ...memory,
+    readPersistedState,
+    getPersistedProject,
     saveProject,
     updateProject,
   };
