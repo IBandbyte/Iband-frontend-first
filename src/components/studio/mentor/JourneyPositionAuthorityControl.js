@@ -1,9 +1,11 @@
-const JOURNEY_POSITION_AUTHORITY_CONTRACT_VERSION = "1.0.0";
+const JOURNEY_POSITION_AUTHORITY_CONTRACT_VERSION = "1.1.0";
 
 const POSITION_ACTIONS = Object.freeze({
   SET_POSITION: "set-position",
   COMPLETE_TASK: "complete-task",
   COMPLETE_STAGE: "complete-stage",
+  REVISIT_STAGE: "revisit-stage",
+  PAUSE_JOURNEY: "pause-journey",
 });
 
 const POSITION_AUTHORITY_CLASSES = Object.freeze({
@@ -75,8 +77,11 @@ function normaliseTarget(action, target = {}) {
   const stageId = cleanString(target.stageId) || null;
   const taskId = cleanString(target.taskId) || null;
 
-  if (action === POSITION_ACTIONS.SET_POSITION && !stageId) {
-    fail("JOURNEY_POSITION_TARGET_STAGE_REQUIRED", "Setting Journey position requires an exact target stage.");
+  if (
+    [POSITION_ACTIONS.SET_POSITION, POSITION_ACTIONS.REVISIT_STAGE].includes(action) &&
+    !stageId
+  ) {
+    fail("JOURNEY_POSITION_TARGET_STAGE_REQUIRED", "This Journey progression action requires an exact target stage.");
   }
   if (action === POSITION_ACTIONS.COMPLETE_TASK && (!stageId || !taskId)) {
     fail("JOURNEY_POSITION_TARGET_TASK_REQUIRED", "Completing a Journey task requires an exact stage and task target.");
