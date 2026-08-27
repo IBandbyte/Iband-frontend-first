@@ -75,6 +75,9 @@ function createCreatorMemory(options = {}) {
   } = options || {};
   const memory = createCreatorMemoryCore(coreOptions);
   ensureLegacyIdentityMetadata(memory);
+  const getCoreProject = typeof memory.getProject === "function"
+    ? memory.getProject.bind(memory)
+    : null;
   const getCoreActiveProject = typeof memory.getActiveProject === "function"
     ? memory.getActiveProject.bind(memory)
     : null;
@@ -103,6 +106,38 @@ function createCreatorMemory(options = {}) {
     return clone((state.projects || []).find((project) => project?.id === pid) || null);
   }
 
+  function overlayAuthorityJourney(project) {
+    const safeProject = clone(project || null);
+    if (!isMovieMentorProject(safeProject)) return safeProject;
+
+    const preferred = journeyAuthorityReadFacade.readPreferred({
+      project: safeProject,
+      projectedJourney: safeProject?.metadata?.projectJourney || null,
+    });
+    if (!preferred?.projectJourney) return safeProject;
+
+    return {
+      ...safeProject,
+      metadata: {
+        ...(safeProject.metadata || {}),
+        projectJourney: clone(preferred.projectJourney),
+      },
+    };
+  }
+
+  /**
+   * Public project read compatibility projection.
+   *
+   * Some legacy UI recovery paths still call CreatorMemory.getProject(). Once
+   * Journey Authority exists, returning the stale Creator Memory Journey there
+   * would allow exception handling to resurrect an obsolete Journey after a
+   * valid authority commit. Overlay only the returned clone. getPersistedProject()
+   * intentionally remains raw for bootstrap, split-brain comparison and repair.
+   */
+  function getProject(projectId) {
+    return overlayAuthorityJourney(getCoreProject?.(projectId) || null);
+  }
+
   /**
    * Movie Mentor active-project compatibility projection.
    *
@@ -113,22 +148,7 @@ function createCreatorMemory(options = {}) {
    * the authority Journey back into Creator Memory from this read.
    */
   function getActiveProject() {
-    const project = clone(getCoreActiveProject?.() || null);
-    if (!isMovieMentorProject(project)) return project;
-
-    const preferred = journeyAuthorityReadFacade.readPreferred({
-      project,
-      projectedJourney: project?.metadata?.projectJourney || null,
-    });
-    if (!preferred?.projectJourney) return project;
-
-    return {
-      ...project,
-      metadata: {
-        ...(project.metadata || {}),
-        projectJourney: clone(preferred.projectJourney),
-      },
-    };
+    return overlayAuthorityJourney(getCoreActiveProject?.() || null);
   }
 
   /**
@@ -192,7 +212,7 @@ function createCreatorMemory(options = {}) {
       coreState.journey = { ...(coreState.journey || {}), activeProjectId: project.id };
     }
     memory.replaceState(coreState);
-    return clone(memory.getProject(project.id));
+    return clone(getProject(project.id));
   }
 
   function isRedundantAuthorityProjectionEcho(current, safeUpdates) {
@@ -211,8 +231,8 @@ function createCreatorMemory(options = {}) {
   }
 
   function updateProject(projectId, updates = {}) {
-    if (!updates || typeof updates !== "object") return memory.getProject(projectId);
-    const current = memory.getProject(projectId);
+    if (!updates || typeof updates !== "object") return getProject(projectId);
+    const current = getCoreProject?.(projectId) || null;
     if (!current) return null;
     const safeUpdates = clone(updates) || {};
     delete safeUpdates.id;
@@ -225,7 +245,7 @@ function createCreatorMemory(options = {}) {
     // could clobber unrelated newer cross-tab memory. Treat only an exact,
     // otherwise-no-change authority echo as a read-side no-op.
     if (isRedundantAuthorityProjectionEcho(current, safeUpdates)) {
-      return clone(current);
+      return overlayAuthorityJourney(current);
     }
 
     const updated = memory.updateProject(projectId, safeUpdates);
@@ -234,15 +254,16 @@ function createCreatorMemory(options = {}) {
       const state = memory.getState();
       state.projects = (state.projects || []).map((project) => project?.id === projectId ? { ...project, identity: clone(current.identity) } : project);
       memory.replaceState(state);
-      return memory.getProject(projectId);
+      return getProject(projectId);
     }
-    return updated;
+    return overlayAuthorityJourney(updated);
   }
 
   return {
     ...memory,
     readPersistedState,
     getPersistedProject,
+    getProject,
     getActiveProject,
     getProjectMemories,
     saveProject,
