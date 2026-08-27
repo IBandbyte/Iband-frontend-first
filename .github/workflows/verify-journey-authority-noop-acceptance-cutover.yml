@@ -1,0 +1,34 @@
+name: Verify Journey Authority No-Op Acceptance Cutover
+
+on:
+  push:
+    paths:
+      - "src/components/studio/mentor/JourneyRecommendationAcceptanceExecutionRuntime.js"
+      - "src/components/studio/mentor/JourneyProgressionAuthorityAdapter.js"
+      - "src/components/studio/mentor/JourneyDurableAuthorityStore.js"
+      - "src/components/studio/mentor/JourneyAuthorityAtomicTransition.js"
+      - "src/components/studio/mentor/JourneyAuthorityRecommendationLifecycle.js"
+      - "scripts/verify-journey-authority-noop-acceptance-cutover.mjs"
+      - ".github/workflows/verify-journey-authority-noop-acceptance-cutover.yml"
+  pull_request:
+    paths:
+      - "src/components/studio/mentor/JourneyRecommendationAcceptanceExecutionRuntime.js"
+      - "src/components/studio/mentor/JourneyProgressionAuthorityAdapter.js"
+      - "src/components/studio/mentor/JourneyDurableAuthorityStore.js"
+      - "src/components/studio/mentor/JourneyAuthorityAtomicTransition.js"
+      - "src/components/studio/mentor/JourneyAuthorityRecommendationLifecycle.js"
+      - "scripts/verify-journey-authority-noop-acceptance-cutover.mjs"
+      - ".github/workflows/verify-journey-authority-noop-acceptance-cutover.yml"
+
+jobs:
+  authority-noop-acceptance-cutover:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Use Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Torture no-op Journey Authority cutover
+        run: node scripts/verify-journey-authority-noop-acceptance-cutover.mjs
