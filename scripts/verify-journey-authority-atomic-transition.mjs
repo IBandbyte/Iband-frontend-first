@@ -9,10 +9,12 @@ import {
 
 function storageAdapter() {
   const map = new Map();
+  let writes = 0;
   return {
     getItem(key) { return map.has(key) ? map.get(key) : null; },
-    setItem(key, value) { map.set(key, String(value)); },
+    setItem(key, value) { writes += 1; map.set(key, String(value)); },
     removeItem(key) { map.delete(key); },
+    getWriteCount() { return writes; },
   };
 }
 
@@ -61,12 +63,9 @@ const project = {
 const storage = storageAdapter();
 const store = createJourneyDurableAuthorityStore({ storage, browserRuntime: false });
 
-// Birth authority at N=0.
 await store.bootstrap({ project, nativeJourney: journey(0) });
 let authority = store.read(project.id, { project });
 
-// Seed two current transaction-critical recommendations against N=0 through
-// authority generation CAS. Journey stays at N=0 while G becomes 1.
 const recA = createAuthorityRecommendationRecord(reference("R-A", project.id, 0, "identify-known-context"));
 const recB = createAuthorityRecommendationRecord(reference("R-B", project.id, 0, "identify-open-threads"));
 await store.compareAndCommit({
@@ -83,14 +82,13 @@ authority = store.read(project.id, { project });
 assert.equal(authority.authority.generation, 1);
 assert.equal(authority.journey.progression.revision, 0);
 
-// Acceptance with movement: one authority write must produce N+1/G+1,
-// consume exact R-A and invalidate the other old-N current recommendation.
 const movementJourney = journey(1, "idea", "identify-known-context");
 const moveResult = commitJourneyAuthorityTransitionUnderLock({
   authorityStore: store,
   resolvedAuthority: {
     project,
     projectId: project.id,
+    authorityRecord: authority,
     authorityGeneration: 1,
     progressionRevision: 0,
   },
@@ -121,7 +119,6 @@ assert.equal(afterB.lifecycle.terminalProgressionRevision, 1);
 assert.equal(authority.lastTransition.fromProgressionRevision, 0);
 assert.equal(authority.lastTransition.toProgressionRevision, 1);
 
-// Seed a new recommendation against N=1 without progressing Journey.
 const recC = createAuthorityRecommendationRecord(reference("R-C", project.id, 1, "identify-open-threads"));
 await store.compareAndCommit({
   project,
@@ -137,13 +134,12 @@ authority = store.read(project.id, { project });
 assert.equal(authority.authority.generation, 3);
 assert.equal(authority.journey.progression.revision, 1);
 
-// No-op acceptance: Journey N must stay exactly 1 while authority generation
-// advances to 4 and R-C becomes consumed in that same record replacement.
 const noOpResult = commitJourneyAuthorityTransitionUnderLock({
   authorityStore: store,
   resolvedAuthority: {
     project,
     projectId: project.id,
+    authorityRecord: authority,
     authorityGeneration: 3,
     progressionRevision: 1,
   },
@@ -166,13 +162,61 @@ assert.equal(afterC.lifecycle.consumedWithoutMovement, true);
 assert.equal(afterC.lifecycle.terminalProgressionRevision, 1);
 assert.equal(authority.lastTransition.withoutMovement, true);
 
-// Stale authority generation cannot write either Journey or lifecycle.
+// Exact no-op retry after a lost acknowledgement must reconcile to the existing
+// committed authority reality. It must not create a meaningless G+1 transition.
+const writesBeforeRetry = storage.getWriteCount();
+const retryResult = commitJourneyAuthorityTransitionUnderLock({
+  authorityStore: store,
+  resolvedAuthority: {
+    project,
+    projectId: project.id,
+    authorityRecord: authority,
+    authorityGeneration: 4,
+    progressionRevision: 1,
+  },
+  nextJourney: authority.journey,
+  operationId: "noop-R-C",
+  acceptedRecommendationId: "R-C",
+  recommendationFingerprint: "fp-R-C",
+  creatorActId: "creator-act-C",
+  withoutMovement: true,
+  serialization: { mode: "test-under-lock", lockName: "test", crossTabSerialized: true },
+});
+assert.equal(retryResult.status, "already-committed");
+assert.equal(retryResult.idempotent, true);
+assert.equal(retryResult.authorityGeneration, 4);
+assert.equal(retryResult.progressionRevision, 1);
+assert.equal(storage.getWriteCount(), writesBeforeRetry, "Exact consumed retry must perform zero authority-store writes.");
+assert.equal(store.read(project.id, { project }).authority.generation, 4);
+
+// A contradictory attempt to reuse the consumed recommendation under different
+// operation lineage must fail closed rather than being treated as an idempotent retry.
+assert.throws(() => commitJourneyAuthorityTransitionUnderLock({
+  authorityStore: store,
+  resolvedAuthority: {
+    project,
+    projectId: project.id,
+    authorityRecord: authority,
+    authorityGeneration: 4,
+    progressionRevision: 1,
+  },
+  nextJourney: authority.journey,
+  operationId: "different-noop-R-C",
+  acceptedRecommendationId: "R-C",
+  recommendationFingerprint: "fp-R-C",
+  creatorActId: "creator-act-C",
+  withoutMovement: true,
+  serialization: { mode: "test-under-lock", lockName: "test", crossTabSerialized: true },
+}), (error) => error?.code === "JOURNEY_AUTHORITY_RECOMMENDATION_CONSUMPTION_CONFLICT");
+assert.equal(store.read(project.id, { project }).authority.generation, 4);
+
 const beforeStale = JSON.stringify(authority);
 assert.throws(() => commitJourneyAuthorityTransitionUnderLock({
   authorityStore: store,
   resolvedAuthority: {
     project,
     projectId: project.id,
+    authorityRecord: authority,
     authorityGeneration: 3,
     progressionRevision: 1,
   },
@@ -185,6 +229,8 @@ assert.equal(JSON.stringify(store.read(project.id, { project })), beforeStale);
 
 console.log("Journey authority atomic transition verification passed.");
 console.log("- acceptance movement commits Journey + consumption + invalidation in one authority generation");
-console.log("- ordinary authority generation is distinct from Journey progression revision");
+console.log("- authority generation remains distinct from Journey progression revision");
 console.log("- no-op acceptance consumes recommendation while Journey revision remains unchanged");
+console.log("- exact consumed retry performs zero writes and zero generation increment");
+console.log("- contradictory consumed retry fails closed");
 console.log("- stale generation performs zero authoritative mutation");
