@@ -1,0 +1,32 @@
+name: Verify Movie Mentor Recommendation Workspace Binding
+
+on:
+  push:
+    paths:
+      - "src/components/studio/CreatorWorkspace.jsx"
+      - "src/components/studio/AiMentor.jsx"
+      - "src/components/studio/mentor/JourneyRecommendationActionSurface.js"
+      - "src/components/studio/mentor/JourneyRecommendationAcceptanceExecutionRuntime.js"
+      - "scripts/verify-movie-mentor-recommendation-workspace-binding.mjs"
+      - ".github/workflows/verify-movie-mentor-recommendation-workspace-binding.yml"
+  pull_request:
+    paths:
+      - "src/components/studio/CreatorWorkspace.jsx"
+      - "src/components/studio/AiMentor.jsx"
+      - "src/components/studio/mentor/JourneyRecommendationActionSurface.js"
+      - "src/components/studio/mentor/JourneyRecommendationAcceptanceExecutionRuntime.js"
+      - "scripts/verify-movie-mentor-recommendation-workspace-binding.mjs"
+      - ".github/workflows/verify-movie-mentor-recommendation-workspace-binding.yml"
+
+jobs:
+  recommendation-workspace-binding:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Use Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Verify Workspace recommendation acceptance binding
+        run: node scripts/verify-movie-mentor-recommendation-workspace-binding.mjs
