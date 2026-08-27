@@ -66,15 +66,18 @@ assert.equal(visible[0].metadata.recommendationReference.lifecycle.current, true
 
 await authorityStore.bootstrap({ project, nativeJourney: journey(0) });
 let authority = authorityStore.read(project.id, { project });
-const authoritativeRecommendation = createAuthorityRecommendationRecord(reference);
-authoritativeRecommendation.lifecycle = {
-  current: false,
-  terminalReason: "consumed",
-  operationId: "journey-recommendation-noop:overlay-R",
-  creatorActId: "creator-act-overlay-R",
-  terminalProgressionRevision: 0,
-  consumedWithoutMovement: true,
-};
+const currentAuthorityRecommendation = createAuthorityRecommendationRecord(reference);
+const authoritativeRecommendation = Object.freeze({
+  ...currentAuthorityRecommendation,
+  lifecycle: Object.freeze({
+    current: false,
+    terminalReason: "consumed",
+    operationId: "journey-recommendation-noop:overlay-R",
+    creatorActId: "creator-act-overlay-R",
+    terminalProgressionRevision: 0,
+    consumedWithoutMovement: true,
+  }),
+});
 await authorityStore.compareAndCommit({
   project,
   expectedGeneration: authority.authority.generation,
@@ -103,14 +106,6 @@ assert.equal(rawState.projectMemories[0].metadata.recommendationReference.lifecy
 
 // Same recommendation ID with a different fingerprint is a proof conflict, not
 // permission to expose stale Creator Memory advice as current.
-const conflictStorage = createMemoryStorageAdapter();
-const conflictMemory = createCreatorMemory({
-  storageAdapter: conflictStorage,
-  projectIdentityCrypto: { randomUUID: () => "56565656-7878-4999-8abc-101010101010" },
-  journeyAuthorityReadFacade: readFacade,
-});
-// Reuse the persisted project/memory state only through an exact cloned storage snapshot.
-// A simpler direct conflict is asserted at the facade boundary below.
 assert.throws(
   () => readFacade.overlayRecommendationReferences({
     project,
@@ -121,7 +116,6 @@ assert.throws(
   }),
   (error) => error?.code === "JOURNEY_AUTHORITY_RECOMMENDATION_IDENTITY_CONFLICT"
 );
-void conflictMemory;
 
 console.log("Journey Authority recommendation read overlay verification passed.");
 console.log("- advisory references remain unchanged before authority has lifecycle knowledge");
