@@ -3,8 +3,9 @@ import {
   validateJourneyPositionAuthority,
 } from "./JourneyPositionAuthorityControl.js";
 import { persistJourneyAndRecommendationLifecycle } from "./JourneyRecommendationLifecyclePersistence.js";
+import withJourneyProgressionProjectLock from "./JourneyProgressionProjectLock.js";
 
-const JOURNEY_PROGRESSION_RUNTIME_VERSION = "1.1.0";
+const JOURNEY_PROGRESSION_RUNTIME_VERSION = "1.2.0";
 const JOURNEY_PROGRESSION_SCHEMA_VERSION = 1;
 const MAX_COMMITTED_PROGRESSION_OPERATIONS = 64;
 
@@ -287,7 +288,7 @@ async function persistCandidateJourney({ identityRuntime, projectId, candidateJo
   });
 }
 
-async function executeJourneyProgression({
+async function executeJourneyProgressionUnlocked({
   journeyEngine,
   identityRuntime,
   projectId,
@@ -301,6 +302,8 @@ async function executeJourneyProgression({
   if (!projectJourney || typeof projectJourney !== "object") fail("JOURNEY_PROGRESSION_JOURNEY_REQUIRED", "Journey progression execution requires the current project Journey.");
   if (!identityRuntime || typeof identityRuntime.persistJourney !== "function") fail("JOURNEY_PROGRESSION_PERSISTENCE_REQUIRED", "Journey progression execution requires a Journey persistence runtime.");
 
+  // Serialization law: this durable read must happen only after the per-project
+  // progression lock has been acquired by executeJourneyProgression().
   const durableJourney = getDurableJourney(identityRuntime, pid);
   const sourceJourney = durableJourney || projectJourney;
   const normalised = normaliseJourneyForProgression(sourceJourney);
@@ -386,6 +389,26 @@ async function executeJourneyProgression({
     receipt: clone(receipt),
     projectJourney: clone(persistedJourney),
     progressionRevision: nextRevision,
+  });
+}
+
+async function executeJourneyProgression(input = {}) {
+  const pid = cleanString(input?.projectId);
+  if (!pid) fail("JOURNEY_PROGRESSION_PROJECT_REQUIRED", "Journey progression execution requires a projectId.");
+
+  return withJourneyProgressionProjectLock({
+    projectId: pid,
+    callback: async (lockProof) => {
+      const result = await executeJourneyProgressionUnlocked(input);
+      return Object.freeze({
+        ...result,
+        serialization: Object.freeze({
+          mode: lockProof.mode,
+          lockName: lockProof.lockName,
+          crossTabSerialized: lockProof.crossTabSerialized,
+        }),
+      });
+    },
   });
 }
 
