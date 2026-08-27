@@ -22,6 +22,7 @@ import {
   MOVIE_MENTOR_PROJECT_IDENTITY_SCHEMA,
   withMovieProjectIdentity,
 } from "./MovieMentorProjectIdentity.js";
+import createJourneyAuthorityReadFacade from "./JourneyAuthorityReadFacade.js";
 
 function clone(value) {
   if (value === undefined) return undefined;
@@ -48,10 +49,25 @@ function ensureLegacyIdentityMetadata(memory) {
   if (changed) memory.replaceState(state);
 }
 
+function isMovieMentorProject(project) {
+  return Boolean(
+    project?.id &&
+    project.creatorType === "video" &&
+    project.metadata?.creatorMode === "ai-movie"
+  );
+}
+
 function createCreatorMemory(options = {}) {
-  const { projectIdentityCrypto = globalThis?.crypto, ...coreOptions } = options || {};
+  const {
+    projectIdentityCrypto = globalThis?.crypto,
+    journeyAuthorityReadFacade = createJourneyAuthorityReadFacade(),
+    ...coreOptions
+  } = options || {};
   const memory = createCreatorMemoryCore(coreOptions);
   ensureLegacyIdentityMetadata(memory);
+  const getCoreActiveProject = typeof memory.getActiveProject === "function"
+    ? memory.getActiveProject.bind(memory)
+    : null;
 
   /**
    * Cross-context durability read.
@@ -72,6 +88,34 @@ function createCreatorMemory(options = {}) {
     if (!pid) return null;
     const state = readPersistedState();
     return clone((state.projects || []).find((project) => project?.id === pid) || null);
+  }
+
+  /**
+   * Movie Mentor active-project compatibility projection.
+   *
+   * CreatorWorkspace still obtains an existing AI Movie project through
+   * getActiveProject(). Once Journey Authority exists, returning the stale
+   * Creator Memory Journey here would reopen a live re-entry path around the
+   * authority-first read facade. Overlay only the returned clone; never persist
+   * the authority Journey back into Creator Memory from this read.
+   */
+  function getActiveProject() {
+    const project = clone(getCoreActiveProject?.() || null);
+    if (!isMovieMentorProject(project)) return project;
+
+    const preferred = journeyAuthorityReadFacade.readPreferred({
+      project,
+      projectedJourney: project?.metadata?.projectJourney || null,
+    });
+    if (!preferred?.projectJourney) return project;
+
+    return {
+      ...project,
+      metadata: {
+        ...(project.metadata || {}),
+        projectJourney: clone(preferred.projectJourney),
+      },
+    };
   }
 
   function saveProject({
@@ -136,6 +180,7 @@ function createCreatorMemory(options = {}) {
     ...memory,
     readPersistedState,
     getPersistedProject,
+    getActiveProject,
     saveProject,
     updateProject,
   };
