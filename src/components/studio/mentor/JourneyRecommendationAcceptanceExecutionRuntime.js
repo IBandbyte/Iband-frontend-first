@@ -1,6 +1,7 @@
 import createRecommendationAcceptanceAuthority from "./JourneyRecommendationAcceptanceAuthority.js";
+import { consumeRecommendationWithoutMovement } from "./JourneyRecommendationLifecyclePersistence.js";
 
-const JOURNEY_RECOMMENDATION_ACCEPTANCE_EXECUTION_VERSION = "1.0.0";
+const JOURNEY_RECOMMENDATION_ACCEPTANCE_EXECUTION_VERSION = "1.1.0";
 
 function cleanString(value) {
   return typeof value === "string" ? value.trim() : "";
@@ -27,6 +28,17 @@ function createRecommendationAcceptanceOperationId(recommendationId) {
     );
   }
   return `journey-recommendation-acceptance:${id}`;
+}
+
+function createRecommendationNoOpOperationId(recommendationId) {
+  const id = cleanString(recommendationId);
+  if (!id) {
+    fail(
+      "JOURNEY_RECOMMENDATION_ACCEPTANCE_ID_REQUIRED",
+      "Recommendation no-op consumption requires an immutable recommendationId."
+    );
+  }
+  return `journey-recommendation-noop:${id}`;
 }
 
 function getDurableJourney(identityRuntime, projectId) {
@@ -88,10 +100,6 @@ function createJourneyRecommendationAcceptanceExecutionRuntime({
       );
     }
 
-    // Lost-response/idempotency law:
-    // the same immutable recommendation always maps to the same operationId.
-    // If that operation already committed, return durable reality before minting
-    // any new creator authority or re-running freshness checks.
     const existingReceipt = findCommittedAcceptanceReceipt(durableJourney, operationId);
     if (existingReceipt) {
       return Object.freeze({
@@ -119,13 +127,18 @@ function createJourneyRecommendationAcceptanceExecutionRuntime({
     });
 
     if (acceptance.status === "accepted-no-movement-required") {
+      const noOpResult = consumeRecommendationWithoutMovement({
+        identityRuntime,
+        projectId: pid,
+        recommendationId,
+        recommendationFingerprint: recommendationEnvelope?.fingerprint || null,
+        expectedProgressionRevision: durableJourney?.progression?.revision ?? 0,
+        operationId: createRecommendationNoOpOperationId(recommendationId),
+        creatorActId,
+      });
       return Object.freeze({
-        ...acceptance,
-        operationId: null,
-        receipt: null,
-        projectJourney: cloneValue(durableJourney),
-        progressionRevision: durableJourney?.progression?.revision ?? 0,
-        newCreatorAuthorityIssued: false,
+        ...cloneValue(noOpResult),
+        recommendationPromotedToAuthority: false,
       });
     }
 
@@ -152,6 +165,7 @@ function createJourneyRecommendationAcceptanceExecutionRuntime({
   return Object.freeze({
     version: JOURNEY_RECOMMENDATION_ACCEPTANCE_EXECUTION_VERSION,
     createOperationId: createRecommendationAcceptanceOperationId,
+    createNoOpOperationId: createRecommendationNoOpOperationId,
     findCommittedReceipt: findCommittedAcceptanceReceipt,
     execute,
   });
@@ -160,6 +174,7 @@ function createJourneyRecommendationAcceptanceExecutionRuntime({
 export {
   JOURNEY_RECOMMENDATION_ACCEPTANCE_EXECUTION_VERSION,
   createRecommendationAcceptanceOperationId,
+  createRecommendationNoOpOperationId,
   findCommittedAcceptanceReceipt,
   createJourneyRecommendationAcceptanceExecutionRuntime,
 };
