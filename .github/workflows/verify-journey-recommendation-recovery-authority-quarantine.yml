@@ -4,11 +4,13 @@ on:
   push:
     paths:
       - "src/components/studio/mentor/JourneyRecommendationLifecycleRecovery.js"
+      - "src/components/studio/mentor/JourneyRecommendationRecoveryConflictQuarantine.js"
       - "scripts/verify-journey-recommendation-recovery-authority-quarantine.mjs"
       - ".github/workflows/verify-journey-recommendation-recovery-authority-quarantine.yml"
   pull_request:
     paths:
       - "src/components/studio/mentor/JourneyRecommendationLifecycleRecovery.js"
+      - "src/components/studio/mentor/JourneyRecommendationRecoveryConflictQuarantine.js"
       - "scripts/verify-journey-recommendation-recovery-authority-quarantine.mjs"
       - ".github/workflows/verify-journey-recommendation-recovery-authority-quarantine.yml"
 
