@@ -182,21 +182,21 @@ const legacyIdentityResult = await tabA.bootstrap({
 assert.equal(legacyIdentityResult.record.project.identityIssuance, "legacy-preserved");
 assert.equal(legacyIdentityResult.record.project.legacy, true);
 
-// Lost ACK on bootstrap: storage commits then throws; authority reread proves success.
+// Lost ACK on authority bootstrap write: lineage writes succeed; authority storage commits then throws; authority reread proves success.
 const ackStorageBase = createSharedStorage();
-let throwAfterWrite = true;
+const ackProject = project("movie-project-ack-loss");
+let throwAfterAuthorityWrite = true;
 const ackStorage = {
   getItem: ackStorageBase.getItem,
   removeItem: ackStorageBase.removeItem,
   setItem(key, value) {
     ackStorageBase.setItem(key, value);
-    if (throwAfterWrite) {
-      throwAfterWrite = false;
-      throw new Error("simulated acknowledgement loss");
+    if (throwAfterAuthorityWrite && key === authorityStorageKey(ackProject.id)) {
+      throwAfterAuthorityWrite = false;
+      throw new Error("simulated authority acknowledgement loss");
     }
   },
 };
-const ackProject = project("movie-project-ack-loss");
 const ackStore = createJourneyDurableAuthorityStore({ storage: ackStorage, locksApi, browserRuntime: true });
 const ackResult = await ackStore.bootstrap({ project: ackProject, legacyJourney: journey(ackProject.id, 3, "story") });
 assert.equal(ackResult.status, "bootstrapped-after-ack-loss");
