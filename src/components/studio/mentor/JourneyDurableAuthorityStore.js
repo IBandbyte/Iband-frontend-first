@@ -1,6 +1,6 @@
 import { withJourneyProgressionProjectLock } from "./JourneyProgressionProjectLock.js";
 
-const JOURNEY_DURABLE_AUTHORITY_STORE_VERSION = "1.0.0";
+const JOURNEY_DURABLE_AUTHORITY_STORE_VERSION = "1.1.0";
 const JOURNEY_AUTHORITY_DOMAIN = "iband.movie-mentor.journey-authority";
 const JOURNEY_AUTHORITY_SCHEMA = 1;
 const JOURNEY_AUTHORITY_STORAGE_PREFIX = "iband:movie-mentor:journey-authority";
@@ -63,9 +63,7 @@ function authorityStorageKey(projectId) {
 }
 
 function createDefaultStorage() {
-  if (typeof globalThis?.localStorage !== "undefined" && globalThis.localStorage) {
-    return globalThis.localStorage;
-  }
+  if (typeof globalThis?.localStorage !== "undefined" && globalThis.localStorage) return globalThis.localStorage;
   const values = new Map();
   return {
     getItem(key) { return values.has(key) ? values.get(key) : null; },
@@ -119,11 +117,7 @@ function buildAuthorityRecord({ project, projectJourney, bootstrapSource, genera
     domain: JOURNEY_AUTHORITY_DOMAIN,
     schema: JOURNEY_AUTHORITY_SCHEMA,
     project: cloneValue(identity),
-    authority: {
-      generation: safeInteger(generation) ?? 0,
-      createdAt: timestamp,
-      updatedAt: timestamp,
-    },
+    authority: { generation: safeInteger(generation) ?? 0, createdAt: timestamp, updatedAt: timestamp },
     bootstrap: {
       status: source === "legacy-creator-memory" ? "bootstrapped-from-legacy" : "created-native",
       source,
@@ -133,10 +127,7 @@ function buildAuthorityRecord({ project, projectJourney, bootstrapSource, genera
     journey: journey.journey,
     journeyFingerprint: journey.fingerprint,
     recommendations: Array.isArray(recommendations) ? cloneValue(recommendations) : [],
-    projection: projection ? cloneValue(projection) : {
-      lastProjectedAuthorityGeneration: null,
-      projectedAt: null,
-    },
+    projection: projection ? cloneValue(projection) : { lastProjectedAuthorityGeneration: null, projectedAt: null },
   };
 }
 
@@ -158,18 +149,14 @@ function inspectAuthorityRecord(record, { project = null } = {}) {
   if (!cleanString(recordIdentity.projectId)) return Object.freeze({ valid: false, status: "malformed", reason: "project-identity-missing" });
   if (project) {
     let expectedIdentity;
-    try { expectedIdentity = normaliseProjectIdentity(project); } catch { return Object.freeze({ valid: false, status: "identity-conflict", reason: "expected-project-invalid" }); }
+    try { expectedIdentity = normaliseProjectIdentity(project); } catch {
+      return Object.freeze({ valid: false, status: "identity-conflict", reason: "expected-project-invalid" });
+    }
     if (!sameProjectIdentity(recordIdentity, expectedIdentity)) {
       return Object.freeze({ valid: false, status: "identity-conflict", reason: "project-identity-conflict", expectedIdentity, recordIdentity: cloneValue(recordIdentity) });
     }
   }
-  return Object.freeze({
-    valid: true,
-    status: "healthy",
-    generation,
-    progressionRevision: journey.progressionRevision,
-    journeyFingerprint: journey.fingerprint,
-  });
+  return Object.freeze({ valid: true, status: "healthy", generation, progressionRevision: journey.progressionRevision, journeyFingerprint: journey.fingerprint });
 }
 
 function parseAuthority(raw, project) {
@@ -189,28 +176,24 @@ function parseAuthority(raw, project) {
   return { record: cloneValue(record), inspection };
 }
 
-function createJourneyDurableAuthorityStore({ storage = createDefaultStorage(), locksApi = globalThis?.navigator?.locks || null, browserRuntime = typeof window !== "undefined" && typeof document !== "undefined" } = {}) {
+function createJourneyDurableAuthorityStore({
+  storage = createDefaultStorage(),
+  locksApi = globalThis?.navigator?.locks || null,
+  browserRuntime = typeof window !== "undefined" && typeof document !== "undefined",
+} = {}) {
   if (!storage || typeof storage.getItem !== "function" || typeof storage.setItem !== "function") {
     fail("JOURNEY_AUTHORITY_STORAGE_REQUIRED", "Journey authority store requires getItem/setItem storage.");
   }
 
   function read(projectId, { project = null } = {}) {
-    const key = authorityStorageKey(projectId);
-    const parsed = parseAuthority(storage.getItem(key), project);
+    const parsed = parseAuthority(storage.getItem(authorityStorageKey(projectId)), project);
     return parsed ? cloneValue(parsed.record) : null;
   }
 
   function writeCandidate(key, candidate, { project } = {}) {
     const serialized = JSON.stringify(candidate);
     let writeError = null;
-    try {
-      storage.setItem(key, serialized);
-    } catch (error) {
-      writeError = error;
-    }
-
-    // ACK-loss law: storage may have committed even if setItem's caller observed an
-    // error. Re-read durable reality before deciding whether the operation failed.
+    try { storage.setItem(key, serialized); } catch (error) { writeError = error; }
     const reread = parseAuthority(storage.getItem(key), project);
     if (reread && stableStringify(reread.record) === stableStringify(candidate)) {
       return Object.freeze({ committed: true, acknowledgementLost: Boolean(writeError), record: cloneValue(reread.record) });
@@ -219,110 +202,109 @@ function createJourneyDurableAuthorityStore({ storage = createDefaultStorage(), 
     fail("JOURNEY_AUTHORITY_PERSISTENCE_VERIFICATION_FAILED", "Journey authority write could not be verified.");
   }
 
-  async function bootstrap({ project, legacyJourney = null, nativeJourney = null } = {}) {
+  function bootstrapUnderLock({ project, legacyJourney = null, nativeJourney = null, serialization = null } = {}) {
     const identity = normaliseProjectIdentity(project);
     const source = nativeJourney ? "native" : "legacy-creator-memory";
     const sourceJourney = nativeJourney || legacyJourney;
     validateJourney(sourceJourney, "JOURNEY_AUTHORITY_BOOTSTRAP_SOURCE_INVALID");
-
-    return withJourneyProgressionProjectLock({
-      projectId: identity.projectId,
-      locksApi,
-      browserRuntime,
-      callback: async (lockProof) => {
-        const key = authorityStorageKey(identity.projectId);
-        const existing = parseAuthority(storage.getItem(key), project);
-        if (existing) {
-          return Object.freeze({
-            status: "already-bootstrapped",
-            record: cloneValue(existing.record),
-            authorityGeneration: existing.inspection.generation,
-            progressionRevision: existing.inspection.progressionRevision,
-            serialization: cloneValue(lockProof),
-          });
-        }
-
-        const candidate = buildAuthorityRecord({
-          project,
-          projectJourney: sourceJourney,
-          bootstrapSource: source,
-          generation: 0,
-        });
-        const persisted = writeCandidate(key, candidate, { project });
-        return Object.freeze({
-          status: persisted.acknowledgementLost ? "bootstrapped-after-ack-loss" : "bootstrapped",
-          record: cloneValue(persisted.record),
-          authorityGeneration: 0,
-          progressionRevision: effectiveProgressionRevision(persisted.record.journey),
-          serialization: cloneValue(lockProof),
-        });
-      },
+    const key = authorityStorageKey(identity.projectId);
+    const existing = parseAuthority(storage.getItem(key), project);
+    if (existing) {
+      return Object.freeze({
+        status: "already-bootstrapped",
+        record: cloneValue(existing.record),
+        authorityGeneration: existing.inspection.generation,
+        progressionRevision: existing.inspection.progressionRevision,
+        serialization: cloneValue(serialization),
+      });
+    }
+    const candidate = buildAuthorityRecord({ project, projectJourney: sourceJourney, bootstrapSource: source, generation: 0 });
+    const persisted = writeCandidate(key, candidate, { project });
+    return Object.freeze({
+      status: persisted.acknowledgementLost ? "bootstrapped-after-ack-loss" : "bootstrapped",
+      record: cloneValue(persisted.record),
+      authorityGeneration: 0,
+      progressionRevision: effectiveProgressionRevision(persisted.record.journey),
+      serialization: cloneValue(serialization),
     });
   }
 
-  async function compareAndCommit({ project, expectedGeneration, expectedProgressionRevision = null, nextJourney, mutateRecord = null } = {}) {
+  function compareAndCommitUnderLock({
+    project,
+    expectedGeneration,
+    expectedProgressionRevision = null,
+    nextJourney,
+    mutateRecord = null,
+    serialization = null,
+  } = {}) {
     const identity = normaliseProjectIdentity(project);
     const expectedGen = safeInteger(expectedGeneration);
     if (expectedGen === null) fail("JOURNEY_AUTHORITY_EXPECTED_GENERATION_INVALID", "Journey authority commit requires exact expected generation.");
     const nextJourneyInspection = validateJourney(nextJourney);
+    const key = authorityStorageKey(identity.projectId);
+    const current = parseAuthority(storage.getItem(key), project);
+    if (!current) fail("JOURNEY_AUTHORITY_NOT_INITIALISED", "Journey authority must be bootstrapped before commit.");
+    if (current.inspection.generation !== expectedGen) {
+      fail("JOURNEY_AUTHORITY_GENERATION_STALE", "Journey authority generation changed before commit.", {
+        expectedGeneration: expectedGen,
+        currentGeneration: current.inspection.generation,
+      });
+    }
+    if (expectedProgressionRevision !== null && expectedProgressionRevision !== undefined) {
+      const expectedRevision = safeInteger(expectedProgressionRevision);
+      if (expectedRevision === null) fail("JOURNEY_AUTHORITY_EXPECTED_REVISION_INVALID", "Journey authority commit requires valid expected Journey revision.");
+      if (current.inspection.progressionRevision !== expectedRevision) {
+        fail("JOURNEY_AUTHORITY_PROGRESSION_STALE", "Journey authority progression revision changed before commit.", {
+          expectedProgressionRevision: expectedRevision,
+          currentProgressionRevision: current.inspection.progressionRevision,
+        });
+      }
+    }
 
+    let candidate = cloneValue(current.record);
+    candidate.journey = cloneValue(nextJourneyInspection.journey);
+    candidate.journeyFingerprint = nextJourneyInspection.fingerprint;
+    candidate.authority = { ...candidate.authority, generation: expectedGen + 1, updatedAt: new Date().toISOString() };
+    if (typeof mutateRecord === "function") {
+      const mutated = mutateRecord(cloneValue(candidate));
+      if (!mutated || typeof mutated !== "object") fail("JOURNEY_AUTHORITY_MUTATION_INVALID", "Authority record mutation must return a record.");
+      candidate = cloneValue(mutated);
+    }
+
+    if (!sameProjectIdentity(candidate.project, current.record.project)) fail("JOURNEY_AUTHORITY_IDENTITY_CONFLICT", "Authority mutation attempted to alter project identity.");
+    if (candidate.authority?.generation !== expectedGen + 1) fail("JOURNEY_AUTHORITY_GENERATION_VIOLATION", "Authority mutation attempted to alter committed generation.");
+    if (stableStringify(candidate.journey) !== stableStringify(nextJourneyInspection.journey) || candidate.journeyFingerprint !== nextJourneyInspection.fingerprint) {
+      fail("JOURNEY_AUTHORITY_JOURNEY_MUTATION_VIOLATION", "Authority metadata mutation attempted to alter committed Journey reality.");
+    }
+
+    const persisted = writeCandidate(key, candidate, { project });
+    const inspection = inspectAuthorityRecord(persisted.record, { project });
+    return Object.freeze({
+      status: persisted.acknowledgementLost ? "committed-after-ack-loss" : "committed",
+      record: cloneValue(persisted.record),
+      authorityGeneration: inspection.generation,
+      progressionRevision: inspection.progressionRevision,
+      serialization: cloneValue(serialization),
+    });
+  }
+
+  async function bootstrap(args = {}) {
+    const identity = normaliseProjectIdentity(args.project);
     return withJourneyProgressionProjectLock({
       projectId: identity.projectId,
       locksApi,
       browserRuntime,
-      callback: async (lockProof) => {
-        const key = authorityStorageKey(identity.projectId);
-        const current = parseAuthority(storage.getItem(key), project);
-        if (!current) fail("JOURNEY_AUTHORITY_NOT_INITIALISED", "Journey authority must be bootstrapped before commit.");
-        if (current.inspection.generation !== expectedGen) {
-          fail("JOURNEY_AUTHORITY_GENERATION_STALE", "Journey authority generation changed before commit.", {
-            expectedGeneration: expectedGen,
-            currentGeneration: current.inspection.generation,
-          });
-        }
-        if (expectedProgressionRevision !== null && expectedProgressionRevision !== undefined) {
-          const expectedRevision = safeInteger(expectedProgressionRevision);
-          if (expectedRevision === null) fail("JOURNEY_AUTHORITY_EXPECTED_REVISION_INVALID", "Journey authority commit requires valid expected Journey revision.");
-          if (current.inspection.progressionRevision !== expectedRevision) {
-            fail("JOURNEY_AUTHORITY_PROGRESSION_STALE", "Journey authority progression revision changed before commit.", {
-              expectedProgressionRevision: expectedRevision,
-              currentProgressionRevision: current.inspection.progressionRevision,
-            });
-          }
-        }
+      callback: async (lockProof) => bootstrapUnderLock({ ...args, serialization: lockProof }),
+    });
+  }
 
-        let candidate = cloneValue(current.record);
-        candidate.journey = cloneValue(nextJourneyInspection.journey);
-        candidate.journeyFingerprint = nextJourneyInspection.fingerprint;
-        candidate.authority = {
-          ...candidate.authority,
-          generation: expectedGen + 1,
-          updatedAt: new Date().toISOString(),
-        };
-        if (typeof mutateRecord === "function") {
-          const mutated = mutateRecord(cloneValue(candidate));
-          if (!mutated || typeof mutated !== "object") fail("JOURNEY_AUTHORITY_MUTATION_INVALID", "Authority record mutation must return a record.");
-          candidate = cloneValue(mutated);
-        }
-
-        // The callback may alter transaction metadata but never project identity,
-        // generation, Journey content or its integrity fingerprint.
-        if (!sameProjectIdentity(candidate.project, current.record.project)) fail("JOURNEY_AUTHORITY_IDENTITY_CONFLICT", "Authority mutation attempted to alter project identity.");
-        if (candidate.authority?.generation !== expectedGen + 1) fail("JOURNEY_AUTHORITY_GENERATION_VIOLATION", "Authority mutation attempted to alter committed generation.");
-        if (stableStringify(candidate.journey) !== stableStringify(nextJourneyInspection.journey) || candidate.journeyFingerprint !== nextJourneyInspection.fingerprint) {
-          fail("JOURNEY_AUTHORITY_JOURNEY_MUTATION_VIOLATION", "Authority metadata mutation attempted to alter committed Journey reality.");
-        }
-
-        const persisted = writeCandidate(key, candidate, { project });
-        const inspection = inspectAuthorityRecord(persisted.record, { project });
-        return Object.freeze({
-          status: persisted.acknowledgementLost ? "committed-after-ack-loss" : "committed",
-          record: cloneValue(persisted.record),
-          authorityGeneration: inspection.generation,
-          progressionRevision: inspection.progressionRevision,
-          serialization: cloneValue(lockProof),
-        });
-      },
+  async function compareAndCommit(args = {}) {
+    const identity = normaliseProjectIdentity(args.project);
+    return withJourneyProgressionProjectLock({
+      projectId: identity.projectId,
+      locksApi,
+      browserRuntime,
+      callback: async (lockProof) => compareAndCommitUnderLock({ ...args, serialization: lockProof }),
     });
   }
 
@@ -356,7 +338,9 @@ function createJourneyDurableAuthorityStore({ storage = createDefaultStorage(), 
     inspect: inspectAuthorityRecord,
     read,
     bootstrap,
+    bootstrapUnderLock,
     compareAndCommit,
+    compareAndCommitUnderLock,
     compareProjection,
   });
 }
