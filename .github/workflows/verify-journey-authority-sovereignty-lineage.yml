@@ -1,0 +1,22 @@
+name: Verify Journey Authority Sovereignty Lineage
+
+on:
+  push:
+    paths:
+      - "src/components/studio/mentor/JourneyAuthoritySovereigntyLineage.js"
+      - "scripts/verify-journey-authority-sovereignty-lineage.mjs"
+      - ".github/workflows/verify-journey-authority-sovereignty-lineage.yml"
+  workflow_dispatch:
+
+jobs:
+  sovereignty-lineage:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Use Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Torture Journey Authority sovereignty lineage
+        run: node scripts/verify-journey-authority-sovereignty-lineage.mjs
