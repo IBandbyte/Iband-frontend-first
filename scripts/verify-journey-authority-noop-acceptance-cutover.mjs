@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import createJourneyDurableAuthorityStore from "../src/components/studio/mentor/JourneyDurableAuthorityStore.js";
-import createJourneyProgressionExecutionRuntime from "../src/components/studio/mentor/JourneyProgressionExecutionRuntime.js";
+import createJourneyRecommendationEnvelope from "../src/components/studio/mentor/JourneyRecommendationEnvelope.js";
 import createJourneyRecommendationAcceptanceExecutionRuntime from "../src/components/studio/mentor/JourneyRecommendationAcceptanceExecutionRuntime.js";
 
 function clone(value) { return JSON.parse(JSON.stringify(value)); }
@@ -52,7 +52,10 @@ const memory = memoryHarness(currentJourney);
 const identityRuntime = {
   memory,
   getPreferredJourney() {
-    return { status: "legacy-unbootstrapped", projectJourney: clone(currentJourney), progressionRevision: 0 };
+    const record = authorityStore.read(projectId, { project: memory.getProject(projectId) });
+    return record
+      ? { status: "authority", projectJourney: clone(record.journey), progressionRevision: record.journey.progression.revision }
+      : { status: "legacy-unbootstrapped", projectJourney: clone(currentJourney), progressionRevision: 0 };
   },
 };
 const storage = storageAdapter();
@@ -63,24 +66,26 @@ const runtime = createJourneyRecommendationAcceptanceExecutionRuntime({
   authorityStore,
 });
 
-const recommendationEnvelope = Object.freeze({
-  recommendationId: "journey-recommendation:noop-authority-cutover",
-  fingerprint: "fingerprint-noop-authority-cutover",
+const planningEvidence = {
+  contractVersion: "1.1.0",
+  currentStageId: "idea",
+  currentTaskId: "seed",
+  creatorAuthorityRevision: 7,
+  recommendation: {
+    recommendedStageId: "idea",
+    recommendedTaskId: "seed",
+  },
+  clarification: { required: false, reasons: [] },
+  provenance: { turnRevision: 11, bridgeVersion: "1.5.0" },
+};
+const recommendationEnvelope = createJourneyRecommendationEnvelope({
   projectId,
-  issuedAgainst: Object.freeze({
-    progressionRevision: 0,
-    currentStageId: "idea",
-    currentTaskId: "seed",
-    creatorAuthorityRevision: 7,
-    turnRevision: 11,
-  }),
-  target: Object.freeze({ stageId: "idea", taskId: "seed" }),
-  planning: Object.freeze({ contractVersion: "test", bridgeVersion: "test" }),
+  projectJourney: currentJourney,
+  planningEvidence,
+  issuedAt: "2026-08-27T18:29:00.000Z",
 });
+assert.ok(recommendationEnvelope, "Canonical recommendation envelope must be created for no-op torture.");
 
-// This harness deliberately stubs the acceptance authority result by choosing a target
-// that is already the current exact position; the real authority validator determines
-// that no movement is required before the lifecycle transaction runs.
 const first = await runtime.execute({
   recommendationEnvelope,
   projectId,
@@ -106,7 +111,7 @@ assert.equal(record.recommendations[0].lifecycle.current, false);
 assert.equal(record.recommendations[0].lifecycle.terminalReason, "consumed");
 assert.equal(record.recommendations[0].lifecycle.consumedWithoutMovement, true);
 
-// Lost-response retry must not create authority generation G+2.
+// Lost-response retry must reconcile from authority before freshness can mint anything new.
 const retry = await runtime.execute({
   recommendationEnvelope,
   projectId,
