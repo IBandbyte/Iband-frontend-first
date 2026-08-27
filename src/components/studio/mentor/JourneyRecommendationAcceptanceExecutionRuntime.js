@@ -2,7 +2,7 @@ import createRecommendationAcceptanceAuthority from "./JourneyRecommendationAcce
 import { consumeRecommendationWithoutMovement } from "./JourneyRecommendationLifecyclePersistence.js";
 import { withJourneyProgressionProjectLock } from "./JourneyProgressionProjectLock.js";
 
-const JOURNEY_RECOMMENDATION_ACCEPTANCE_EXECUTION_VERSION = "1.2.0";
+const JOURNEY_RECOMMENDATION_ACCEPTANCE_EXECUTION_VERSION = "1.3.0";
 
 function cleanString(value) {
   return typeof value === "string" ? value.trim() : "";
@@ -37,6 +37,10 @@ function createRecommendationNoOpOperationId(recommendationId) {
 }
 
 function getDurableJourney(identityRuntime, projectId) {
+  if (typeof identityRuntime?.getPreferredJourney === "function") {
+    const preferred = identityRuntime.getPreferredJourney(projectId);
+    if (preferred?.projectJourney) return cloneValue(preferred.projectJourney);
+  }
   const memory = identityRuntime?.memory;
   const project = typeof memory?.getPersistedProject === "function"
     ? memory.getPersistedProject(projectId)
@@ -68,8 +72,9 @@ function createJourneyRecommendationAcceptanceExecutionRuntime({ identityRuntime
     return withJourneyProgressionProjectLock({
       projectId: pid,
       callback: async (lockProof) => {
-        // Fresh durable reality is read only after the same per-project cross-tab
-        // serialization boundary used by Journey movement has been acquired.
+        // Fresh preferred Journey reality is read only after the same per-project
+        // cross-tab serialization boundary used by Journey movement is acquired.
+        // Once authority exists, Creator Memory projection cannot replace it here.
         const lockedJourney = getDurableJourney(identityRuntime, pid);
         if (!lockedJourney) {
           fail("JOURNEY_RECOMMENDATION_ACCEPTANCE_DURABLE_JOURNEY_REQUIRED", "Recommendation no-op acceptance could not load durable Journey reality inside the project lock.");
