@@ -1,4 +1,4 @@
-const JOURNEY_POSITION_AUTHORITY_CONTRACT_VERSION = "1.1.0";
+const JOURNEY_POSITION_AUTHORITY_CONTRACT_VERSION = "1.2.0";
 
 const POSITION_ACTIONS = Object.freeze({
   SET_POSITION: "set-position",
@@ -22,6 +22,8 @@ const POSITION_AUTHORITY_SOURCES = Object.freeze({
   CREATOR_EXPLICIT_INTENT: "creator-explicit-intent",
   INITIAL_IDEA_PROGRESSION: "initial-idea-progression",
   STAGE_CLICK_UI: "stage-click-ui",
+  TASK_COMPLETION_UI: "task-completion-ui",
+  STAGE_COMPLETION_UI: "stage-completion-ui",
   TASK_COMPLETION_CALL: "task-completion-call",
   STAGE_COMPLETION_CALL: "stage-completion-call",
 });
@@ -33,6 +35,8 @@ const SOURCE_CLASSIFICATION = Object.freeze({
   [POSITION_AUTHORITY_SOURCES.CREATOR_EXPLICIT_INTENT]: POSITION_AUTHORITY_CLASSES.CREATOR_AUTHORISED,
   [POSITION_AUTHORITY_SOURCES.INITIAL_IDEA_PROGRESSION]: POSITION_AUTHORITY_CLASSES.MECHANICAL,
   [POSITION_AUTHORITY_SOURCES.STAGE_CLICK_UI]: POSITION_AUTHORITY_CLASSES.CREATOR_AUTHORISED,
+  [POSITION_AUTHORITY_SOURCES.TASK_COMPLETION_UI]: POSITION_AUTHORITY_CLASSES.CREATOR_AUTHORISED,
+  [POSITION_AUTHORITY_SOURCES.STAGE_COMPLETION_UI]: POSITION_AUTHORITY_CLASSES.CREATOR_AUTHORISED,
   [POSITION_AUTHORITY_SOURCES.TASK_COMPLETION_CALL]: POSITION_AUTHORITY_CLASSES.MECHANICAL,
   [POSITION_AUTHORITY_SOURCES.STAGE_COMPLETION_CALL]: POSITION_AUTHORITY_CLASSES.MECHANICAL,
 });
@@ -93,6 +97,12 @@ function normaliseTarget(action, target = {}) {
   return { stageId, taskId };
 }
 
+function assertCreatorGesture(evidence, code, message) {
+  if (evidence.creatorGesture !== true || cleanString(evidence.creatorActId) === "") {
+    fail(code, message);
+  }
+}
+
 function assertIssuancePolicy({ source, authorityClass, action, evidence = {} }) {
   if (authorityClass === POSITION_AUTHORITY_CLASSES.ADVISORY) {
     fail("JOURNEY_POSITION_ADVISORY_CANNOT_AUTHORISE", "Advisory Journey evidence cannot issue position authority.", { source });
@@ -108,9 +118,36 @@ function assertIssuancePolicy({ source, authorityClass, action, evidence = {} })
   }
 
   if (source === POSITION_AUTHORITY_SOURCES.STAGE_CLICK_UI) {
-    if (action !== POSITION_ACTIONS.SET_POSITION || evidence.creatorGesture !== true || cleanString(evidence.creatorActId) === "") {
-      fail("JOURNEY_POSITION_STAGE_CLICK_INVALID", "Stage-click authority requires an explicit creator gesture bound to set-position.");
+    if (action !== POSITION_ACTIONS.SET_POSITION) {
+      fail("JOURNEY_POSITION_STAGE_CLICK_INVALID", "Stage-click authority is bound only to set-position.");
     }
+    assertCreatorGesture(
+      evidence,
+      "JOURNEY_POSITION_STAGE_CLICK_INVALID",
+      "Stage-click authority requires an explicit creator gesture bound to set-position."
+    );
+  }
+
+  if (source === POSITION_AUTHORITY_SOURCES.TASK_COMPLETION_UI) {
+    if (action !== POSITION_ACTIONS.COMPLETE_TASK) {
+      fail("JOURNEY_POSITION_TASK_COMPLETION_UI_INVALID", "Task-completion UI authority is bound only to complete-task.");
+    }
+    assertCreatorGesture(
+      evidence,
+      "JOURNEY_POSITION_TASK_COMPLETION_UI_INVALID",
+      "Task-completion UI authority requires an explicit creator gesture bound to complete-task."
+    );
+  }
+
+  if (source === POSITION_AUTHORITY_SOURCES.STAGE_COMPLETION_UI) {
+    if (action !== POSITION_ACTIONS.COMPLETE_STAGE) {
+      fail("JOURNEY_POSITION_STAGE_COMPLETION_UI_INVALID", "Stage-completion UI authority is bound only to complete-stage.");
+    }
+    assertCreatorGesture(
+      evidence,
+      "JOURNEY_POSITION_STAGE_COMPLETION_UI_INVALID",
+      "Stage-completion UI authority requires an explicit creator gesture bound to complete-stage."
+    );
   }
 
   if (source === POSITION_AUTHORITY_SOURCES.INITIAL_IDEA_PROGRESSION) {
