@@ -1,0 +1,32 @@
+name: Verify Movie Mentor Creator Completion Controls
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "src/**"
+      - "scripts/verify-movie-mentor-creator-completion-controls.mjs"
+      - ".github/workflows/verify-movie-mentor-creator-completion-controls.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "src/**"
+      - "scripts/verify-movie-mentor-creator-completion-controls.mjs"
+      - ".github/workflows/verify-movie-mentor-creator-completion-controls.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  creator-completion-controls:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Use Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Verify explicit creator Journey completion controls
+        run: node scripts/verify-movie-mentor-creator-completion-controls.mjs
