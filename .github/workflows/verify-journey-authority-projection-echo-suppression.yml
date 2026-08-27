@@ -1,0 +1,28 @@
+name: Verify Journey Authority Projection Echo Suppression
+
+on:
+  push:
+    paths:
+      - "src/components/studio/mentor/CreatorMemory.js"
+      - "src/components/studio/mentor/JourneyAuthorityReadFacade.js"
+      - "scripts/verify-journey-authority-projection-echo-suppression.mjs"
+      - ".github/workflows/verify-journey-authority-projection-echo-suppression.yml"
+  pull_request:
+    paths:
+      - "src/components/studio/mentor/CreatorMemory.js"
+      - "src/components/studio/mentor/JourneyAuthorityReadFacade.js"
+      - "scripts/verify-journey-authority-projection-echo-suppression.mjs"
+      - ".github/workflows/verify-journey-authority-projection-echo-suppression.yml"
+
+jobs:
+  authority-projection-echo-suppression:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Use Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Torture authority projection echo suppression
+        run: node scripts/verify-journey-authority-projection-echo-suppression.mjs
