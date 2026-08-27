@@ -1,10 +1,20 @@
 import assert from "node:assert/strict";
+import createJourneyDurableAuthorityStore from "../src/components/studio/mentor/JourneyDurableAuthorityStore.js";
 import createJourneyProgressionExecutionRuntime from "../src/components/studio/mentor/JourneyProgressionExecutionRuntime.js";
 import createJourneyRecommendationEnvelope from "../src/components/studio/mentor/JourneyRecommendationEnvelope.js";
 import createJourneyRecommendationAcceptanceExecutionRuntime from "../src/components/studio/mentor/JourneyRecommendationAcceptanceExecutionRuntime.js";
 
 function clone(value) {
   return JSON.parse(JSON.stringify(value));
+}
+
+function storageAdapter() {
+  const map = new Map();
+  return {
+    getItem(key) { return map.has(key) ? map.get(key) : null; },
+    setItem(key, value) { map.set(key, String(value)); },
+    removeItem(key) { map.delete(key); },
+  };
 }
 
 const projectId = "movie-project-recommendation-consumption";
@@ -26,19 +36,24 @@ const initialJourney = {
   ],
 };
 
-let durableJourney = clone(initialJourney);
+const project = {
+  id: projectId,
+  creatorType: "video",
+  identity: { domain: "iband.movie-mentor.project", schema: 1, issuance: "secure-web-crypto", legacy: false },
+  metadata: { creatorMode: "ai-movie", projectJourney: clone(initialJourney) },
+};
+const authorityStore = createJourneyDurableAuthorityStore({ storage: storageAdapter(), browserRuntime: false });
 const identityRuntime = {
   memory: {
-    getProject(id) {
-      if (id !== projectId) return null;
-      return { id: projectId, metadata: { projectJourney: clone(durableJourney) } };
-    },
+    getProject(id) { return id === projectId ? clone(project) : null; },
+    getPersistedProject(id) { return id === projectId ? clone(project) : null; },
   },
-  async persistJourney(id, nextJourney, { expectedProgressionRevision } = {}) {
-    assert.equal(id, projectId);
-    assert.equal(durableJourney.progression.revision, expectedProgressionRevision, "CAS must match durable revision.");
-    durableJourney = clone(nextJourney);
-    return { id: projectId, metadata: { projectJourney: clone(durableJourney) } };
+  getPreferredJourney(id) {
+    if (id !== projectId) return null;
+    const authority = authorityStore.read(projectId, { project });
+    return authority
+      ? { status: "authority", projectJourney: clone(authority.journey), progressionRevision: authority.journey.progression?.revision ?? 0 }
+      : { status: "legacy-unbootstrapped", projectJourney: clone(initialJourney), progressionRevision: 0 };
   },
 };
 
@@ -56,8 +71,8 @@ const journeyEngine = {
   },
 };
 
-const progressionRuntime = createJourneyProgressionExecutionRuntime({ journeyEngine, identityRuntime });
-const acceptanceRuntime = createJourneyRecommendationAcceptanceExecutionRuntime({ identityRuntime, progressionRuntime });
+const progressionRuntime = createJourneyProgressionExecutionRuntime({ journeyEngine, identityRuntime, authorityStore });
+const acceptanceRuntime = createJourneyRecommendationAcceptanceExecutionRuntime({ identityRuntime, progressionRuntime, authorityStore });
 
 const planningEvidence = {
   contractVersion: "1.1.0",
@@ -97,14 +112,17 @@ assert.equal(first.operationId, expectedOperationId);
 assert.equal(first.receipt.operationId, expectedOperationId);
 assert.equal(first.receipt.creatorActId, "creator-acceptance-original");
 assert.equal(first.progressionRevision, 1);
+assert.equal(first.authorityCommitted, true);
+
+let durableJourney = authorityStore.read(projectId, { project }).journey;
 assert.equal(durableJourney.progression.revision, 1);
 assert.equal(durableJourney.progression.committedOperations.length, 1);
 assert.equal(durableJourney.currentStageId, "character-foundations");
 assert.equal(durableJourney.currentTaskId, "protagonist");
+assert.equal(project.metadata.projectJourney.progression.revision, 0, "Creator Memory projection must remain demoted.");
 
-// Lost ACK universe: the UI retries the same immutable recommendation but has
-// accidentally minted a new creatorActId. Durable recommendation operation
-// identity must win before a second authority is minted.
+// Lost ACK universe: retry the same immutable recommendation with deliberately stale/new
+// caller metadata. Authority receipt identity must win before freshness can mint anything new.
 const retry = await acceptanceRuntime.execute({
   recommendationEnvelope: recommendation,
   projectId,
@@ -119,7 +137,9 @@ const retry = await acceptanceRuntime.execute({
 assert.equal(retry.status, "already-committed");
 assert.equal(retry.operationId, expectedOperationId);
 assert.equal(retry.newCreatorAuthorityIssued, false);
-assert.equal(retry.receipt.creatorActId, "creator-acceptance-original", "Retry must return the original committed creator act.");
+assert.equal(retry.receipt.creatorActId, "creator-acceptance-original", "Retry must return original committed creator act.");
+
+durableJourney = authorityStore.read(projectId, { project }).journey;
 assert.equal(durableJourney.progression.revision, 1, "Retry must not create revision 2.");
 assert.equal(durableJourney.progression.committedOperations.length, 1, "Retry must not create a second receipt.");
 
@@ -130,9 +150,9 @@ assert.equal(storedReceipt.fromRevision, 0);
 assert.equal(storedReceipt.toRevision, 1);
 
 console.log("Journey recommendation acceptance consumption verification passed.");
-console.log("- immutable recommendationId binds the durable operationId");
-console.log("- original creatorActId survives in the committed receipt");
-console.log("- lost-response retry returns the original receipt");
-console.log("- retry mints no second creator authority");
-console.log("- retry creates no second progression revision");
-console.log("- duplicate lookup occurs before freshness re-evaluation");
+console.log("- immutable recommendationId binds the Journey Authority operationId");
+console.log("- original creatorActId survives in the authoritative receipt");
+console.log("- lost-response retry returns the original authority receipt");
+console.log("- retry mints no second creator authority or progression revision");
+console.log("- Creator Memory projection is not required to advance");
+console.log("- duplicate lookup occurs against authority before freshness re-evaluation");
