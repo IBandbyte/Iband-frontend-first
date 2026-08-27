@@ -1,0 +1,28 @@
+name: Verify Journey Authority Read Facade
+
+on:
+  push:
+    paths:
+      - "src/components/studio/mentor/JourneyDurableAuthorityStore.js"
+      - "src/components/studio/mentor/JourneyAuthorityReadFacade.js"
+      - "scripts/verify-journey-authority-read-facade.mjs"
+      - ".github/workflows/verify-journey-authority-read-facade.yml"
+  pull_request:
+    paths:
+      - "src/components/studio/mentor/JourneyDurableAuthorityStore.js"
+      - "src/components/studio/mentor/JourneyAuthorityReadFacade.js"
+      - "scripts/verify-journey-authority-read-facade.mjs"
+      - ".github/workflows/verify-journey-authority-read-facade.yml"
+
+jobs:
+  journey-authority-read-facade:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Use Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Torture Journey authority read preference
+        run: node scripts/verify-journey-authority-read-facade.mjs
