@@ -10,6 +10,12 @@ import createMovieJourneyIntelligenceBridge from "./mentor/MovieJourneyIntellige
 import MovieMentorConversation from "./mentor/MovieMentorConversation.jsx";
 import createMovieMentorStudioIdentityRuntime from "./mentor/MovieMentorStudioIdentityRuntime.js";
 import createJourneyProgressionExecutionRuntime from "./mentor/JourneyProgressionExecutionRuntime.js";
+import createJourneyRecommendationAcceptanceExecutionRuntime from "./mentor/JourneyRecommendationAcceptanceExecutionRuntime.js";
+import {
+  createJourneyRecommendationActionSurface,
+  acceptCurrentJourneyRecommendation,
+  dismissCurrentJourneyRecommendation,
+} from "./mentor/JourneyRecommendationActionSurface.js";
 import {
   POSITION_ACTIONS,
   POSITION_AUTHORITY_SOURCES,
@@ -48,6 +54,10 @@ const CreatorWorkspace = ({ creatorName = "Creator", initialCreator = "", onGene
     () => createJourneyProgressionExecutionRuntime({ journeyEngine: creatorJourneyEngine, identityRuntime }),
     [identityRuntime]
   );
+  const recommendationAcceptanceRuntime = useMemo(
+    () => createJourneyRecommendationAcceptanceExecutionRuntime({ identityRuntime, progressionRuntime: journeyProgressionRuntime }),
+    [identityRuntime, journeyProgressionRuntime]
+  );
   const resumeSnapshot = useMemo(() => identityRuntime.getResumeSnapshot(), [identityRuntime]);
   const resumedMovie = Boolean(resumeSnapshot?.projectId);
 
@@ -62,6 +72,7 @@ const CreatorWorkspace = ({ creatorName = "Creator", initialCreator = "", onGene
   const [activeMovieProject, setActiveMovieProject] = useState(resumeSnapshot?.project || null);
   const [movieMessages, setMovieMessages] = useState(resumeSnapshot?.conversationMessages || []);
   const [movieJourneyPlanningEvidence, setMovieJourneyPlanningEvidence] = useState(null);
+  const [dismissedRecommendationId, setDismissedRecommendationId] = useState(null);
   const [showCreatorChoices, setShowCreatorChoices] = useState(resumedMovie ? false : !Boolean(initialCreator));
   const [showCreatorModeChoices, setShowCreatorModeChoices] = useState(resumedMovie ? false : Boolean(initialCreator));
   const [mentorMessage, setMentorMessage] = useState(resumedMovie ? `Welcome back. Your movie project “${resumeSnapshot.project.title}” is ready to continue.` : "I've got your back. Choose what you would like to create, then tell me about your idea.");
@@ -88,6 +99,15 @@ const CreatorWorkspace = ({ creatorName = "Creator", initialCreator = "", onGene
   const canonicalMovieNextStage = projectJourneyOrientation?.next?.nextStage || null;
   const canonicalMovieCompletedStages = useMemo(() => canonicalMovieJourneyStages.filter((stage) => stage?.status === "completed-for-now").map((stage) => stage.id), [canonicalMovieJourneyStages]);
   const movieJourneyPlanningContext = useMemo(() => projectJourney ? movieJourneyIntelligenceBridge.buildResponseContext(projectJourney, { journeyPlanningEvidence: movieJourneyPlanningEvidence }) : null, [projectJourney, movieJourneyPlanningEvidence]);
+  const journeyRecommendationAction = useMemo(
+    () => createJourneyRecommendationActionSurface({
+      projectId: activeMovieProject?.id || null,
+      projectJourney,
+      planningEvidence: movieJourneyPlanningEvidence,
+      dismissedRecommendationId,
+    }),
+    [activeMovieProject, projectJourney, movieJourneyPlanningEvidence, dismissedRecommendationId]
+  );
   const journeyReady = Boolean(activeCreator) && Boolean(selectedCreatorMode) && !showCreatorChoices && !showCreatorModeChoices;
   const movieCockpitActive = journeyReady && selectedCreatorMode === "ai-movie" && Boolean(activeMovieProject?.id);
 
@@ -120,7 +140,7 @@ const CreatorWorkspace = ({ creatorName = "Creator", initialCreator = "", onGene
     setShowCreatorChoices(false);
     setShowCreatorModeChoices(true);
     if (creatorChanged) {
-      setSelectedCreatorMode(""); setSelectedCreatorModeLabel(""); setIdea(""); setGeneratedIdea(""); setProjectStatus("idle"); setProjectJourney(null); setActiveMovieProject(null); setMovieMessages([]); setMovieJourneyPlanningEvidence(null);
+      setSelectedCreatorMode(""); setSelectedCreatorModeLabel(""); setIdea(""); setGeneratedIdea(""); setProjectStatus("idle"); setProjectJourney(null); setActiveMovieProject(null); setMovieMessages([]); setMovieJourneyPlanningEvidence(null); setDismissedRecommendationId(null);
     }
     const messages = { video: "Let's create something visual. Choose what you'd like to make, and we'll take it from there.", image: "Let's create something visual. Choose what kind of image you'd like to make, and we'll shape it together.", music: "Let's create something with music. Choose where you'd like to begin, and we'll build from there.", podcast: "Let's build your podcast project. Choose what you'd like to create, and we'll take it one step at a time.", story: "Let's build your story. Choose what you'd like to create, and we'll develop it together.", marketing: "Let's create something that gets attention. Choose the kind of marketing project you want to make.", social: "Let's create something for social media. Choose what you'd like to make, and we'll shape it together." };
     setMentorMessage(messages[creator.id] || "Tell me what you'd like to create. We can shape the idea together.");
@@ -134,9 +154,9 @@ const CreatorWorkspace = ({ creatorName = "Creator", initialCreator = "", onGene
       const nextJourney = existing?.metadata?.projectJourney || createMovieJourney({ creatorModeLabel: mode.label });
       const project = existing || identityRuntime.ensureProject({ projectJourney: nextJourney });
       const continuation = existing ? identityRuntime.resumeProjectConversation(project.id) : { messages: [] };
-      setActiveMovieProject(project); setProjectJourney(nextJourney); setProjectStatus(existing ? "saved" : "creating"); setMovieMessages(continuation.messages || []); setMovieJourneyPlanningEvidence(null); persistMovieJourney(nextJourney, project);
+      setActiveMovieProject(project); setProjectJourney(nextJourney); setProjectStatus(existing ? "saved" : "creating"); setMovieMessages(continuation.messages || []); setMovieJourneyPlanningEvidence(null); setDismissedRecommendationId(null); persistMovieJourney(nextJourney, project);
     } else if (modeChanged) {
-      setActiveMovieProject(null); setProjectJourney(null); setProjectStatus("idle"); setMovieMessages([]); setMovieJourneyPlanningEvidence(null);
+      setActiveMovieProject(null); setProjectJourney(null); setProjectStatus("idle"); setMovieMessages([]); setMovieJourneyPlanningEvidence(null); setDismissedRecommendationId(null);
     }
     if (modeChanged) { setIdea(""); setGeneratedIdea(""); }
     const messages = { "ai-movie": "Welcome. You don't need to know how to make a movie. I'll help you through it one step at a time. Tell me the idea in your head—even if it's only one sentence.", "movie-scene": "Let's build your scene together. Tell me what you imagine happening, even if you only know one moment, character or location.", "music-video": "Let's turn your music into a visual story. Tell me about the song and anything you already imagine seeing on screen.", advert: "Let's create a video advert that gets attention. Tell me what you're promoting and the main thing you want people to remember.", "short-reel": "Let's make something short, clear and engaging. Tell me the idea, message or moment you want the Reel or Short to capture.", "lyric-video": "Let's bring your lyrics to life visually. Tell me about the song, its mood and any visual ideas you already have.", "animation-cartoon": "Let's build your animated world. Tell me the idea, character or scene you have in mind, even if it's only the beginning.", documentary: "Let's shape your documentary one step at a time. Tell me the real story, subject or question you want to explore." };
@@ -227,6 +247,50 @@ const CreatorWorkspace = ({ creatorName = "Creator", initialCreator = "", onGene
     }
   };
 
+  const handleAcceptJourneyRecommendation = async () => {
+    const projectId = activeMovieProject?.id || null;
+    if (!projectId || !journeyRecommendationAction) return;
+
+    const creatorActId = createCreatorActId("journey-recommendation-accept");
+    try {
+      const result = await acceptCurrentJourneyRecommendation({
+        actionSurface: journeyRecommendationAction,
+        acceptanceExecutionRuntime: recommendationAcceptanceRuntime,
+        projectId,
+        creatorActId,
+        creatorAuthorityRevision: movieJourneyPlanningEvidence?.creatorAuthorityRevision ?? null,
+        turnRevision: movieJourneyPlanningEvidence?.provenance?.turnRevision ?? null,
+        clarificationRequired: movieJourneyPlanningEvidence?.clarification?.required === true,
+        issuedAt: new Date().toISOString(),
+      });
+
+      if (result?.projectJourney) setProjectJourney(result.projectJourney);
+      if (["committed", "already-committed", "accepted-no-movement-required"].includes(result?.status)) {
+        setMovieJourneyPlanningEvidence(null);
+        setDismissedRecommendationId(result?.recommendationId || journeyRecommendationAction.recommendationId);
+        setMentorMessage(
+          result?.status === "accepted-no-movement-required"
+            ? "You're already at that point in the Journey, so nothing needed to move."
+            : "Done. You chose that direction, and your Journey has moved to the committed next step."
+        );
+      }
+      return result;
+    } catch (error) {
+      console.error("CreatorWorkspace Journey recommendation acceptance error:", error);
+      const durableJourney = identityRuntime?.memory?.getProject?.(projectId)?.metadata?.projectJourney || null;
+      if (durableJourney) setProjectJourney(durableJourney);
+      setMovieJourneyPlanningEvidence(null);
+      setMentorMessage("That suggestion is no longer safe to apply to your current Journey, so I left your saved position unchanged.");
+      return null;
+    }
+  };
+
+  const handleDismissJourneyRecommendation = () => {
+    if (!journeyRecommendationAction) return;
+    const dismissal = dismissCurrentJourneyRecommendation(journeyRecommendationAction);
+    if (dismissal.recommendationId) setDismissedRecommendationId(dismissal.recommendationId);
+  };
+
   const handleMovieStageSelect = async (stageId) => {
     if (!stageId || stageId === canonicalMovieActiveStage) return;
     await executeCreatorJourneyOperation({
@@ -307,7 +371,7 @@ const CreatorWorkspace = ({ creatorName = "Creator", initialCreator = "", onGene
   return (
     <main style={styles.workspace}>
       <section style={styles.welcomeSection}><p style={styles.eyebrow}>iBand Studio</p><h1 style={styles.title}>Welcome back, {creatorName}.</h1><p style={styles.subtitle}>What would you like to create today?</p></section>
-      <section style={styles.section}><AiMentor message={mentorMessage} creatorJourney={creatorJourney} mentorContext={mentorContext} /></section>
+      <section style={styles.section}><AiMentor message={mentorMessage} creatorJourney={creatorJourney} mentorContext={mentorContext} journeyRecommendationAction={journeyRecommendationAction} onAcceptJourneyRecommendation={handleAcceptJourneyRecommendation} onDismissJourneyRecommendation={handleDismissJourneyRecommendation} /></section>
       {showCreatorChoices && <section style={styles.section}><div style={styles.sectionHeadingRow}><div><p style={styles.sectionEyebrow}>Quick Create</p><h2 style={styles.sectionTitle}>Choose your starting point</h2></div></div><div style={styles.creatorGrid}>{CREATOR_OPTIONS.map((creator) => { const isSelected = selectedCreator === creator.id; return <button key={creator.id} type="button" aria-pressed={isSelected} onClick={() => handleCreatorSelect(creator)} style={{ ...styles.creatorCard, ...(isSelected ? styles.creatorCardActive : {}) }}><span style={styles.creatorIcon}>{creator.icon}</span><span style={styles.creatorCopy}><span style={styles.creatorLabel}>{creator.label}</span><span style={styles.creatorDescription}>{creator.description}</span></span><span aria-hidden="true" style={{ ...styles.creatorArrow, ...(isSelected ? styles.creatorArrowActive : {}) }}>›</span></button>; })}</div></section>}
       {!showCreatorChoices && activeCreator && <section style={styles.section}><div style={styles.choiceSummary}><div style={styles.choiceSummaryCopy}><span style={styles.choiceSummaryEyebrow}>Starting Point</span><span style={styles.choiceSummaryValue}>{activeCreator.icon} {activeCreator.label}</span></div><button type="button" onClick={handleChangeCreator} style={styles.changeButton}>Change</button></div></section>}
       {!showCreatorChoices && activeCreator && showCreatorModeChoices && <section style={styles.section}><CreatorModeSelector creatorType={selectedCreator} selectedMode={selectedCreatorMode} onSelect={handleCreatorModeSelect} /></section>}
