@@ -5,7 +5,7 @@ import {
 import { persistJourneyAndRecommendationLifecycle } from "./JourneyRecommendationLifecyclePersistence.js";
 import withJourneyProgressionProjectLock from "./JourneyProgressionProjectLock.js";
 
-const JOURNEY_PROGRESSION_RUNTIME_VERSION = "1.2.0";
+const JOURNEY_PROGRESSION_RUNTIME_VERSION = "1.3.0";
 const JOURNEY_PROGRESSION_SCHEMA_VERSION = 1;
 const MAX_COMMITTED_PROGRESSION_OPERATIONS = 64;
 
@@ -141,7 +141,10 @@ function getCommittedReceipt(journey, operationId, authorityId) {
 }
 
 function getDurableJourney(identityRuntime, projectId) {
-  const project = identityRuntime?.memory?.getProject?.(projectId) || null;
+  const memory = identityRuntime?.memory;
+  const project = typeof memory?.getPersistedProject === "function"
+    ? memory.getPersistedProject(projectId)
+    : memory?.getProject?.(projectId) || null;
   return clone(project?.metadata?.projectJourney || null);
 }
 
@@ -302,8 +305,8 @@ async function executeJourneyProgressionUnlocked({
   if (!projectJourney || typeof projectJourney !== "object") fail("JOURNEY_PROGRESSION_JOURNEY_REQUIRED", "Journey progression execution requires the current project Journey.");
   if (!identityRuntime || typeof identityRuntime.persistJourney !== "function") fail("JOURNEY_PROGRESSION_PERSISTENCE_REQUIRED", "Journey progression execution requires a Journey persistence runtime.");
 
-  // Serialization law: this durable read must happen only after the per-project
-  // progression lock has been acquired by executeJourneyProgression().
+  // Cross-tab law: this durable read occurs after project-lock acquisition and
+  // prefers a fresh persisted storage view over this tab's cached memory state.
   const durableJourney = getDurableJourney(identityRuntime, pid);
   const sourceJourney = durableJourney || projectJourney;
   const normalised = normaliseJourneyForProgression(sourceJourney);
