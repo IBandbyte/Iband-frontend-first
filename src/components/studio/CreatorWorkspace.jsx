@@ -82,165 +82,47 @@ const CreatorWorkspace = ({ creatorName = "Creator", initialCreator = "", onGene
   const projectJourneyOrientation = useMemo(() => projectJourney ? creatorJourneyEngine.getOrientation(projectJourney) : null, [projectJourney]);
   const canonicalMovieJourneyStages = useMemo(() => Array.isArray(projectJourney?.stages) ? projectJourney.stages : [], [projectJourney]);
   const canonicalMovieActiveStage = projectJourneyOrientation?.present?.stage?.id || projectJourney?.currentStageId || "idea";
-  const canonicalMovieCurrentStage = useMemo(
-    () => canonicalMovieJourneyStages.find((stage) => stage?.id === canonicalMovieActiveStage) || null,
-    [canonicalMovieJourneyStages, canonicalMovieActiveStage]
-  );
-  const canonicalMovieCurrentTask = useMemo(() => {
-    const taskId = projectJourneyOrientation?.present?.task?.id || projectJourney?.currentTaskId || null;
-    return (canonicalMovieCurrentStage?.tasks || []).find((task) => task?.id === taskId) || null;
-  }, [canonicalMovieCurrentStage, projectJourneyOrientation, projectJourney]);
-  const canonicalMovieNextTask = useMemo(() => {
-    const tasks = Array.isArray(canonicalMovieCurrentStage?.tasks) ? canonicalMovieCurrentStage.tasks : [];
-    const currentIndex = tasks.findIndex((task) => task?.id === canonicalMovieCurrentTask?.id);
-    const remaining = currentIndex >= 0 ? tasks.slice(currentIndex + 1) : tasks;
-    return remaining.find((task) => task?.status !== "completed-for-now") || null;
-  }, [canonicalMovieCurrentStage, canonicalMovieCurrentTask]);
+  const canonicalMovieCurrentStage = useMemo(() => canonicalMovieJourneyStages.find((stage) => stage?.id === canonicalMovieActiveStage) || null, [canonicalMovieJourneyStages, canonicalMovieActiveStage]);
+  const canonicalMovieCurrentTask = useMemo(() => { const taskId = projectJourneyOrientation?.present?.task?.id || projectJourney?.currentTaskId || null; return (canonicalMovieCurrentStage?.tasks || []).find((task) => task?.id === taskId) || null; }, [canonicalMovieCurrentStage, projectJourneyOrientation, projectJourney]);
+  const canonicalMovieNextTask = useMemo(() => { const tasks = Array.isArray(canonicalMovieCurrentStage?.tasks) ? canonicalMovieCurrentStage.tasks : []; const currentIndex = tasks.findIndex((task) => task?.id === canonicalMovieCurrentTask?.id); const remaining = currentIndex >= 0 ? tasks.slice(currentIndex + 1) : tasks; return remaining.find((task) => task?.status !== "completed-for-now") || null; }, [canonicalMovieCurrentStage, canonicalMovieCurrentTask]);
   const canonicalMovieNextStage = projectJourneyOrientation?.next?.nextStage || null;
   const canonicalMovieCompletedStages = useMemo(() => canonicalMovieJourneyStages.filter((stage) => stage?.status === "completed-for-now").map((stage) => stage.id), [canonicalMovieJourneyStages]);
   const movieJourneyPlanningContext = useMemo(() => projectJourney ? movieJourneyIntelligenceBridge.buildResponseContext(projectJourney, { journeyPlanningEvidence: movieJourneyPlanningEvidence }) : null, [projectJourney, movieJourneyPlanningEvidence]);
-  const journeyRecommendationAction = useMemo(
-    () => createJourneyRecommendationActionSurface({
-      projectId: activeMovieProject?.id || null,
-      projectJourney,
-      planningEvidence: movieJourneyPlanningEvidence,
-      dismissedRecommendationId,
-    }),
-    [activeMovieProject, projectJourney, movieJourneyPlanningEvidence, dismissedRecommendationId]
-  );
+  const journeyRecommendationAction = useMemo(() => createJourneyRecommendationActionSurface({ projectId: activeMovieProject?.id || null, projectJourney, planningEvidence: movieJourneyPlanningEvidence, dismissedRecommendationId }), [activeMovieProject, projectJourney, movieJourneyPlanningEvidence, dismissedRecommendationId]);
   const journeyReady = Boolean(activeCreator) && Boolean(selectedCreatorMode) && !showCreatorChoices && !showCreatorModeChoices;
   const movieCockpitActive = journeyReady && selectedCreatorMode === "ai-movie" && Boolean(activeMovieProject?.id);
 
-  const mentorContext = useMemo(() => ({
-    creatorName,
-    creatorType: selectedCreator || null,
-    creatorLabel: activeCreator?.label || null,
-    creatorMode: selectedCreatorMode || null,
-    creatorModeLabel: selectedCreatorModeLabel || null,
-    creatorJourney,
-    projectId: activeMovieProject?.id || null,
-    creatorSessionId: identityRuntime.creatorSessionId,
-    projectJourney: projectJourneySnapshot,
-    projectJourneyOrientation,
-    movieJourneyPlanningContext,
-    journeyPlanningEvidence: movieJourneyPlanningEvidence,
-    idea,
-    projectStatus,
-    hasGeneratedIdea: Boolean(generatedIdea),
-  }), [creatorName, selectedCreator, activeCreator, selectedCreatorMode, selectedCreatorModeLabel, creatorJourney, activeMovieProject, identityRuntime, projectJourneySnapshot, projectJourneyOrientation, movieJourneyPlanningContext, movieJourneyPlanningEvidence, idea, projectStatus, generatedIdea]);
+  const mentorContext = useMemo(() => ({ creatorName, creatorType: selectedCreator || null, creatorLabel: activeCreator?.label || null, creatorMode: selectedCreatorMode || null, creatorModeLabel: selectedCreatorModeLabel || null, creatorJourney, projectId: activeMovieProject?.id || null, creatorSessionId: identityRuntime.creatorSessionId, projectJourney: projectJourneySnapshot, projectJourneyOrientation, movieJourneyPlanningContext, journeyPlanningEvidence: movieJourneyPlanningEvidence, idea, projectStatus, hasGeneratedIdea: Boolean(generatedIdea) }), [creatorName, selectedCreator, activeCreator, selectedCreatorMode, selectedCreatorModeLabel, creatorJourney, activeMovieProject, identityRuntime, projectJourneySnapshot, projectJourneyOrientation, movieJourneyPlanningContext, movieJourneyPlanningEvidence, idea, projectStatus, generatedIdea]);
 
   const canGenerate = journeyReady && selectedCreatorMode !== "ai-movie" && Boolean(idea.trim()) && projectStatus !== "generating";
   const createProjectPayload = () => ({ projectId: activeMovieProject?.id || null, creatorSessionId: identityRuntime.creatorSessionId, creatorType: selectedCreator, creatorLabel: activeCreator?.label || selectedCreator, creatorMode: selectedCreatorMode || null, creatorModeLabel: selectedCreatorModeLabel || null, creatorJourney, projectJourney, projectJourneySnapshot, projectJourneyOrientation, movieJourneyPlanningEvidence, idea: idea.trim(), generatedIdea });
   const createMovieJourney = ({ creatorModeLabel, workingMode = creatorJourney } = {}) => creatorJourneyEngine.createMovieJourney({ creatorType: "video", creatorMode: "ai-movie", creatorJourney: workingMode, metadata: { creatorModeLabel: creatorModeLabel || "AI Movie Making", createdFrom: "CreatorWorkspace" } });
   const persistMovieJourney = (nextJourney, project = activeMovieProject) => { if (project?.id && nextJourney) identityRuntime.persistJourney(project.id, nextJourney); };
 
-  const handleCreatorSelect = (creator) => {
-    const creatorChanged = selectedCreator !== creator.id;
-    setSelectedCreator(creator.id);
-    setShowCreatorChoices(false);
-    setShowCreatorModeChoices(true);
-    if (creatorChanged) {
-      setSelectedCreatorMode(""); setSelectedCreatorModeLabel(""); setIdea(""); setGeneratedIdea(""); setProjectStatus("idle"); setProjectJourney(null); setActiveMovieProject(null); setMovieMessages([]); setMovieJourneyPlanningEvidence(null); setDismissedRecommendationId(null);
-    }
-    const messages = { video: "Let's create something visual. Choose what you'd like to make, and we'll take it from there.", image: "Let's create something visual. Choose what kind of image you'd like to make, and we'll shape it together.", music: "Let's create something with music. Choose where you'd like to begin, and we'll build from there.", podcast: "Let's build your podcast project. Choose what you'd like to create, and we'll take it one step at a time.", story: "Let's build your story. Choose what you'd like to create, and we'll develop it together.", marketing: "Let's create something that gets attention. Choose the kind of marketing project you want to make.", social: "Let's create something for social media. Choose what you'd like to make, and we'll shape it together." };
-    setMentorMessage(messages[creator.id] || "Tell me what you'd like to create. We can shape the idea together.");
-  };
+  const handleCreatorSelect = (creator) => { const creatorChanged = selectedCreator !== creator.id; setSelectedCreator(creator.id); setShowCreatorChoices(false); setShowCreatorModeChoices(true); if (creatorChanged) { setSelectedCreatorMode(""); setSelectedCreatorModeLabel(""); setIdea(""); setGeneratedIdea(""); setProjectStatus("idle"); setProjectJourney(null); setActiveMovieProject(null); setMovieMessages([]); setMovieJourneyPlanningEvidence(null); setDismissedRecommendationId(null); } const messages = { video: "Let's create something visual. Choose what you'd like to make, and we'll take it from there.", image: "Let's create something visual. Choose what kind of image you'd like to make, and we'll shape it together.", music: "Let's create something with music. Choose where you'd like to begin, and we'll build from there.", podcast: "Let's build your podcast project. Choose what you'd like to create, and we'll take it one step at a time.", story: "Let's build your story. Choose what you'd like to create, and we'll develop it together.", marketing: "Let's create something that gets attention. Choose the kind of marketing project you want to make.", social: "Let's create something for social media. Choose what you'd like to make, and we'll shape it together." }; setMentorMessage(messages[creator.id] || "Tell me what you'd like to create. We can shape the idea together."); };
 
-  const handleCreatorModeSelect = (mode) => {
-    const modeChanged = selectedCreatorMode !== mode.id;
-    setSelectedCreatorMode(mode.id); setSelectedCreatorModeLabel(mode.label); setShowCreatorModeChoices(false);
-    if (mode.id === "ai-movie") {
-      const existing = identityRuntime.getActiveProject();
-      const nextJourney = existing?.metadata?.projectJourney || createMovieJourney({ creatorModeLabel: mode.label });
-      const project = existing || identityRuntime.ensureProject({ projectJourney: nextJourney });
-      const continuation = existing ? identityRuntime.resumeProjectConversation(project.id) : { messages: [] };
-      setActiveMovieProject(project); setProjectJourney(nextJourney); setProjectStatus(existing ? "saved" : "creating"); setMovieMessages(continuation.messages || []); setMovieJourneyPlanningEvidence(null); setDismissedRecommendationId(null); persistMovieJourney(nextJourney, project);
-    } else if (modeChanged) {
-      setActiveMovieProject(null); setProjectJourney(null); setProjectStatus("idle"); setMovieMessages([]); setMovieJourneyPlanningEvidence(null); setDismissedRecommendationId(null);
-    }
-    if (modeChanged) { setIdea(""); setGeneratedIdea(""); }
-    const messages = { "ai-movie": "Welcome. You don't need to know how to make a movie. I'll help you through it one step at a time. Tell me the idea in your head—even if it's only one sentence.", "movie-scene": "Let's build your scene together. Tell me what you imagine happening, even if you only know one moment, character or location.", "music-video": "Let's turn your music into a visual story. Tell me about the song and anything you already imagine seeing on screen.", advert: "Let's create a video advert that gets attention. Tell me what you're promoting and the main thing you want people to remember.", "short-reel": "Let's make something short, clear and engaging. Tell me the idea, message or moment you want the Reel or Short to capture.", "lyric-video": "Let's bring your lyrics to life visually. Tell me about the song, its mood and any visual ideas you already have.", "animation-cartoon": "Let's build your animated world. Tell me the idea, character or scene you have in mind, even if it's only the beginning.", documentary: "Let's shape your documentary one step at a time. Tell me the real story, subject or question you want to explore." };
-    setMentorMessage(messages[mode.id] || `Great choice. Let's create your ${mode.label.toLowerCase()} together. Tell me what you already have in mind, even if it's only a rough idea.`);
-  };
+  const handleCreatorModeSelect = (mode) => { const modeChanged = selectedCreatorMode !== mode.id; setSelectedCreatorMode(mode.id); setSelectedCreatorModeLabel(mode.label); setShowCreatorModeChoices(false); if (mode.id === "ai-movie") { const existing = identityRuntime.getActiveProject(); const nextJourney = existing?.metadata?.projectJourney || createMovieJourney({ creatorModeLabel: mode.label }); const project = existing || identityRuntime.ensureProject({ projectJourney: nextJourney }); const continuation = existing ? identityRuntime.resumeProjectConversation(project.id) : { messages: [] }; setActiveMovieProject(project); setProjectJourney(nextJourney); setProjectStatus(existing ? "saved" : "creating"); setMovieMessages(continuation.messages || []); setMovieJourneyPlanningEvidence(null); setDismissedRecommendationId(null); persistMovieJourney(nextJourney, project); } else if (modeChanged) { setActiveMovieProject(null); setProjectJourney(null); setProjectStatus("idle"); setMovieMessages([]); setMovieJourneyPlanningEvidence(null); setDismissedRecommendationId(null); } if (modeChanged) { setIdea(""); setGeneratedIdea(""); } const messages = { "ai-movie": "Welcome. You don't need to know how to make a movie. I'll help you through it one step at a time. Tell me the idea in your head—even if it's only one sentence.", "movie-scene": "Let's build your scene together. Tell me what you imagine happening, even if you only know one moment, character or location.", "music-video": "Let's turn your music into a visual story. Tell me about the song and anything you already imagine seeing on screen.", advert: "Let's create a video advert that gets attention. Tell me what you're promoting and the main thing you want people to remember.", "short-reel": "Let's make something short, clear and engaging. Tell me the idea, message or moment you want the Reel or Short to capture.", "lyric-video": "Let's bring your lyrics to life visually. Tell me about the song, its mood and any visual ideas you already have.", "animation-cartoon": "Let's build your animated world. Tell me the idea, character or scene you have in mind, even if it's only the beginning.", documentary: "Let's shape your documentary one step at a time. Tell me the real story, subject or question you want to explore." }; setMentorMessage(messages[mode.id] || `Great choice. Let's create your ${mode.label.toLowerCase()} together. Tell me what you already have in mind, even if it's only a rough idea.`); };
 
-  const handleCreatorJourneyChange = (nextWorkingMode) => {
-    setCreatorJourney(nextWorkingMode);
-    setProjectJourney((currentJourney) => {
-      const nextJourney = currentJourney ? { ...currentJourney, creatorJourney: nextWorkingMode, updatedAt: new Date().toISOString() } : currentJourney;
-      persistMovieJourney(nextJourney); return nextJourney;
-    });
-  };
+  const handleCreatorJourneyChange = (nextWorkingMode) => { setCreatorJourney(nextWorkingMode); setProjectJourney((currentJourney) => { const nextJourney = currentJourney ? { ...currentJourney, creatorJourney: nextWorkingMode, updatedAt: new Date().toISOString() } : currentJourney; persistMovieJourney(nextJourney); return nextJourney; }); };
+  const handleMovieMessage = (message) => { setMovieMessages((current) => [...current, message]); if (activeMovieProject?.id) identityRuntime.recordConversationMessage(activeMovieProject.id, message, { projectJourney: projectJourneySnapshot || projectJourney }); };
+  const handleMovieMentorTurnResult = (turnResult) => { const projection = projectCommittedCreatorAuthorityIntoJourney({ journeyEngine: creatorJourneyEngine, identityRuntime, projectJourney, projectId: activeMovieProject?.id || null, turnResult }); const authoritativeJourney = projection.projectJourney || projectJourney; if (projection.projected) setProjectJourney(authoritativeJourney); const planning = movieJourneyIntelligenceBridge.consumeTurnForJourneyPlanning(authoritativeJourney, turnResult, { source: "MovieMentorConversation", turnStatus: turnResult?.status || null, turnRevision: turnResult?.turnContextProof?.revision ?? null }); setMovieJourneyPlanningEvidence(planning.journeyPlanningEvidence || null); };
 
-  const handleMovieMessage = (message) => {
-    setMovieMessages((current) => [...current, message]);
-    if (activeMovieProject?.id) {
-      identityRuntime.recordConversationMessage(activeMovieProject.id, message, { projectJourney: projectJourneySnapshot || projectJourney });
-    }
-  };
-
-  const handleMovieMentorTurnResult = (turnResult) => {
-    const projection = projectCommittedCreatorAuthorityIntoJourney({
-      journeyEngine: creatorJourneyEngine,
-      identityRuntime,
-      projectJourney,
-      projectId: activeMovieProject?.id || null,
-      turnResult,
-    });
-    const authoritativeJourney = projection.projectJourney || projectJourney;
-    if (projection.projected) setProjectJourney(authoritativeJourney);
-
-    const planning = movieJourneyIntelligenceBridge.consumeTurnForJourneyPlanning(
-      authoritativeJourney,
-      turnResult,
-      {
-        source: "MovieMentorConversation",
-        turnStatus: turnResult?.status || null,
-        turnRevision: turnResult?.turnContextProof?.revision ?? null,
-      }
-    );
-    setMovieJourneyPlanningEvidence(planning.journeyPlanningEvidence || null);
-  };
+  const recoverAuthoritativeJourney = (projectId) => identityRuntime?.getPreferredJourney?.(projectId)?.projectJourney || null;
 
   const executeCreatorJourneyOperation = async ({ source, action, target, creatorActPrefix, operationPrefix, successMessage }) => {
     const projectId = activeMovieProject?.id || null;
     if (!projectId || !projectJourney) return null;
-
     try {
       const progressionInspection = journeyProgressionRuntime.inspect(projectJourney);
-      if (progressionInspection?.status === "progression-recovery-required") {
-        throw Object.assign(new Error("Journey progression needs recovery before this action can continue."), { code: "JOURNEY_PROGRESSION_RECOVERY_REQUIRED" });
-      }
-
+      if (progressionInspection?.status === "progression-recovery-required") throw Object.assign(new Error("Journey progression needs recovery before this action can continue."), { code: "JOURNEY_PROGRESSION_RECOVERY_REQUIRED" });
       const creatorActId = createCreatorActId(creatorActPrefix);
-      const authorityEnvelope = issueJourneyPositionAuthority({
-        projectId,
-        source,
-        action,
-        target,
-        expectedPositionRevision: progressionInspection?.revision ?? 0,
-        issuedAt: new Date().toISOString(),
-        evidence: {
-          creatorGesture: true,
-          creatorActId,
-        },
-      });
-
-      const result = await journeyProgressionRuntime.execute({
-        projectId,
-        projectJourney,
-        authorityEnvelope,
-        operationId: `${operationPrefix}:${creatorActId}`,
-      });
-
-      if ((result?.status === "committed" || result?.status === "already-committed") && result?.projectJourney) {
-        setProjectJourney(result.projectJourney);
-        setMovieJourneyPlanningEvidence(null);
-        if (successMessage) setMentorMessage(successMessage);
-      }
+      const authorityEnvelope = issueJourneyPositionAuthority({ projectId, source, action, target, expectedPositionRevision: progressionInspection?.revision ?? 0, issuedAt: new Date().toISOString(), evidence: { creatorGesture: true, creatorActId } });
+      const result = await journeyProgressionRuntime.execute({ projectId, projectJourney, authorityEnvelope, operationId: `${operationPrefix}:${creatorActId}` });
+      if ((result?.status === "committed" || result?.status === "already-committed") && result?.projectJourney) { setProjectJourney(result.projectJourney); setMovieJourneyPlanningEvidence(null); if (successMessage) setMentorMessage(successMessage); }
       return result;
     } catch (error) {
       console.error("CreatorWorkspace Journey creator operation error:", error);
-      const durableJourney = identityRuntime?.memory?.getProject?.(projectId)?.metadata?.projectJourney || null;
+      const durableJourney = recoverAuthoritativeJourney(projectId);
       if (durableJourney) setProjectJourney(durableJourney);
       setMentorMessage("Your movie journey is safe. I couldn't commit that change just now, so your last saved Journey state is still in place.");
       return null;
@@ -250,34 +132,15 @@ const CreatorWorkspace = ({ creatorName = "Creator", initialCreator = "", onGene
   const handleAcceptJourneyRecommendation = async () => {
     const projectId = activeMovieProject?.id || null;
     if (!projectId || !journeyRecommendationAction) return;
-
     const creatorActId = createCreatorActId("journey-recommendation-accept");
     try {
-      const result = await acceptCurrentJourneyRecommendation({
-        actionSurface: journeyRecommendationAction,
-        acceptanceExecutionRuntime: recommendationAcceptanceRuntime,
-        projectId,
-        creatorActId,
-        creatorAuthorityRevision: movieJourneyPlanningEvidence?.creatorAuthorityRevision ?? null,
-        turnRevision: movieJourneyPlanningEvidence?.provenance?.turnRevision ?? null,
-        clarificationRequired: movieJourneyPlanningEvidence?.clarification?.required === true,
-        issuedAt: new Date().toISOString(),
-      });
-
+      const result = await acceptCurrentJourneyRecommendation({ actionSurface: journeyRecommendationAction, acceptanceExecutionRuntime: recommendationAcceptanceRuntime, projectId, creatorActId, creatorAuthorityRevision: movieJourneyPlanningEvidence?.creatorAuthorityRevision ?? null, turnRevision: movieJourneyPlanningEvidence?.provenance?.turnRevision ?? null, clarificationRequired: movieJourneyPlanningEvidence?.clarification?.required === true, issuedAt: new Date().toISOString() });
       if (result?.projectJourney) setProjectJourney(result.projectJourney);
-      if (["committed", "already-committed", "accepted-no-movement-required"].includes(result?.status)) {
-        setMovieJourneyPlanningEvidence(null);
-        setDismissedRecommendationId(result?.recommendationId || journeyRecommendationAction.recommendationId);
-        setMentorMessage(
-          result?.status === "accepted-no-movement-required"
-            ? "You're already at that point in the Journey, so nothing needed to move."
-            : "Done. You chose that direction, and your Journey has moved to the committed next step."
-        );
-      }
+      if (["committed", "already-committed", "accepted-no-movement-required"].includes(result?.status)) { setMovieJourneyPlanningEvidence(null); setDismissedRecommendationId(result?.recommendationId || journeyRecommendationAction.recommendationId); setMentorMessage(result?.status === "accepted-no-movement-required" ? "You're already at that point in the Journey, so nothing needed to move." : "Done. You chose that direction, and your Journey has moved to the committed next step."); }
       return result;
     } catch (error) {
       console.error("CreatorWorkspace Journey recommendation acceptance error:", error);
-      const durableJourney = identityRuntime?.memory?.getProject?.(projectId)?.metadata?.projectJourney || null;
+      const durableJourney = recoverAuthoritativeJourney(projectId);
       if (durableJourney) setProjectJourney(durableJourney);
       setMovieJourneyPlanningEvidence(null);
       setMentorMessage("That suggestion is no longer safe to apply to your current Journey, so I left your saved position unchanged.");
@@ -285,85 +148,15 @@ const CreatorWorkspace = ({ creatorName = "Creator", initialCreator = "", onGene
     }
   };
 
-  const handleDismissJourneyRecommendation = () => {
-    if (!journeyRecommendationAction) return;
-    const dismissal = dismissCurrentJourneyRecommendation(journeyRecommendationAction);
-    if (dismissal.recommendationId) setDismissedRecommendationId(dismissal.recommendationId);
-  };
-
-  const handleMovieStageSelect = async (stageId) => {
-    if (!stageId || stageId === canonicalMovieActiveStage) return;
-    await executeCreatorJourneyOperation({
-      source: POSITION_AUTHORITY_SOURCES.STAGE_CLICK_UI,
-      action: POSITION_ACTIONS.SET_POSITION,
-      target: { stageId },
-      creatorActPrefix: "journey-stage-click",
-      operationPrefix: "journey-stage-selection",
-    });
-  };
-
-  const handleMovieTaskComplete = async () => {
-    if (!canonicalMovieCurrentStage?.id || !canonicalMovieCurrentTask?.id || canonicalMovieCurrentTask?.status === "completed-for-now") return;
-    await executeCreatorJourneyOperation({
-      source: POSITION_AUTHORITY_SOURCES.TASK_COMPLETION_UI,
-      action: POSITION_ACTIONS.COMPLETE_TASK,
-      target: { stageId: canonicalMovieCurrentStage.id, taskId: canonicalMovieCurrentTask.id },
-      creatorActPrefix: "journey-task-complete",
-      operationPrefix: "journey-task-completion",
-      successMessage: "That task is marked complete for now. You can choose what happens next when you're ready.",
-    });
-  };
-
-  const handleMovieStageComplete = async () => {
-    if (!canonicalMovieCurrentStage?.id || canonicalMovieCurrentStage?.status === "completed-for-now") return;
-    await executeCreatorJourneyOperation({
-      source: POSITION_AUTHORITY_SOURCES.STAGE_COMPLETION_UI,
-      action: POSITION_ACTIONS.COMPLETE_STAGE,
-      target: { stageId: canonicalMovieCurrentStage.id },
-      creatorActPrefix: "journey-stage-complete",
-      operationPrefix: "journey-stage-completion",
-      successMessage: "That stage is marked complete for now. I haven't moved you anywhere else—the next step stays your choice.",
-    });
-  };
-
-  const handleMovieContinueTask = async () => {
-    if (!canonicalMovieCurrentTask || canonicalMovieCurrentTask.status !== "completed-for-now" || !canonicalMovieNextTask?.id || !canonicalMovieCurrentStage?.id) return;
-    await executeCreatorJourneyOperation({
-      source: POSITION_AUTHORITY_SOURCES.STAGE_CLICK_UI,
-      action: POSITION_ACTIONS.SET_POSITION,
-      target: { stageId: canonicalMovieCurrentStage.id, taskId: canonicalMovieNextTask.id },
-      creatorActPrefix: "journey-continue-task",
-      operationPrefix: "journey-task-continuation",
-      successMessage: `You're now on “${canonicalMovieNextTask.label || canonicalMovieNextTask.id}”.`,
-    });
-  };
-
-  const handleMovieContinueStage = async () => {
-    if (canonicalMovieCurrentStage?.status !== "completed-for-now" || !canonicalMovieNextStage?.id) return;
-    await executeCreatorJourneyOperation({
-      source: POSITION_AUTHORITY_SOURCES.STAGE_CLICK_UI,
-      action: POSITION_ACTIONS.SET_POSITION,
-      target: { stageId: canonicalMovieNextStage.id },
-      creatorActPrefix: "journey-continue-stage",
-      operationPrefix: "journey-stage-continuation",
-      successMessage: `You're now on “${canonicalMovieNextStage.label || canonicalMovieNextStage.id}”.`,
-    });
-  };
-
+  const handleDismissJourneyRecommendation = () => { if (!journeyRecommendationAction) return; const dismissal = dismissCurrentJourneyRecommendation(journeyRecommendationAction); if (dismissal.recommendationId) setDismissedRecommendationId(dismissal.recommendationId); };
+  const handleMovieStageSelect = async (stageId) => { if (!stageId || stageId === canonicalMovieActiveStage) return; await executeCreatorJourneyOperation({ source: POSITION_AUTHORITY_SOURCES.STAGE_CLICK_UI, action: POSITION_ACTIONS.SET_POSITION, target: { stageId }, creatorActPrefix: "journey-stage-click", operationPrefix: "journey-stage-selection" }); };
+  const handleMovieTaskComplete = async () => { if (!canonicalMovieCurrentStage?.id || !canonicalMovieCurrentTask?.id || canonicalMovieCurrentTask?.status === "completed-for-now") return; await executeCreatorJourneyOperation({ source: POSITION_AUTHORITY_SOURCES.TASK_COMPLETION_UI, action: POSITION_ACTIONS.COMPLETE_TASK, target: { stageId: canonicalMovieCurrentStage.id, taskId: canonicalMovieCurrentTask.id }, creatorActPrefix: "journey-task-complete", operationPrefix: "journey-task-completion", successMessage: "That task is marked complete for now. You can choose what happens next when you're ready." }); };
+  const handleMovieStageComplete = async () => { if (!canonicalMovieCurrentStage?.id || canonicalMovieCurrentStage?.status === "completed-for-now") return; await executeCreatorJourneyOperation({ source: POSITION_AUTHORITY_SOURCES.STAGE_COMPLETION_UI, action: POSITION_ACTIONS.COMPLETE_STAGE, target: { stageId: canonicalMovieCurrentStage.id }, creatorActPrefix: "journey-stage-complete", operationPrefix: "journey-stage-completion", successMessage: "That stage is marked complete for now. I haven't moved you anywhere else—the next step stays your choice." }); };
+  const handleMovieContinueTask = async () => { if (!canonicalMovieCurrentTask || canonicalMovieCurrentTask.status !== "completed-for-now" || !canonicalMovieNextTask?.id || !canonicalMovieCurrentStage?.id) return; await executeCreatorJourneyOperation({ source: POSITION_AUTHORITY_SOURCES.STAGE_CLICK_UI, action: POSITION_ACTIONS.SET_POSITION, target: { stageId: canonicalMovieCurrentStage.id, taskId: canonicalMovieNextTask.id }, creatorActPrefix: "journey-continue-task", operationPrefix: "journey-task-continuation", successMessage: `You're now on “${canonicalMovieNextTask.label || canonicalMovieNextTask.id}”.` }); };
+  const handleMovieContinueStage = async () => { if (canonicalMovieCurrentStage?.status !== "completed-for-now" || !canonicalMovieNextStage?.id) return; await executeCreatorJourneyOperation({ source: POSITION_AUTHORITY_SOURCES.STAGE_CLICK_UI, action: POSITION_ACTIONS.SET_POSITION, target: { stageId: canonicalMovieNextStage.id }, creatorActPrefix: "journey-continue-stage", operationPrefix: "journey-stage-continuation", successMessage: `You're now on “${canonicalMovieNextStage.label || canonicalMovieNextStage.id}”.` }); };
   const handleChangeCreator = () => { setShowCreatorChoices(true); setShowCreatorModeChoices(false); };
   const handleChangeCreatorMode = () => { setShowCreatorChoices(false); setShowCreatorModeChoices(true); };
-
-  const handleGenerate = async () => {
-    if (!canGenerate) { setMentorMessage("Choose what you would like to create, choose your Creator Mode, and tell me a little about your idea. We can shape the rest together."); return; }
-    const request = { ...createProjectPayload(), projectJourney, projectJourneySnapshot, projectJourneyOrientation, movieJourneyContext: null, idea: idea.trim() };
-    setProjectStatus("generating"); setMentorMessage("Great—your idea is taking shape. I’m preparing the first version now.");
-    try {
-      const result = typeof onGenerate === "function" ? await onGenerate(request) : null;
-      const generatedPreview = result?.prompt || result?.content || result?.preview || idea.trim();
-      setGeneratedIdea(generatedPreview); setProjectStatus("generated"); setMentorMessage("Your first version is ready. Take a look at the preview. Nothing is final—you can edit and develop it as much as you like.");
-    } catch (error) { console.error("CreatorWorkspace generate error:", error); setProjectStatus("idle"); setMentorMessage("Nothing has been lost. I couldn’t complete that generation just now, but your idea is still here and ready to try again."); }
-  };
-
+  const handleGenerate = async () => { if (!canGenerate) { setMentorMessage("Choose what you would like to create, choose your Creator Mode, and tell me a little about your idea. We can shape the rest together."); return; } const request = { ...createProjectPayload(), projectJourney, projectJourneySnapshot, projectJourneyOrientation, movieJourneyContext: null, idea: idea.trim() }; setProjectStatus("generating"); setMentorMessage("Great—your idea is taking shape. I’m preparing the first version now."); try { const result = typeof onGenerate === "function" ? await onGenerate(request) : null; const generatedPreview = result?.prompt || result?.content || result?.preview || idea.trim(); setGeneratedIdea(generatedPreview); setProjectStatus("generated"); setMentorMessage("Your first version is ready. Take a look at the preview. Nothing is final—you can edit and develop it as much as you like."); } catch (error) { console.error("CreatorWorkspace generate error:", error); setProjectStatus("idle"); setMentorMessage("Nothing has been lost. I couldn’t complete that generation just now, but your idea is still here and ready to try again."); } };
   const handleSave = async () => { const project = createProjectPayload(); try { if (typeof onSave === "function") await onSave(project); setProjectStatus("saved"); setMentorMessage("Your project has been saved safely. You can return and continue whenever you are ready."); } catch (error) { console.error("CreatorWorkspace save error:", error); setMentorMessage("Your work is still here. The save did not complete, so please try once more when you're ready."); } };
   const handleEdit = () => { setProjectStatus("editing"); setMentorMessage("Let's keep developing it. Make any changes you need, then generate another version when you're ready."); if (typeof onEdit === "function") onEdit(createProjectPayload()); };
   const handlePublish = async () => { const project = createProjectPayload(); try { if (typeof onPublish === "function") await onPublish(project); setProjectStatus("published"); setMentorMessage("Your creation is ready for its audience. You brought the idea to life."); } catch (error) { console.error("CreatorWorkspace publish error:", error); setMentorMessage("Your creation is safe. Publishing did not complete, so nothing has been lost."); } };
@@ -385,7 +178,7 @@ const CreatorWorkspace = ({ creatorName = "Creator", initialCreator = "", onGene
 
 const styles = {
   workspace: { width: "100%", maxWidth: "760px", margin: "0 auto", padding: "22px 16px 120px", boxSizing: "border-box" },
-  welcomeSection: { marginBottom: "22px" }, eyebrow: { margin: "0 0 6px", color: "#777d89", fontSize: "12px", fontWeight: "800", letterSpacing: "0.12em", textTransform: "uppercase" }, title: { margin: "0", color: "#111319", fontSize: "clamp(28px, 8vw, 42px)", lineHeight: "1.08", letterSpacing: "-0.04em" }, subtitle: { margin: "10px 0 0", color: "#616875", fontSize: "17px", lineHeight: "1.5" }, section: { marginTop: "18px" }, sectionHeadingRow: { display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: "12px", marginBottom: "12px" }, sectionEyebrow: { margin: "0 0 4px", color: "#737a88", fontSize: "11px", fontWeight: "800", letterSpacing: "0.12em", textTransform: "uppercase" }, sectionTitle: { margin: "0", color: "#16181d", fontSize: "21px", lineHeight: "1.2", letterSpacing: "-0.025em" }, creatorGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(245px, 1fr))", gap: "10px" }, creatorCard: { width: "100%", minHeight: "92px", display: "flex", alignItems: "center", gap: "12px", padding: "15px", border: "1px solid rgba(20, 24, 32, 0.09)", borderRadius: "20px", background: "#ffffff", boxShadow: "0 8px 24px rgba(17, 24, 39, 0.05)", color: "#17191f", textAlign: "left", cursor: "pointer", WebkitTapHighlightColor: "transparent", transition: "transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease" }, creatorCardActive: { border: "1px solid rgba(96, 77, 255, 0.52)", background: "linear-gradient(145deg, rgba(96, 77, 255, 0.1), rgba(255, 255, 255, 1))", boxShadow: "0 12px 30px rgba(96, 77, 255, 0.13)", transform: "translateY(-1px)" }, creatorIcon: { width: "46px", height: "46px", flexShrink: "0", display: "grid", placeItems: "center", borderRadius: "15px", background: "#f3f4f7", fontSize: "23px" }, creatorCopy: { minWidth: "0", display: "flex", flex: "1", flexDirection: "column", gap: "4px" }, creatorLabel: { fontSize: "15px", fontWeight: "800" }, creatorDescription: { color: "#69707c", fontSize: "12px", lineHeight: "1.4" }, creatorArrow: { color: "#b0b4bc", fontSize: "27px", lineHeight: "1" }, creatorArrowActive: { color: "#604dff" }, choiceSummary: { width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "14px", padding: "15px 16px", boxSizing: "border-box", borderRadius: "18px", border: "1px solid rgba(96, 77, 255, 0.2)", background: "linear-gradient(145deg, rgba(96,77,255,0.08), rgba(255,255,255,1))", boxShadow: "0 8px 24px rgba(17,24,39,0.04)" }, choiceSummaryCopy: { minWidth: 0, display: "flex", flexDirection: "column", gap: "4px" }, choiceSummaryEyebrow: { color: "#777d89", fontSize: "10px", fontWeight: "800", letterSpacing: "0.12em", textTransform: "uppercase" }, choiceSummaryValue: { color: "#17191f", fontSize: "16px", fontWeight: "800", lineHeight: "1.3" }, projectIdentity: { color: "#777d89", fontSize: "10px", overflowWrap: "anywhere" }, changeButton: { flexShrink: 0, appearance: "none", border: "1px solid rgba(96,77,255,0.22)", borderRadius: "999px", background: "#ffffff", color: "#5140d8", padding: "8px 12px", fontSize: "12px", fontWeight: "800", cursor: "pointer", WebkitTapHighlightColor: "transparent" },
+  welcomeSection: { marginBottom: "22px" }, eyebrow: { margin: "0 0 6px", color: "#777d89", fontSize: "12px", fontWeight: "800", letterSpacing: "0.12em", textTransform: "uppercase" }, title: { margin: "0", color: "#111319", fontSize: "clamp(28px, 8vw, 42px)", lineHeight: "1.08", letterSpacing: "-0.04em" }, subtitle: { margin: "10px 0 0", color: "#616875", fontSize: "17px", lineHeight: "1.5" }, section: { marginTop: "18px" }, sectionHeadingRow: { display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: "12px", marginBottom: "12px" }, sectionEyebrow: { margin: "0 0 4px", color: "#737a88", fontSize: "11px", fontWeight: "800", letterSpacing: "0.12em", textTransform: "uppercase" }, sectionTitle: { margin: "0", color: "#16181d", fontSize: "21px", lineHeight: "1.2", letterSpacing: "-0.025em" }, creatorGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(245px, 1fr))", gap: "10px" }, creatorCard: { width: "100%", minHeight: "92px", display: "flex", alignItems: "center", gap: "12px", padding: "15px", border: "1px solid rgba(20, 24, 32, 0.09)", borderRadius: "20px", background: "#ffffff", boxShadow: "0 8px 24px rgba(17, 24, 39, 0.05)", color: "#17191f", textAlign: "left", cursor: "pointer", WebkitTapHighlightColor: "transparent", transition: "transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease" }, creatorCardActive: { border: "1px solid rgba(96, 77, 255, 0.52)", background: "linear-gradient(145deg, rgba(96, 77, 255, 0.1), rgba(255, 255, 255, 1))", boxShadow: "0 12px 30px rgba(96, 77, 255, 0.13)", transform: "translateY(-1px)" }, creatorIcon: { width: "46px", height: "46px", flexShrink: "0", display: "grid", placeItems: "center", borderRadius: "15px", background: "#f3f4f7", fontSize: "23px" }, creatorCopy: { minWidth: "0", display: "flex", flex: "1", flexDirection: "column", gap: "4px" }, creatorLabel: { fontSize: "15px", fontWeight: "800" }, creatorDescription: { color: "#69707c", fontSize: "12px", lineHeight: "1.4" }, creatorArrow: { color: "#b0b4bc", fontSize: "27px", lineHeight: "1" }, creatorArrowActive: { color: "#604dff" }, choiceSummary: { width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "14px", padding: "15px 16px", boxSizing: "border-box", borderRadius: "18px", border: "1px solid rgba(96,77,255,0.2)", background: "linear-gradient(145deg, rgba(96,77,255,0.08), rgba(255,255,255,1))", boxShadow: "0 8px 24px rgba(17,24,39,0.04)" }, choiceSummaryCopy: { minWidth: 0, display: "flex", flexDirection: "column", gap: "4px" }, choiceSummaryEyebrow: { color: "#777d89", fontSize: "10px", fontWeight: "800", letterSpacing: "0.12em", textTransform: "uppercase" }, choiceSummaryValue: { color: "#17191f", fontSize: "16px", fontWeight: "800", lineHeight: "1.3" }, projectIdentity: { color: "#777d89", fontSize: "10px", overflowWrap: "anywhere" }, changeButton: { flexShrink: 0, appearance: "none", border: "1px solid rgba(96,77,255,0.22)", borderRadius: "999px", background: "#ffffff", color: "#5140d8", padding: "8px 12px", fontSize: "12px", fontWeight: "800", cursor: "pointer", WebkitTapHighlightColor: "transparent" },
 };
 
 export default CreatorWorkspace;
