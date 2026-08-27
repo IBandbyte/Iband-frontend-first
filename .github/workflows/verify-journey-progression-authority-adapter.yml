@@ -1,0 +1,28 @@
+name: Verify Journey Progression Authority Adapter
+
+on:
+  push:
+    paths:
+      - "src/components/studio/mentor/JourneyDurableAuthorityStore.js"
+      - "src/components/studio/mentor/JourneyProgressionAuthorityAdapter.js"
+      - "scripts/verify-journey-progression-authority-adapter.mjs"
+      - ".github/workflows/verify-journey-progression-authority-adapter.yml"
+  pull_request:
+    paths:
+      - "src/components/studio/mentor/JourneyDurableAuthorityStore.js"
+      - "src/components/studio/mentor/JourneyProgressionAuthorityAdapter.js"
+      - "scripts/verify-journey-progression-authority-adapter.mjs"
+      - ".github/workflows/verify-journey-progression-authority-adapter.yml"
+
+jobs:
+  progression-authority-adapter:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Use Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Torture Journey progression authority adapter
+        run: node scripts/verify-journey-progression-authority-adapter.mjs
