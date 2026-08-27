@@ -57,6 +57,16 @@ function isMovieMentorProject(project) {
   );
 }
 
+function metadataWithoutJourney(metadata) {
+  const copy = clone(metadata) || {};
+  delete copy.projectJourney;
+  return copy;
+}
+
+function sameValue(left, right) {
+  return JSON.stringify(left ?? null) === JSON.stringify(right ?? null);
+}
+
 function createCreatorMemory(options = {}) {
   const {
     projectIdentityCrypto = globalThis?.crypto,
@@ -157,6 +167,21 @@ function createCreatorMemory(options = {}) {
     return clone(memory.getProject(project.id));
   }
 
+  function isRedundantAuthorityProjectionEcho(current, safeUpdates) {
+    if (!isMovieMentorProject(current)) return false;
+    if (!safeUpdates?.metadata || !Object.prototype.hasOwnProperty.call(safeUpdates.metadata, "projectJourney")) return false;
+    if (Object.keys(safeUpdates).some((key) => key !== "metadata")) return false;
+
+    const preferred = journeyAuthorityReadFacade.readPreferred({
+      project: current,
+      projectedJourney: current?.metadata?.projectJourney || null,
+    });
+    if (preferred?.status !== "authority" || !preferred?.projectJourney) return false;
+    if (!sameValue(safeUpdates.metadata.projectJourney, preferred.projectJourney)) return false;
+    if (!sameValue(metadataWithoutJourney(safeUpdates.metadata), metadataWithoutJourney(current.metadata))) return false;
+    return true;
+  }
+
   function updateProject(projectId, updates = {}) {
     if (!updates || typeof updates !== "object") return memory.getProject(projectId);
     const current = memory.getProject(projectId);
@@ -165,6 +190,16 @@ function createCreatorMemory(options = {}) {
     delete safeUpdates.id;
     delete safeUpdates.projectId;
     delete safeUpdates.identity;
+
+    // Once Journey Authority exists, a compatibility caller may echo the exact
+    // authoritative Journey back through the old Creator Memory update path.
+    // Persisting that echo would write the entire cached Creator Memory blob and
+    // could clobber unrelated newer cross-tab memory. Treat only an exact,
+    // otherwise-no-change authority echo as a read-side no-op.
+    if (isRedundantAuthorityProjectionEcho(current, safeUpdates)) {
+      return clone(current);
+    }
+
     const updated = memory.updateProject(projectId, safeUpdates);
     if (!updated) return null;
     if (JSON.stringify(updated.identity || null) !== JSON.stringify(current.identity || null)) {
