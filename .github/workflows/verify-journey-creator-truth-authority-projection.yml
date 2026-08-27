@@ -1,0 +1,28 @@
+name: Verify Journey Creator Truth Authority Projection
+
+on:
+  push:
+    paths:
+      - "src/components/studio/mentor/JourneyCreatorTruthProjectionExecutionRuntime.js"
+      - "src/components/studio/mentor/CreatorJourneyAuthoritativeProjection.js"
+      - "scripts/verify-journey-creator-truth-authority-projection.mjs"
+      - ".github/workflows/verify-journey-creator-truth-authority-projection.yml"
+  pull_request:
+    paths:
+      - "src/components/studio/mentor/JourneyCreatorTruthProjectionExecutionRuntime.js"
+      - "src/components/studio/mentor/CreatorJourneyAuthoritativeProjection.js"
+      - "scripts/verify-journey-creator-truth-authority-projection.mjs"
+      - ".github/workflows/verify-journey-creator-truth-authority-projection.yml"
+
+jobs:
+  creator-truth-authority-projection:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Use Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Torture creator-truth authority projection
+        run: node scripts/verify-journey-creator-truth-authority-projection.mjs
