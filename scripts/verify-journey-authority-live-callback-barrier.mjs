@@ -22,7 +22,8 @@ const thinkingFinally = conversation.indexOf("finally { setLocalIsThinking(false
 assert.ok(callbackAwait > turnResultBuild, "Conversation must await the Mentor-turn integration callback.");
 assert.ok(mentorPublish > callbackAwait, "Mentor response must not publish before Journey Authority integration completes.");
 assert.ok(thinkingFinally > mentorPublish, "Thinking state must remain active through the authority commit barrier.");
-assert.ok(!conversation.includes("onMentorTurnResult?.(turnResult); onSendMessage?.({"), "Unawaited Mentor-turn callback seam must remain quarantined.");
+const callbackStatements = [...conversation.matchAll(/(?:await\s+)?onMentorTurnResult\?\.\(turnResult\);/g)].map((match) => match[0]);
+assert.deepEqual(callbackStatements, ["await onMentorTurnResult?.(turnResult);"], "Every live Mentor-turn callback invocation must be awaited exactly once.");
 
 assert.ok(projection.includes("async function projectCommittedCreatorAuthorityIntoJourney"), "Live projection runtime must remain explicitly asynchronous.");
 assert.ok(projection.includes("await runtime.execute({"), "Live projection runtime must await the Journey Authority execution runtime.");
