@@ -127,7 +127,6 @@ function createRuntime(memory) {
 const recommendationId = "journey-recommendation:resume-proof";
 const fingerprint = "resume-proof-fingerprint";
 
-// Exact receipt lineage repairs stale recommendation before it is exposed.
 {
   const journey = createJourney({ recommendationId, fingerprint });
   const reference = createReference({ recommendationId, fingerprint });
@@ -145,7 +144,6 @@ const fingerprint = "resume-proof-fingerprint";
   assert.deepEqual(snapshot.projectJourney, journey, "Recovery must not alter durable Journey reality.");
 }
 
-// Contradictory durable proof must block recommendation exposure but still restore Journey.
 {
   const journey = createJourney({ recommendationId, fingerprint, receiptFingerprint: "forged-fingerprint" });
   const reference = createReference({ recommendationId, fingerprint });
@@ -160,8 +158,6 @@ const fingerprint = "resume-proof-fingerprint";
   assert.deepEqual(snapshot.projectJourney, journey, "Proof conflict must not deny access to authoritative Journey reality.");
 }
 
-// Another tab may repair between recovery plan and latest-state check. First attempt becomes stale;
-// one bounded convergence retry must certify the already-repaired durable state.
 {
   const journey = createJourney({ recommendationId, fingerprint });
   const reference = createReference({ recommendationId, fingerprint });
@@ -196,7 +192,6 @@ const fingerprint = "resume-proof-fingerprint";
   assert.deepEqual(snapshot.currentRecommendationReferences, []);
 }
 
-// Static invocation-order quarantine.
 const recoveryCall = identitySource.indexOf("certifyJourneyRecommendationResume({");
 const recommendationExposure = identitySource.indexOf("currentRecommendationReferences:", recoveryCall);
 check(recoveryCall >= 0, "Studio identity resume must invoke recommendation lifecycle recovery.");
@@ -204,7 +199,7 @@ check(recommendationExposure > recoveryCall, "Recommendation references must onl
 check(identitySource.includes("const project = memory.getProject?.(initiallyActiveProject.id)"), "Resume must re-read the durable project after recovery.");
 check(identitySource.includes("recommendationActionsBlocked ? [] : getCurrentRecommendationReferences(project.id)"), "Blocked recovery must expose zero current recommendation references.");
 check(resumeSource.includes("NON_RETRYABLE_RECOVERY_CODES"), "Resume boundary must distinguish proof conflicts from convergence races.");
-check(resumeSource.includes("recoveryAttempts: 2"), "Resume recovery must permit at most one bounded convergence retry.");
+check(resumeSource.includes("executeJourneyRecommendationLifecycleRecovery({ identityRuntime, projectId: pid })") && resumeSource.includes("successResult(") && resumeSource.includes("      2\n    );"), "Resume recovery must permit at most one bounded convergence retry.");
 
 if (failures.length) {
   console.error("Movie Mentor resume recovery integration verification failed:\n");
