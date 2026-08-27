@@ -1,4 +1,4 @@
-const JOURNEY_RECOMMENDATION_LIFECYCLE_PERSISTENCE_VERSION = "1.0.0";
+const JOURNEY_RECOMMENDATION_LIFECYCLE_PERSISTENCE_VERSION = "1.1.0";
 const RECOMMENDATION_REFERENCE_DOMAIN = "iband.movie-mentor.journey-recommendation-reference";
 
 function cleanString(value) {
@@ -27,6 +27,21 @@ function fail(code, message, extras = {}) {
   error.code = code;
   Object.assign(error, extras);
   throw error;
+}
+
+function readLatestState(memory) {
+  return cloneValue(
+    typeof memory?.readPersistedState === "function"
+      ? memory.readPersistedState()
+      : memory?.getState?.()
+  );
+}
+
+function readLatestProject(memory, projectId) {
+  if (typeof memory?.getPersistedProject === "function") {
+    return cloneValue(memory.getPersistedProject(projectId));
+  }
+  return cloneValue(memory?.getProject?.(projectId) || null);
 }
 
 function findProjectIndex(state, projectId) {
@@ -217,7 +232,9 @@ function persistJourneyAndRecommendationLifecycle({
     fail("JOURNEY_RECOMMENDATION_ATOMIC_CANDIDATE_INVALID", "Atomic Journey lifecycle persistence requires exact N to N+1 candidate reality.");
   }
 
-  const state = memory.getState();
+  // Cross-context law: construct the replacement from the latest persisted storage
+  // snapshot, not this tab's potentially older in-memory CreatorMemory state.
+  const state = readLatestState(memory);
   const projectIndex = findProjectIndex(state, pid);
   if (projectIndex < 0) fail("JOURNEY_RECOMMENDATION_ATOMIC_PROJECT_NOT_FOUND", "Atomic Journey lifecycle persistence could not find the project.");
 
@@ -259,7 +276,7 @@ function persistJourneyAndRecommendationLifecycle({
 
   memory.replaceState(nextState);
 
-  const persistedProject = memory.getProject(pid);
+  const persistedProject = readLatestProject(memory, pid);
   const persistedJourney = persistedProject?.metadata?.projectJourney || null;
   if (effectiveProgressionRevision(persistedJourney) !== nextRevision) {
     fail("JOURNEY_RECOMMENDATION_ATOMIC_VERIFICATION_FAILED", "Atomic persistence could not verify the committed Journey revision.");
@@ -268,7 +285,7 @@ function persistJourneyAndRecommendationLifecycle({
     fail("JOURNEY_RECOMMENDATION_ATOMIC_IDENTITY_VIOLATION", "Atomic persistence changed immutable project identity.");
   }
   if (acceptedRecommendationId) {
-    const persistedState = memory.getState();
+    const persistedState = readLatestState(memory);
     if (!verifyPersistedRecommendationLifecycle(persistedState, pid, acceptedRecommendationId, "consumed")) {
       fail("JOURNEY_RECOMMENDATION_ATOMIC_VERIFICATION_FAILED", "Atomic persistence could not verify recommendation consumption.");
     }
@@ -295,7 +312,7 @@ function consumeRecommendationWithoutMovement({
   const expected = safeRevision(expectedProgressionRevision);
   if (!pid || expected === null) fail("JOURNEY_RECOMMENDATION_NOOP_EXPECTED_REVISION_INVALID", "No-op acceptance requires an exact Journey revision.");
 
-  const state = memory.getState();
+  const state = readLatestState(memory);
   const projectIndex = findProjectIndex(state, pid);
   if (projectIndex < 0) fail("JOURNEY_RECOMMENDATION_ATOMIC_PROJECT_NOT_FOUND", "No-op acceptance could not find the project.");
   const project = state.projects[projectIndex];
@@ -333,8 +350,8 @@ function consumeRecommendationWithoutMovement({
   });
   memory.replaceState(nextState);
 
-  const persistedState = memory.getState();
-  const persistedProject = memory.getProject(pid);
+  const persistedState = readLatestState(memory);
+  const persistedProject = readLatestProject(memory, pid);
   if (effectiveProgressionRevision(persistedProject?.metadata?.projectJourney) !== expected) {
     fail("JOURNEY_RECOMMENDATION_ATOMIC_VERIFICATION_FAILED", "No-op consumption unexpectedly changed Journey progression revision.");
   }
