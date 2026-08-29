@@ -1,4 +1,4 @@
-const MOVIE_MENTOR_CREATOR_AUTH_TRANSPORT_VERSION = "1.2.0";
+const MOVIE_MENTOR_CREATOR_AUTH_TRANSPORT_VERSION = "1.2.1";
 
 let currentAuthState = Object.freeze({ isLoaded: false, isSignedIn: false, getToken: null });
 const authStateListeners = new Set();
