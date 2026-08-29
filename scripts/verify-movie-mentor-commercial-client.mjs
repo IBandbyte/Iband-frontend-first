@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 const source=await fs.readFile(new URL("../src/components/studio/mentor/MovieMentorCommercialClient.js",import.meta.url),"utf8");
-assert.match(source,/\/purchase-intents",\{packageId:selected\}/,"Browser may request only a package identifier when creating an intent.");
-assert.match(source,/\/checkout",\{commercialIntentId:id\}/,"Browser may present only the durable commercial intent when initiating checkout.");
+assert.match(source,/request\("\/purchase-intents",\{method:"POST",body:\{packageId:selected\}/,"Browser may request only a package identifier when creating an intent.");
+assert.match(source,/request\("\/checkout",\{method:"POST",body:\{commercialIntentId:id\}/,"Browser may present only the durable commercial intent when initiating checkout.");
 assert.match(source,/"Authorization":bearer\(token\)/,"Creator commercial requests must carry authentication.");
 assert.match(source,/const intent=payload\?\.intent;/,"Client must consume the backend purchase-intent envelope rather than invent a flat response contract.");
 assert.match(source,/const checkout=payload\?\.checkout;/,"Client must consume the backend checkout envelope rather than invent a flat response contract.");
