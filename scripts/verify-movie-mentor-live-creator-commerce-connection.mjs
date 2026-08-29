@@ -1,0 +1,11 @@
+import fs from"node:fs";
+import assert from"node:assert/strict";
+const client=fs.readFileSync("src/components/studio/mentor/MovieMentorCommercialClient.js","utf8");
+const surface=fs.readFileSync("src/components/studio/mentor/MovieMentorCommercialSurface.jsx","utf8");
+const liveConversation=fs.readFileSync("src/components/studio/mentor/MovieMentorConversation.jsx","utf8");
+const coreConversation=fs.readFileSync("src/components/studio/mentor/MovieMentorConversationCore.jsx","utf8");
+const workspace=fs.readFileSync("src/components/studio/CreatorWorkspace.jsx","utf8");
+assert.match(client,/listMovieMentorCommercialPackages/);assert.match(client,/request\("\/packages"/);assert.match(client,/Authorization/);assert.match(client,/getMovieMentorCreatorAuthToken/);
+assert.match(surface,/listMovieMentorCommercialPackages\(\)/);assert.match(surface,/beginMovieMentorPurchase\(\{packageId:pkg\.packageId\}\)/);assert.doesNotMatch(surface,/getAuthToken/);assert.doesNotMatch(surface,/amountMinor:\s*\d+/);assert.doesNotMatch(surface,/currency:\s*["']/);assert.doesNotMatch(surface,/providerProductId/);
+assert.match(workspace,/MovieMentorConversation/);assert.match(liveConversation,/MovieMentorConversationCore/);assert.match(liveConversation,/MovieMentorCommercialSurface/);assert.match(liveConversation,/renderBelowConversation=\{renderBelowConversation\}/);assert.match(coreConversation,/renderBelowConversation/);assert.doesNotMatch(liveConversation,/amountMinor:\s*\d+/);assert.doesNotMatch(workspace,/providerProductId/);
+console.log("PASS 5A.21: live Movie Mentor cockpit mounts authenticated server-catalogue commerce without browser commercial authority.");

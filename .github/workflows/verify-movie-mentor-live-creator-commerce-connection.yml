@@ -1,0 +1,30 @@
+name: Verify Movie Mentor Live Creator Commerce Connection
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "src/components/studio/CreatorWorkspace.jsx"
+      - "src/components/studio/mentor/MovieMentorCommercialClient.js"
+      - "src/components/studio/mentor/MovieMentorCommercialSurface.jsx"
+      - "scripts/verify-movie-mentor-live-creator-commerce-connection.mjs"
+      - ".github/workflows/verify-movie-mentor-live-creator-commerce-connection.yml"
+  workflow_dispatch:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm install
+      - name: Verify 5A.21 live creator commerce connection
+        run: node scripts/verify-movie-mentor-live-creator-commerce-connection.mjs
+      - name: Commercial client regression
+        run: node scripts/verify-movie-mentor-commercial-client.mjs
+      - name: Frontend build
+        env:
+          VITE_CLERK_PUBLISHABLE_KEY: pk_test_movie_mentor_ci_shape_only
+        run: npm run build
