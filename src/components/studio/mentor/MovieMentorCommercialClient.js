@@ -1,6 +1,6 @@
 import { getMovieMentorCreatorAuthToken } from "./MovieMentorCreatorAuthenticationTransport.js";
 
-const MOVIE_MENTOR_COMMERCIAL_CLIENT_VERSION="1.3.0";
+const MOVIE_MENTOR_COMMERCIAL_CLIENT_VERSION="1.3.1";
 function clean(value){return typeof value==="string"?value.trim():"";}
 function apiBase(){return clean(import.meta?.env?.VITE_API_BASE_URL||import.meta?.env?.VITE_BACKEND_URL||"").replace(/\/$/,"");}
 function error(code,message,extras={}){const e=new Error(message);e.code=code;Object.assign(e,extras);return e;}
