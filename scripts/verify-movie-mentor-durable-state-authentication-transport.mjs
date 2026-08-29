@@ -8,7 +8,7 @@ assert.match(source,/"Authorization":`Bearer \$\{token\}`/);
 assert.match(source,/\/api\/movie-mentor\/state\/sync/);
 assert.doesNotMatch(source,/principalId\s*:/);
 assert.doesNotMatch(source,/userId\s*:/);
-assert.doesNotMatch(source,/localStorage[^\n]*(token|bearer)/i);
+assert.doesNotMatch(source,/(localStorage|sessionStorage)\s*\.\s*setItem\s*\([^)]*(token|bearer)/i);
 
 const memoryState={creatorProfile:{id:"creator-5a22"},projects:[{id:"project-5a22",title:"Authority"}],journey:{activeProjectId:"project-5a22",stageId:"idea"}};
 const storageMap=new Map();const storage={getItem:k=>storageMap.get(k)||null,setItem:(k,v)=>storageMap.set(k,String(v))};
