@@ -1,27 +1,17 @@
-import React, { useMemo } from "react";
+import React, { useEffect } from "react";
 import { useAuth } from "@clerk/react";
-import { createMovieMentorCreatorAuthTokenProvider } from "./MovieMentorCreatorAuthenticationTransport.js";
+import {
+  setMovieMentorCreatorAuthState,
+  clearMovieMentorCreatorAuthState,
+} from "./MovieMentorCreatorAuthenticationTransport.js";
 
-export default function MovieMentorCreatorAuthenticationBridge({ children }) {
+export default function MovieMentorCreatorAuthenticationBridge() {
   const { isLoaded, isSignedIn, getToken } = useAuth();
 
-  const getAuthToken = useMemo(
-    () =>
-      createMovieMentorCreatorAuthTokenProvider({
-        isLoaded,
-        isSignedIn,
-        getToken,
-      }),
-    [isLoaded, isSignedIn, getToken]
-  );
+  useEffect(() => {
+    setMovieMentorCreatorAuthState({ isLoaded, isSignedIn, getToken });
+    return () => clearMovieMentorCreatorAuthState();
+  }, [isLoaded, isSignedIn, getToken]);
 
-  if (typeof children === "function") {
-    return children({
-      authReady: isLoaded === true,
-      isSignedIn: isSignedIn === true,
-      getAuthToken,
-    });
-  }
-
-  return children ?? null;
+  return null;
 }
