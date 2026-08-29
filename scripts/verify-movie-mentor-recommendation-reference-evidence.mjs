@@ -14,11 +14,11 @@ const runtime=createMovieMentorStudioIdentityRuntime({memory,cryptoImpl});
 
 function planning(task,revision){return{contractVersion:"1.1.0",authority:"advisory-only",creatorConfirmed:false,mayCreateCanon:false,mayAdvanceJourney:false,semanticDirection:{nextAction:{label:task}},recommendation:{recommendedStageId:"story",recommendedTaskId:task,reasonCodes:["story-advice-considered"],confidence:.9,alternatives:[]},clarification:{required:false,reasons:[]},provenance:{bridgeVersion:"1.5.0",turnRevision:revision,authorityRevision:revision}};}
 
-const first=runtime.recordRecommendationReference(project.id,planning("escape-through-tunnel",7),{turnRevision:7});
+const first=runtime.recordRecommendationReference(project.id,planning("escape-through-tunnel",7),{turnRevision:7,projectJourney});
 assert.ok(first?.id);const firstId=first.metadata.recommendationReference.recommendationId;
 assert.equal(runtime.getCurrentRecommendationReferences(project.id).length,1);
 
-const second=runtime.recordRecommendationReference(project.id,planning("objective-after-escape",8),{turnRevision:8});
+const second=runtime.recordRecommendationReference(project.id,planning("objective-after-escape",8),{turnRevision:8,projectJourney});
 assert.ok(second?.id);const secondId=second.metadata.recommendationReference.recommendationId;
 assert.notEqual(firstId,secondId);assert.deepEqual(second.retiredRecommendationIds,[firstId]);
 let refs=memory.getProjectMemories({projectId:project.id}).filter(x=>x?.metadata?.recommendationReference?.domain===RECOMMENDATION_REFERENCE_DOMAIN);
@@ -38,6 +38,7 @@ const reloadedAll=reloadedMemory.getProjectMemories({projectId:project.id}).filt
 const reloadedCurrent=reloadedRuntime.getCurrentRecommendationReferences(project.id);
 assert.equal(reloadedAll.length,3);assert.equal(reloadedCurrent.length,1);assert.equal(reloadedCurrent[0].metadata.recommendationReference.recommendationId,thirdId);assert.equal(reloadedAll.find(x=>x.metadata.recommendationReference.recommendationId===firstId).metadata.recommendationReference.lifecycle.current,false);assert.equal(reloadedAll.find(x=>x.metadata.recommendationReference.recommendationId===secondId).metadata.recommendationReference.lifecycle.current,false);
 
-let syncBody=null;await syncMovieMentorDurableState({projectId:project.id,creatorSessionId:runtime.creatorSessionId,memoryState:reloadedMemory.getState(),storage:{getItem:()=>null,setItem(){}},fetchImpl:async(_url,options)=>{syncBody=JSON.parse(options.body);return{ok:true,status:200,json:async()=>({success:true,state:{revision:10}})}}});
+let syncBody=null;let syncAuthorization=null;await syncMovieMentorDurableState({projectId:project.id,creatorSessionId:runtime.creatorSessionId,memoryState:reloadedMemory.getState(),storage:{getItem:()=>null,setItem(){}},getAuthToken:async()=>"recommendation-reference-test-token",fetchImpl:async(_url,options)=>{syncAuthorization=options.headers?.Authorization||null;syncBody=JSON.parse(options.body);return{ok:true,status:200,json:async()=>({success:true,state:{revision:10}})}}});
+assert.equal(syncAuthorization,"Bearer recommendation-reference-test-token");
 const synced=syncBody.state.memoryContext.projectMemories.filter(x=>x?.metadata?.recommendationReference?.domain===RECOMMENDATION_REFERENCE_DOMAIN);assert.equal(synced.filter(x=>x.metadata.recommendationReference.lifecycle.current===true).length,1);assert.equal(synced.find(x=>x.metadata.recommendationReference.lifecycle.current===true).metadata.recommendationReference.recommendationId,thirdId);
-console.log("Movie Mentor recommendation lifecycle torture: PASS — each replacement retires the prior advisory reference, reload preserves retirement, and exactly one reference remains current.");
+console.log("Movie Mentor recommendation lifecycle torture: PASS — each replacement retires the prior advisory reference, reload preserves retirement, authenticated durable sync preserves evidence, and exactly one reference remains current.");

@@ -1,6 +1,6 @@
 import { getMovieMentorCreatorAuthToken } from "./MovieMentorCreatorAuthenticationTransport.js";
 
-const MOVIE_MENTOR_DURABLE_STATE_SYNC_VERSION="1.2.1";
+const MOVIE_MENTOR_DURABLE_STATE_SYNC_VERSION="1.2.2";
 const REVISION_KEY_PREFIX="iband.movie-mentor.durable-revision";
 const STATUS_KEY_PREFIX="iband.movie-mentor.durable-sync-status";
 const CREATOR_MEMORY_KEY_PREFIX="iband.creator-memory";
