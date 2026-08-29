@@ -1,0 +1,45 @@
+import assert from "node:assert/strict";
+import fs from "node:fs";
+import path from "node:path";
+import { pathToFileURL } from "node:url";
+
+const root = process.cwd();
+const read = (file) => fs.readFileSync(path.join(root, file), "utf8");
+const main = read("src/main.jsx");
+const bridge = read("src/components/studio/mentor/MovieMentorCreatorAuthenticationBridge.jsx");
+const turn = read("src/components/studio/mentor/MovieMentorTurnClient.js");
+const commercial = read("src/components/studio/mentor/MovieMentorCommercialClient.js");
+const pkg = JSON.parse(read("package.json"));
+
+assert(pkg.dependencies?.["@clerk/react"], "Clerk React SDK must be a production dependency");
+assert(main.includes("ClerkProvider"), "root must mount ClerkProvider");
+assert(main.includes("VITE_CLERK_PUBLISHABLE_KEY"), "root must consume only the public Clerk publishable key");
+assert(!main.includes("CLERK_SECRET_KEY"), "frontend must never contain Clerk secret-key authority");
+assert(main.includes("MovieMentorCreatorAuthenticationBridge"), "root must activate the creator authentication bridge");
+assert(bridge.includes("useAuth"), "bridge must consume Clerk authenticated session state");
+assert(bridge.includes("setMovieMentorCreatorAuthState"), "bridge must publish session transport state");
+assert(turn.includes("getMovieMentorCreatorAuthToken"), "live creator turns must consume authenticated creator transport");
+assert(turn.includes('"Authorization":`Bearer ${token}`'), "live creator turns must send bearer authorization");
+assert(commercial.includes("getMovieMentorCreatorAuthToken"), "commercial client must consume the same authenticated creator transport");
+assert(commercial.includes('"Authorization":bearer(authToken)'), "commercial requests must send bearer authorization");
+for (const source of [turn, commercial]) {
+  assert(!/localStorage[^\n]*(token|auth)/i.test(source), "auth tokens must not be sourced from localStorage");
+  assert(!/(principalId|userId)\s*:/i.test(source), "browser transport must not manufacture authenticated principal identity");
+}
+
+const transportUrl = pathToFileURL(path.join(root, "src/components/studio/mentor/MovieMentorCreatorAuthenticationTransport.js")).href + `?v=${Date.now()}`;
+const transport = await import(transportUrl);
+
+transport.clearMovieMentorCreatorAuthState();
+await assert.rejects(() => transport.getMovieMentorCreatorAuthToken(), (error) => error?.code === "MOVIE_MENTOR_CREATOR_AUTH_NOT_READY");
+transport.setMovieMentorCreatorAuthState({ isLoaded: true, isSignedIn: false, getToken: async () => "forbidden" });
+await assert.rejects(() => transport.getMovieMentorCreatorAuthToken(), (error) => error?.code === "MOVIE_MENTOR_CREATOR_AUTH_REQUIRED");
+transport.setMovieMentorCreatorAuthState({ isLoaded: true, isSignedIn: true, getToken: async () => "  certified-session-token  " });
+assert.equal(await transport.getMovieMentorCreatorAuthToken(), "certified-session-token");
+transport.setMovieMentorCreatorAuthState({ isLoaded: true, isSignedIn: true, getToken: async () => "" });
+await assert.rejects(() => transport.getMovieMentorCreatorAuthToken(), (error) => error?.code === "MOVIE_MENTOR_CREATOR_AUTH_TOKEN_MISSING");
+transport.setMovieMentorCreatorAuthState({ isLoaded: true, isSignedIn: true, getToken: async () => { throw new Error("offline"); } });
+await assert.rejects(() => transport.getMovieMentorCreatorAuthToken(), (error) => error?.code === "MOVIE_MENTOR_CREATOR_AUTH_TOKEN_FAILED");
+transport.clearMovieMentorCreatorAuthState();
+
+console.log("5A.19 creator authentication transport torture: GREEN");
