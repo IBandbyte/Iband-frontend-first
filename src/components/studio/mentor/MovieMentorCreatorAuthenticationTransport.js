@@ -1,9 +1,17 @@
-const MOVIE_MENTOR_CREATOR_AUTH_TRANSPORT_VERSION = "1.1.0";
+const MOVIE_MENTOR_CREATOR_AUTH_TRANSPORT_VERSION = "1.2.0";
 
 let currentAuthState = Object.freeze({ isLoaded: false, isSignedIn: false, getToken: null });
+const authStateListeners = new Set();
 
 function clean(value) { return typeof value === "string" ? value.trim() : ""; }
 function authError(code, message, extras = {}) { const error = new Error(message); error.code = code; Object.assign(error, extras); return error; }
+function notifyAuthStateListeners() { for (const listener of [...authStateListeners]) { try { listener(currentAuthState); } catch {} } }
+function getMovieMentorCreatorAuthState() { return currentAuthState; }
+function subscribeMovieMentorCreatorAuthState(listener) {
+  if (typeof listener !== "function") throw new TypeError("Movie Mentor auth state listener must be a function.");
+  authStateListeners.add(listener);
+  return () => authStateListeners.delete(listener);
+}
 
 function setMovieMentorCreatorAuthState(authState = {}) {
   currentAuthState = Object.freeze({
@@ -11,11 +19,13 @@ function setMovieMentorCreatorAuthState(authState = {}) {
     isSignedIn: authState?.isSignedIn === true,
     getToken: typeof authState?.getToken === "function" ? authState.getToken : null,
   });
+  notifyAuthStateListeners();
   return currentAuthState;
 }
 
 function clearMovieMentorCreatorAuthState() {
   currentAuthState = Object.freeze({ isLoaded: false, isSignedIn: false, getToken: null });
+  notifyAuthStateListeners();
 }
 
 async function resolveMovieMentorCreatorAuthToken(authState = currentAuthState) {
@@ -36,6 +46,8 @@ export {
   MOVIE_MENTOR_CREATOR_AUTH_TRANSPORT_VERSION,
   setMovieMentorCreatorAuthState,
   clearMovieMentorCreatorAuthState,
+  getMovieMentorCreatorAuthState,
+  subscribeMovieMentorCreatorAuthState,
   resolveMovieMentorCreatorAuthToken,
   createMovieMentorCreatorAuthTokenProvider,
   getMovieMentorCreatorAuthToken,
