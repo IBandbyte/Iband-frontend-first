@@ -7,6 +7,7 @@ const root = process.cwd();
 const read = (file) => fs.readFileSync(path.join(root, file), "utf8");
 const main = read("src/main.jsx");
 const bridge = read("src/components/studio/mentor/MovieMentorCreatorAuthenticationBridge.jsx");
+const transportSource = read("src/components/studio/mentor/MovieMentorCreatorAuthenticationTransport.js");
 const turn = read("src/components/studio/mentor/MovieMentorTurnClient.js");
 const commercial = read("src/components/studio/mentor/MovieMentorCommercialClient.js");
 const pkg = JSON.parse(read("package.json"));
@@ -22,14 +23,12 @@ assert(turn.includes("getMovieMentorCreatorAuthToken"), "live creator turns must
 assert(turn.includes('"Authorization":`Bearer ${token}`'), "live creator turns must send bearer authorization");
 assert(commercial.includes("getMovieMentorCreatorAuthToken"), "commercial client must consume the same authenticated creator transport");
 assert(commercial.includes('"Authorization":bearer(authToken)'), "commercial requests must send bearer authorization");
-for (const source of [turn, commercial]) {
-  assert(!/localStorage[^\n]*(token|auth)/i.test(source), "auth tokens must not be sourced from localStorage");
-  assert(!/(principalId|userId)\s*:/i.test(source), "browser transport must not manufacture authenticated principal identity");
-}
+assert(!transportSource.includes("localStorage"), "authentication transport must never persist or recover credentials from localStorage");
+assert(!transportSource.includes("sessionStorage"), "authentication transport must never persist or recover credentials from sessionStorage");
+for (const source of [transportSource, turn, commercial]) assert(!/(principalId|userId)\s*:/i.test(source), "browser transport must not manufacture authenticated principal identity");
 
 const transportUrl = pathToFileURL(path.join(root, "src/components/studio/mentor/MovieMentorCreatorAuthenticationTransport.js")).href + `?v=${Date.now()}`;
 const transport = await import(transportUrl);
-
 transport.clearMovieMentorCreatorAuthState();
 await assert.rejects(() => transport.getMovieMentorCreatorAuthToken(), (error) => error?.code === "MOVIE_MENTOR_CREATOR_AUTH_NOT_READY");
 transport.setMovieMentorCreatorAuthState({ isLoaded: true, isSignedIn: false, getToken: async () => "forbidden" });
@@ -41,5 +40,4 @@ await assert.rejects(() => transport.getMovieMentorCreatorAuthToken(), (error) =
 transport.setMovieMentorCreatorAuthState({ isLoaded: true, isSignedIn: true, getToken: async () => { throw new Error("offline"); } });
 await assert.rejects(() => transport.getMovieMentorCreatorAuthToken(), (error) => error?.code === "MOVIE_MENTOR_CREATOR_AUTH_TOKEN_FAILED");
 transport.clearMovieMentorCreatorAuthState();
-
 console.log("5A.19 creator authentication transport torture: GREEN");
