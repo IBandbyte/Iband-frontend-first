@@ -4,7 +4,11 @@ const source=await fs.readFile(new URL("../src/components/studio/mentor/MovieMen
 assert.match(source,/\/purchase-intents",\{packageId:selected\}/,"Browser may request only a package identifier when creating an intent.");
 assert.match(source,/\/checkout",\{commercialIntentId:id\}/,"Browser may present only the durable commercial intent when initiating checkout.");
 assert.match(source,/"Authorization":bearer\(token\)/,"Creator commercial requests must carry authentication.");
+assert.match(source,/const intent=payload\?\.intent;/,"Client must consume the backend purchase-intent envelope rather than invent a flat response contract.");
+assert.match(source,/const checkout=payload\?\.checkout;/,"Client must consume the backend checkout envelope rather than invent a flat response contract.");
+assert.match(source,/commercialIntentId=clean\(intent\?\.commercialIntentId\)/,"Durable intent identity must come from the server-owned intent object.");
+assert.match(source,/checkoutUrl=clean\(checkout\?\.checkoutUrl\)/,"Checkout destination must come from the server-owned checkout object.");
 assert.doesNotMatch(source,/amountMinor\s*:|currency\s*:|units\s*:|providerProductId\s*:|provider\s*:/,"Client must not manufacture price, currency, units, provider product or provider authority.");
 assert.match(source,/navigate\(checkout\.checkoutUrl\)/,"Navigation may consume only the authorized server-returned checkout URL.");
 assert.doesNotMatch(source,/paid\s*=|paymentSuccessful|grantCredits|entitlement/,"Browser navigation must never manufacture payment or entitlement truth.");
-console.log("PASS 5A.16: creator client can request a package, transport authenticated durable intent authority into checkout, and navigate only to the server-authorized provider URL; browser cannot manufacture price, units, provider, payment or entitlement truth.");
+console.log("PASS 5A.18: frontend commercial client converges on the certified backend gateway envelopes; durable intent and checkout authority remain server-owned and browser navigation cannot manufacture commercial truth.");
