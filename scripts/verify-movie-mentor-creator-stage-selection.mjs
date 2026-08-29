@@ -4,10 +4,12 @@ import process from "node:process";
 
 const root = process.cwd();
 const workspacePath = path.join(root, "src/components/studio/CreatorWorkspace.jsx");
-const conversationPath = path.join(root, "src/components/studio/mentor/MovieMentorConversation.jsx");
+const wrapperPath = path.join(root, "src/components/studio/mentor/MovieMentorConversation.jsx");
+const corePath = path.join(root, "src/components/studio/mentor/MovieMentorConversationCore.jsx");
 
 const workspace = fs.readFileSync(workspacePath, "utf8");
-const conversation = fs.readFileSync(conversationPath, "utf8");
+const wrapper = fs.readFileSync(wrapperPath, "utf8");
+const conversation = fs.readFileSync(corePath, "utf8");
 
 const failures = [];
 
@@ -19,6 +21,7 @@ function forbidText(source, text, label) {
   if (source.includes(text)) failures.push(`forbidden:${label}`);
 }
 
+requireText(wrapper, 'MovieMentorConversationCore', 'live-wrapper-core-composition');
 requireText(workspace, 'createJourneyProgressionExecutionRuntime', 'progression-runtime-import');
 requireText(workspace, 'issueJourneyPositionAuthority', 'position-authority-issuer');
 requireText(workspace, 'POSITION_AUTHORITY_SOURCES.STAGE_CLICK_UI', 'stage-click-source');
@@ -56,6 +59,7 @@ if (failures.length) {
 }
 
 console.log('Movie Mentor creator stage selection verification PASSED');
+console.log(' - live wrapper composes the authoritative conversation core');
 console.log(' - canonical Journey stages drive the cockpit');
 console.log(' - active-stage clicks are no-ops');
 console.log(' - explicit creator gestures issue stage-click position authority');

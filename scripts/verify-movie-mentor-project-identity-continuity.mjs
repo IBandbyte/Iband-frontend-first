@@ -44,16 +44,20 @@ assert.equal(legacyProject.identity.issuance, "legacy-preserved");
 assert.equal(legacy.getProjectMemories({ projectId: legacyId })[0].projectId, legacyId);
 
 let syncBody = null;
+let syncAuthorization = null;
 await syncMovieMentorDurableState({
   projectId: project.id,
   creatorSessionId: "session-a",
   memoryState: reloaded.getState(),
   storage: { getItem: () => null, setItem() {} },
+  getAuthToken: async () => "project-identity-test-token",
   fetchImpl: async (_url, options) => {
+    syncAuthorization = options.headers?.Authorization || null;
     syncBody = JSON.parse(options.body);
     return { ok: true, status: 200, json: async () => ({ success: true, state: { revision: 1 } }) };
   },
 });
+assert.equal(syncAuthorization, "Bearer project-identity-test-token");
 assert.equal(syncBody.projectId, project.id);
 assert.equal(syncBody.state.creatorConfirmedContext.find((item) => item.key === "project").value.id, project.id);
 assert.equal(syncBody.state.memoryContext.projectMemories[0].projectId, project.id);

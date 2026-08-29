@@ -4,8 +4,11 @@ import path from "node:path";
 
 const ROOT = process.cwd();
 const workspace = fs.readFileSync(path.join(ROOT, "src/components/studio/CreatorWorkspace.jsx"), "utf8");
-const conversation = fs.readFileSync(path.join(ROOT, "src/components/studio/mentor/MovieMentorConversation.jsx"), "utf8");
+const conversationWrapper = fs.readFileSync(path.join(ROOT, "src/components/studio/mentor/MovieMentorConversation.jsx"), "utf8");
+const conversationCore = fs.readFileSync(path.join(ROOT, "src/components/studio/mentor/MovieMentorConversationCore.jsx"), "utf8");
 const projection = fs.readFileSync(path.join(ROOT, "src/components/studio/mentor/MovieMentorJourneyProjectionRuntime.js"), "utf8");
+
+assert.ok(conversationWrapper.includes("MovieMentorConversationCore"), "Live conversation wrapper must continue composing the authoritative conversation core.");
 
 const workspaceCallback = workspace.indexOf("const handleMovieMentorTurnResult = async (turnResult) =>");
 const workspaceAwait = workspace.indexOf("await projectCommittedCreatorAuthorityIntoJourney({", workspaceCallback);
@@ -15,14 +18,14 @@ assert.ok(workspaceAwait > workspaceCallback, "Workspace must await Journey Auth
 assert.ok(planningAfter > workspaceAwait, "Journey planning must consume the committed authoritative Journey only after projection resolves.");
 assert.ok(!workspace.includes("const handleMovieMentorTurnResult = (turnResult) => { const projection = projectCommittedCreatorAuthorityIntoJourney("), "Synchronous Workspace projection seam must remain quarantined.");
 
-const turnResultBuild = conversation.indexOf("const turnResult = {");
-const callbackAwait = conversation.indexOf("await onMentorTurnResult?.(turnResult);", turnResultBuild);
-const mentorPublish = conversation.indexOf('onSendMessage?.({ id: createId("mentor-message")', callbackAwait);
-const thinkingFinally = conversation.indexOf("finally { setLocalIsThinking(false)", mentorPublish);
-assert.ok(callbackAwait > turnResultBuild, "Conversation must await the Mentor-turn integration callback.");
+const turnResultBuild = conversationCore.indexOf("const turnResult = {");
+const callbackAwait = conversationCore.indexOf("await onMentorTurnResult?.(turnResult);", turnResultBuild);
+const mentorPublish = conversationCore.indexOf('onSendMessage?.({ id: createId("mentor-message")', callbackAwait);
+const thinkingFinally = conversationCore.indexOf("finally { setLocalIsThinking(false)", mentorPublish);
+assert.ok(callbackAwait > turnResultBuild, "Conversation core must await the Mentor-turn integration callback.");
 assert.ok(mentorPublish > callbackAwait, "Mentor response must not publish before Journey Authority integration completes.");
 assert.ok(thinkingFinally > mentorPublish, "Thinking state must remain active through the authority commit barrier.");
-const callbackStatements = [...conversation.matchAll(/(?:await\s+)?onMentorTurnResult\?\.\(turnResult\);/g)].map((match) => match[0]);
+const callbackStatements = [...conversationCore.matchAll(/(?:await\s+)?onMentorTurnResult\?\.\(turnResult\);/g)].map((match) => match[0]);
 assert.deepEqual(callbackStatements, ["await onMentorTurnResult?.(turnResult);"], "Every live Mentor-turn callback invocation must be awaited exactly once.");
 
 assert.ok(projection.includes("async function projectCommittedCreatorAuthorityIntoJourney"), "Live projection runtime must remain explicitly asynchronous.");
@@ -30,7 +33,8 @@ assert.ok(projection.includes("await runtime.execute({"), "Live projection runti
 assert.ok(!projection.includes("identityRuntime.persistJourney(projectId, projectedJourney)"), "Live projection must never fall back to Creator Memory Journey persistence.");
 
 console.log("Journey Authority live callback barrier verification passed.");
+console.log("- live wrapper composes the authoritative conversation core");
 console.log("- Workspace awaits authoritative creator-truth projection before planning");
-console.log("- Conversation awaits Workspace integration before publishing the Mentor response");
+console.log("- Conversation core awaits Workspace integration before publishing the Mentor response");
 console.log("- thinking state spans the authority commit barrier");
 console.log("- live projection remains async and Creator Memory persistence stays quarantined");
