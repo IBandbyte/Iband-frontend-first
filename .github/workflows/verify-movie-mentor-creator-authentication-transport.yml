@@ -1,0 +1,35 @@
+name: Verify Movie Mentor Creator Authentication Transport
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "src/main.jsx"
+      - "src/components/studio/mentor/MovieMentorCreatorAuthenticationTransport.js"
+      - "src/components/studio/mentor/MovieMentorCreatorAuthenticationBridge.jsx"
+      - "src/components/studio/mentor/MovieMentorTurnClient.js"
+      - "src/components/studio/mentor/MovieMentorCommercialClient.js"
+      - "scripts/verify-movie-mentor-creator-authentication-transport.mjs"
+      - ".github/workflows/verify-movie-mentor-creator-authentication-transport.yml"
+      - "package.json"
+  workflow_dispatch:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm install --no-audit --no-fund
+      - name: 5A.19 creator authentication transport torture
+        run: node scripts/verify-movie-mentor-creator-authentication-transport.mjs
+      - name: Commercial client regression
+        run: node scripts/verify-movie-mentor-commercial-client.mjs
+      - name: Live Movie Mentor gateway regression
+        run: node scripts/verify-movie-mentor-live-gateway.mjs
+      - name: Frontend build
+        env:
+          VITE_CLERK_PUBLISHABLE_KEY: pk_test_movie_mentor_ci_shape_only
+        run: npm run build
