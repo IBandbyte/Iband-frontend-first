@@ -1,0 +1,10 @@
+import assert from "node:assert/strict";
+import fs from "node:fs/promises";
+const source=await fs.readFile(new URL("../src/components/studio/mentor/MovieMentorCommercialClient.js",import.meta.url),"utf8");
+assert.match(source,/\/purchase-intents",\{packageId:selected\}/,"Browser may request only a package identifier when creating an intent.");
+assert.match(source,/\/checkout",\{commercialIntentId:id\}/,"Browser may present only the durable commercial intent when initiating checkout.");
+assert.match(source,/"Authorization":bearer\(token\)/,"Creator commercial requests must carry authentication.");
+assert.doesNotMatch(source,/amountMinor\s*:|currency\s*:|units\s*:|providerProductId\s*:|provider\s*:/,"Client must not manufacture price, currency, units, provider product or provider authority.");
+assert.match(source,/navigate\(checkout\.checkoutUrl\)/,"Navigation may consume only the authorized server-returned checkout URL.");
+assert.doesNotMatch(source,/paid\s*=|paymentSuccessful|grantCredits|entitlement/,"Browser navigation must never manufacture payment or entitlement truth.");
+console.log("PASS 5A.16: creator client can request a package, transport authenticated durable intent authority into checkout, and navigate only to the server-authorized provider URL; browser cannot manufacture price, units, provider, payment or entitlement truth.");
