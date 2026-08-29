@@ -1,0 +1,37 @@
+name: Verify Movie Mentor Durable State Authentication Transport
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "src/components/studio/mentor/MovieMentorDurableStateSync.js"
+      - "src/components/studio/mentor/MovieMentorCreatorAuthenticationTransport.js"
+      - "src/components/studio/mentor/MovieMentorTurnClient.js"
+      - "scripts/verify-movie-mentor-durable-state-authentication-transport.mjs"
+      - "scripts/verify-movie-mentor-durable-state-sync.mjs"
+      - "scripts/verify-movie-mentor-live-gateway.mjs"
+      - ".github/workflows/verify-movie-mentor-durable-state-authentication-transport.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - run: npm install --no-audit --no-fund
+      - name: 5A.22 durable state authentication torture
+        run: node scripts/verify-movie-mentor-durable-state-authentication-transport.mjs
+      - name: Durable state sync regression
+        run: npm run verify:movie-mentor-durable-sync
+      - name: Live gateway regression
+        run: npm run verify:movie-mentor-live-gateway
+      - name: Frontend build
+        env:
+          VITE_CLERK_PUBLISHABLE_KEY: pk_test_5a22_shape_only_not_a_secret
+        run: npm run build
