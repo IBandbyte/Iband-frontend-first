@@ -1,16 +1,48 @@
 import assert from "node:assert/strict";
-import fs from "node:fs";
+import { resolvePendingTurn, readPendingTurn, clearPendingTurn } from "../src/components/studio/mentor/MovieMentorTurnIdentity.js";
 
-const path = new URL("../src/components/studio/mentor/MovieMentorTurnClient.js", import.meta.url);
-const source = fs.readFileSync(path, "utf8");
+const map = new Map();
+const storage = {
+  getItem: key => map.get(key) ?? null,
+  setItem: (key, value) => map.set(key, String(value)),
+  removeItem: key => map.delete(key),
+};
+const identity = { projectId: "project-stable-turn", creatorSessionId: "session-stable-turn" };
+const message = "A detective finds a red door that should not exist.";
+let mintCount = 0;
+const cryptoImpl = { randomUUID: () => `creator-turn-${++mintCount}` };
 
-// Court law: creatorTurnId is the backend convergence coordinate. The live client
-// must mint it before first transport, persist the pending attempt, transmit it,
-// reuse it after an ambiguous transport failure, and recover it after reload.
-assert.match(source, /creatorTurnId/, "RED: live turn client does not carry creatorTurnId at all.");
-assert.match(source, /(randomUUID|crypto\.)/, "RED: live turn client does not mint a creatorTurnId before first transport.");
-assert.match(source, /(localStorage|storage\.(getItem|setItem))/, "RED: live turn client does not durably retain a pending creatorTurnId across reload.");
-assert.match(source, /JSON\.stringify\([^)]*creatorTurnId/s, "RED: live turn request does not transmit creatorTurnId to the authoritative backend.");
-assert.match(source, /(pending|retry)[\s\S]{0,1200}creatorTurnId|creatorTurnId[\s\S]{0,1200}(pending|retry)/i, "RED: ambiguous retry has no explicit stable creatorTurnId recovery path.");
+// First send owns an identity before transport.
+const first = resolvePendingTurn({ identity, message, storage, cryptoImpl });
+assert.equal(first.creatorTurnId, "creator-turn-1");
+assert.deepEqual(readPendingTurn({ identity, storage }), first);
 
-console.log("PASS: live Movie Mentor transport owns a stable creatorTurnId across first send, ambiguous retry, and reload.");
+// Ambiguous transport failure leaves the pending identity durable. Retrying the
+// same creator action must converge on exactly the same creatorTurnId.
+const retry = resolvePendingTurn({ identity, message, storage, cryptoImpl });
+assert.equal(retry.creatorTurnId, first.creatorTurnId);
+assert.equal(mintCount, 1);
+
+// A reload gets a fresh helper invocation but the same durable storage. It must
+// recover the same pending commercial turn rather than minting a second one.
+const reload = resolvePendingTurn({ identity, message, storage, cryptoImpl });
+assert.equal(reload.creatorTurnId, first.creatorTurnId);
+assert.equal(mintCount, 1);
+
+// While outcome is uncertain, a different creator action cannot silently steal
+// or replace the pending identity.
+assert.throws(
+  () => resolvePendingTurn({ identity, message: "A different turn", storage, cryptoImpl }),
+  error => error?.code === "MOVIE_MENTOR_PENDING_TURN_UNRESOLVED" && error?.creatorTurnId === first.creatorTurnId,
+);
+assert.equal(mintCount, 1);
+
+// Only authoritative completion may clear the pending identity; the next real
+// creator action then receives a fresh identity.
+clearPendingTurn({ identity, creatorTurnId: first.creatorTurnId, storage });
+assert.equal(readPendingTurn({ identity, storage }), null);
+const next = resolvePendingTurn({ identity, message: "A different turn", storage, cryptoImpl });
+assert.equal(next.creatorTurnId, "creator-turn-2");
+assert.equal(mintCount, 2);
+
+console.log("PASS: stable creatorTurnId is minted before first send, reused after ambiguous failure and reload, and retired only after acknowledgement.");
