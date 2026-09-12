@@ -200,7 +200,11 @@ try {
   assert.equal(memoryA.getPersistedProject(projectId).metadata.projectJourney.progression.revision, 0, "Authority commits must not be mistaken for Creator Memory projection writes.");
 
   assert.ok(memorySource.includes("function readPersistedState()"), "CreatorMemory must expose a fresh persisted-state read for authority bootstrap identity/projection reads.");
-  assert.ok(memorySource.includes("const freshReader = createCreatorMemoryCore(coreOptions)"), "Persisted Creator Memory reads must construct a fresh Core view.");
+  assert.match(
+    memorySource,
+    /function readPersistedState\(\)[\s\S]{0,400}createCreatorMemoryCore\((?:resolvedCoreOptions|coreOptions)\)/,
+    "Persisted Creator Memory reads must construct a fresh Core view."
+  );
   assert.ok(adapterSource.includes('typeof memory.getPersistedProject === "function"'), "Journey Authority bootstrap must prefer fresh persisted project reality.");
   assert.ok(runtimeSource.includes("use only its Journey for mechanical validation and mutation"), "Progression runtime must mechanically obey Journey Authority after lock acquisition.");
   assert.ok(runtimeSource.includes("Creator Memory is") && runtimeSource.includes("never the commit target"), "Progression runtime must not write mechanical authority back into Creator Memory.");
