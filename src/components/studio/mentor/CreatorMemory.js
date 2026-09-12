@@ -67,6 +67,10 @@ function sameValue(left, right) {
   return JSON.stringify(left ?? null) === JSON.stringify(right ?? null);
 }
 
+function cleanIdentity(value) {
+  return typeof value === "string" ? value.trim() : "";
+}
+
 function createCreatorMemory(options = {}) {
   const {
     projectIdentityCrypto = globalThis?.crypto,
@@ -104,6 +108,54 @@ function createCreatorMemory(options = {}) {
     if (!pid) return null;
     const state = readPersistedState();
     return clone((state.projects || []).find((project) => project?.id === pid) || null);
+  }
+
+  /**
+   * Exact-turn durable convergence primitive.
+   *
+   * This operation does not claim to serialize writers. Its caller must already
+   * hold the cross-context settlement authority. While that authority is held we
+   * construct a fresh Core view, let an existing {projectId, creatorTurnId}
+   * record win, or append exactly once to the fresh durable state. The working
+   * facade is then refreshed to the committed state so subsequent handoff writes
+   * cannot originate from its stale pre-authority snapshot.
+   */
+  function convergeConversationSettlement(input = {}) {
+    const projectId = cleanIdentity(input?.metadata?.projectId);
+    const creatorTurnId = cleanIdentity(input?.metadata?.creatorTurnId);
+    if (!projectId || !creatorTurnId) {
+      return {
+        status: "legacy-unkeyed",
+        conversation: memory.rememberConversation?.(input) || null,
+      };
+    }
+
+    const freshMemory = createCreatorMemoryCore(coreOptions);
+    const freshState = clone(freshMemory.getState());
+    const existing = (freshState?.conversations || []).find(
+      (entry) =>
+        cleanIdentity(entry?.metadata?.projectId) === projectId &&
+        cleanIdentity(entry?.metadata?.creatorTurnId) === creatorTurnId
+    ) || null;
+
+    if (existing) {
+      memory.replaceState(freshState);
+      return {
+        status: "already-settled",
+        conversation: clone(existing),
+      };
+    }
+
+    const conversation = freshMemory.rememberConversation?.(input) || null;
+    if (!conversation?.id) {
+      return { status: "not-settled", conversation: null };
+    }
+
+    memory.replaceState(freshMemory.getState());
+    return {
+      status: "committed",
+      conversation: clone(conversation),
+    };
   }
 
   function overlayAuthorityJourney(project) {
@@ -263,6 +315,7 @@ function createCreatorMemory(options = {}) {
     ...memory,
     readPersistedState,
     getPersistedProject,
+    convergeConversationSettlement,
     getProject,
     getActiveProject,
     getProjectMemories,
