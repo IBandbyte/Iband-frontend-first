@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import createCreatorMemory from "../src/components/studio/mentor/CreatorMemoryCore.js";
+import createMovieMentorStudioIdentityRuntime from "../src/components/studio/mentor/MovieMentorStudioIdentityRuntime.js";
 
 function sharedStorage() {
   const values = new Map();
@@ -97,4 +98,62 @@ assert.equal(
   "Different creatorTurnIds with identical text must remain distinct durable turns."
 );
 
-console.log("PASS: durable Movie Mentor settlement append converges by exact {projectId, creatorTurnId}, never by text.");
+// Failure ordering: the pending creator message must survive a failed durable
+// mentor settlement. A retry after the failure must still pair with that creator
+// message; retirement is allowed only after durable success/convergence.
+let failNextSettlement = true;
+let successfulSettlementInput = null;
+const runtimeMemory = {
+  rememberConversation(input) {
+    if (failNextSettlement) {
+      failNextSettlement = false;
+      throw new Error("simulated durable settlement failure");
+    }
+    successfulSettlementInput = input;
+    return { id: "conversation-canonical", ...input };
+  },
+  saveSessionHandoff(input) {
+    return { id: "handoff-1", ...input };
+  },
+};
+const runtime = createMovieMentorStudioIdentityRuntime({
+  memory: runtimeMemory,
+  cryptoImpl: { randomUUID: () => "runtime-38" },
+});
+runtime.recordConversationMessage(
+  "project-38",
+  { role: "creator", text: "Keep this pending through failure." }
+);
+assert.throws(
+  () => runtime.recordConversationMessage(
+    "project-38",
+    {
+      role: "mentor",
+      text: "First settlement attempt.",
+      metadata: { backendMetadata: { creatorTurnId: "turn-38-failure" } },
+    }
+  ),
+  /simulated durable settlement failure/,
+  "Precondition failed: simulated persistence failure did not propagate."
+);
+const retried = runtime.recordConversationMessage(
+  "project-38",
+  {
+    role: "mentor",
+    text: "Second settlement attempt.",
+    metadata: { backendMetadata: { creatorTurnId: "turn-38-failure" } },
+  }
+);
+assert.equal(retried?.conversation?.id, "conversation-canonical");
+assert.equal(
+  successfulSettlementInput?.creatorMessage,
+  "Keep this pending through failure.",
+  "RED: failed durable settlement retired the pending creator message before success."
+);
+assert.equal(
+  retried?.handoff?.value?.conversationId,
+  "conversation-canonical",
+  "RED: session handoff did not bind to the canonical durable conversation identity."
+);
+
+console.log("PASS: durable Movie Mentor settlement converges by exact {projectId, creatorTurnId}, preserves pending state through failure, and binds handoff to the canonical conversation identity.");
