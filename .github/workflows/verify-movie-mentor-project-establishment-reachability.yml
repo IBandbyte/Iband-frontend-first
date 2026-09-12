@@ -6,15 +6,25 @@ on:
     branches: [main]
     paths:
       - "scripts/verify-movie-mentor-project-establishment-reachability.mjs"
-      - "src/components/studio/mentor/MovieMentorLiveGatewayService.js"
       - "src/components/studio/CreatorWorkspace.jsx"
+      - "src/components/studio/mentor/MovieMentorConversation.jsx"
+      - "src/components/studio/mentor/MovieMentorConversationCore.jsx"
+      - "src/components/studio/mentor/MovieMentorProjectEstablishmentAuthority.js"
+      - "src/components/studio/mentor/MovieMentorLiveGatewayService.js"
+      - "src/components/studio/mentor/MovieMentorTurnClient.js"
+      - "src/components/studio/mentor/MovieMentorDurableStateSync.js"
       - ".github/workflows/verify-movie-mentor-project-establishment-reachability.yml"
   push:
     branches: [main]
     paths:
       - "scripts/verify-movie-mentor-project-establishment-reachability.mjs"
-      - "src/components/studio/mentor/MovieMentorLiveGatewayService.js"
       - "src/components/studio/CreatorWorkspace.jsx"
+      - "src/components/studio/mentor/MovieMentorConversation.jsx"
+      - "src/components/studio/mentor/MovieMentorConversationCore.jsx"
+      - "src/components/studio/mentor/MovieMentorProjectEstablishmentAuthority.js"
+      - "src/components/studio/mentor/MovieMentorLiveGatewayService.js"
+      - "src/components/studio/mentor/MovieMentorTurnClient.js"
+      - "src/components/studio/mentor/MovieMentorDurableStateSync.js"
       - ".github/workflows/verify-movie-mentor-project-establishment-reachability.yml"
 
 permissions:
