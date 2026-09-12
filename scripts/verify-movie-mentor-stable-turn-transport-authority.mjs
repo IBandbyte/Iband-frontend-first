@@ -58,4 +58,24 @@ assert.match(
   "The replay fence must own the live Core-to-Workspace publication boundary.",
 );
 
-console.log("PASS: stable creatorTurnId survives retries and reloads, and convergent settlement replay cannot duplicate live mentor publication.");
+// Crash/reload is a different authority boundary. Once a mentor settlement has
+// crossed into Creator Memory, the durable conversation itself must retain the
+// exact backend creatorTurnId. Otherwise a reload reconstructs a mentor message
+// that cannot prove which pending turn it settled, so the live replay fence has
+// no durable identity with which to reject a convergent retry.
+const identityRuntimeSource = fs.readFileSync(
+  new URL("../src/components/studio/mentor/MovieMentorStudioIdentityRuntime.js", import.meta.url),
+  "utf8",
+);
+assert.match(
+  identityRuntimeSource,
+  /function recordConversationMessage[\s\S]*backendMetadata\?\.creatorTurnId[\s\S]*rememberConversation\?\.\([\s\S]*metadata:[\s\S]*creatorTurnId/,
+  "RED: durable Movie Mentor conversation settlement loses creatorTurnId across crash/reload.",
+);
+assert.match(
+  identityRuntimeSource,
+  /function conversationToMessages[\s\S]*creatorTurnId[\s\S]*backendMetadata:[\s\S]*creatorTurnId/,
+  "RED: restored mentor settlement does not rehydrate durable creatorTurnId for replay rejection after reload.",
+);
+
+console.log("PASS: stable creatorTurnId survives retries, live replay, and durable crash/reload settlement recovery.");
