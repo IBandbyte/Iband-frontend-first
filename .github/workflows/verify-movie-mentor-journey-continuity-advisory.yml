@@ -2,11 +2,22 @@ name: Verify Movie Mentor Journey Continuity Advisory
 
 on:
   workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - "src/components/studio/CreatorWorkspace.jsx"
+      - "src/components/studio/mentor/MovieMentorConversation.jsx"
+      - "src/components/studio/mentor/MovieMentorConversationCore.jsx"
+      - "src/components/studio/mentor/MovieJourneyIntelligenceBridge.js"
+      - "scripts/verify-movie-mentor-journey-continuity-advisory.mjs"
+      - ".github/workflows/verify-movie-mentor-journey-continuity-advisory.yml"
+      - "package.json"
   push:
     branches: [main]
     paths:
       - "src/components/studio/CreatorWorkspace.jsx"
       - "src/components/studio/mentor/MovieMentorConversation.jsx"
+      - "src/components/studio/mentor/MovieMentorConversationCore.jsx"
       - "src/components/studio/mentor/MovieJourneyIntelligenceBridge.js"
       - "scripts/verify-movie-mentor-journey-continuity-advisory.mjs"
       - ".github/workflows/verify-movie-mentor-journey-continuity-advisory.yml"
