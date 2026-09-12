@@ -57,16 +57,23 @@ const project = memory.saveProject({
   },
 });
 
+// saveProject() may return an authority-aware compatibility projection. Isolate the
+// active-project read itself so this court proves exactly one authority consultation.
+facadeCalls = 0;
 const active = memory.getActiveProject();
 assert.equal(facadeCalls, 1);
 assert.equal(active.id, project.id);
 assert.equal(active.metadata.projectJourney.progression.revision, 5);
 assert.equal(active.metadata.projectJourney.currentTaskId, "authority-wins");
 
-// Authority overlay is read-only. Creator Memory's stored projection must remain N.
-const persistedProjection = memory.getProject(project.id);
-assert.equal(persistedProjection.metadata.projectJourney.progression.revision, 4);
-assert.equal(persistedProjection.metadata.projectJourney.currentTaskId, "stale-projection");
+// Public compatibility reads must expose authority, while raw Creator Memory
+// storage remains the stale projection. Never confuse an overlay with persistence.
+const publicProject = memory.getProject(project.id);
+assert.equal(publicProject.metadata.projectJourney.progression.revision, 5);
+assert.equal(publicProject.metadata.projectJourney.currentTaskId, "authority-wins");
+const rawProject = memory.getState().projects.find((entry) => entry?.id === project.id);
+assert.equal(rawProject.metadata.projectJourney.progression.revision, 4);
+assert.equal(rawProject.metadata.projectJourney.currentTaskId, "stale-projection");
 
 // Non-Movie-Mentor active projects must retain generic Creator Memory behavior and
 // must not consult Journey Authority at all.
@@ -92,12 +99,27 @@ assert.equal(genericMemory.getActiveProject().id, genericProject.id);
 assert.equal(genericFacadeCalls, 0);
 
 // Malformed authority is fail-closed: never silently fall back to stale projection.
+// Permit project creation first, then make the authority read malformed so the
+// failure belongs specifically to the active-project read under test.
 const failureStorage = createMemoryStorageAdapter();
+let malformedReadsEnabled = false;
 const failureMemory = createCreatorMemory({
   storageAdapter: failureStorage,
   projectIdentityCrypto: { randomUUID: () => "ffffffff-eeee-4ddd-8ccc-bbbbbbbbbbbb" },
   journeyAuthorityReadFacade: {
-    readPreferred() {
+    readPreferred({ project, projectedJourney: suppliedProjection }) {
+      if (!malformedReadsEnabled) {
+        return {
+          status: "legacy-unbootstrapped",
+          source: "creator-memory-projection",
+          projectId: project.id,
+          projectJourney: suppliedProjection,
+          authorityGeneration: null,
+          progressionRevision: suppliedProjection?.progression?.revision ?? 0,
+          projectionStatus: "authority-absent",
+          mechanicalAuthority: false,
+        };
+      }
       const error = new Error("Malformed Journey Authority.");
       error.code = "JOURNEY_AUTHORITY_RECOVERY_REQUIRED";
       throw error;
@@ -110,6 +132,7 @@ failureMemory.saveProject({
   status: PROJECT_STATUSES.CREATING,
   metadata: { creatorMode: "ai-movie", projectJourney: journey(99, "zorg-fallback") },
 });
+malformedReadsEnabled = true;
 assert.throws(
   () => failureMemory.getActiveProject(),
   (error) => error?.code === "JOURNEY_AUTHORITY_RECOVERY_REQUIRED"
@@ -117,6 +140,6 @@ assert.throws(
 
 console.log("Journey authority active-project overlay verification passed.");
 console.log("- Movie Mentor active-project reads expose authority Journey over stale projection");
-console.log("- overlay is read-only and does not mutate Creator Memory projection");
+console.log("- public overlay and raw Creator Memory persistence are proven separately");
 console.log("- generic Creator Memory projects remain unchanged");
 console.log("- malformed authority fails closed instead of falling back to stale Journey");

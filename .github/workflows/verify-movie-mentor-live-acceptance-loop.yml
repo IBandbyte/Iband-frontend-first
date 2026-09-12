@@ -1,6 +1,16 @@
 name: Verify Movie Mentor Live Acceptance Loop
 
 on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "src/components/studio/mentor/MovieMentorStudioIdentityRuntime.js"
+      - "src/components/studio/mentor/MovieJourneyIntelligenceBridge.js"
+      - "src/components/studio/mentor/MovieMentorTurnClient.js"
+      - "src/components/studio/mentor/CreatorMemory.js"
+      - "src/components/studio/mentor/CreatorMemoryCore.js"
+      - "scripts/verify-movie-mentor-live-acceptance-loop.mjs"
+      - ".github/workflows/verify-movie-mentor-live-acceptance-loop.yml"
   push:
     branches: [main]
     paths:
@@ -27,6 +37,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: IBandbyte/iband-backend-first
+          ref: 76756097d64e7ae87a5966c1def32c0c034b9e61
           path: iband-backend
 
       - name: Use Node 20

@@ -35,5 +35,7 @@ jobs:
         run: npm run verify:movie-mentor-live-gateway
       - name: Verify Movie Mentor live Journey authority projection
         run: node scripts/verify-movie-mentor-live-journey-projection.mjs
+      - name: Verify pending creator turn reload recovery
+        run: node scripts/verify-movie-mentor-pending-turn-reload-recovery.mjs
       - name: Build frontend
         run: npm run build

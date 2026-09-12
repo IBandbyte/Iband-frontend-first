@@ -1,0 +1,24 @@
+name: Verify Movie Mentor Live Authentication Readiness Convergence
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm install --no-audit --no-fund
+      - name: 5A.23 live authentication readiness torture
+        run: node scripts/verify-movie-mentor-live-auth-readiness.mjs
+      - name: Creator authentication transport regression
+        run: node scripts/verify-movie-mentor-creator-authentication-transport.mjs
+      - name: Creator commercial surface regression
+        run: node scripts/verify-movie-mentor-commercial-surface.mjs
+      - name: Frontend build
+        run: npm run build

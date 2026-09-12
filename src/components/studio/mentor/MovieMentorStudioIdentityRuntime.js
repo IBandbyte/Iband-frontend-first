@@ -9,9 +9,10 @@ import createJourneyRecommendationEnvelope from "./JourneyRecommendationEnvelope
 import certifyJourneyRecommendationResume from "./JourneyRecommendationResumeRecovery.js";
 import createJourneyAuthorityReadFacade from "./JourneyAuthorityReadFacade.js";
 
-const MOVIE_MENTOR_STUDIO_IDENTITY_RUNTIME_VERSION = "1.8.0";
+const MOVIE_MENTOR_STUDIO_IDENTITY_RUNTIME_VERSION = "1.10.0";
 const RECOMMENDATION_REFERENCE_DOMAIN = "iband.movie-mentor.journey-recommendation-reference";
 const RECOMMENDATION_REFERENCE_SCHEMA = 2;
+const DURABLE_SETTLEMENT_LOCK_NAME = "iband.movie-mentor.creator-memory-settlement";
 
 function clean(value) { return typeof value === "string" ? value.trim() : ""; }
 function clone(value) { if (value === undefined) return undefined; try { return JSON.parse(JSON.stringify(value)); } catch { return value; } }
@@ -100,9 +101,10 @@ function conversationToMessages(conversation) {
   const messages = [];
   const creatorText = clean(conversation?.creatorMessage);
   const mentorText = clean(conversation?.mentorResponse);
+  const creatorTurnId = clean(conversation?.metadata?.creatorTurnId);
   const baseId = clean(conversation?.id) || `conversation-${Date.now()}`;
   if (creatorText) messages.push({ id: `${baseId}:creator`, role: "creator", type: "text", behaviour: "discuss", text: creatorText, createdAt: conversation?.createdAt || null, metadata: { restoredFromConversationId: baseId } });
-  if (mentorText) messages.push({ id: `${baseId}:mentor`, role: "mentor", type: "text", behaviour: "discuss", text: mentorText, createdAt: conversation?.updatedAt || conversation?.createdAt || null, metadata: { restoredFromConversationId: baseId } });
+  if (mentorText) messages.push({ id: `${baseId}:mentor`, role: "mentor", type: "text", behaviour: "discuss", text: mentorText, createdAt: conversation?.updatedAt || conversation?.createdAt || null, metadata: { restoredFromConversationId: baseId, ...(creatorTurnId ? { backendMetadata: { creatorTurnId } } : {}) } });
   return messages;
 }
 
@@ -110,6 +112,7 @@ function createMovieMentorStudioIdentityRuntime({
   memory = createCreatorMemory(),
   cryptoImpl = globalThis?.crypto,
   journeyAuthorityReadFacade = createJourneyAuthorityReadFacade(),
+  settlementLockManager = globalThis?.navigator?.locks,
 } = {}) {
   const creatorSessionId = issueWorkingSessionId({ cryptoImpl });
   const pendingCreatorMessageByProject = new Map();
@@ -288,6 +291,66 @@ function createMovieMentorStudioIdentityRuntime({
     return { ...saved, retiredRecommendationIds };
   }
 
+  function recordRecommendationForMessage(pid, message, projectJourney) {
+    if (message?.metadata?.liveBackendTurn !== true || !projectJourney) return null;
+    const postCommitCreatorAuthority = clone(message?.metadata?.postCommitCreatorAuthority || message?.metadata?.backendMetadata?.postCommitCreatorAuthority || null);
+    const planning = recommendationJourneyBridge.consumeTurnForJourneyPlanning(projectJourney, {
+      status: message?.metadata?.backendMetadata?.status || null,
+      turnContextProof: clone(message?.metadata?.turnContextProof || null),
+      postCommitCreatorAuthority,
+      semanticIntelligence: clone(message?.metadata?.semanticIntelligence || null),
+      specialistResult: clone(message?.metadata?.specialistResult || null),
+      continuityConsequenceEnvelope: clone(message?.metadata?.continuityConsequenceEnvelope || null),
+      authority: clone(message?.metadata?.authority || null),
+      mayAdvanceJourney: message?.metadata?.mayAdvanceJourney === true,
+    }, {
+      source: "MovieMentorStudioIdentityRuntime",
+      turnRevision: message?.metadata?.turnContextProof?.revision ?? null,
+    });
+    const recommendationRevision = planning?.journeyPlanningEvidence?.provenance?.authorityRevision ?? message?.metadata?.turnContextProof?.revision ?? null;
+    return recordRecommendationReference(pid, planning?.journeyPlanningEvidence || null, {
+      turnRevision: recommendationRevision,
+      projectJourney,
+    });
+  }
+
+  function buildConversationInput(pid, creatorMessage, message, projectJourney) {
+    const text = clean(message?.text);
+    const creatorTurnId = clean(message?.metadata?.backendMetadata?.creatorTurnId);
+    return {
+      summary: creatorMessage ? `Creator: ${clean(creatorMessage.text)}\nMentor: ${text}` : `Mentor: ${text}`,
+      creatorMessage: clean(creatorMessage?.text),
+      mentorResponse: text,
+      creatorStage: clean(projectJourney?.currentStageId || projectJourney?.stageId) || null,
+      relatedProjectIds: [pid],
+      metadata: { projectId: pid, creatorSessionId, source: "movie-mentor-conversation", ...(creatorTurnId ? { creatorTurnId } : {}) },
+    };
+  }
+
+  function saveConversationHandoff(pid, conversation, projectJourney) {
+    const canonicalCreatorMessage = clean(conversation?.creatorMessage);
+    const canonicalMentorResponse = clean(conversation?.mentorResponse);
+    return memory.saveSessionHandoff?.({
+      projectId: pid,
+      sessionId: creatorSessionId,
+      title: "Movie Mentor conversation continuation",
+      content: canonicalCreatorMessage ? `Continue after the creator said: ${canonicalCreatorMessage}` : "Continue from the latest Movie Mentor response.",
+      value: {
+        conversationId: conversation?.id || null,
+        lastCreatorMessage: canonicalCreatorMessage || null,
+        lastMentorResponse: canonicalMentorResponse || null,
+        projectJourney: clone(projectJourney),
+      },
+      metadata: { projectId: pid, creatorSessionId, conversationId: conversation?.id || null, source: "movie-mentor-conversation" },
+    }) || null;
+  }
+
+  function retirePendingCreatorMessage(pid, creatorMessage) {
+    if (creatorMessage && pendingCreatorMessageByProject.get(pid) === creatorMessage) {
+      pendingCreatorMessageByProject.delete(pid);
+    }
+  }
+
   function recordConversationMessage(projectId, message, { projectJourney = null } = {}) {
     const pid = clean(projectId);
     const role = clean(message?.role);
@@ -299,53 +362,68 @@ function createMovieMentorStudioIdentityRuntime({
     }
 
     const creatorMessage = pendingCreatorMessageByProject.get(pid) || null;
-    pendingCreatorMessageByProject.delete(pid);
-    const conversation = memory.rememberConversation?.({
-      summary: creatorMessage ? `Creator: ${clean(creatorMessage.text)}\nMentor: ${text}` : `Mentor: ${text}`,
-      creatorMessage: clean(creatorMessage?.text),
-      mentorResponse: text,
-      creatorStage: clean(projectJourney?.currentStageId || projectJourney?.stageId) || null,
-      relatedProjectIds: [pid],
-      metadata: { projectId: pid, creatorSessionId, source: "movie-mentor-conversation" },
-    }) || null;
-    const handoff = memory.saveSessionHandoff?.({
-      projectId: pid,
-      sessionId: creatorSessionId,
-      title: "Movie Mentor conversation continuation",
-      content: creatorMessage ? `Continue after the creator said: ${clean(creatorMessage.text)}` : "Continue from the latest Movie Mentor response.",
-      value: {
-        conversationId: conversation?.id || null,
-        lastCreatorMessage: clean(creatorMessage?.text) || null,
-        lastMentorResponse: text,
-        projectJourney: clone(projectJourney),
-      },
-      metadata: { projectId: pid, creatorSessionId, conversationId: conversation?.id || null, source: "movie-mentor-conversation" },
-    }) || null;
-
-    let recommendationReference = null;
-    if (message?.metadata?.liveBackendTurn === true && projectJourney) {
-      const postCommitCreatorAuthority = clone(message?.metadata?.postCommitCreatorAuthority || message?.metadata?.backendMetadata?.postCommitCreatorAuthority || null);
-      const planning = recommendationJourneyBridge.consumeTurnForJourneyPlanning(projectJourney, {
-        status: message?.metadata?.backendMetadata?.status || null,
-        turnContextProof: clone(message?.metadata?.turnContextProof || null),
-        postCommitCreatorAuthority,
-        semanticIntelligence: clone(message?.metadata?.semanticIntelligence || null),
-        specialistResult: clone(message?.metadata?.specialistResult || null),
-        continuityConsequenceEnvelope: clone(message?.metadata?.continuityConsequenceEnvelope || null),
-        authority: clone(message?.metadata?.authority || null),
-        mayAdvanceJourney: message?.metadata?.mayAdvanceJourney === true,
-      }, {
-        source: "MovieMentorStudioIdentityRuntime",
-        turnRevision: message?.metadata?.turnContextProof?.revision ?? null,
-      });
-      const recommendationRevision = planning?.journeyPlanningEvidence?.provenance?.authorityRevision ?? message?.metadata?.turnContextProof?.revision ?? null;
-      recommendationReference = recordRecommendationReference(pid, planning?.journeyPlanningEvidence || null, {
-        turnRevision: recommendationRevision,
-        projectJourney,
-      });
-    }
-
+    const conversation = memory.rememberConversation?.(
+      buildConversationInput(pid, creatorMessage, message, projectJourney)
+    ) || null;
+    const handoff = saveConversationHandoff(pid, conversation, projectJourney);
+    const recommendationReference = recordRecommendationForMessage(pid, message, projectJourney);
+    if (conversation?.id && handoff?.id) retirePendingCreatorMessage(pid, creatorMessage);
     return { status: "conversation-persisted", projectId: pid, conversation, handoff, recommendationReference };
+  }
+
+  async function withDurableSettlementAuthority(operation) {
+    if (!settlementLockManager || typeof settlementLockManager.request !== "function") {
+      const error = new Error("Movie Mentor durable settlement authority requires a cross-context lock manager.");
+      error.code = "MOVIE_MENTOR_DURABLE_SETTLEMENT_AUTHORITY_REQUIRED";
+      throw error;
+    }
+    return settlementLockManager.request(DURABLE_SETTLEMENT_LOCK_NAME, operation);
+  }
+
+  async function settleConversationMessage(projectId, message, { projectJourney = null } = {}) {
+    const pid = clean(projectId);
+    const role = clean(message?.role);
+    const text = clean(message?.text);
+    if (!pid || role !== "mentor" || !text) return null;
+    const creatorTurnId = clean(message?.metadata?.backendMetadata?.creatorTurnId);
+    if (!creatorTurnId) return recordConversationMessage(pid, message, { projectJourney });
+    const creatorMessage = pendingCreatorMessageByProject.get(pid) || null;
+
+    return withDurableSettlementAuthority(() => {
+      if (typeof memory.convergeConversationSettlement !== "function") {
+        const error = new Error("Creator Memory does not expose durable settlement convergence.");
+        error.code = "MOVIE_MENTOR_DURABLE_SETTLEMENT_CONVERGENCE_REQUIRED";
+        throw error;
+      }
+
+      const settlement = memory.convergeConversationSettlement(
+        buildConversationInput(pid, creatorMessage, message, projectJourney)
+      );
+      const conversation = settlement?.conversation || null;
+      if (!conversation?.id) {
+        const error = new Error("Movie Mentor durable conversation settlement failed.");
+        error.code = "MOVIE_MENTOR_DURABLE_SETTLEMENT_FAILED";
+        throw error;
+      }
+
+      const handoff = saveConversationHandoff(pid, conversation, projectJourney);
+      if (!handoff?.id) {
+        const error = new Error("Movie Mentor durable conversation handoff failed.");
+        error.code = "MOVIE_MENTOR_DURABLE_HANDOFF_FAILED";
+        throw error;
+      }
+
+      const recommendationReference = recordRecommendationForMessage(pid, message, projectJourney);
+      retirePendingCreatorMessage(pid, creatorMessage);
+      return {
+        status: "conversation-persisted",
+        settlementStatus: settlement?.status || null,
+        projectId: pid,
+        conversation,
+        handoff,
+        recommendationReference,
+      };
+    });
   }
 
   function resumeProjectConversation(projectId) {
@@ -429,6 +507,7 @@ function createMovieMentorStudioIdentityRuntime({
     retireSupersededRecommendationReferences,
     recordRecommendationReference,
     recordConversationMessage,
+    settleConversationMessage,
     resumeProjectConversation,
     getResumeSnapshot,
   };
@@ -438,6 +517,7 @@ export {
   MOVIE_MENTOR_STUDIO_IDENTITY_RUNTIME_VERSION,
   RECOMMENDATION_REFERENCE_DOMAIN,
   RECOMMENDATION_REFERENCE_SCHEMA,
+  DURABLE_SETTLEMENT_LOCK_NAME,
   buildRecommendationReferenceEvidence,
   issueWorkingSessionId,
   isMovieMentorProject,

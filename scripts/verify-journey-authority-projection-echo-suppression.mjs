@@ -71,8 +71,11 @@ const authorityJourney = journey(5, "authority-wins");
   });
 
   assert.equal(storage.getWriteCount(), beforeWrites, "Exact authority projection echo must not call storage.setItem().");
-  assert.equal(result.metadata.projectJourney.progression.revision, 4, "No-op result reflects unchanged Creator Memory projection, not a fake persisted authority copy.");
-  assert.equal(memory.getProject(project.id).metadata.projectJourney.progression.revision, 4);
+  assert.equal(result.metadata.projectJourney.progression.revision, 5, "Compatibility result should still expose authoritative Journey on reads.");
+  assert.equal(memory.getProject(project.id).metadata.projectJourney.progression.revision, 5, "Public project reads must remain authority-aware.");
+  const rawProject = memory.getState().projects.find((entry) => entry?.id === project.id);
+  assert.equal(rawProject.metadata.projectJourney.progression.revision, 4, "Exact authority echo must leave raw Creator Memory projection unchanged.");
+  assert.equal(rawProject.metadata.projectJourney.currentTaskId, "stale-projection");
 }
 
 // Before authority birth, legacy projection writes must still work normally.
@@ -164,5 +167,6 @@ const authorityJourney = journey(5, "authority-wins");
 
 console.log("Journey Authority projection echo suppression verification passed.");
 console.log("- exact authority echo causes zero whole-memory writes");
+console.log("- public authority overlay is distinguished from raw Creator Memory persistence");
 console.log("- legacy/unbootstrapped Journey writes remain operational");
 console.log("- meaningful non-Journey project changes are never suppressed");

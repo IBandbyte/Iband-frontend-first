@@ -9,6 +9,15 @@ import createJourneyDurableAuthorityStore from "../src/components/studio/mentor/
 import createJourneyAuthorityReadFacade from "../src/components/studio/mentor/JourneyAuthorityReadFacade.js";
 import { createAuthorityRecommendationRecord } from "../src/components/studio/mentor/JourneyAuthorityRecommendationLifecycle.js";
 
+function keyedStorage() {
+  const values = new Map();
+  return {
+    getItem(key) { return values.has(key) ? values.get(key) : null; },
+    setItem(key, value) { values.set(key, String(value)); },
+    removeItem(key) { values.delete(key); },
+  };
+}
+
 function journey(revision = 0) {
   return {
     creatorJourney: "guide",
@@ -32,7 +41,9 @@ function recommendationReference(projectId, id, fingerprint) {
 }
 
 const memoryStorage = createMemoryStorageAdapter();
-const authorityStorage = createMemoryStorageAdapter();
+// Journey Authority now owns multiple durable keys (authority + sovereignty lineage).
+// The Creator Memory single-value test adapter is deliberately not reused here.
+const authorityStorage = keyedStorage();
 const authorityStore = createJourneyDurableAuthorityStore({ storage: authorityStorage, browserRuntime: false });
 const readFacade = createJourneyAuthorityReadFacade({ authorityStore });
 const memory = createCreatorMemory({
@@ -119,6 +130,7 @@ assert.throws(
 
 console.log("Journey Authority recommendation read overlay verification passed.");
 console.log("- advisory references remain unchanged before authority has lifecycle knowledge");
+console.log("- authority and sovereignty lineage use distinct durable storage keys");
 console.log("- authority terminal lifecycle suppresses stale Creator Memory current=true on reads");
 console.log("- overlay is read-only and preserves rich Creator Memory history");
 console.log("- recommendation identity conflict fails closed");

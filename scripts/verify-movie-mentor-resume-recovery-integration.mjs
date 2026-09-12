@@ -202,7 +202,7 @@ const recoveryCall = identitySource.indexOf("certifyJourneyRecommendationResume(
 const recommendationExposure = identitySource.indexOf("currentRecommendationReferences:", recoveryCall);
 check(recoveryCall >= 0, "Studio identity resume must invoke recommendation lifecycle recovery.");
 check(recommendationExposure > recoveryCall, "Recommendation references must only be exposed after recovery invocation.");
-check(identitySource.includes("const project = memory.getProject?.(initiallyActiveProject.id)"), "Resume must re-read the durable project after recovery.");
+check(identitySource.includes("typeof memory.getPersistedProject === \"function\"") && identitySource.includes("memory.getPersistedProject(initiallyActiveProject.id)") && identitySource.includes(": memory.getProject?.(initiallyActiveProject.id) || null"), "Resume must prefer a fresh durable project read after recovery, with compatibility fallback only when persisted reads are unavailable.");
 check(identitySource.includes("recommendationActionsBlocked ? [] : getCurrentRecommendationReferences(project.id)"), "Blocked recovery must expose zero current recommendation references.");
 check(resumeSource.includes("quarantineJourneyRecommendationRecoveryConflicts"), "Proof conflicts must route through dedicated metadata-only quarantine.");
 check(resumeSource.includes("executeJourneyRecommendationLifecycleRecovery({ identityRuntime, projectId: pid })") && resumeSource.includes("successResult(") && resumeSource.includes("      2\n    );"), "Resume recovery must permit at most one bounded convergence retry.");
@@ -223,4 +223,4 @@ console.log("- recovery runs before recommendation exposure");
 console.log("- exact receipt lineage is repaired before resume snapshot creation");
 console.log("- contradictory proof is quarantined without invented history");
 console.log("- simultaneous recovery converges with one bounded retry");
-console.log("- resume rereads durable project reality after recovery");
+console.log("- resume prefers fresh durable project reality after recovery");
