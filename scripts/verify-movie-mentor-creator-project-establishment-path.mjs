@@ -3,22 +3,24 @@ import fs from "node:fs";
 
 const workspace = fs.readFileSync("src/components/studio/CreatorWorkspace.jsx", "utf8");
 const conversation = fs.readFileSync("src/components/studio/mentor/MovieMentorConversation.jsx", "utf8");
-const core = fs.readFileSync("src/components/studio/mentor/MovieMentorConversationCore.jsx", "utf8");
+const turnClient = fs.readFileSync("src/components/studio/mentor/MovieMentorTurnClient.js", "utf8");
 const gateway = fs.readFileSync("src/components/studio/mentor/MovieMentorLiveGatewayService.js", "utf8");
 
 assert.match(workspace, /<MovieMentorConversation\b/, "creator cockpit must mount MovieMentorConversation");
 assert.match(workspace, /projectId=\{activeMovieProject\.id\}/, "creator cockpit must carry canonical project id");
 assert.match(workspace, /projectIdentity=\{activeMovieProject\.identity\}/, "creator cockpit must carry canonical project identity into the live conversation road");
 
-assert.match(conversation, /<MovieMentorConversationCore\s+\{\.\.\.props\}/, "live conversation wrapper must forward creator project authority inputs to the core");
+assert.match(conversation, /projectIdentity\s*=\s*null/, "live conversation must receive canonical project identity");
+assert.match(conversation, /requestMovieMentorTurn\(\{[^}]*projectIdentity/s, "live conversation must forward canonical project identity to the authoritative turn client");
 
-assert.doesNotMatch(core, /import\s+requestMovieMentorTurn\s+from\s+["']\.\/MovieMentorTurnClient\.js["']/, "creator-facing conversation core must not bypass project establishment by importing the raw turn client");
-assert.match(core, /generateMovieMentorLiveResponse/, "creator-facing conversation core must enter through the project-establishing live gateway");
-assert.match(core, /projectIdentity/, "creator-facing conversation core must carry canonical project identity into the live gateway");
+assert.match(turnClient, /establishMovieMentorProject/, "authoritative turn client must own project establishment before durable sync");
+assert.match(turnClient, /projectIdentity/, "authoritative turn client must receive canonical project identity");
+const establishIndex = turnClient.indexOf("await establishMovieMentorProject(");
+const syncIndex = turnClient.indexOf("await flushMovieMentorDurableStateSync(");
+const turnIndex = turnClient.indexOf("/api/movie-mentor/turn");
+assert.ok(establishIndex >= 0 && syncIndex > establishIndex && turnIndex > syncIndex, "actual creator turn road must establish project before durable sync before turn");
 
-const establishIndex = gateway.indexOf("await establishProjectReality(");
-const syncIndex = gateway.indexOf("await syncWorkspaceReality(");
-const turnIndex = gateway.indexOf("await requestMovieMentorTurn(");
-assert.ok(establishIndex >= 0 && syncIndex > establishIndex && turnIndex > syncIndex, "live gateway must establish project before state sync before turn");
+assert.match(gateway, /establishMovieMentorProject/, "workspace live gateway must reuse the same project-establishment authority");
+assert.doesNotMatch(gateway, /async function establishProjectReality\b/, "workspace live gateway must not maintain a competing project-establishment implementation");
 
-console.log("Movie Mentor creator project establishment path verification: PASS — the actual creator cockpit crosses canonical project establishment before sync and turn.");
+console.log("Movie Mentor creator project establishment path verification: PASS — canonical identity crosses the creator cockpit and the authoritative turn road establishes project reality before sync and turn.");
