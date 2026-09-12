@@ -81,7 +81,7 @@ assert.equal(noEnvelope.continuityPlanningAdvice, null, "missing backend Continu
 assert.deepEqual(journey, before);
 
 const conversationSource = fs.readFileSync(
-  "src/components/studio/mentor/MovieMentorConversation.jsx",
+  "src/components/studio/mentor/MovieMentorConversationCore.jsx",
   "utf8"
 );
 assert.match(conversationSource, /onMentorTurnResult/);
