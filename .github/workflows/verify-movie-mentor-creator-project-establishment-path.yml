@@ -9,6 +9,8 @@ on:
       - "src/components/studio/CreatorWorkspace.jsx"
       - "src/components/studio/mentor/MovieMentorConversation.jsx"
       - "src/components/studio/mentor/MovieMentorConversationCore.jsx"
+      - "src/components/studio/mentor/MovieMentorProjectEstablishmentAuthority.js"
+      - "src/components/studio/mentor/MovieMentorTurnClient.js"
       - "src/components/studio/mentor/MovieMentorLiveGatewayService.js"
       - ".github/workflows/verify-movie-mentor-creator-project-establishment-path.yml"
   push:
@@ -18,6 +20,8 @@ on:
       - "src/components/studio/CreatorWorkspace.jsx"
       - "src/components/studio/mentor/MovieMentorConversation.jsx"
       - "src/components/studio/mentor/MovieMentorConversationCore.jsx"
+      - "src/components/studio/mentor/MovieMentorProjectEstablishmentAuthority.js"
+      - "src/components/studio/mentor/MovieMentorTurnClient.js"
       - "src/components/studio/mentor/MovieMentorLiveGatewayService.js"
       - ".github/workflows/verify-movie-mentor-creator-project-establishment-path.yml"
 
