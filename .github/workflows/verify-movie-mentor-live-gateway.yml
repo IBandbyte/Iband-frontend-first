@@ -2,10 +2,26 @@ name: Verify Movie Mentor Live Gateway
 
 on:
   workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - "scripts/verify-movie-mentor-live-gateway.mjs"
+      - "src/components/studio/CreatorWorkspace.jsx"
+      - "src/components/studio/mentor/MovieMentorConversation.jsx"
+      - "src/components/studio/mentor/MovieMentorConversationCore.jsx"
+      - "src/components/studio/mentor/MovieMentorProjectEstablishmentAuthority.js"
+      - "src/components/studio/mentor/MovieMentorLiveGatewayService.js"
+      - "src/components/studio/mentor/MovieMentorTurnClient.js"
+      - "src/components/studio/mentor/MovieMentorDurableStateSync.js"
+      - ".github/workflows/verify-movie-mentor-live-gateway.yml"
   push:
     branches: [main]
     paths:
       - "scripts/verify-movie-mentor-live-gateway.mjs"
+      - "src/components/studio/CreatorWorkspace.jsx"
+      - "src/components/studio/mentor/MovieMentorConversation.jsx"
+      - "src/components/studio/mentor/MovieMentorConversationCore.jsx"
+      - "src/components/studio/mentor/MovieMentorProjectEstablishmentAuthority.js"
       - "src/components/studio/mentor/MovieMentorLiveGatewayService.js"
       - "src/components/studio/mentor/MovieMentorTurnClient.js"
       - "src/components/studio/mentor/MovieMentorDurableStateSync.js"
