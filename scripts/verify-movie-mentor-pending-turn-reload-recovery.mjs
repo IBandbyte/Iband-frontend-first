@@ -4,7 +4,6 @@ import { readPendingTurn, resolvePendingTurn, clearPendingTurn } from "../src/co
 import * as turnClient from "../src/components/studio/mentor/MovieMentorTurnClient.js";
 const wrapper=fs.readFileSync(new URL("../src/components/studio/mentor/MovieMentorConversation.jsx",import.meta.url),"utf8");
 const turnClientSource=fs.readFileSync(new URL("../src/components/studio/mentor/MovieMentorTurnClient.js",import.meta.url),"utf8");
-const coreSource=fs.readFileSync(new URL("../src/components/studio/mentor/MovieMentorConversationCore.jsx",import.meta.url),"utf8");
 const map=new Map();
 const storage={getItem:key=>map.get(key)??null,setItem:(key,value)=>map.set(key,String(value)),removeItem:key=>map.delete(key)};
 const identity={projectId:"project-reload-recovery",creatorSessionId:"session-before-reload"};
@@ -25,7 +24,8 @@ assert.match(wrapper,/resumeProjectConversation\(props\.projectId\)/);
 assert.match(wrapper,/settledAgainstMessages\.current\s*=\s*props\?\.messages/);
 assert.match(wrapper,/props\?\.messages!==settledAgainstMessages\.current[\s\S]*setSettledConversationMessages\(null\)/);
 assert.doesNotMatch(turnClientSource,/clearPendingTurn\(\{identity,creatorTurnId,storage\}\)/,"RED: transport retires pending-turn reality before the creator-facing mentor response is durably published.");
-assert.match(coreSource,/onSendMessage\?\.\(\{[\s\S]*role:\s*["']mentor["'][\s\S]*clearPendingTurn\(/,"Pending-turn acknowledgement must follow durable mentor-message publication in the creator-facing owner.");
+assert.match(wrapper,/publishedPendingSettlement[\s\S]*message\?\.role===\"mentor\"[\s\S]*backendMetadata\?\.creatorTurnId===pendingTurn\.creatorTurnId/,"Pending retirement must be gated by the exact published mentor settlement for the pending creatorTurnId.");
+assert.match(wrapper,/if\(!pendingTurn\|\|!publishedPendingSettlement\)return;[\s\S]*clearPendingTurn\(\{identity,creatorTurnId:pendingTurn\.creatorTurnId/,"Pending-turn acknowledgement must occur only after the exact mentor settlement is present in the published conversation projection.");
 clearPendingTurn({identity:reloadedIdentity,creatorTurnId:first.creatorTurnId,storage});
 assert.equal(readPendingTurn({identity:reloadedIdentity,storage}),null);
 assert.equal(resolvePendingTurn({identity:reloadedIdentity,message:"Open the door now.",storage,cryptoImpl}).creatorTurnId,"turn-2");
@@ -37,4 +37,4 @@ const firstEntered=new Promise(resolve=>{turnClient.withPendingTurnLock({identit
 await firstEntered;
 const second=turnClient.withPendingTurnLock({identity:{projectId:"project-multi-tab",creatorSessionId:"tab-b"},lockManager:fakeLockManager,operation:async()=>{queued.push("B-enter");}});
 await Promise.resolve();assert.deepEqual(queued,["A-enter"]);releaseFirst();await second;assert.deepEqual(queued,["A-enter","A-exit","B-enter"]);
-console.log("PASS: pending identity is retired only after durable creator-facing settlement publication, with reload/cross-tab recovery and serialization preserved.");
+console.log("PASS: pending identity is retired only after the exact creator-facing mentor settlement is published, with reload/cross-tab recovery and serialization preserved.");
