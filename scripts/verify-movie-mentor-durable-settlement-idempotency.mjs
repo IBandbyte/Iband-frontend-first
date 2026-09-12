@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import createCreatorMemory from "../src/components/studio/mentor/CreatorMemoryCore.js";
+import createCreatorMemory from "../src/components/studio/mentor/CreatorMemory.js";
 import createMovieMentorStudioIdentityRuntime from "../src/components/studio/mentor/MovieMentorStudioIdentityRuntime.js";
 
 function sharedStorage() {
@@ -17,74 +17,121 @@ function sharedStorage() {
   };
 }
 
+function createSerialLockManager() {
+  const tails = new Map();
+  return {
+    request(name, operation) {
+      const previous = tails.get(name) || Promise.resolve();
+      let release;
+      const next = new Promise((resolve) => { release = resolve; });
+      tails.set(name, previous.then(() => next));
+      return previous.then(operation).finally(() => release());
+    },
+  };
+}
+
+function createFailOnceLockManager() {
+  let failed = false;
+  const serial = createSerialLockManager();
+  return {
+    request(name, operation) {
+      if (!failed) {
+        failed = true;
+        return Promise.reject(new Error("simulated settlement authority failure"));
+      }
+      return serial.request(name, operation);
+    },
+  };
+}
+
+function mentorMessage(creatorTurnId, text = "Here is the next scene.") {
+  return {
+    role: "mentor",
+    text,
+    metadata: {
+      backendMetadata: { creatorTurnId },
+    },
+  };
+}
+
 const storageAdapter = sharedStorage();
 const options = {
   storageKey: "movie-mentor-durable-settlement-idempotency",
   storageAdapter,
   creatorId: "creator-38",
 };
+const lockManager = createSerialLockManager();
 
-// Construct both runtimes before either writes. This models two browser tabs
-// that share durable storage but hold independent stale working snapshots.
-const tabA = createCreatorMemory(options);
-const tabB = createCreatorMemory(options);
+const runtimeA = createMovieMentorStudioIdentityRuntime({
+  memory: createCreatorMemory(options),
+  cryptoImpl: { randomUUID: () => "runtime-a" },
+  settlementLockManager: lockManager,
+});
+const runtimeB = createMovieMentorStudioIdentityRuntime({
+  memory: createCreatorMemory(options),
+  cryptoImpl: { randomUUID: () => "runtime-b" },
+  settlementLockManager: lockManager,
+});
 
-const settlement = {
-  summary: "Mentor settlement",
-  creatorMessage: "Build the next scene.",
-  mentorResponse: "Here is the next scene.",
-  relatedProjectIds: ["project-38"],
-  metadata: {
-    projectId: "project-38",
-    creatorTurnId: "turn-38-x",
-    source: "movie-mentor-conversation",
-  },
-};
+assert.equal(
+  typeof runtimeA.settleConversationMessage,
+  "function",
+  "RED: Movie Mentor has no durable settlement authority API for serialized exact-turn publication."
+);
 
-const first = tabA.rememberConversation(settlement);
-assert.ok(first?.id, "Precondition failed: first durable settlement did not commit.");
+runtimeA.recordConversationMessage("project-38", { role: "creator", text: "Build the next scene." });
+runtimeB.recordConversationMessage("project-38", { role: "creator", text: "Build the next scene." });
 
-// The stale runtime now receives the same canonical settlement identity.
-const replay = tabB.rememberConversation(settlement);
-assert.ok(replay?.id, "Precondition failed: replay did not return a durable settlement result.");
+const [first, replay] = await Promise.all([
+  runtimeA.settleConversationMessage("project-38", mentorMessage("turn-38-x")),
+  runtimeB.settleConversationMessage("project-38", mentorMessage("turn-38-x")),
+]);
 
-const afterReplay = createCreatorMemory(options).getState();
-const matchingReplay = afterReplay.conversations.filter(
+assert.ok(first?.conversation?.id, "First durable settlement did not commit.");
+assert.equal(
+  replay?.conversation?.id,
+  first.conversation.id,
+  "RED: simultaneous same {projectId, creatorTurnId} settlement did not converge to one canonical conversation identity."
+);
+
+const afterReplay = createCreatorMemory(options).readPersistedState();
+const matchingReplay = (afterReplay.conversations || []).filter(
   (entry) =>
     entry?.metadata?.projectId === "project-38" &&
     entry?.metadata?.creatorTurnId === "turn-38-x"
 );
-
 assert.equal(
   matchingReplay.length,
   1,
-  "RED: stale runtimes created more than one durable conversation for the same {projectId, creatorTurnId}."
-);
-assert.equal(
-  replay.id,
-  first.id,
-  "RED: same {projectId, creatorTurnId} replay did not converge to the original durable conversation identity."
+  "RED: simultaneous runtimes created more than one durable conversation for the same {projectId, creatorTurnId}."
 );
 assert.equal(
   matchingReplay[0]?.id,
-  first.id,
-  "RED: stale replay replaced the canonical durable conversation instead of converging to it."
+  first.conversation.id,
+  "RED: simultaneous settlement replaced the canonical durable conversation instead of converging to it."
+);
+assert.equal(
+  replay?.handoff?.value?.conversationId,
+  first.conversation.id,
+  "RED: replay handoff did not bind to the canonical durable conversation identity."
 );
 
-// Content is deliberately identical. A different creatorTurnId is a distinct
-// paid turn and must remain distinct; text must never become the identity key.
-const freshWriter = createCreatorMemory(options);
-const distinctTurn = freshWriter.rememberConversation({
-  ...settlement,
-  metadata: {
-    ...settlement.metadata,
-    creatorTurnId: "turn-38-y",
-  },
+const runtimeC = createMovieMentorStudioIdentityRuntime({
+  memory: createCreatorMemory(options),
+  cryptoImpl: { randomUUID: () => "runtime-c" },
+  settlementLockManager: lockManager,
 });
-assert.ok(distinctTurn?.id, "Distinct creatorTurnId was not durably recorded.");
+runtimeC.recordConversationMessage("project-38", { role: "creator", text: "Build the next scene." });
+const distinct = await runtimeC.settleConversationMessage("project-38", mentorMessage("turn-38-y"));
+assert.ok(distinct?.conversation?.id, "Distinct creatorTurnId was not durably recorded.");
+assert.notEqual(
+  distinct.conversation.id,
+  first.conversation.id,
+  "RED: different creatorTurnIds with identical text were incorrectly deduplicated."
+);
 
-const finalState = createCreatorMemory(options).getState();
-const projectTurns = finalState.conversations.filter(
+const finalState = createCreatorMemory(options).readPersistedState();
+const projectTurns = (finalState.conversations || []).filter(
   (entry) => entry?.metadata?.projectId === "project-38"
 );
 assert.equal(
@@ -98,62 +145,42 @@ assert.equal(
   "Different creatorTurnIds with identical text must remain distinct durable turns."
 );
 
-// Failure ordering: the pending creator message must survive a failed durable
-// mentor settlement. A retry after the failure must still pair with that creator
-// message; retirement is allowed only after durable success/convergence.
-let failNextSettlement = true;
-let successfulSettlementInput = null;
-const runtimeMemory = {
-  rememberConversation(input) {
-    if (failNextSettlement) {
-      failNextSettlement = false;
-      throw new Error("simulated durable settlement failure");
-    }
-    successfulSettlementInput = input;
-    return { id: "conversation-canonical", ...input };
-  },
-  saveSessionHandoff(input) {
-    return { id: "handoff-1", ...input };
-  },
+const failureStorage = sharedStorage();
+const failureOptions = {
+  storageKey: "movie-mentor-durable-settlement-failure-ordering",
+  storageAdapter: failureStorage,
+  creatorId: "creator-38-failure",
 };
-const runtime = createMovieMentorStudioIdentityRuntime({
-  memory: runtimeMemory,
-  cryptoImpl: { randomUUID: () => "runtime-38" },
+const failureRuntime = createMovieMentorStudioIdentityRuntime({
+  memory: createCreatorMemory(failureOptions),
+  cryptoImpl: { randomUUID: () => "runtime-failure" },
+  settlementLockManager: createFailOnceLockManager(),
 });
-runtime.recordConversationMessage(
+failureRuntime.recordConversationMessage(
   "project-38",
   { role: "creator", text: "Keep this pending through failure." }
 );
-assert.throws(
-  () => runtime.recordConversationMessage(
+await assert.rejects(
+  failureRuntime.settleConversationMessage(
     "project-38",
-    {
-      role: "mentor",
-      text: "First settlement attempt.",
-      metadata: { backendMetadata: { creatorTurnId: "turn-38-failure" } },
-    }
+    mentorMessage("turn-38-failure", "First settlement attempt.")
   ),
-  /simulated durable settlement failure/,
-  "Precondition failed: simulated persistence failure did not propagate."
+  /simulated settlement authority failure/,
+  "Precondition failed: simulated settlement authority failure did not propagate."
 );
-const retried = runtime.recordConversationMessage(
+const retried = await failureRuntime.settleConversationMessage(
   "project-38",
-  {
-    role: "mentor",
-    text: "Second settlement attempt.",
-    metadata: { backendMetadata: { creatorTurnId: "turn-38-failure" } },
-  }
+  mentorMessage("turn-38-failure", "Second settlement attempt.")
 );
-assert.equal(retried?.conversation?.id, "conversation-canonical");
 assert.equal(
-  successfulSettlementInput?.creatorMessage,
+  retried?.conversation?.creatorMessage,
   "Keep this pending through failure.",
   "RED: failed durable settlement retired the pending creator message before success."
 );
 assert.equal(
   retried?.handoff?.value?.conversationId,
-  "conversation-canonical",
+  retried?.conversation?.id,
   "RED: session handoff did not bind to the canonical durable conversation identity."
 );
 
-console.log("PASS: durable Movie Mentor settlement converges by exact {projectId, creatorTurnId}, preserves pending state through failure, and binds handoff to the canonical conversation identity.");
+console.log("PASS: durable Movie Mentor settlement serializes simultaneous exact-turn publication, converges canonical identity, preserves pending state through failure, and never deduplicates by text.");
