@@ -55,7 +55,7 @@ function memoryContextFrom(mem) {
 }
 
 // 1. Recommendation A is advisory and current.
-const savedA = runtime.recordRecommendationReference(project.id, planningEvidence("escape-through-tunnel", 20), { turnRevision: 20 });
+const savedA = runtime.recordRecommendationReference(project.id, planningEvidence("escape-through-tunnel", 20), { turnRevision: 20, projectJourney });
 assert.ok(savedA?.id);
 const recommendationA = savedA.metadata.recommendationReference.recommendationId;
 let memoryContext = memoryContextFrom(memory);
@@ -158,7 +158,7 @@ assert.equal(evidenceB.recommendation.recommendedTaskId, "objective-after-escape
 assert.ok(evidenceB.recommendation.reasonCodes.includes("post-commit-creator-authority-applied"));
 
 // 6. Persist B. A must become historical immediately.
-const savedB = runtime.recordRecommendationReference(project.id, evidenceB, { turnRevision: 21 });
+const savedB = runtime.recordRecommendationReference(project.id, evidenceB, { turnRevision: 21, projectJourney });
 assert.ok(savedB?.id);
 const recommendationB = savedB.metadata.recommendationReference.recommendationId;
 assert.notEqual(recommendationB, recommendationA);
