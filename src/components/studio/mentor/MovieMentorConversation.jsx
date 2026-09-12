@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import MovieMentorConversationCore from "./MovieMentorConversationCore.jsx";
 import MovieMentorCommercialSurface from "./MovieMentorCommercialSurface.jsx";
+import createMovieMentorStudioIdentityRuntime from "./MovieMentorStudioIdentityRuntime.js";
 import { readPendingTurn } from "./MovieMentorTurnIdentity.js";
 
 /**
@@ -12,8 +13,8 @@ import { readPendingTurn } from "./MovieMentorTurnIdentity.js";
  * durable pending transport reality is creator-visible reality. Restore it on
  * reload and observe same-origin storage changes so an already-open sibling tab
  * sees the exact unresolved creator action before another send is attempted.
- * When that pending reality is retired by a sibling tab, ask the workspace to
- * refresh the durable conversation that now owns the settled creator action.
+ * When a sibling retires that pending turn, reread the durable project
+ * conversation so the settled mentor response becomes visible in this tab too.
  */
 export default function MovieMentorConversation(props){
   const suppliedBelow=props?.renderBelowConversation;
@@ -24,21 +25,28 @@ export default function MovieMentorConversation(props){
   }),[props?.projectId,props?.creatorSessionId]);
   const readCurrentPendingTurn=()=>readPendingTurn({identity,storage:globalThis?.localStorage});
   const [pendingTurn,setPendingTurn]=useState(()=>readCurrentPendingTurn());
-  const pendingAlreadyVisible=Boolean(pendingTurn&&Array.isArray(props?.messages)&&props.messages.some(message=>message?.role==="creator"&&message?.text===pendingTurn.message));
+  const [settledConversationMessages,setSettledConversationMessages]=useState(null);
+  const visibleMessages=settledConversationMessages||props?.messages;
+  const pendingAlreadyVisible=Boolean(pendingTurn&&Array.isArray(visibleMessages)&&visibleMessages.some(message=>message?.role==="creator"&&message?.text===pendingTurn.message));
 
   useEffect(()=>{
     setPendingTurn(readCurrentPendingTurn());
+    setSettledConversationMessages(null);
     if(typeof globalThis?.addEventListener!=="function"||typeof globalThis?.removeEventListener!=="function")return undefined;
     const refreshPendingTurn=()=>{
-      const previousPendingTurn=readCurrentPendingTurn();
+      const nextPendingTurn=readCurrentPendingTurn();
       setPendingTurn((currentPendingTurn)=>{
-        if(currentPendingTurn&&!previousPendingTurn)props?.onConversationStorageChange?.();
-        return previousPendingTurn;
+        if(currentPendingTurn&&!nextPendingTurn&&props?.projectId){
+          const recoveryRuntime=createMovieMentorStudioIdentityRuntime();
+          const continuation=recoveryRuntime.resumeProjectConversation(props.projectId);
+          setSettledConversationMessages(continuation.messages||[]);
+        }
+        return nextPendingTurn;
       });
     };
     globalThis.addEventListener("storage",refreshPendingTurn);
     return()=>globalThis.removeEventListener("storage",refreshPendingTurn);
-  },[identity,props?.onConversationStorageChange]);
+  },[identity,props?.projectId]);
 
   useEffect(()=>{
     if(!pendingTurn){
@@ -67,5 +75,5 @@ export default function MovieMentorConversation(props){
   },[pendingTurn,pendingAlreadyVisible,props?.onSendMessage]);
 
   const renderBelowConversation=()=> <>{typeof suppliedBelow==="function"?suppliedBelow():null}<MovieMentorCommercialSurface /></>;
-  return <MovieMentorConversationCore {...props} renderBelowConversation={renderBelowConversation}/>;
+  return <MovieMentorConversationCore {...props} messages={visibleMessages} renderBelowConversation={renderBelowConversation}/>;
 }
