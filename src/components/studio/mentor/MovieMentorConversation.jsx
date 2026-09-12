@@ -49,6 +49,10 @@ export default function MovieMentorConversation(props){
   },[identity,props?.projectId]);
 
   useEffect(()=>{
+    if(settledConversationMessages&&props?.messages!==settledConversationMessages)setSettledConversationMessages(null);
+  },[props?.messages,settledConversationMessages]);
+
+  useEffect(()=>{
     if(!pendingTurn){
       recoveryDelivered.current=null;
       return;
