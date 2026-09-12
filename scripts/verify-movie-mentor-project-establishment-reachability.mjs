@@ -30,11 +30,11 @@ const fetchImpl = async (url, options = {}) => {
 
 await generateMovieMentorLiveResponse(request, { fetchImpl, storage, sessionStorage: storage, getAuthToken });
 
-assert.equal(calls.length, 4, "live gateway and authoritative turn client must both cross the shared idempotent project-establishment authority");
-assert.ok(calls[0].url.endsWith("/api/movie-mentor/projects"), "project establishment must precede state sync");
+assert.equal(calls.length, 3, "one live creator request must cross project establishment exactly once before workspace sync and turn");
+assert.ok(calls[0].url.endsWith("/api/movie-mentor/projects"), "project establishment must be first network authority");
 assert.ok(calls[1].url.endsWith("/api/movie-mentor/state/sync"), "workspace durable sync must follow successful project establishment");
-assert.ok(calls[2].url.endsWith("/api/movie-mentor/projects"), "authoritative turn client must independently re-establish through the same idempotent authority before turn transport");
-assert.ok(calls[3].url.endsWith("/api/movie-mentor/turn"), "turn transport must remain last");
+assert.ok(calls[2].url.endsWith("/api/movie-mentor/turn"), "turn transport must remain last");
+assert.equal(calls.filter(call => call.url.endsWith("/api/movie-mentor/projects")).length, 1, "live gateway must not duplicate idempotent establishment inside one request path");
 
 const failedCalls = [];
 await assert.rejects(
@@ -65,4 +65,4 @@ await assert.rejects(
 );
 assert.equal(invalidIdentityFetches, 0, "legacy/non-current identity must fail closed before project establishment, sync, or turn network traffic");
 
-console.log("Movie Mentor project establishment reachability: PASS — canonical authenticated establishment precedes sync and turn, repeats idempotently at the turn boundary, and fails closed before downstream authority.");
+console.log("Movie Mentor project establishment reachability: PASS — one canonical authenticated establishment precedes all sync and turn authority and failures stop downstream traffic.");
