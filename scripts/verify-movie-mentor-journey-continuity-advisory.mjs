@@ -90,7 +90,7 @@ assert.match(conversationSource, /onMentorTurnResult\?\.\(turnResult\)/);
 
 const workspaceSource = fs.readFileSync("src/components/studio/CreatorWorkspace.jsx", "utf8");
 assert.match(workspaceSource, /handleMovieMentorTurnResult/);
-assert.match(workspaceSource, /consumeContinuityConsequenceForPlanning/);
+assert.match(workspaceSource, /consumeTurnForJourneyPlanning/);
 assert.match(workspaceSource, /onMentorTurnResult=\{handleMovieMentorTurnResult\}/);
 assert.doesNotMatch(
   workspaceSource,
