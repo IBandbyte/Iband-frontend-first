@@ -71,13 +71,88 @@ function cleanIdentity(value) {
   return typeof value === "string" ? value.trim() : "";
 }
 
+function resolveFacadeDurableStorage(storageAdapter) {
+  if (storageAdapter) return storageAdapter;
+  try {
+    if (typeof window !== "undefined" && window.localStorage) return window.localStorage;
+  } catch {
+    // Fall through to the same in-memory compatibility used by CreatorMemoryCore.
+  }
+  return createMemoryStorageAdapter();
+}
+
+/**
+ * CreatorMemoryCore intentionally owns persistence and verifies every durable
+ * write by reading it back. The facade occasionally needs to adopt a snapshot
+ * that it has just read from the same durable store while a higher-level lock is
+ * already held. Re-persisting that snapshot would create a second whole-blob
+ * write and reopen a clobber window.
+ *
+ * This controller leaves every ordinary Core write untouched. Only a synchronous
+ * facade-owned refresh section virtualises setItem/getItem long enough for Core
+ * to update its private working cache and persistence baseline. No durable bytes
+ * are changed, no async work may run inside the shield, and no CAS/atomic storage
+ * semantics are claimed.
+ */
+function createFacadeStorageController(storage) {
+  let refreshShieldActive = false;
+  const virtualWrites = new Map();
+
+  const adapter = {
+    getItem(key) {
+      if (refreshShieldActive && virtualWrites.has(key)) {
+        return virtualWrites.get(key);
+      }
+      return storage.getItem(key);
+    },
+    setItem(key, value) {
+      if (refreshShieldActive) {
+        virtualWrites.set(key, value);
+        return;
+      }
+      return storage.setItem(key, value);
+    },
+    removeItem(key) {
+      if (refreshShieldActive) {
+        virtualWrites.set(key, null);
+        return;
+      }
+      return storage.removeItem(key);
+    },
+  };
+
+  function refreshWithoutDurableWrite(operation) {
+    if (refreshShieldActive) {
+      const error = new Error("Creator Memory refresh shield cannot be nested.");
+      error.code = "CREATOR_MEMORY_REFRESH_SHIELD_NESTED";
+      throw error;
+    }
+    refreshShieldActive = true;
+    virtualWrites.clear();
+    try {
+      return operation();
+    } finally {
+      refreshShieldActive = false;
+      virtualWrites.clear();
+    }
+  }
+
+  return { adapter, refreshWithoutDurableWrite };
+}
+
 function createCreatorMemory(options = {}) {
   const {
     projectIdentityCrypto = globalThis?.crypto,
     journeyAuthorityReadFacade = createJourneyAuthorityReadFacade(),
     ...coreOptions
   } = options || {};
-  const memory = createCreatorMemoryCore(coreOptions);
+  const durableStorage = resolveFacadeDurableStorage(coreOptions.storageAdapter);
+  const storageController = createFacadeStorageController(durableStorage);
+  const resolvedCoreOptions = {
+    ...coreOptions,
+    storageAdapter: storageController.adapter,
+  };
+  const memory = createCreatorMemoryCore(resolvedCoreOptions);
   ensureLegacyIdentityMetadata(memory);
   const getCoreProject = typeof memory.getProject === "function"
     ? memory.getProject.bind(memory)
@@ -99,7 +174,7 @@ function createCreatorMemory(options = {}) {
    * hydrated persisted state without mutating or persisting the current runtime.
    */
   function readPersistedState() {
-    const freshReader = createCreatorMemoryCore(coreOptions);
+    const freshReader = createCreatorMemoryCore(resolvedCoreOptions);
     return clone(freshReader.getState());
   }
 
@@ -110,6 +185,10 @@ function createCreatorMemory(options = {}) {
     return clone((state.projects || []).find((project) => project?.id === pid) || null);
   }
 
+  function adoptPersistedStateWithoutWrite(state) {
+    return storageController.refreshWithoutDurableWrite(() => memory.replaceState(state));
+  }
+
   /**
    * Exact-turn durable convergence primitive.
    *
@@ -117,8 +196,9 @@ function createCreatorMemory(options = {}) {
    * hold the cross-context settlement authority. While that authority is held we
    * construct a fresh Core view, let an existing {projectId, creatorTurnId}
    * record win, or append exactly once to the fresh durable state. The working
-   * facade is then refreshed to the committed state so subsequent handoff writes
-   * cannot originate from its stale pre-authority snapshot.
+   * facade then adopts that persisted reality through a synchronous write shield,
+   * so later handoff/recommendation writes start from the committed snapshot
+   * without issuing a redundant whole-memory persistence write.
    */
   function convergeConversationSettlement(input = {}) {
     const projectId = cleanIdentity(input?.metadata?.projectId);
@@ -130,7 +210,7 @@ function createCreatorMemory(options = {}) {
       };
     }
 
-    const freshMemory = createCreatorMemoryCore(coreOptions);
+    const freshMemory = createCreatorMemoryCore(resolvedCoreOptions);
     const freshState = clone(freshMemory.getState());
     const existing = (freshState?.conversations || []).find(
       (entry) =>
@@ -139,7 +219,7 @@ function createCreatorMemory(options = {}) {
     ) || null;
 
     if (existing) {
-      memory.replaceState(freshState);
+      adoptPersistedStateWithoutWrite(freshState);
       return {
         status: "already-settled",
         conversation: clone(existing),
@@ -151,7 +231,7 @@ function createCreatorMemory(options = {}) {
       return { status: "not-settled", conversation: null };
     }
 
-    memory.replaceState(freshMemory.getState());
+    adoptPersistedStateWithoutWrite(freshMemory.getState());
     return {
       status: "committed",
       conversation: clone(conversation),
