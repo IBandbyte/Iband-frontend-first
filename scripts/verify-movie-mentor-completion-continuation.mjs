@@ -4,7 +4,7 @@ import path from "node:path";
 const ROOT = process.cwd();
 const read = (relativePath) => fs.readFileSync(path.join(ROOT, relativePath), "utf8");
 const workspace = read("src/components/studio/CreatorWorkspace.jsx");
-const conversation = read("src/components/studio/mentor/MovieMentorConversation.jsx");
+const conversation = read("src/components/studio/mentor/MovieMentorConversationCore.jsx");
 const failures = [];
 const pass = (condition, message) => { if (!condition) failures.push(message); };
 
