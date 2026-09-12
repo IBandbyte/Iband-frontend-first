@@ -1,6 +1,16 @@
 name: Verify Movie Mentor Live Acceptance Loop
 
 on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "src/components/studio/mentor/MovieMentorStudioIdentityRuntime.js"
+      - "src/components/studio/mentor/MovieJourneyIntelligenceBridge.js"
+      - "src/components/studio/mentor/MovieMentorTurnClient.js"
+      - "src/components/studio/mentor/CreatorMemory.js"
+      - "src/components/studio/mentor/CreatorMemoryCore.js"
+      - "scripts/verify-movie-mentor-live-acceptance-loop.mjs"
+      - ".github/workflows/verify-movie-mentor-live-acceptance-loop.yml"
   push:
     branches: [main]
     paths:
