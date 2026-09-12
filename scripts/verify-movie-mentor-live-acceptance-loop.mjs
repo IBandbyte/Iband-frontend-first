@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import fs from "node:fs";
 import createCreatorMemory, {
   createMemoryStorageAdapter,
   PROJECT_STATUSES,
@@ -16,6 +17,13 @@ import {
   commitCreatorDecision,
 } from "../iband-backend/ai/MovieMentorCreatorDecisionAuthority.js";
 import { selectCurrentRecommendationReference } from "../iband-backend/ai/MovieMentorRecommendationReferenceControl.js";
+
+const workflowSource = fs.readFileSync(new URL("../.github/workflows/verify-movie-mentor-live-acceptance-loop.yml", import.meta.url), "utf8");
+assert.match(
+  workflowSource,
+  /repository:\s*IBandbyte\/iband-backend-first[\s\S]*?ref:\s*[0-9a-f]{40}/,
+  "RED: live acceptance certification borrows whichever backend main happens to exist at run time instead of owning an exact backend SHA.",
+);
 
 const cryptoImpl = { randomUUID: () => "11111111-2222-4333-8444-555555555555" };
 const storageAdapter = createMemoryStorageAdapter();
@@ -54,7 +62,6 @@ function memoryContextFrom(mem) {
   };
 }
 
-// 1. Recommendation A is advisory and current.
 const savedA = runtime.recordRecommendationReference(project.id, planningEvidence("escape-through-tunnel", 20), { turnRevision: 20, projectJourney });
 assert.ok(savedA?.id);
 const recommendationA = savedA.metadata.recommendationReference.recommendationId;
@@ -63,7 +70,6 @@ let selected = selectCurrentRecommendationReference({ memoryContext, projectId: 
 assert.equal(selected.status, "resolved");
 assert.equal(selected.recommendationId, recommendationA);
 
-// 2. The creator uses the real continuation phrase. It must resolve exactly A.
 let resolution = resolveContinuationReferences({
   creatorMessage: "Yes, do that.",
   projectId: project.id,
@@ -84,7 +90,6 @@ let decision = buildCreatorDecisionCandidate({
 assert.equal(decision.status, "candidate");
 assert.equal(decision.candidate.value.recommendationId, recommendationA);
 
-// 3. Commit A against durable creator reality N and prove post-commit N+1 readback.
 let durableState = {
   projectId: project.id,
   creatorSessionId: runtime.creatorSessionId,
@@ -127,7 +132,6 @@ assert.equal(committed.revision, 21);
 assert.equal(committed.postCommitCreatorAuthority.revision, 21);
 assert.equal(committed.postCommitCreatorAuthority.currentCreatorTruth.at(-1).value.recommendationId, recommendationA);
 
-// 4. Transport the real backend N+1 envelope through the frontend normalizer.
 const transportedAuthority = normalisePostCommitCreatorAuthority(
   committed.postCommitCreatorAuthority,
   { revision: 20 }
@@ -135,7 +139,6 @@ const transportedAuthority = normalisePostCommitCreatorAuthority(
 assert.equal(transportedAuthority.revision, 21);
 assert.equal(transportedAuthority.creatorConfirmedContext.at(-1).value.recommendationId, recommendationA);
 
-// 5. Journey re-reasons from N+1 while its local Journey object is still N.
 const refreshedPlanning = journeyBridge.consumeTurnForJourneyPlanning(projectJourney, {
   status: "mentor-response-ready",
   turnContextProof: { revision: 20 },
@@ -157,7 +160,6 @@ assert.equal(evidenceB.localJourneyStale, true);
 assert.equal(evidenceB.recommendation.recommendedTaskId, "objective-after-escape");
 assert.ok(evidenceB.recommendation.reasonCodes.includes("post-commit-creator-authority-applied"));
 
-// 6. Persist B. A must become historical immediately.
 const savedB = runtime.recordRecommendationReference(project.id, evidenceB, { turnRevision: 21, projectJourney });
 assert.ok(savedB?.id);
 const recommendationB = savedB.metadata.recommendationReference.recommendationId;
@@ -171,7 +173,6 @@ assert.equal(refsBeforeRestart.filter((item) => item.lifecycle?.current === true
 assert.equal(refsBeforeRestart.find((item) => item.recommendationId === recommendationA).lifecycle.current, false);
 assert.equal(refsBeforeRestart.find((item) => item.recommendationId === recommendationB).lifecycle.current, true);
 
-// 7. Kill/reload. The exact same phrase must now resolve B and never A.
 const reloadedMemory = createCreatorMemory({ storageAdapter, projectIdentityCrypto: cryptoImpl });
 const reloadedRuntime = createMovieMentorStudioIdentityRuntime({ memory: reloadedMemory, cryptoImpl });
 const reloadedContext = memoryContextFrom(reloadedMemory);
@@ -203,4 +204,4 @@ assert.equal(decision.status, "candidate");
 assert.equal(decision.candidate.value.recommendationId, recommendationB);
 assert.notEqual(decision.candidate.value.recommendationId, recommendationA);
 
-console.log("Movie Mentor Door 11D4 live acceptance loop: PASS — A resolves and commits at N, N+1 refreshes Journey, B replaces A, reload preserves retirement, and the next ‘Yes, do that’ resolves B only.");
+console.log("Movie Mentor Door 11D4 live acceptance loop: PASS — exact backend SHA owned, A resolves and commits at N, N+1 refreshes Journey, B replaces A, reload preserves retirement, and the next ‘Yes, do that’ resolves B only.");

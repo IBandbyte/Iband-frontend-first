@@ -37,6 +37,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: IBandbyte/iband-backend-first
+          ref: 76756097d64e7ae87a5966c1def32c0c034b9e61
           path: iband-backend
 
       - name: Use Node 20
