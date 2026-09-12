@@ -9,7 +9,7 @@ import createJourneyRecommendationEnvelope from "./JourneyRecommendationEnvelope
 import certifyJourneyRecommendationResume from "./JourneyRecommendationResumeRecovery.js";
 import createJourneyAuthorityReadFacade from "./JourneyAuthorityReadFacade.js";
 
-const MOVIE_MENTOR_STUDIO_IDENTITY_RUNTIME_VERSION = "1.8.0";
+const MOVIE_MENTOR_STUDIO_IDENTITY_RUNTIME_VERSION = "1.9.0";
 const RECOMMENDATION_REFERENCE_DOMAIN = "iband.movie-mentor.journey-recommendation-reference";
 const RECOMMENDATION_REFERENCE_SCHEMA = 2;
 
@@ -100,9 +100,10 @@ function conversationToMessages(conversation) {
   const messages = [];
   const creatorText = clean(conversation?.creatorMessage);
   const mentorText = clean(conversation?.mentorResponse);
+  const creatorTurnId = clean(conversation?.metadata?.creatorTurnId);
   const baseId = clean(conversation?.id) || `conversation-${Date.now()}`;
   if (creatorText) messages.push({ id: `${baseId}:creator`, role: "creator", type: "text", behaviour: "discuss", text: creatorText, createdAt: conversation?.createdAt || null, metadata: { restoredFromConversationId: baseId } });
-  if (mentorText) messages.push({ id: `${baseId}:mentor`, role: "mentor", type: "text", behaviour: "discuss", text: mentorText, createdAt: conversation?.updatedAt || conversation?.createdAt || null, metadata: { restoredFromConversationId: baseId } });
+  if (mentorText) messages.push({ id: `${baseId}:mentor`, role: "mentor", type: "text", behaviour: "discuss", text: mentorText, createdAt: conversation?.updatedAt || conversation?.createdAt || null, metadata: { restoredFromConversationId: baseId, ...(creatorTurnId ? { backendMetadata: { creatorTurnId } } : {}) } });
   return messages;
 }
 
@@ -299,6 +300,7 @@ function createMovieMentorStudioIdentityRuntime({
     }
 
     const creatorMessage = pendingCreatorMessageByProject.get(pid) || null;
+    const creatorTurnId = clean(message?.metadata?.backendMetadata?.creatorTurnId);
     pendingCreatorMessageByProject.delete(pid);
     const conversation = memory.rememberConversation?.({
       summary: creatorMessage ? `Creator: ${clean(creatorMessage.text)}\nMentor: ${text}` : `Mentor: ${text}`,
@@ -306,7 +308,7 @@ function createMovieMentorStudioIdentityRuntime({
       mentorResponse: text,
       creatorStage: clean(projectJourney?.currentStageId || projectJourney?.stageId) || null,
       relatedProjectIds: [pid],
-      metadata: { projectId: pid, creatorSessionId, source: "movie-mentor-conversation" },
+      metadata: { projectId: pid, creatorSessionId, source: "movie-mentor-conversation", ...(creatorTurnId ? { creatorTurnId } : {}) },
     }) || null;
     const handoff = memory.saveSessionHandoff?.({
       projectId: pid,
