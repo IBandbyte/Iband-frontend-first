@@ -18,15 +18,17 @@ assert.match(core, /requestMovieMentorTurn\(\{[^}]*projectIdentity/s, "creator-f
 assert.match(turnClient, /establishMovieMentorProject/, "authoritative turn client must own project establishment before durable sync");
 assert.match(turnClient, /projectIdentity/, "authoritative turn client must receive canonical project identity");
 const establishIndex = turnClient.indexOf("await establishMovieMentorProject(");
+const preSyncIndex = turnClient.indexOf("if(beforeDurableSync)await beforeDurableSync(");
 const syncIndex = turnClient.indexOf("await flushMovieMentorDurableStateSync(");
 const turnIndex = turnClient.indexOf("/api/movie-mentor/turn");
-assert.ok(establishIndex >= 0 && syncIndex > establishIndex && turnIndex > syncIndex, "actual creator turn road must establish project before durable sync before turn");
+assert.ok(establishIndex >= 0 && preSyncIndex > establishIndex && syncIndex > preSyncIndex && turnIndex > syncIndex, "actual creator turn road must establish project before optional gateway sync before durable sync before turn");
 
 assert.match(establishment, /\/api\/movie-mentor\/projects/, "shared project-establishment authority must own the production project route");
 assert.match(establishment, /JSON\.stringify\(\{ projectId: canonicalProjectId, identity: canonicalIdentity \}\)/, "shared establishment authority must send only canonical project id and identity");
 assert.doesNotMatch(establishment, /principalId|ownerPrincipalId|authorityId|verified\s*:|establishmentAuthority|ownershipReference|ownershipRevision/, "client establishment authority must not mint backend ownership fields");
 
-assert.match(gateway, /establishMovieMentorProject/, "workspace live gateway must reuse the same project-establishment authority");
-assert.doesNotMatch(gateway, /async function establishProjectReality\b/, "workspace live gateway must not maintain a competing project-establishment implementation");
+assert.doesNotMatch(gateway, /establishMovieMentorProject/, "workspace live gateway must not duplicate project establishment owned by the authoritative turn client");
+assert.match(gateway, /beforeDurableSync:[\s\S]*syncWorkspaceReality/, "workspace live gateway must place workspace sync inside the established turn sequence");
+assert.match(gateway, /projectIdentity:\s*request\?\.projectIdentity/, "workspace live gateway must carry canonical project identity into the authoritative turn client");
 
-console.log("Movie Mentor creator project establishment path verification: PASS — canonical identity crosses the creator cockpit and the authoritative turn road establishes project reality before sync and turn.");
+console.log("Movie Mentor creator project establishment path verification: PASS — canonical identity crosses the creator cockpit and one shared authority establishes project reality before every sync and turn boundary.");

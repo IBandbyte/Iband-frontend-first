@@ -3,10 +3,9 @@ import {
   rememberRevision,
 } from "./MovieMentorDurableStateSync.js";
 import { getMovieMentorCreatorAuthToken } from "./MovieMentorCreatorAuthenticationTransport.js";
-import { establishMovieMentorProject } from "./MovieMentorProjectEstablishmentAuthority.js";
 import requestMovieMentorTurn from "./MovieMentorTurnClient.js";
 
-const MOVIE_MENTOR_LIVE_GATEWAY_SERVICE_VERSION = "1.6.0";
+const MOVIE_MENTOR_LIVE_GATEWAY_SERVICE_VERSION = "1.7.0";
 const WORKSPACE_SESSION_KEY = "iband.movie-mentor.workspace-session";
 
 function cleanString(value) { return typeof value === "string" ? value.trim() : ""; }
@@ -40,9 +39,16 @@ function toCreatorWorkspaceResult(turn) {
 async function generateMovieMentorLiveResponse(request = {}, { fetchImpl = globalThis?.fetch, storage = globalThis?.localStorage, sessionStorage = globalThis?.sessionStorage, cryptoImpl = globalThis?.crypto, getAuthToken = getMovieMentorCreatorAuthToken } = {}) {
   const message = cleanString(request?.idea); if (!message) { const error = new Error("Movie Mentor needs the creator's idea before a live turn can run."); error.code = "MOVIE_MENTOR_TURN_MESSAGE_REQUIRED"; throw error; }
   const identity = resolveWorkspaceIdentity({ request, storage: sessionStorage, cryptoImpl });
-  await establishMovieMentorProject({ projectId: identity.projectId, projectIdentity: request?.projectIdentity, fetchImpl, getAuthToken });
-  await syncWorkspaceReality({ request, identity, fetchImpl, storage, getAuthToken });
-  const turn = await requestMovieMentorTurn({ message, ...identity, projectIdentity: request?.projectIdentity, fetchImpl, storage, getAuthToken }); return toCreatorWorkspaceResult(turn);
+  const turn = await requestMovieMentorTurn({
+    message,
+    ...identity,
+    projectIdentity: request?.projectIdentity,
+    fetchImpl,
+    storage,
+    getAuthToken,
+    beforeDurableSync: () => syncWorkspaceReality({ request, identity, fetchImpl, storage, getAuthToken }),
+  });
+  return toCreatorWorkspaceResult(turn);
 }
 export { MOVIE_MENTOR_LIVE_GATEWAY_SERVICE_VERSION, WORKSPACE_SESSION_KEY, createSessionId, resolveWorkspaceIdentity, createWorkspaceConfirmedContext, syncWorkspaceReality, toCreatorWorkspaceResult, generateMovieMentorLiveResponse };
 export default generateMovieMentorLiveResponse;
