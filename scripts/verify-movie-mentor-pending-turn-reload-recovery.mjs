@@ -4,6 +4,7 @@ import { readPendingTurn, resolvePendingTurn, clearPendingTurn } from "../src/co
 import * as turnClient from "../src/components/studio/mentor/MovieMentorTurnClient.js";
 
 const wrapper = fs.readFileSync(new URL("../src/components/studio/mentor/MovieMentorConversation.jsx", import.meta.url), "utf8");
+const workspace = fs.readFileSync(new URL("../src/components/studio/CreatorWorkspace.jsx", import.meta.url), "utf8");
 const map = new Map();
 const storage = { getItem:key=>map.get(key)??null, setItem:(key,value)=>map.set(key,String(value)), removeItem:key=>map.delete(key) };
 const identity = { projectId:"project-reload-recovery", creatorSessionId:"session-before-reload" };
@@ -35,6 +36,9 @@ assert.match(wrapper,/retryRequiresSameMessage\s*:\s*true/,"Recovered action doe
 assert.match(wrapper,/addEventListener\(\s*["']storage["']/,"RED: an already-open same-project tab does not observe pending-turn reality created or retired by another tab.");
 assert.match(wrapper,/removeEventListener\(\s*["']storage["']/,"Cross-tab pending-turn observation must retire its storage listener on unmount.");
 assert.match(wrapper,/recoveryDelivered\.current\s*=\s*pendingTurn\.creatorTurnId/,"Cross-tab recovery must track the exact delivered creatorTurnId rather than a once-per-mount boolean.");
+assert.match(wrapper,/onConversationStorageChange\?\.\(/,"RED: an already-open same-project tab can observe pending retirement but never refresh the authoritative conversation that settled it.");
+assert.match(workspace,/resumeProjectConversation\(activeMovieProject\.id\)/,"Cross-tab settlement refresh must reload the project's persisted authoritative conversation.");
+assert.match(workspace,/onConversationStorageChange=\{handleMovieConversationStorageChange\}/,"The live Movie Mentor composition does not receive cross-tab conversation settlement refresh authority.");
 
 clearPendingTurn({ identity:reloadedIdentity, creatorTurnId:first.creatorTurnId, storage });
 assert.equal(readPendingTurn({ identity:reloadedIdentity, storage }),null);
@@ -84,4 +88,4 @@ releaseFirst();
 await second;
 assert.deepEqual(queued,["A-enter","A-exit","B-enter"]);
 
-console.log("PASS: pending creator action survives reload, becomes visible across already-open same-project tabs, and pending-turn transport remains serialized until acknowledgement.");
+console.log("PASS: pending creator action survives reload, becomes visible across open tabs, transport serializes same-project turns, and sibling tabs refresh the persisted conversation after settlement.");
