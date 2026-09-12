@@ -12,6 +12,8 @@ import { readPendingTurn } from "./MovieMentorTurnIdentity.js";
  * durable pending transport reality is creator-visible reality. Restore it on
  * reload and observe same-origin storage changes so an already-open sibling tab
  * sees the exact unresolved creator action before another send is attempted.
+ * When that pending reality is retired by a sibling tab, ask the workspace to
+ * refresh the durable conversation that now owns the settled creator action.
  */
 export default function MovieMentorConversation(props){
   const suppliedBelow=props?.renderBelowConversation;
@@ -27,10 +29,16 @@ export default function MovieMentorConversation(props){
   useEffect(()=>{
     setPendingTurn(readCurrentPendingTurn());
     if(typeof globalThis?.addEventListener!=="function"||typeof globalThis?.removeEventListener!=="function")return undefined;
-    const refreshPendingTurn=()=>setPendingTurn(readCurrentPendingTurn());
+    const refreshPendingTurn=()=>{
+      const previousPendingTurn=readCurrentPendingTurn();
+      setPendingTurn((currentPendingTurn)=>{
+        if(currentPendingTurn&&!previousPendingTurn)props?.onConversationStorageChange?.();
+        return previousPendingTurn;
+      });
+    };
     globalThis.addEventListener("storage",refreshPendingTurn);
     return()=>globalThis.removeEventListener("storage",refreshPendingTurn);
-  },[identity]);
+  },[identity,props?.onConversationStorageChange]);
 
   useEffect(()=>{
     if(!pendingTurn){
