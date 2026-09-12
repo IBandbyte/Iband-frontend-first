@@ -63,6 +63,13 @@ export default function MovieMentorConversation(props){
     });
   },[pendingTurn,pendingAlreadyVisible,props?.onSendMessage]);
 
+  const publishMessage=(message)=>{
+    if(typeof props?.onSendMessage!=="function")return;
+    const creatorTurnId=message?.role==="mentor"?message?.metadata?.backendMetadata?.creatorTurnId:null;
+    const settlementAlreadyPublished=Boolean(creatorTurnId&&Array.isArray(props?.messages)&&props.messages.some(existing=>existing?.role==="mentor"&&existing?.metadata?.backendMetadata?.creatorTurnId===creatorTurnId));
+    if(settlementAlreadyPublished)return;
+    props.onSendMessage(message);
+  };
   const renderBelowConversation=()=> <>{typeof suppliedBelow==="function"?suppliedBelow():null}<MovieMentorCommercialSurface /></>;
-  return <MovieMentorConversationCore {...props} messages={visibleMessages} renderBelowConversation={renderBelowConversation}/>;
+  return <MovieMentorConversationCore {...props} messages={visibleMessages} onSendMessage={publishMessage} renderBelowConversation={renderBelowConversation}/>;
 }
