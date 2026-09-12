@@ -1,11 +1,11 @@
-name: Verify Movie Mentor Live Gateway
+name: Verify Movie Mentor Project Establishment Reachability
 
 on:
   workflow_dispatch:
   pull_request:
     branches: [main]
     paths:
-      - "scripts/verify-movie-mentor-live-gateway.mjs"
+      - "scripts/verify-movie-mentor-project-establishment-reachability.mjs"
       - "src/components/studio/CreatorWorkspace.jsx"
       - "src/components/studio/mentor/MovieMentorConversation.jsx"
       - "src/components/studio/mentor/MovieMentorConversationCore.jsx"
@@ -13,11 +13,11 @@ on:
       - "src/components/studio/mentor/MovieMentorLiveGatewayService.js"
       - "src/components/studio/mentor/MovieMentorTurnClient.js"
       - "src/components/studio/mentor/MovieMentorDurableStateSync.js"
-      - ".github/workflows/verify-movie-mentor-live-gateway.yml"
+      - ".github/workflows/verify-movie-mentor-project-establishment-reachability.yml"
   push:
     branches: [main]
     paths:
-      - "scripts/verify-movie-mentor-live-gateway.mjs"
+      - "scripts/verify-movie-mentor-project-establishment-reachability.mjs"
       - "src/components/studio/CreatorWorkspace.jsx"
       - "src/components/studio/mentor/MovieMentorConversation.jsx"
       - "src/components/studio/mentor/MovieMentorConversationCore.jsx"
@@ -25,27 +25,23 @@ on:
       - "src/components/studio/mentor/MovieMentorLiveGatewayService.js"
       - "src/components/studio/mentor/MovieMentorTurnClient.js"
       - "src/components/studio/mentor/MovieMentorDurableStateSync.js"
-      - ".github/workflows/verify-movie-mentor-live-gateway.yml"
+      - ".github/workflows/verify-movie-mentor-project-establishment-reachability.yml"
 
 permissions:
   contents: read
 
 jobs:
-  verify-live-gateway:
+  verify:
     runs-on: ubuntu-latest
     timeout-minutes: 8
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
       - name: Use Node 20
         uses: actions/setup-node@v4
         with:
           node-version: "20"
-
       - name: Install dependencies
         run: npm ci --no-audit --no-fund || npm i --no-audit --no-fund
-
-      - name: Verify continuity envelope transport through live gateway
-        run: npm run verify:movie-mentor-live-gateway
+      - name: Verify authenticated project establishment precedes live sync and turn
+        run: node scripts/verify-movie-mentor-project-establishment-reachability.mjs
