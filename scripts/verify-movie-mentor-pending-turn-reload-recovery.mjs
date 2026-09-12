@@ -1,33 +1,49 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
+import { readPendingTurn, resolvePendingTurn, clearPendingTurn } from "../src/components/studio/mentor/MovieMentorTurnIdentity.js";
 
-const workspace = fs.readFileSync(new URL("../src/components/studio/CreatorWorkspace.jsx", import.meta.url), "utf8");
-const conversation = fs.readFileSync(new URL("../src/components/studio/mentor/MovieMentorConversationCore.jsx", import.meta.url), "utf8");
-const identity = fs.readFileSync(new URL("../src/components/studio/mentor/MovieMentorStudioIdentityRuntime.js", import.meta.url), "utf8");
+const wrapper = fs.readFileSync(new URL("../src/components/studio/mentor/MovieMentorConversation.jsx", import.meta.url), "utf8");
+const map = new Map();
+const storage = { getItem:key=>map.get(key)??null, setItem:(key,value)=>map.set(key,String(value)), removeItem:key=>map.delete(key) };
+const identity = { projectId:"project-reload-recovery", creatorSessionId:"session-before-reload" };
+let minted = 0;
+const cryptoImpl = { randomUUID:()=>`turn-${++minted}` };
+const message = "Keep the detective outside the red door until the storm ends.";
 
-// Creator-visible recovery law: an uncertain live turn may survive reload in the
-// transport, but the creator action that owns it must survive too. Otherwise the
-// UI can tell the creator to retry while no durable creator-visible action exists
-// from which to reconstruct that retry.
-assert.match(
-  identity,
-  /(pendingCreatorMessage|pending.*turn|unresolved.*turn)/i,
-  "RED: Studio identity runtime has no durable/recoverable pending creator action contract."
-);
-assert.match(
-  identity,
-  /(getResumeSnapshot|resumeProjectConversation)[\s\S]{0,5000}(pendingCreatorMessage|pending.*turn|unresolved.*turn)/i,
-  "RED: reload resume does not expose the pending creator action that owns an uncertain live turn."
-);
-assert.match(
-  workspace,
-  /resumeSnapshot[\s\S]{0,5000}(pendingCreatorMessage|pending.*turn|unresolved.*turn)/i,
-  "RED: CreatorWorkspace does not restore a pending creator action after reload."
-);
-assert.match(
-  conversation,
-  /(retry|try again)[\s\S]{0,3000}(pendingCreatorMessage|pending.*turn|creatorTurnId)/i,
-  "RED: creator-facing retry has no explicit ownership link to the pending live turn."
+// First send persists the creator action and its transport identity before the
+// network outcome is known.
+const first = resolvePendingTurn({ identity, message, storage, cryptoImpl });
+assert.equal(first.creatorTurnId,"turn-1");
+assert.equal(readPendingTurn({ identity, storage })?.message,message);
+
+// Simulate a reload: working-session identity changes, but project identity and
+// durable storage remain. The exact creator action and creatorTurnId must survive.
+const reloadedIdentity = { projectId:identity.projectId, creatorSessionId:"session-after-reload" };
+const recovered = readPendingTurn({ identity:reloadedIdentity, storage });
+assert.deepEqual(recovered,first);
+const retry = resolvePendingTurn({ identity:reloadedIdentity, message:recovered.message, storage, cryptoImpl });
+assert.equal(retry.creatorTurnId,first.creatorTurnId);
+assert.equal(minted,1);
+
+// A different action cannot bypass the uncertain turn.
+assert.throws(
+  ()=>resolvePendingTurn({ identity:reloadedIdentity, message:"Open the door now.", storage, cryptoImpl }),
+  error=>error?.code==="MOVIE_MENTOR_PENDING_TURN_UNRESOLVED"&&error?.creatorTurnId===first.creatorTurnId,
 );
 
-console.log("PASS: creator-visible pending action survives reload and remains explicitly bound to the uncertain live turn retry.");
+// Production composition must surface the recovered action into the parent
+// conversation/identity runtime, explicitly carrying the pending turn binding.
+assert.match(wrapper,/readPendingTurn/,"Recovered pending transport reality is not read by the live conversation composition.");
+assert.match(wrapper,/onSendMessage\s*\(\s*\{/s,"Recovered creator action is not restored into creator-visible conversation state.");
+assert.match(wrapper,/recoveredPendingCreatorAction\s*:\s*true/,"Recovered action is not marked as reload recovery evidence.");
+assert.match(wrapper,/pendingCreatorTurnId\s*:\s*pendingTurn\.creatorTurnId/,"Recovered creator action is not explicitly bound to its pending creatorTurnId.");
+assert.match(wrapper,/retryRequiresSameMessage\s*:\s*true/,"Recovered action does not declare same-message retry ownership.");
+
+// Authoritative acknowledgement retires the pending action; a later intentional
+// creator turn can then receive a fresh identity.
+clearPendingTurn({ identity:reloadedIdentity, creatorTurnId:first.creatorTurnId, storage });
+assert.equal(readPendingTurn({ identity:reloadedIdentity, storage }),null);
+const next = resolvePendingTurn({ identity:reloadedIdentity, message:"Open the door now.", storage, cryptoImpl });
+assert.equal(next.creatorTurnId,"turn-2");
+
+console.log("PASS: pending creator action survives reload, is creator-visible with explicit turn ownership, retries on the same ID, and retires only after acknowledgement.");
