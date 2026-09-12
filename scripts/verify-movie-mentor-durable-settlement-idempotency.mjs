@@ -5,15 +5,20 @@ import createMovieMentorStudioIdentityRuntime from "../src/components/studio/men
 
 function sharedStorage() {
   const values = new Map();
+  let writes = 0;
   return {
     getItem(key) {
       return values.has(key) ? values.get(key) : null;
     },
     setItem(key, value) {
+      writes += 1;
       values.set(key, value);
     },
     removeItem(key) {
       values.delete(key);
+    },
+    getWriteCount() {
+      return writes;
     },
   };
 }
@@ -67,6 +72,44 @@ assert.match(
   workspaceSource,
   /message\?\.role\s*===\s*["']mentor["'][\s\S]{0,500}settleConversationMessage\s*\(/,
   "RED: CreatorWorkspace mentor publication does not reach durable settlement authority."
+);
+
+// The facade convergence primitive runs only while the runtime owns serialization.
+// It may fresh-read durable state and refresh its working cache, but that refresh
+// itself must never become a second whole-memory write. First publication owns one
+// conversation commit; exact replay owns zero conversation rewrites.
+const convergenceStorage = sharedStorage();
+const convergenceMemory = createCreatorMemory({
+  storageKey: "movie-mentor-durable-settlement-refresh-proof",
+  storageAdapter: convergenceStorage,
+  creatorId: "creator-38-refresh",
+});
+const directSettlement = {
+  summary: "Mentor settlement",
+  creatorMessage: "Build the next scene.",
+  mentorResponse: "Here is the next scene.",
+  relatedProjectIds: ["project-38-refresh"],
+  metadata: {
+    projectId: "project-38-refresh",
+    creatorTurnId: "turn-38-refresh",
+    source: "movie-mentor-conversation",
+  },
+};
+const beforeDirectCommitWrites = convergenceStorage.getWriteCount();
+const directCommit = convergenceMemory.convergeConversationSettlement(directSettlement);
+assert.ok(directCommit?.conversation?.id, "Precondition failed: direct durable settlement did not commit.");
+const afterDirectCommitWrites = convergenceStorage.getWriteCount();
+assert.equal(
+  afterDirectCommitWrites - beforeDirectCommitWrites,
+  1,
+  "RED: first exact-turn settlement performed a redundant whole-memory refresh write after its durable conversation commit."
+);
+const directReplay = convergenceMemory.convergeConversationSettlement(directSettlement);
+assert.equal(directReplay?.conversation?.id, directCommit.conversation.id);
+assert.equal(
+  convergenceStorage.getWriteCount(),
+  afterDirectCommitWrites,
+  "RED: already-settled exact-turn replay rewrote durable Creator Memory merely to refresh working state."
 );
 
 const storageAdapter = sharedStorage();
@@ -198,4 +241,4 @@ assert.equal(
   "RED: session handoff did not bind to the canonical durable conversation identity."
 );
 
-console.log("PASS: live Movie Mentor mentor publication reaches durable settlement authority, serializes simultaneous exact-turn publication, converges canonical identity, preserves pending state through failure, and never deduplicates by text.");
+console.log("PASS: live Movie Mentor mentor publication reaches durable settlement authority, settlement cache refresh is write-free, simultaneous exact-turn publication converges canonical identity, pending state survives failure, and text is never the identity key.");
