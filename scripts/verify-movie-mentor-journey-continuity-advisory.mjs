@@ -81,7 +81,7 @@ assert.equal(noEnvelope.continuityPlanningAdvice, null, "missing backend Continu
 assert.deepEqual(journey, before);
 
 const conversationSource = fs.readFileSync(
-  "src/components/studio/mentor/MovieMentorConversation.jsx",
+  "src/components/studio/mentor/MovieMentorConversationCore.jsx",
   "utf8"
 );
 assert.match(conversationSource, /onMentorTurnResult/);
@@ -90,7 +90,7 @@ assert.match(conversationSource, /onMentorTurnResult\?\.\(turnResult\)/);
 
 const workspaceSource = fs.readFileSync("src/components/studio/CreatorWorkspace.jsx", "utf8");
 assert.match(workspaceSource, /handleMovieMentorTurnResult/);
-assert.match(workspaceSource, /consumeContinuityConsequenceForPlanning/);
+assert.match(workspaceSource, /consumeTurnForJourneyPlanning/);
 assert.match(workspaceSource, /onMentorTurnResult=\{handleMovieMentorTurnResult\}/);
 assert.doesNotMatch(
   workspaceSource,
