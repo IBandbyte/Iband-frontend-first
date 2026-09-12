@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import createCreatorMemory from "../src/components/studio/mentor/CreatorMemory.js";
 import createMovieMentorStudioIdentityRuntime from "../src/components/studio/mentor/MovieMentorStudioIdentityRuntime.js";
 
@@ -53,6 +54,20 @@ function mentorMessage(creatorTurnId, text = "Here is the next scene.") {
     },
   };
 }
+
+// Production reachability is part of the court. A correct authority API that the
+// live CreatorWorkspace never invokes is not a repair. Creator messages may stay
+// on the synchronous pending path, but mentor publication must route through the
+// durable settlement authority path.
+const workspaceSource = await readFile(
+  new URL("../src/components/studio/CreatorWorkspace.jsx", import.meta.url),
+  "utf8"
+);
+assert.match(
+  workspaceSource,
+  /message\?\.role\s*===\s*["']mentor["'][\s\S]{0,500}settleConversationMessage\s*\(/,
+  "RED: CreatorWorkspace mentor publication does not reach durable settlement authority."
+);
 
 const storageAdapter = sharedStorage();
 const options = {
@@ -183,4 +198,4 @@ assert.equal(
   "RED: session handoff did not bind to the canonical durable conversation identity."
 );
 
-console.log("PASS: durable Movie Mentor settlement serializes simultaneous exact-turn publication, converges canonical identity, preserves pending state through failure, and never deduplicates by text.");
+console.log("PASS: live Movie Mentor mentor publication reaches durable settlement authority, serializes simultaneous exact-turn publication, converges canonical identity, preserves pending state through failure, and never deduplicates by text.");
