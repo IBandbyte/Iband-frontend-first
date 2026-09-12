@@ -11,14 +11,10 @@ let minted = 0;
 const cryptoImpl = { randomUUID:()=>`turn-${++minted}` };
 const message = "Keep the detective outside the red door until the storm ends.";
 
-// First send persists the creator action and its transport identity before the
-// network outcome is known.
 const first = resolvePendingTurn({ identity, message, storage, cryptoImpl });
 assert.equal(first.creatorTurnId,"turn-1");
 assert.equal(readPendingTurn({ identity, storage })?.message,message);
 
-// Simulate a reload: working-session identity changes, but project identity and
-// durable storage remain. The exact creator action and creatorTurnId must survive.
 const reloadedIdentity = { projectId:identity.projectId, creatorSessionId:"session-after-reload" };
 const recovered = readPendingTurn({ identity:reloadedIdentity, storage });
 assert.deepEqual(recovered,first);
@@ -26,30 +22,25 @@ const retry = resolvePendingTurn({ identity:reloadedIdentity, message:recovered.
 assert.equal(retry.creatorTurnId,first.creatorTurnId);
 assert.equal(minted,1);
 
-// A different action cannot bypass the uncertain turn.
 assert.throws(
   ()=>resolvePendingTurn({ identity:reloadedIdentity, message:"Open the door now.", storage, cryptoImpl }),
   error=>error?.code==="MOVIE_MENTOR_PENDING_TURN_UNRESOLVED"&&error?.creatorTurnId===first.creatorTurnId,
 );
 
-// Production composition must surface the recovered action into the parent
-// conversation/identity runtime, explicitly carrying the pending turn binding.
 assert.match(wrapper,/readPendingTurn/,"Recovered pending transport reality is not read by the live conversation composition.");
 assert.match(wrapper,/onSendMessage\s*\(\s*\{/s,"Recovered creator action is not restored into creator-visible conversation state.");
 assert.match(wrapper,/recoveredPendingCreatorAction\s*:\s*true/,"Recovered action is not marked as reload recovery evidence.");
 assert.match(wrapper,/pendingCreatorTurnId\s*:\s*pendingTurn\.creatorTurnId/,"Recovered creator action is not explicitly bound to its pending creatorTurnId.");
 assert.match(wrapper,/retryRequiresSameMessage\s*:\s*true/,"Recovered action does not declare same-message retry ownership.");
+assert.match(wrapper,/addEventListener\(\s*["']storage["']/,"RED: an already-open same-project tab does not observe pending-turn reality created or retired by another tab.");
+assert.match(wrapper,/removeEventListener\(\s*["']storage["']/,"Cross-tab pending-turn observation must retire its storage listener on unmount.");
+assert.match(wrapper,/recoveryDelivered\.current\s*=\s*pendingTurn\.creatorTurnId/,"Cross-tab recovery must track the exact delivered creatorTurnId rather than a once-per-mount boolean.");
 
-// Authoritative acknowledgement retires the pending action; a later intentional
-// creator turn can then receive a fresh identity.
 clearPendingTurn({ identity:reloadedIdentity, creatorTurnId:first.creatorTurnId, storage });
 assert.equal(readPendingTurn({ identity:reloadedIdentity, storage }),null);
 const next = resolvePendingTurn({ identity:reloadedIdentity, message:"Open the door now.", storage, cryptoImpl });
 assert.equal(next.creatorTurnId,"turn-2");
 
-// Same-project tabs must not independently enter the pending-turn critical
-// section. The turn client owns the cross-context serialization boundary so one
-// unresolved creator action cannot be overwritten by another tab before ACK.
 assert.equal(
   typeof turnClient.withPendingTurnLock,
   "function",
@@ -93,4 +84,4 @@ releaseFirst();
 await second;
 assert.deepEqual(queued,["A-enter","A-exit","B-enter"]);
 
-console.log("PASS: pending creator action survives reload, stays creator-visible, and same-project tabs serialize pending-turn ownership until acknowledgement.");
+console.log("PASS: pending creator action survives reload, becomes visible across already-open same-project tabs, and pending-turn transport remains serialized until acknowledgement.");
