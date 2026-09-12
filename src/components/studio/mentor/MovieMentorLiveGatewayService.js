@@ -5,8 +5,10 @@ import {
 import { getMovieMentorCreatorAuthToken } from "./MovieMentorCreatorAuthenticationTransport.js";
 import requestMovieMentorTurn from "./MovieMentorTurnClient.js";
 
-const MOVIE_MENTOR_LIVE_GATEWAY_SERVICE_VERSION = "1.4.0";
+const MOVIE_MENTOR_LIVE_GATEWAY_SERVICE_VERSION = "1.5.0";
 const WORKSPACE_SESSION_KEY = "iband.movie-mentor.workspace-session";
+const PROJECT_IDENTITY_DOMAIN = "iband.movie-mentor.project";
+const PROJECT_IDENTITY_SCHEMA = 1;
 
 function cleanString(value) { return typeof value === "string" ? value.trim() : ""; }
 function clone(value) { if (value === undefined) return undefined; try { return JSON.parse(JSON.stringify(value)); } catch { return value; } }
@@ -21,6 +23,24 @@ function resolveWorkspaceIdentity({ request = {}, storage = globalThis?.sessionS
   return { projectId: projectId || null, creatorSessionId };
 }
 function createWorkspaceConfirmedContext(request = {}) { return [{ key: "creator-mode", value: { creatorType: cleanString(request?.creatorType) || "video", creatorLabel: cleanString(request?.creatorLabel) || null, creatorMode: cleanString(request?.creatorMode) || "ai-movie", creatorModeLabel: cleanString(request?.creatorModeLabel) || null, creatorJourney: cleanString(request?.creatorJourney) || "guide" }, source: "creator-workspace", certainty: "confirmed" }]; }
+function resolveCanonicalProjectIdentity(request = {}, identity = {}) {
+  const projectId = cleanString(identity?.projectId);
+  const projectIdentity = request?.projectIdentity;
+  if (!projectId || !projectIdentity || typeof projectIdentity !== "object" || Array.isArray(projectIdentity)) { const error = new Error("Movie Mentor live project establishment requires canonical project identity from CreatorWorkspace."); error.code = "MOVIE_MENTOR_PROJECT_IDENTITY_REQUIRED"; throw error; }
+  if (projectIdentity.domain !== PROJECT_IDENTITY_DOMAIN || Number(projectIdentity.schema) !== PROJECT_IDENTITY_SCHEMA || projectIdentity.issuance !== "secure-web-crypto" || projectIdentity.legacy === true) { const error = new Error("Movie Mentor live project establishment requires a current secure canonical project identity."); error.code = "MOVIE_MENTOR_PROJECT_IDENTITY_INVALID"; throw error; }
+  return clone(projectIdentity);
+}
+async function establishProjectReality({ request = {}, identity, fetchImpl = globalThis?.fetch, getAuthToken = getMovieMentorCreatorAuthToken } = {}) {
+  if (typeof fetchImpl !== "function") { const error = new Error("Movie Mentor cannot establish project reality because fetch is unavailable."); error.code = "MOVIE_MENTOR_PROJECT_ESTABLISHMENT_FETCH_UNAVAILABLE"; throw error; }
+  if (typeof getAuthToken !== "function") { const error = new Error("Movie Mentor project establishment requires creator authentication transport."); error.code = "MOVIE_MENTOR_PROJECT_ESTABLISHMENT_AUTH_REQUIRED"; throw error; }
+  const token = cleanString(await getAuthToken());
+  if (!token) { const error = new Error("Movie Mentor project establishment requires a current creator authentication token."); error.code = "MOVIE_MENTOR_PROJECT_ESTABLISHMENT_AUTH_REQUIRED"; throw error; }
+  const projectIdentity = resolveCanonicalProjectIdentity(request, identity);
+  const response = await fetchImpl(`${apiBase()}/api/movie-mentor/projects`, { method: "POST", headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` }, body: JSON.stringify({ projectId: identity.projectId, identity: projectIdentity }) });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok || payload?.success !== true) { const error = new Error(cleanString(payload?.message) || "Movie Mentor project establishment failed."); error.code = cleanString(payload?.code) || "MOVIE_MENTOR_PROJECT_ESTABLISHMENT_FAILED"; error.status = response.status; throw error; }
+  return payload;
+}
 async function syncWorkspaceReality({ request = {}, identity, fetchImpl = globalThis?.fetch, storage = globalThis?.localStorage, getAuthToken = getMovieMentorCreatorAuthToken } = {}) {
   if (typeof fetchImpl !== "function") { const error = new Error("Movie Mentor cannot sync workspace reality because fetch is unavailable."); error.code = "MOVIE_MENTOR_WORKSPACE_SYNC_FETCH_UNAVAILABLE"; throw error; }
   if (typeof getAuthToken !== "function") { const error = new Error("Movie Mentor workspace reality sync requires creator authentication transport."); error.code = "MOVIE_MENTOR_WORKSPACE_SYNC_AUTH_REQUIRED"; throw error; }
@@ -38,8 +58,10 @@ function toCreatorWorkspaceResult(turn) {
 }
 async function generateMovieMentorLiveResponse(request = {}, { fetchImpl = globalThis?.fetch, storage = globalThis?.localStorage, sessionStorage = globalThis?.sessionStorage, cryptoImpl = globalThis?.crypto, getAuthToken = getMovieMentorCreatorAuthToken } = {}) {
   const message = cleanString(request?.idea); if (!message) { const error = new Error("Movie Mentor needs the creator's idea before a live turn can run."); error.code = "MOVIE_MENTOR_TURN_MESSAGE_REQUIRED"; throw error; }
-  const identity = resolveWorkspaceIdentity({ request, storage: sessionStorage, cryptoImpl }); await syncWorkspaceReality({ request, identity, fetchImpl, storage, getAuthToken });
+  const identity = resolveWorkspaceIdentity({ request, storage: sessionStorage, cryptoImpl });
+  await establishProjectReality({ request, identity, fetchImpl, getAuthToken });
+  await syncWorkspaceReality({ request, identity, fetchImpl, storage, getAuthToken });
   const turn = await requestMovieMentorTurn({ message, ...identity, fetchImpl, storage, getAuthToken }); return toCreatorWorkspaceResult(turn);
 }
-export { MOVIE_MENTOR_LIVE_GATEWAY_SERVICE_VERSION, WORKSPACE_SESSION_KEY, createSessionId, resolveWorkspaceIdentity, createWorkspaceConfirmedContext, syncWorkspaceReality, toCreatorWorkspaceResult, generateMovieMentorLiveResponse };
+export { MOVIE_MENTOR_LIVE_GATEWAY_SERVICE_VERSION, WORKSPACE_SESSION_KEY, createSessionId, resolveWorkspaceIdentity, createWorkspaceConfirmedContext, resolveCanonicalProjectIdentity, establishProjectReality, syncWorkspaceReality, toCreatorWorkspaceResult, generateMovieMentorLiveResponse };
 export default generateMovieMentorLiveResponse;
