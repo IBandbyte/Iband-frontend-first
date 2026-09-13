@@ -38,7 +38,6 @@ jobs:
     timeout-minutes: 20
     env:
       IBAND_LIVE_BACKEND_URL: https://iband-backend-first-1.onrender.com
-      IBAND_LIVE_CREATOR_AUTH_TOKEN_FILE: ${{ runner.temp }}/movie-mentor-live-creator-token
       IBAND_LIVE_REPORT_PATH: verification-results/movie-mentor-creator-facing-live.json
     steps:
       - name: Checkout
@@ -66,17 +65,20 @@ jobs:
         continue-on-error: true
         env:
           IBAND_LIVE_CREATOR_CREDENTIAL_JSON: ${{ secrets.IBAND_LIVE_CREATOR_CREDENTIAL_JSON }}
+          IBAND_LIVE_CREATOR_AUTH_TOKEN_FILE: ${{ runner.temp }}/movie-mentor-live-creator-token
         run: node scripts/obtain-movie-mentor-live-creator-token.mjs
 
       - name: Verify live creator-facing Movie Mentor production gateway
         id: live_verification
         if: always()
         continue-on-error: true
+        env:
+          IBAND_LIVE_CREATOR_AUTH_TOKEN_FILE: ${{ runner.temp }}/movie-mentor-live-creator-token
         run: node scripts/verify-movie-mentor-creator-facing-live.mjs
 
       - name: Destroy ephemeral creator session token file
         if: always()
-        run: rm -f "${IBAND_LIVE_CREATOR_AUTH_TOKEN_FILE}"
+        run: rm -f "${RUNNER_TEMP}/movie-mentor-live-creator-token"
 
       - name: Upload live verification report
         if: always()
