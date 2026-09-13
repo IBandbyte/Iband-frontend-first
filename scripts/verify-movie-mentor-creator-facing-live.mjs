@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 
 const BASE_URL = (process.env.IBAND_LIVE_BACKEND_URL || "https://iband-backend-first-1.onrender.com").replace(/\/$/, "");
-const AUTH_TOKEN = String(process.env.IBAND_LIVE_CREATOR_AUTH_TOKEN || "").trim();
+const AUTH_TOKEN_FILE = String(process.env.IBAND_LIVE_CREATOR_AUTH_TOKEN_FILE || "").trim();
 const REPORT_PATH = process.env.IBAND_LIVE_REPORT_PATH || "verification-results/movie-mentor-creator-facing-live.json";
 const report = {
   generatedAt: new Date().toISOString(),
@@ -30,18 +30,46 @@ function certificationError(code, message, extras = {}) {
   return error;
 }
 
+function readEphemeralAuthToken() {
+  if (!AUTH_TOKEN_FILE) {
+    throw certificationError(
+      "MOVIE_MENTOR_LIVE_CERTIFICATION_TOKEN_FILE_REQUIRED",
+      "Live Movie Mentor certification requires an ephemeral creator session token file generated during this workflow run."
+    );
+  }
+
+  let token = "";
+  try {
+    token = readFileSync(AUTH_TOKEN_FILE, "utf8").trim();
+  } catch {
+    throw certificationError(
+      "MOVIE_MENTOR_LIVE_CERTIFICATION_TOKEN_FILE_UNREADABLE",
+      "Live Movie Mentor certification could not read the ephemeral creator session token file."
+    );
+  }
+
+  if (!token) {
+    throw certificationError(
+      "MOVIE_MENTOR_LIVE_CERTIFICATION_AUTH_REQUIRED",
+      "Live Movie Mentor certification did not receive a fresh non-privileged creator session token."
+    );
+  }
+
+  return token;
+}
+
 async function readJson(response) {
   const text = await response.text();
   try { return text ? JSON.parse(text) : null; } catch { return { raw: text }; }
 }
 
-async function post(path, body) {
+async function post(path, body, authToken) {
   const response = await fetch(`${BASE_URL}${path}`, {
     method: "POST",
     headers: {
       Accept: "application/json",
       "Content-Type": "application/json",
-      Authorization: `Bearer ${AUTH_TOKEN}`,
+      Authorization: `Bearer ${authToken}`,
     },
     body: JSON.stringify(body),
   });
@@ -61,12 +89,8 @@ function recordCheck(name, details = {}) {
 }
 
 async function run() {
-  if (!AUTH_TOKEN) {
-    throw certificationError(
-      "MOVIE_MENTOR_LIVE_CERTIFICATION_AUTH_REQUIRED",
-      "Live Movie Mentor certification requires the revocable non-privileged creator credential in IBAND_LIVE_CREATOR_AUTH_TOKEN.",
-    );
-  }
+  const authToken = readEphemeralAuthToken();
+  recordCheck("fresh-ephemeral-creator-session-token");
 
   const projectId = `movie-project-${randomUUID()}`;
   const creatorSessionId = `movie-live-cert-${randomUUID()}`;
@@ -82,7 +106,7 @@ async function run() {
   report.creatorSessionId = creatorSessionId;
   report.creatorTurnId = creatorTurnId;
 
-  const established = await post("/api/movie-mentor/projects", { projectId, identity });
+  const established = await post("/api/movie-mentor/projects", { projectId, identity }, authToken);
   assert.equal(established.projectId, projectId, "project establishment must bind the exact canonical project id");
   recordCheck("authenticated-project-establishment", { status: established.status || null });
 
@@ -103,7 +127,7 @@ async function run() {
       projectJourney: null,
       memoryContext: null,
     },
-  });
+  }, authToken);
   assert.ok(Number.isSafeInteger(synced?.state?.revision), "state sync must return a durable integer revision");
   assert.ok(synced.state.revision >= 1, "first durable state sync must advance revision");
   recordCheck("durable-state-sync", { revision: synced.state.revision });
@@ -114,7 +138,7 @@ async function run() {
     creatorSessionId,
     creatorTurnId,
     message,
-  });
+  }, authToken);
 
   assert.equal(typeof turn.text, "string", "production turn must return creator-facing text");
   assert.ok(turn.text.trim().length > 0, "production turn must return non-empty creator-facing text");
