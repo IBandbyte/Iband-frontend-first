@@ -6,6 +6,7 @@ on:
     branches: [main]
     paths:
       - ".github/workflows/verify-movie-mentor-creator-facing-live.yml"
+      - "scripts/obtain-movie-mentor-live-creator-token.mjs"
       - "scripts/verify-movie-mentor-creator-facing-live.mjs"
       - "src/components/studio/CreatorWorkspace.jsx"
       - "src/components/studio/mentor/MovieMentorConversation.jsx"
@@ -18,6 +19,7 @@ on:
     branches: [main]
     paths:
       - ".github/workflows/verify-movie-mentor-creator-facing-live.yml"
+      - "scripts/obtain-movie-mentor-live-creator-token.mjs"
       - "scripts/verify-movie-mentor-creator-facing-live.mjs"
       - "src/components/studio/CreatorWorkspace.jsx"
       - "src/components/studio/mentor/MovieMentorConversation.jsx"
@@ -33,7 +35,11 @@ permissions:
 jobs:
   live-creator-facing-verification:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
+    env:
+      IBAND_LIVE_BACKEND_URL: https://iband-backend-first-1.onrender.com
+      IBAND_LIVE_CREATOR_AUTH_TOKEN_FILE: ${{ runner.temp }}/movie-mentor-live-creator-token
+      IBAND_LIVE_REPORT_PATH: verification-results/movie-mentor-creator-facing-live.json
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -43,14 +49,34 @@ jobs:
         with:
           node-version: "20"
 
-      - name: Verify live creator-facing Movie Mentor production gateway
-        id: live_verification
+      - name: Install live browser certification dependency
+        continue-on-error: true
+        run: npm install --no-save --no-audit --no-fund playwright@1.63.0
+
+      - name: Install Chromium for live creator authentication
+        continue-on-error: true
+        run: npx playwright install --with-deps chromium
+
+      - name: Warm production backend before minting short-lived creator session
+        continue-on-error: true
+        run: curl --fail --silent --show-error --max-time 45 "${IBAND_LIVE_BACKEND_URL}/health" >/dev/null
+
+      - name: Obtain fresh non-privileged Clerk creator session
+        id: live_authentication
         continue-on-error: true
         env:
-          IBAND_LIVE_BACKEND_URL: https://iband-backend-first-1.onrender.com
-          IBAND_LIVE_CREATOR_AUTH_TOKEN: ${{ secrets.IBAND_LIVE_CREATOR_AUTH_TOKEN }}
-          IBAND_LIVE_REPORT_PATH: verification-results/movie-mentor-creator-facing-live.json
+          IBAND_LIVE_CREATOR_CREDENTIAL_JSON: ${{ secrets.IBAND_LIVE_CREATOR_CREDENTIAL_JSON }}
+        run: node scripts/obtain-movie-mentor-live-creator-token.mjs
+
+      - name: Verify live creator-facing Movie Mentor production gateway
+        id: live_verification
+        if: always()
+        continue-on-error: true
         run: node scripts/verify-movie-mentor-creator-facing-live.mjs
+
+      - name: Destroy ephemeral creator session token file
+        if: always()
+        run: rm -f "${IBAND_LIVE_CREATOR_AUTH_TOKEN_FILE}"
 
       - name: Upload live verification report
         if: always()
