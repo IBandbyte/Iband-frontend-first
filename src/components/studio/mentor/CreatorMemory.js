@@ -23,6 +23,7 @@ import {
   withMovieProjectIdentity,
 } from "./MovieMentorProjectIdentity.js";
 import createJourneyAuthorityReadFacade from "./JourneyAuthorityReadFacade.js";
+import { withMovieMentorMemoryWriteAuthority } from "./MovieMentorMemoryWriteAuthority.js";
 
 function clone(value) {
   if (value === undefined) return undefined;
@@ -283,6 +284,32 @@ function createCreatorMemory(options = {}) {
     };
   }
 
+  // Opt-in async ordinary-write migration path. The caller must supply a
+  // browser lock manager; legacy synchronous entry points remain unchanged.
+  async function replaceStateWithSharedAuthority({ locks, transform } = {}) {
+    if (typeof transform !== "function") {
+      return Object.freeze({ acquired: false, reason: "transform-unavailable" });
+    }
+    return withMovieMentorMemoryWriteAuthority({
+      locks,
+      operation: () => {
+        // Never mutate the potentially stale facade snapshot. Hydrate a fresh
+        // Core with its own persistence baseline while holding the shared lock.
+        const fresh = createCreatorMemoryCore({
+          ...resolvedCoreOptions,
+          storageAdapter: createFacadeStorageController(durableStorage).adapter,
+        });
+        const next = transform(clone(fresh.getState()));
+        if (!next || typeof next !== "object" || typeof next.then === "function") {
+          throw new Error("Shared ordinary writer requires a synchronous state transform.");
+        }
+        fresh.replaceState(next);
+        adoptPersistedStateWithoutWrite(fresh.getState());
+        return clone(fresh.getState());
+      },
+    });
+  }
+
   function overlayAuthorityJourney(project) {
     const safeProject = clone(project || null);
     if (!isMovieMentorProject(safeProject)) return safeProject;
@@ -441,6 +468,7 @@ function createCreatorMemory(options = {}) {
     readPersistedState,
     getPersistedProject,
     convergeConversationSettlement,
+    replaceStateWithSharedAuthority,
     getProject,
     getActiveProject,
     getProjectMemories,
