@@ -39,6 +39,9 @@ jobs:
         run: node scripts/verify-movie-mentor-invalid-durable-acknowledgement.mjs
       - name: Verify stale ordinary writer cannot overwrite recovered state
         run: node scripts/verify-movie-mentor-recovery-two-writer-contention.mjs
+      - name: Verify synchronous legacy persistence compatibility
+        if: always()
+        run: node scripts/verify-movie-mentor-recovery-sync-compatibility.mjs
       - name: Verify ordinary writer overlap during recovery authority
         run: node scripts/verify-movie-mentor-recovery-overlap-authority.mjs
         if: always()
