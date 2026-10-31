@@ -1,0 +1,18 @@
+name: Verify Movie Mentor Clean Browser Server Recovery
+on:
+  push:
+    branches:
+      - verify/durable-sync-invalid-ack-20261031
+  workflow_dispatch:
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Syntax check clean browser recovery verifier
+        run: node --check scripts/verify-movie-mentor-clean-browser-server-recovery.mjs
+      - name: Verify clean browser server recovery contract
+        run: node scripts/verify-movie-mentor-clean-browser-server-recovery.mjs
