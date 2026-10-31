@@ -38,5 +38,17 @@ async function recoverMovieMentorCreatorState({projectId,fetchImpl=globalThis?.f
   if(payload?.success!==true||state?.projectId!==pid||!Number.isSafeInteger(state.revision)||state.revision<1||!Number.isSafeInteger(state.creatorStateGeneration)||state.creatorStateGeneration<1)throw Object.assign(new Error("Recovered creator state failed project or revision validation."),{code:"MOVIE_MENTOR_RECOVERY_INVALID_ACKNOWLEDGEMENT"});
   return clone(state);
 }
-export{recoverMovieMentorCreatorState,MOVIE_MENTOR_DURABLE_STATE_SYNC_VERSION,getExpectedRevision,rememberRevision,getDurableSyncStatus,projectMemoryContext,creatorConfirmedContext,syncIdentityFromMemory,syncMovieMentorDurableState,enqueueMovieMentorDurableStateSync,flushMovieMentorDurableStateSync,installCreatorMemoryDurableSyncBridge};
+async function listOwnedMovieMentorProjects({fetchImpl=globalThis?.fetch,getAuthToken=getMovieMentorCreatorAuthToken}={}){
+  if(typeof fetchImpl!=="function"||typeof getAuthToken!=="function")throw Object.assign(new Error("Authenticated project discovery transport is unavailable."),{code:"MOVIE_MENTOR_DISCOVERY_TRANSPORT_UNAVAILABLE"});
+  const token=s(await getAuthToken());
+  if(!token)throw Object.assign(new Error("Project discovery requires creator authentication."),{code:"MOVIE_MENTOR_AUTH_CREDENTIAL_REQUIRED"});
+  const response=await fetchImpl(`${apiBase()}/api/movie-mentor/projects/owned`,{method:"GET",headers:{Authorization:`Bearer ${token}`},cache:"no-store"});
+  const payload=await response.json().catch(()=>({}));
+  if(!response.ok)throw Object.assign(new Error(payload?.message||"Owned-project discovery failed."),{code:payload?.code||"MOVIE_MENTOR_DISCOVERY_FAILED",status:response.status});
+  if(payload?.success!==true||!Array.isArray(payload.projects)||payload.projects.some(project=>!project||typeof project.projectId!=="string"||!s(project.projectId)))throw Object.assign(new Error("Owned-project discovery returned an invalid acknowledgement."),{code:"MOVIE_MENTOR_DISCOVERY_INVALID_ACKNOWLEDGEMENT"});
+  const ids=new Set();
+  for(const project of payload.projects){if(ids.has(project.projectId))throw Object.assign(new Error("Owned-project discovery returned duplicate identities."),{code:"MOVIE_MENTOR_DISCOVERY_INVALID_ACKNOWLEDGEMENT"});ids.add(project.projectId);}
+  return clone(payload.projects);
+}
+export{listOwnedMovieMentorProjects,recoverMovieMentorCreatorState,MOVIE_MENTOR_DURABLE_STATE_SYNC_VERSION,getExpectedRevision,rememberRevision,getDurableSyncStatus,projectMemoryContext,creatorConfirmedContext,syncIdentityFromMemory,syncMovieMentorDurableState,enqueueMovieMentorDurableStateSync,flushMovieMentorDurableStateSync,installCreatorMemoryDurableSyncBridge};
 export default syncMovieMentorDurableState;
