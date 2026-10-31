@@ -1,0 +1,18 @@
+import assert from "node:assert/strict";
+import createCreatorMemory,{createMemoryStorageAdapter} from "../src/components/studio/mentor/CreatorMemory.js";
+const storage=createMemoryStorageAdapter();
+let held=false;
+const memory=createCreatorMemory({storageAdapter:storage,ordinaryWriteAuthorityGuard:()=>!held});
+const before=storage.getItem("iband.creator-memory");
+held=true;
+const next=memory.getState();
+next.metadata={...(next.metadata||{}),overlapProbe:"must-not-persist"};
+assert.throws(()=>memory.replaceState(next),error=>error?.code==="CREATOR_MEMORY_WRITE_AUTHORITY_DENIED");
+assert.equal(storage.getItem("iband.creator-memory"),before,"Denied ordinary write must not alter durable bytes.");
+held=false;
+const fresh=createCreatorMemory({storageAdapter:storage,ordinaryWriteAuthorityGuard:()=>!held});
+const changed=fresh.getState();
+changed.metadata={...(changed.metadata||{}),afterAuthority:"allowed"};
+fresh.replaceState(changed);
+assert.equal(createCreatorMemory({storageAdapter:storage}).getState().metadata.afterAuthority,"allowed");
+console.log("GREEN: explicitly guarded synchronous ordinary writer refuses active recovery and preserves legacy idle writes.");
