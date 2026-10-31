@@ -28,6 +28,8 @@ jobs:
         run: node scripts/verify-movie-mentor-recovery-adoption-transaction.mjs
       - name: Verify locked recovery commit refuses concurrent local changes
         run: node scripts/verify-movie-mentor-recovery-locked-commit.mjs
+      - name: Verify stale ordinary writer cannot overwrite recovered state
+        run: node scripts/verify-movie-mentor-recovery-two-writer-contention.mjs
       - name: Verify recovery shares authority with ordinary memory writers
         run: node scripts/verify-movie-mentor-recovery-shared-writer-coordination.mjs
       - name: Verify authenticated owned-project discovery contract
