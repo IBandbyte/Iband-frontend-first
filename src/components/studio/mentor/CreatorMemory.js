@@ -94,7 +94,7 @@ function resolveFacadeDurableStorage(storageAdapter) {
  * are changed, no async work may run inside the shield, and no CAS/atomic storage
  * semantics are claimed.
  */
-function createFacadeStorageController(storage) {
+function createFacadeStorageController(storage, ordinaryWriteAuthorityGuard) {
   let refreshShieldActive = false;
   const virtualWrites = new Map();
   // Synchronous stale-snapshot fence. This is not cross-tab CAS and does not
@@ -108,6 +108,14 @@ function createFacadeStorageController(storage) {
   function requireCurrentBaseline(key) {
     if (!observedDurableValues.has(key)) throw staleWriteError();
     if (storage.getItem(key) !== observedDurableValues.get(key)) throw staleWriteError();
+  }
+
+  function requireWritePermission() {
+    if (typeof ordinaryWriteAuthorityGuard === 'function' && ordinaryWriteAuthorityGuard() !== true) {
+      const error = new Error('Creator Memory ordinary write denied by recovery authority.');
+      error.code = 'CREATOR_MEMORY_WRITE_AUTHORITY_DENIED';
+      throw error;
+    }
   }
 
   const adapter = {
@@ -124,6 +132,7 @@ function createFacadeStorageController(storage) {
         virtualWrites.set(key, value);
         return;
       }
+      requireWritePermission();
       requireCurrentBaseline(key);
       storage.setItem(key, value);
       observedDurableValues.set(key, value);
@@ -133,6 +142,7 @@ function createFacadeStorageController(storage) {
         virtualWrites.set(key, null);
         return;
       }
+      requireWritePermission();
       requireCurrentBaseline(key);
       storage.removeItem(key);
       observedDurableValues.set(key, null);
@@ -169,11 +179,12 @@ function createFacadeStorageController(storage) {
 function createCreatorMemory(options = {}) {
   const {
     projectIdentityCrypto = globalThis?.crypto,
+    ordinaryWriteAuthorityGuard,
     journeyAuthorityReadFacade = createJourneyAuthorityReadFacade(),
     ...coreOptions
   } = options || {};
   const durableStorage = resolveFacadeDurableStorage(coreOptions.storageAdapter);
-  const storageController = createFacadeStorageController(durableStorage);
+  const storageController = createFacadeStorageController(durableStorage, ordinaryWriteAuthorityGuard);
   const resolvedCoreOptions = {
     ...coreOptions,
     storageAdapter: storageController.adapter,
