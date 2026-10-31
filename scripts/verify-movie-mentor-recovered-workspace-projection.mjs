@@ -1,0 +1,14 @@
+import assert from "node:assert/strict";
+import {projectRecoveredCreatorWorkspace} from "../src/components/studio/mentor/MovieMentorRecoveredWorkspaceProjection.js";
+const state={projectId:"film-alpha",revision:5,creatorStateGeneration:5,projectJourney:{projectId:"film-alpha",currentStageId:"story",currentTaskId:"outline"},memoryContext:{conversations:[{projectId:"film-alpha",role:"creator",content:"A moonlit harbour"}]},creatorConfirmedContext:[{key:"project",value:{id:"film-alpha",title:"Harbour Film",creatorType:"video",metadata:{creatorMode:"ai-movie"}}}]};
+const result=projectRecoveredCreatorWorkspace({projectId:"film-alpha",state});
+assert.equal(result.project.id,"film-alpha");
+assert.equal(result.project.metadata.creatorMode,"ai-movie");
+assert.equal(result.projectJourney.currentStageId,"story");
+assert.equal(result.projectJourney.currentTaskId,"outline");
+assert.equal(result.conversationMessages[0].content,"A moonlit harbour");
+assert.notEqual(result.projectJourney,state.projectJourney);
+assert.throws(()=>projectRecoveredCreatorWorkspace({projectId:"film-beta",state}),/project/i);
+assert.throws(()=>projectRecoveredCreatorWorkspace({projectId:"film-alpha",state:{...state,revision:0}}),/revision/i);
+assert.throws(()=>projectRecoveredCreatorWorkspace({projectId:"film-alpha",state:{...state,projectJourney:{projectId:"film-beta"}}}),/project/i);
+console.log("GREEN: isolated recovered creator project, journey and conversation projection with identity/revision fences.");
