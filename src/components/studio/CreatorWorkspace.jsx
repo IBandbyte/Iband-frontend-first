@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { recoverMovieMentorCreatorState } from "./mentor/MovieMentorDurableStateSync.js";
+import { listOwnedMovieMentorProjects, recoverMovieMentorCreatorState } from "./mentor/MovieMentorDurableStateSync.js";
 import { projectRecoveredCreatorWorkspace } from "./mentor/MovieMentorRecoveredWorkspaceProjection.js";
 import AiMentor from "./AiMentor";
 import MentorConversation from "./MentorConversation";
@@ -79,6 +79,30 @@ const CreatorWorkspace = ({ creatorName = "Creator", initialCreator = "", onGene
   const [showCreatorModeChoices, setShowCreatorModeChoices] = useState(resumedMovie ? false : Boolean(initialCreator));
   const [mentorMessage, setMentorMessage] = useState(resumedMovie ? `Welcome back. Your movie project “${resumeSnapshot.project.title}” is ready to continue.` : "I've got your back. Choose what you would like to create, then tell me about your idea.");
 
+  const [ownedMovieProjects, setOwnedMovieProjects] = useState([]);
+  const [ownedProjectsStatus, setOwnedProjectsStatus] = useState("idle");
+  const [ownedProjectsError, setOwnedProjectsError] = useState(null);
+  const [discoveryAttempt, setDiscoveryAttempt] = useState(0);
+  useEffect(() => {
+    if (!discoveryAttempt) return undefined;
+    let cancelled = false;
+    setOwnedProjectsStatus("loading");
+    setOwnedProjectsError(null);
+    setOwnedMovieProjects([]);
+    void (async () => {
+      try {
+        const projects = await listOwnedMovieMentorProjects();
+        if (cancelled) return;
+        setOwnedMovieProjects(projects);
+        setOwnedProjectsStatus("ready");
+      } catch (error) {
+        if (cancelled) return;
+        setOwnedProjectsStatus("failed");
+        setOwnedProjectsError(error?.message || "Unable to discover your projects.");
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [discoveryAttempt]);
   const [recoveryProjectId, setRecoveryProjectId] = useState("");
   const [recoveryRequest, setRecoveryRequest] = useState(null);
   const [recoveryStatus, setRecoveryStatus] = useState("idle");
@@ -218,6 +242,16 @@ const CreatorWorkspace = ({ creatorName = "Creator", initialCreator = "", onGene
       <section style={styles.section} aria-label="Recover an existing Movie Mentor project">
         <h2 style={styles.sectionTitle}>Recover an existing movie</h2>
         <p>Enter a project ID you already own. Recovery requires your current sign-in. This is a read-only preview until safe workspace adoption is verified.</p>
+        <button type="button" onClick={() => { setRecoveryProjectId(""); setRecoveryRequest(null); setServerRecoveredPreview(null); setRecoveryStatus("idle"); setDiscoveryAttempt(attempt => attempt + 1); }} disabled={ownedProjectsStatus === "loading"}>Find my saved movies</button>
+        {ownedProjectsStatus === "loading" && <p role="status">Finding movies belonging to your account…</p>}
+        {ownedProjectsStatus === "failed" && <p role="alert">{ownedProjectsError}</p>}
+        {ownedProjectsStatus === "ready" && ownedMovieProjects.length === 0 && <p role="status">No saved movies were found for this account.</p>}
+        {ownedProjectsStatus === "ready" && ownedMovieProjects.length > 0 && <label>Choose one of your movies
+          <select aria-label="Your saved movie projects" value={recoveryProjectId} onChange={event => { setRecoveryProjectId(event.target.value); setRecoveryRequest(null); setRecoveryStatus("idle"); setServerRecoveredPreview(null); }}>
+            <option value="">Select a saved movie</option>
+            {ownedMovieProjects.map(project => <option key={project.projectId} value={project.projectId}>{project.projectId}</option>)}
+          </select>
+        </label>}
         <input aria-label="Existing movie project ID" value={recoveryProjectId} onChange={(event) => { setRecoveryProjectId(event.target.value); setRecoveryRequest(null); setRecoveryStatus("idle"); setServerRecoveredPreview(null); }} placeholder="Existing project ID" />
         <button type="button" onClick={requestServerRecovery} disabled={recoveryStatus === "loading"}>Recover movie preview</button>
         {recoveryStatus === "loading" && <p role="status">Checking your saved movie…</p>}
