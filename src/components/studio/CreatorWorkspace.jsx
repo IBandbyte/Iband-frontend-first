@@ -1,4 +1,6 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
+import { recoverMovieMentorCreatorState } from "./mentor/MovieMentorDurableStateSync.js";
+import { projectRecoveredCreatorWorkspace } from "./mentor/MovieMentorRecoveredWorkspaceProjection.js";
 import AiMentor from "./AiMentor";
 import MentorConversation from "./MentorConversation";
 import PromptBuilder from "./PromptBuilder";
@@ -77,6 +79,41 @@ const CreatorWorkspace = ({ creatorName = "Creator", initialCreator = "", onGene
   const [showCreatorModeChoices, setShowCreatorModeChoices] = useState(resumedMovie ? false : Boolean(initialCreator));
   const [mentorMessage, setMentorMessage] = useState(resumedMovie ? `Welcome back. Your movie project “${resumeSnapshot.project.title}” is ready to continue.` : "I've got your back. Choose what you would like to create, then tell me about your idea.");
 
+  const [recoveryProjectId, setRecoveryProjectId] = useState("");
+  const [recoveryRequest, setRecoveryRequest] = useState(null);
+  const [recoveryStatus, setRecoveryStatus] = useState("idle");
+  const [recoveryError, setRecoveryError] = useState(null);
+  const [serverRecoveredPreview, setServerRecoveredPreview] = useState(null);
+  useEffect(() => {
+    if (!recoveryRequest) return undefined;
+    let cancelled = false;
+    setRecoveryStatus("loading");
+    setRecoveryError(null);
+    void (async () => {
+      try {
+        const state = await recoverMovieMentorCreatorState({ projectId: recoveryRequest });
+        const recovered = projectRecoveredCreatorWorkspace({ projectId: recoveryRequest, state });
+        if (cancelled) return;
+        // The authoritative read is safe to display, but must not be written
+        // into the local identity runtime without an explicit adoption fence.
+        // Keep the existing workspace's mutation controls disabled by retaining
+        // its separate local project identity until that gate is implemented.
+        setServerRecoveredPreview(recovered);
+        setRecoveryStatus("preview-ready");
+      } catch (error) {
+        if (cancelled) return;
+        setRecoveryStatus("failed");
+        setRecoveryError(error?.message || "Unable to recover this project.");
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [recoveryRequest]);
+  const requestServerRecovery = () => {
+    const projectId = recoveryProjectId.trim();
+    if (!projectId) { setRecoveryError("Enter your existing project ID."); return; }
+    setRecoveryRequest(projectId);
+    setRecoveryStatus("loading");
+  };
   const activeCreator = useMemo(() => CREATOR_OPTIONS.find((creator) => creator.id === selectedCreator) || null, [selectedCreator]);
   const projectJourneySnapshot = useMemo(() => projectJourney ? creatorJourneyEngine.createSnapshot(projectJourney) : null, [projectJourney]);
   const projectJourneyOrientation = useMemo(() => projectJourney ? creatorJourneyEngine.getOrientation(projectJourney) : null, [projectJourney]);
@@ -178,6 +215,21 @@ const CreatorWorkspace = ({ creatorName = "Creator", initialCreator = "", onGene
   return (
     <main style={styles.workspace}>
       <section style={styles.welcomeSection}><p style={styles.eyebrow}>iBand Studio</p><h1 style={styles.title}>Welcome back, {creatorName}.</h1><p style={styles.subtitle}>What would you like to create today?</p></section>
+      <section style={styles.section} aria-label="Recover an existing Movie Mentor project">
+        <h2 style={styles.sectionTitle}>Recover an existing movie</h2>
+        <p>Enter a project ID you already own. Recovery requires your current sign-in. This is a read-only preview until safe workspace adoption is verified.</p>
+        <input aria-label="Existing movie project ID" value={recoveryProjectId} onChange={(event) => { setRecoveryProjectId(event.target.value); setRecoveryRequest(null); setRecoveryStatus("idle"); setServerRecoveredPreview(null); }} placeholder="Existing project ID" />
+        <button type="button" onClick={requestServerRecovery} disabled={recoveryStatus === "loading"}>Recover movie preview</button>
+        {recoveryStatus === "loading" && <p role="status">Checking your saved movie…</p>}
+        {recoveryStatus === "failed" && <p role="alert">{recoveryError}</p>}
+        {recoveryError && recoveryStatus === "idle" && <p role="alert">{recoveryError}</p>}
+        {serverRecoveredPreview && recoveryStatus === "preview-ready" && <div role="status">
+          <h3>{serverRecoveredPreview.project.title || "Recovered movie"}</h3>
+          <p>Saved stage: {serverRecoveredPreview.projectJourney.currentStageId || "unknown"}; task: {serverRecoveredPreview.projectJourney.currentTaskId || "unknown"}</p>
+          <p>Saved revision: {serverRecoveredPreview.revision}. This is a read-only preview; editing is not enabled.</p>
+          <ol>{serverRecoveredPreview.conversationMessages.map((message, index) => <li key={index}>{String(message?.content || message?.text || "")}</li>)}</ol>
+        </div>}
+      </section>
       <section style={styles.section}><AiMentor message={mentorMessage} creatorJourney={creatorJourney} mentorContext={mentorContext} journeyRecommendationAction={journeyRecommendationAction} onAcceptJourneyRecommendation={handleAcceptJourneyRecommendation} onDismissJourneyRecommendation={handleDismissJourneyRecommendation} /></section>
       {showCreatorChoices && <section style={styles.section}><div style={styles.sectionHeadingRow}><div><p style={styles.sectionEyebrow}>Quick Create</p><h2 style={styles.sectionTitle}>Choose your starting point</h2></div></div><div style={styles.creatorGrid}>{CREATOR_OPTIONS.map((creator) => { const isSelected = selectedCreator === creator.id; return <button key={creator.id} type="button" aria-pressed={isSelected} onClick={() => handleCreatorSelect(creator)} style={{ ...styles.creatorCard, ...(isSelected ? styles.creatorCardActive : {}) }}><span style={styles.creatorIcon}>{creator.icon}</span><span style={styles.creatorCopy}><span style={styles.creatorLabel}>{creator.label}</span><span style={styles.creatorDescription}>{creator.description}</span></span><span aria-hidden="true" style={{ ...styles.creatorArrow, ...(isSelected ? styles.creatorArrowActive : {}) }}>›</span></button>; })}</div></section>}
       {!showCreatorChoices && activeCreator && <section style={styles.section}><div style={styles.choiceSummary}><div style={styles.choiceSummaryCopy}><span style={styles.choiceSummaryEyebrow}>Starting Point</span><span style={styles.choiceSummaryValue}>{activeCreator.icon} {activeCreator.label}</span></div><button type="button" onClick={handleChangeCreator} style={styles.changeButton}>Change</button></div></section>}
