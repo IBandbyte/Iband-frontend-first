@@ -1,0 +1,12 @@
+import assert from "node:assert/strict";
+import {prepareMovieMentorRecoveryAdoption,confirmMovieMentorRecoveryAdoption} from "../src/components/studio/mentor/MovieMentorRecoveryAdoptionTransaction.js";
+const recovered={project:{id:"film-a",creatorType:"video",metadata:{creatorMode:"ai-movie"}},revision:7,creatorStateGeneration:7};
+const empty={projects:[],conversations:[],journey:{}};
+const prepared=prepareMovieMentorRecoveryAdoption({projectId:"film-a",recovered,localState:empty});
+assert.equal(prepared.allowed,true);
+assert.equal(confirmMovieMentorRecoveryAdoption({prepared,projectId:"film-a",recovered,localState:empty}).allowed,true);
+assert.equal(confirmMovieMentorRecoveryAdoption({prepared,projectId:"film-a",recovered,localState:{...empty,conversations:[{projectId:"film-a",content:"new work"}]}}).allowed,false,"A newer local write after preparation must block adoption.");
+assert.equal(confirmMovieMentorRecoveryAdoption({prepared,projectId:"film-a",recovered:{...recovered,revision:8},localState:empty}).allowed,false,"A changed recovery revision must block adoption.");
+assert.equal(confirmMovieMentorRecoveryAdoption({prepared,projectId:"film-b",recovered,localState:empty}).allowed,false,"A different project must not use the prepared authority.");
+assert.equal(confirmMovieMentorRecoveryAdoption({prepared,projectId:"film-a",recovered,localState:{...empty,projects:[{id:"film-b"}]}}).allowed,false,"Another project created after preparation must block adoption.");
+console.log("GREEN: recovery adoption revalidates local state, project and server revision immediately before commitment.");
