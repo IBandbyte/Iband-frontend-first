@@ -7,7 +7,7 @@ const before=storage.getItem("iband.creator-memory");
 held=true;
 const next=memory.getState();
 next.metadata={...(next.metadata||{}),overlapProbe:"must-not-persist"};
-assert.throws(()=>memory.replaceState(next),error=>error?.code==="CREATOR_MEMORY_WRITE_AUTHORITY_DENIED");
+assert.throws(()=>memory.replaceState(next),error=>error?.cause?.code==="CREATOR_MEMORY_WRITE_AUTHORITY_DENIED");
 assert.equal(storage.getItem("iband.creator-memory"),before,"Denied ordinary write must not alter durable bytes.");
 held=false;
 const fresh=createCreatorMemory({storageAdapter:storage,ordinaryWriteAuthorityGuard:()=>!held});
