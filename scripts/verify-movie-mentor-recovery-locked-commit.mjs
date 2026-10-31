@@ -1,0 +1,17 @@
+import assert from "node:assert/strict";
+import {commitMovieMentorRecoveryWithLock} from "../src/components/studio/mentor/MovieMentorRecoveryLockedCommit.js";
+const recovered={project:{id:"film-a",creatorType:"video",metadata:{creatorMode:"ai-movie"}},revision:9,creatorStateGeneration:9};
+const initial={projects:[],conversations:[],journey:{}};
+let stored=structuredClone(initial),commits=0;
+const locks={request:async(_name,_options,callback)=>callback({name:"movie-mentor-recovery"})};
+const result=await commitMovieMentorRecoveryWithLock({projectId:"film-a",recovered,readLocalState:()=>structuredClone(stored),commit:state=>{commits++;stored=state;},locks});
+assert.equal(result.allowed,true);
+assert.equal(commits,1);
+assert.equal(stored.projects[0].id,"film-a");
+stored=structuredClone(initial);commits=0;
+const failed=await commitMovieMentorRecoveryWithLock({projectId:"film-a",recovered,readLocalState:()=>structuredClone(stored),commit:()=>{commits++;},locks:{request:async(_n,_o,callback)=>callback(null)}});
+assert.equal(failed.allowed,false);assert.equal(commits,0,"Missing lock authority must never commit.");
+stored=structuredClone(initial);commits=0;
+const changed=await commitMovieMentorRecoveryWithLock({projectId:"film-a",recovered,readLocalState:()=>structuredClone(stored),beforeCommit:()=>{stored.conversations.push({projectId:"film-a",content:"new local work"});},commit:()=>{commits++;},locks});
+assert.equal(changed.allowed,false);assert.equal(commits,0,"Changes during lock must block adoption.");
+console.log("GREEN: locked recovery commit fails closed and refuses intervening local changes.");
