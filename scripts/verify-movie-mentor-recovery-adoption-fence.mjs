@@ -7,4 +7,7 @@ assert.equal(assessMovieMentorRecoveryAdoption({projectId:"film-a",recovered,loc
 assert.equal(assessMovieMentorRecoveryAdoption({projectId:"film-a",recovered,localState:{projects:[{id:"film-b"}]}}).allowed,false);
 assert.equal(assessMovieMentorRecoveryAdoption({projectId:"film-a",recovered,localState:{projects:[],conversations:[{projectId:"film-a",content:"unsaved local work"}]}}).allowed,false);
 assert.equal(assessMovieMentorRecoveryAdoption({projectId:"film-a",recovered:{...recovered,revision:0},localState:{projects:[]}}).allowed,false);
+assert.equal(assessMovieMentorRecoveryAdoption({projectId:"film-a",recovered,localState:{projects:[],journey:{activeProjectId:"film-a",currentStageId:"editing",currentTaskId:"review"}}}).allowed,false,"A locally progressed journey must not be overwritten.");
+assert.equal(assessMovieMentorRecoveryAdoption({projectId:"film-a",recovered,localState:{projects:[],creatorProfile:{id:"creator-a",goals:["Preserve my film"]}}}).allowed,false,"Creator profile changes must not be discarded.");
+assert.equal(assessMovieMentorRecoveryAdoption({projectId:"film-a",recovered,localState:{projects:[],metadata:{pendingLocalChanges:true}}}).allowed,false,"Unknown local metadata changes require reconciliation.");
 console.log("GREEN: recovery adoption refuses conflicting identities, existing projects and newer local work.");
