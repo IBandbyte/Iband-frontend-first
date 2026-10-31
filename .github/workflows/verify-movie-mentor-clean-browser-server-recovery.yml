@@ -18,7 +18,7 @@ jobs:
         run: node scripts/verify-movie-mentor-clean-browser-recovery-transport.mjs
       - name: Verify clean browser server recovery contract
         run: node scripts/verify-movie-mentor-clean-browser-server-recovery.mjs
-      - name: Verify visible creator workspace reconstruction contract
-        run: node scripts/verify-movie-mentor-clean-browser-workspace-reconstruction.mjs
       - name: Verify isolated recovered workspace projection
         run: node scripts/verify-movie-mentor-recovered-workspace-projection.mjs
+      - name: Verify visible creator workspace reconstruction contract
+        run: node scripts/verify-movie-mentor-clean-browser-workspace-reconstruction.mjs
