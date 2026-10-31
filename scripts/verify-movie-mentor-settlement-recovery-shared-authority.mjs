@@ -1,0 +1,11 @@
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { MOVIE_MENTOR_SHARED_MEMORY_WRITE_COORDINATION } from "../src/components/studio/mentor/MovieMentorMemoryWriteAuthority.js";
+const source = readFileSync(new URL("../src/components/studio/mentor/MovieMentorStudioIdentityRuntime.js", import.meta.url), "utf8");
+assert.match(source, /async function withDurableSettlementAuthority\(operation\)/, "Existing settlement authority must remain explicit.");
+assert.match(source, /settlementLockManager\.request\(/, "Existing settlement lock must not be silently removed.");
+assert.match(source, /convergeConversationSettlement\(/, "Durable settlement must retain its convergence contract.");
+assert.match(source, /MOVIE_MENTOR_SHARED_MEMORY_WRITE_COORDINATION/, "RED: settlement must import the same shared recovery authority.");
+assert.match(source, /withMovieMentorMemoryWriteAuthority\(/, "RED: settlement must acquire shared recovery write authority.");
+assert.equal(MOVIE_MENTOR_SHARED_MEMORY_WRITE_COORDINATION, "movie-mentor-creator-memory-recovery");
+console.log("GREEN: durable settlement participates in the recovery writer authority without removing existing settlement guarantees.");
