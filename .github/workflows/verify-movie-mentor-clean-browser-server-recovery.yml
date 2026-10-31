@@ -24,5 +24,7 @@ jobs:
         run: node scripts/verify-movie-mentor-clean-browser-workspace-reconstruction.mjs
       - name: Verify safe recovered workspace adoption fence
         run: node scripts/verify-movie-mentor-recovery-adoption-fence.mjs
+      - name: Verify recovery adoption transaction freshness
+        run: node scripts/verify-movie-mentor-recovery-adoption-transaction.mjs
       - name: Verify authenticated owned-project discovery contract
         run: node scripts/verify-movie-mentor-owned-project-discovery-contract.mjs
