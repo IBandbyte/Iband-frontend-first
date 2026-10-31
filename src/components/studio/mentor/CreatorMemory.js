@@ -155,7 +155,15 @@ function createFacadeStorageController(storage) {
     }
   }
 
-  return { adapter, refreshWithoutDurableWrite };
+  function acknowledgeFreshDurableBaseline() {
+    // Only the explicit, authority-owned adoption path may rebase this facade.
+    // Ordinary writes must never silently forgive a stale working snapshot.
+    for (const key of observedDurableValues.keys()) {
+      observedDurableValues.set(key, storage.getItem(key));
+    }
+  }
+
+  return { adapter, refreshWithoutDurableWrite, acknowledgeFreshDurableBaseline };
 }
 
 function createCreatorMemory(options = {}) {
@@ -204,7 +212,9 @@ function createCreatorMemory(options = {}) {
   }
 
   function adoptPersistedStateWithoutWrite(state) {
-    return storageController.refreshWithoutDurableWrite(() => memory.replaceState(state));
+    const adopted = storageController.refreshWithoutDurableWrite(() => memory.replaceState(state));
+    storageController.acknowledgeFreshDurableBaseline();
+    return adopted;
   }
 
   /**
@@ -228,7 +238,13 @@ function createCreatorMemory(options = {}) {
       };
     }
 
-    const freshMemory = createCreatorMemoryCore(resolvedCoreOptions);
+    // A genuinely fresh Core must have its own observed persistence baseline.
+    // Reusing this facade's stale adapter would incorrectly fence a serialized
+    // settlement even when its caller already holds the settlement authority.
+    const freshMemory = createCreatorMemoryCore({
+      ...resolvedCoreOptions,
+      storageAdapter: createFacadeStorageController(durableStorage).adapter,
+    });
     const freshState = clone(freshMemory.getState());
     const existing = (freshState?.conversations || []).find(
       (entry) =>
