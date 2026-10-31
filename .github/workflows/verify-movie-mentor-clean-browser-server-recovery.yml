@@ -22,3 +22,5 @@ jobs:
         run: node scripts/verify-movie-mentor-recovered-workspace-projection.mjs
       - name: Verify visible creator workspace reconstruction contract
         run: node scripts/verify-movie-mentor-clean-browser-workspace-reconstruction.mjs
+      - name: Verify authenticated owned-project discovery contract
+        run: node scripts/verify-movie-mentor-owned-project-discovery-contract.mjs
