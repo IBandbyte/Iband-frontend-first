@@ -26,5 +26,7 @@ jobs:
         run: node scripts/verify-movie-mentor-recovery-adoption-fence.mjs
       - name: Verify recovery adoption transaction freshness
         run: node scripts/verify-movie-mentor-recovery-adoption-transaction.mjs
+      - name: Verify locked recovery commit refuses concurrent local changes
+        run: node scripts/verify-movie-mentor-recovery-locked-commit.mjs
       - name: Verify authenticated owned-project discovery contract
         run: node scripts/verify-movie-mentor-owned-project-discovery-contract.mjs
