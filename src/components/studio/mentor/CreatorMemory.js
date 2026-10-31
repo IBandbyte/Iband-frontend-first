@@ -97,27 +97,45 @@ function resolveFacadeDurableStorage(storageAdapter) {
 function createFacadeStorageController(storage) {
   let refreshShieldActive = false;
   const virtualWrites = new Map();
+  // Synchronous stale-snapshot fence. This is not cross-tab CAS and does not
+  // replace the shared asynchronous writer authority needed for recovery.
+  const observedDurableValues = new Map();
+  const staleWriteError = () => {
+    const error = new Error("Creator Memory refused a stale durable snapshot.");
+    error.code = "CREATOR_MEMORY_STALE_DURABLE_SNAPSHOT";
+    return error;
+  };
+  function requireCurrentBaseline(key) {
+    if (!observedDurableValues.has(key)) throw staleWriteError();
+    if (storage.getItem(key) !== observedDurableValues.get(key)) throw staleWriteError();
+  }
 
   const adapter = {
     getItem(key) {
       if (refreshShieldActive && virtualWrites.has(key)) {
         return virtualWrites.get(key);
       }
-      return storage.getItem(key);
+      const value = storage.getItem(key);
+      if (!observedDurableValues.has(key)) observedDurableValues.set(key, value);
+      return value;
     },
     setItem(key, value) {
       if (refreshShieldActive) {
         virtualWrites.set(key, value);
         return;
       }
-      return storage.setItem(key, value);
+      requireCurrentBaseline(key);
+      storage.setItem(key, value);
+      observedDurableValues.set(key, value);
     },
     removeItem(key) {
       if (refreshShieldActive) {
         virtualWrites.set(key, null);
         return;
       }
-      return storage.removeItem(key);
+      requireCurrentBaseline(key);
+      storage.removeItem(key);
+      observedDurableValues.set(key, null);
     },
   };
 
