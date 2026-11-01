@@ -551,11 +551,19 @@ function createMovieMentorStudioIdentityRuntime({
     const authorityProjectionDiverged = preferredBeforeRecovery?.status === "authority" &&
       preferredBeforeRecovery?.projectionStatus !== "in-sync";
 
+    // This synchronous method is called during React render. Never perform
+    // lifecycle repair or proof-conflict quarantine from a render-time read.
+    // Recommendation actions remain blocked until a separate shared-authority
+    // recovery transaction has certified the durable state.
     const recommendationRecovery = authorityProjectionDiverged
       ? blockedDivergentProjectionRecovery(initiallyActiveProject.id, preferredBeforeRecovery)
-      : certifyJourneyRecommendationResume({
-          identityRuntime: { memory },
+      : Object.freeze({
+          status: "shared-authority-recovery-required",
           projectId: initiallyActiveProject.id,
+          recommendationActionsBlocked: true,
+          recoveryResult: null,
+          recoveryAttempts: 0,
+          errorCode: "JOURNEY_RECOMMENDATION_SHARED_AUTHORITY_REQUIRED",
         });
 
     // Recovery may change only recommendation metadata. Re-read both Creator Memory
