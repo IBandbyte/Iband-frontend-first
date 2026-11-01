@@ -475,7 +475,13 @@ function createMovieMentorStudioIdentityRuntime({
     const text = clean(message?.text);
     if (!pid || role !== "mentor" || !text) return null;
     const creatorTurnId = clean(message?.metadata?.backendMetadata?.creatorTurnId);
-    if (!creatorTurnId) return recordConversationMessage(pid, message, { projectJourney });
+    if (!creatorTurnId) {
+      // Without a durable turn identity, settlement cannot prove exactly-once
+      // recovery or safe retry. Refuse instead of bypassing shared authority.
+      const error = new Error("Movie Mentor durable settlement requires a creator turn identity.");
+      error.code = "MOVIE_MENTOR_DURABLE_SETTLEMENT_TURN_ID_REQUIRED";
+      throw error;
+    }
     const creatorMessage = pendingCreatorMessageByProject.get(pid) || null;
 
     return withDurableSettlementAuthority(() => {
