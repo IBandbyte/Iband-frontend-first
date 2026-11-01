@@ -181,11 +181,17 @@ function createCreatorMemory(options = {}) {
   const {
     projectIdentityCrypto = globalThis?.crypto,
     ordinaryWriteAuthorityGuard,
+    requireSharedWriteAuthority = false,
     journeyAuthorityReadFacade = createJourneyAuthorityReadFacade(),
     ...coreOptions
   } = options || {};
   const durableStorage = resolveFacadeDurableStorage(coreOptions.storageAdapter);
-  const storageController = createFacadeStorageController(durableStorage, ordinaryWriteAuthorityGuard);
+  // Strict migration is opt-in until every legacy synchronous caller is migrated.
+  // Only the explicit async shared-lock transaction can commit in this mode.
+  const effectiveOrdinaryWriteGuard = requireSharedWriteAuthority === true
+    ? () => false
+    : ordinaryWriteAuthorityGuard;
+  const storageController = createFacadeStorageController(durableStorage, effectiveOrdinaryWriteGuard);
   const resolvedCoreOptions = {
     ...coreOptions,
     storageAdapter: storageController.adapter,
