@@ -436,14 +436,11 @@ function createMovieMentorStudioIdentityRuntime({
       return { status: "creator-message-pending", projectId: pid };
     }
 
-    const creatorMessage = pendingCreatorMessageByProject.get(pid) || null;
-    const conversation = memory.rememberConversation?.(
-      buildConversationInput(pid, creatorMessage, message, projectJourney)
-    ) || null;
-    const handoff = saveConversationHandoff(pid, conversation, projectJourney);
-    const recommendationReference = recordRecommendationForMessage(pid, message, projectJourney);
-    if (conversation?.id && handoff?.id) retirePendingCreatorMessage(pid, creatorMessage);
-    return { status: "conversation-persisted", projectId: pid, conversation, handoff, recommendationReference };
+    // Legacy synchronous mentor persistence cannot acquire the asynchronous
+    // recovery lock. Keep the pending creator turn intact for a safe retry.
+    const error = new Error("Legacy synchronous mentor persistence requires shared write authority.");
+    error.code = "MOVIE_MENTOR_LEGACY_MENTOR_WRITE_DENIED";
+    throw error;
   }
 
   async function withDurableSettlementAuthority(operation) {
