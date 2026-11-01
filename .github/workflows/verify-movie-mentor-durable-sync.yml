@@ -60,6 +60,9 @@ jobs:
       - name: Verify ordinary writer check-to-commit race
         if: always()
         run: node scripts/verify-movie-mentor-ordinary-write-check-commit-race.mjs
+      - name: Verify real workspace coordinated creation caller
+        if: always()
+        run: node scripts/verify-movie-mentor-workspace-coordinated-creation-caller.mjs
       - name: Verify Studio coordinated project creation migration
         if: always()
         run: node scripts/verify-movie-mentor-studio-coordinated-project-creation.mjs
