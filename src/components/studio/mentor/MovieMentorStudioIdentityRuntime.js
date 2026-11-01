@@ -527,7 +527,8 @@ function createMovieMentorStudioIdentityRuntime({
     if (!pid) return { messages: [], handoff: null };
     const handoff = getProjectHandoff(pid);
     const messages = getProjectConversationMessages(pid);
-    if (handoff?.id) memory.markSessionHandoffResumed?.(handoff.id);
+    // Reading a handoff must not mutate durable Creator Memory. A resumed
+    // marker, if needed, requires a separate shared-authority transaction.
     return { messages, handoff };
   }
 
