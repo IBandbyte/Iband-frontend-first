@@ -6,7 +6,10 @@ import { resolveWorkspaceIdentity } from "../src/components/studio/mentor/MovieM
 
 const storage = createMemoryStorageAdapter();
 const projectCrypto = { randomUUID: () => "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee" };
-const sessionACrypto = { randomUUID: () => "11111111-2222-4333-8444-555555555555" };
+let sessionAIssuance = 0;
+const sessionACrypto = { randomUUID: () => ++sessionAIssuance === 1
+  ? "11111111-2222-4333-8444-555555555555"
+  : "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee" };
 const sessionBCrypto = { randomUUID: () => "66666666-7777-4888-8999-aaaaaaaaaaaa" };
 
 const memoryA = createCreatorMemory({ storageAdapter: storage, projectIdentityCrypto: projectCrypto });
