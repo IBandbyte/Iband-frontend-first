@@ -198,7 +198,7 @@ const CreatorWorkspace = ({ creatorName = "Creator", initialCreator = "", onGene
         });
       return;
     }
-    identityRuntime.recordConversationMessage(activeMovieProject.id, message, { projectJourney: journey });
+    identityRuntime.recordPendingCreatorMessage(activeMovieProject.id, message);
   };
   const handleMovieMentorTurnResult = async (turnResult) => { const projection = await projectCommittedCreatorAuthorityIntoJourney({ journeyEngine: creatorJourneyEngine, identityRuntime, projectJourney, projectId: activeMovieProject?.id || null, turnResult }); const authoritativeJourney = projection.projectJourney || projectJourney; if (projection.projected) setProjectJourney(authoritativeJourney); const planning = movieJourneyIntelligenceBridge.consumeTurnForJourneyPlanning(authoritativeJourney, turnResult, { source: "MovieMentorConversation", turnStatus: turnResult?.status || null, turnRevision: turnResult?.turnContextProof?.revision ?? null }); setMovieJourneyPlanningEvidence(planning.journeyPlanningEvidence || null); };
 
