@@ -27,23 +27,19 @@ function sharedStorage() {
 // and the existing serial settlement request(name, callback) contract.
 function createSerialLockManager() {
   const tails = new Map();
-  const held = new Set();
   return {
     request(name, optionsOrOperation, maybeOperation) {
       const webLocks = typeof maybeOperation === "function";
       const operation = webLocks ? maybeOperation : optionsOrOperation;
       if (typeof operation !== "function") throw new TypeError("Lock operation required.");
       if (webLocks) {
-        assert.deepEqual(optionsOrOperation, { mode: "exclusive", ifAvailable: true });
-        if (held.has(name)) return Promise.resolve(operation(null));
-        held.add(name);
-        return Promise.resolve().then(() => operation({ name, mode: "exclusive" })).finally(() => held.delete(name));
+        assert.deepEqual(optionsOrOperation, { mode: "exclusive" });
       }
       const previous = tails.get(name) || Promise.resolve();
       let release;
-      const next = new Promise((resolve) => { release = resolve; });
+      const next = new Promise(resolve => { release = resolve; });
       tails.set(name, previous.then(() => next));
-      return previous.then(operation).finally(() => release());
+      return previous.then(() => operation(webLocks ? { name, mode: "exclusive" } : undefined)).finally(release);
     },
   };
 }
