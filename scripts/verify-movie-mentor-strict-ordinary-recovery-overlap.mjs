@@ -11,6 +11,7 @@ const recovered={project:{id:"film-a",creatorType:"video",metadata:{creatorMode:
 let collisionEntered=false;
 let refused=false;
 let ordinaryCommitted=false;
+let callbackException="none";
 const locks={request:async(_name,_options,callback)=>callback({name:"shared-writer-lock"})};
 const result=await commitMovieMentorRecoveryWithLock({
  projectId:"film-a",recovered,locks,
@@ -22,6 +23,7 @@ const result=await commitMovieMentorRecoveryWithLock({
    try{ordinary.replaceState(changed);ordinaryCommitted=true;}
    catch(error){
      refused=true;
+     callbackException=`${error?.name}: ${error?.code || "no-code"}: ${error?.message}`;
      assert.equal(error.code,"CREATOR_MEMORY_WRITE_AUTHORITY_DENIED","Strict mode must reject with explicit authority-denial code.");
    }
  },
@@ -30,7 +32,7 @@ const result=await commitMovieMentorRecoveryWithLock({
 assert.equal(collisionEntered,true,"Strict-mode collision must physically execute.");
 assert.equal(refused,true,"Strict ordinary writer must refuse while recovery holds authority.");
 assert.equal(ordinaryCommitted,false,"Ordinary writer must not report success.");
-assert.equal(result.allowed,true,`Authorized recovery must finish (reason: ${result.reason}; writer refused: ${refused}; writer committed: ${ordinaryCommitted}).`);
+assert.equal(result.allowed,true,`Authorized recovery must finish (reason: ${result.reason}; writer refused: ${refused}; writer committed: ${ordinaryCommitted}; callback exception: ${callbackException}).`);
 const persisted=JSON.parse(storage.getItem("iband.creator-memory"));
 assert.notEqual(persisted.metadata?.ordinaryOverlap,"unauthorised","Denied writer must not contaminate recovered state.");
 console.log("GREEN: strict ordinary writer refused during physically witnessed recovery collision.");
