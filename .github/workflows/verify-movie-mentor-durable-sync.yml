@@ -57,6 +57,9 @@ jobs:
       - name: Verify asynchronous shared memory write authority
         if: always()
         run: node scripts/verify-movie-mentor-memory-write-authority.mjs
+      - name: Verify strict ordinary writer fail-closed migration
+        if: always()
+        run: node scripts/verify-movie-mentor-strict-ordinary-writer-fence.mjs
       - name: Verify ordinary writer check-to-commit race
         if: always()
         run: node scripts/verify-movie-mentor-ordinary-write-check-commit-race.mjs
