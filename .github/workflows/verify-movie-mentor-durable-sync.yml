@@ -84,6 +84,9 @@ jobs:
       - name: Verify Studio coordinated project creation migration
         if: always()
         run: node scripts/verify-movie-mentor-studio-coordinated-project-creation.mjs
+      - name: Witness recovery collision callback entry
+        if: always()
+        run: node scripts/verify-movie-mentor-recovery-collision-entry-witness.mjs
       - name: Verify studio project creation overlap during recovery authority
         if: always()
         run: node scripts/verify-movie-mentor-studio-project-recovery-overlap.mjs
