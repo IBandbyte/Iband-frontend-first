@@ -8,6 +8,7 @@ import createMovieJourneyIntelligenceBridge from "./MovieJourneyIntelligenceBrid
 import createJourneyRecommendationEnvelope from "./JourneyRecommendationEnvelope.js";
 import certifyJourneyRecommendationResume from "./JourneyRecommendationResumeRecovery.js";
 import createJourneyAuthorityReadFacade from "./JourneyAuthorityReadFacade.js";
+import { withMovieProjectIdentity } from "./MovieMentorProjectIdentity.js";
 import { withMovieMentorMemoryWriteAuthority, MOVIE_MENTOR_SHARED_MEMORY_WRITE_COORDINATION } from "./MovieMentorMemoryWriteAuthority.js";
 
 const MOVIE_MENTOR_STUDIO_IDENTITY_RUNTIME_VERSION = "1.10.0";
@@ -162,6 +163,45 @@ function createMovieMentorStudioIdentityRuntime({
       creatorType: "video",
       status: PROJECT_STATUSES.CREATING,
       metadata: { creatorMode: "ai-movie", creatorModeLabel: "AI Movie Making", projectJourney, createdFrom: "CreatorWorkspace" },
+    });
+  }
+
+  async function ensureProjectWithSharedAuthority({ projectJourney = null, title = "Untitled Movie", locks = settlementLockManager } = {}) {
+    if (typeof memory.replaceStateWithSharedAuthority !== "function") {
+      return Object.freeze({ acquired: false, reason: "coordinated-memory-unavailable" });
+    }
+    const cleanTitle = clean(title);
+    if (!cleanTitle) return Object.freeze({ acquired: false, reason: "project-title-unavailable" });
+    return memory.replaceStateWithSharedAuthority({
+      locks,
+      transform: state => {
+        const active = (state.projects || []).find(project =>
+          project?.id === state.journey?.activeProjectId && isMovieMentorProject(project));
+        if (active) return state;
+        const timestamp = new Date().toISOString();
+        const project = withMovieProjectIdentity({
+          type: "project",
+          title: cleanTitle,
+          description: "",
+          creatorType: "video",
+          status: PROJECT_STATUSES.CREATING,
+          relatedIdeaIds: [],
+          tags: [],
+          metadata: {
+            creatorMode: "ai-movie",
+            creatorModeLabel: "AI Movie Making",
+            projectJourney,
+            createdFrom: "CreatorWorkspace",
+          },
+          createdAt: timestamp,
+          updatedAt: timestamp,
+          publishedAt: null,
+          completedAt: null,
+        }, { cryptoImpl });
+        state.projects = [...(state.projects || []), project];
+        state.journey = { ...(state.journey || {}), activeProjectId: project.id };
+        return state;
+      },
     });
   }
 
@@ -515,6 +555,7 @@ function createMovieMentorStudioIdentityRuntime({
     getActiveProject,
     getPreferredJourney,
     ensureProject,
+    ensureProjectWithSharedAuthority,
     persistJourney,
     getProjectConversationMessages,
     getProjectHandoff,
