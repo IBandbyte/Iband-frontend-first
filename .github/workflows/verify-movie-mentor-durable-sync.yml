@@ -63,6 +63,9 @@ jobs:
       - name: Verify ordinary writer check-to-commit race
         if: always()
         run: node scripts/verify-movie-mentor-ordinary-write-check-commit-race.mjs
+      - name: Verify Studio resume is read-only under shared authority
+        if: always()
+        run: node scripts/verify-movie-mentor-resume-read-only-authority.mjs
       - name: Verify legacy mentor writer fails closed
         if: always()
         run: node scripts/verify-movie-mentor-legacy-mentor-writer-denial.mjs
