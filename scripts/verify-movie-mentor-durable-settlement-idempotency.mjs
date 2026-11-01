@@ -231,8 +231,9 @@ await assert.rejects(
     "project-38",
     mentorMessage("turn-38-failure", "First settlement attempt.")
   ),
-  /simulated settlement authority failure/,
-  "Precondition failed: simulated settlement authority failure did not propagate."
+  error => error?.code === "MOVIE_MENTOR_SHARED_WRITE_AUTHORITY_REQUIRED" &&
+    error?.cause?.message === "simulated settlement authority failure",
+  "Precondition failed: shared authority must fail closed and preserve the exact simulated settlement failure as its cause."
 );
 const retried = await failureRuntime.settleConversationMessage(
   "project-38",
