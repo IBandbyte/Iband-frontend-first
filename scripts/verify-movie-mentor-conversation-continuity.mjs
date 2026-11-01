@@ -12,8 +12,17 @@ const uuids = [
 ];
 const cryptoImpl = { randomUUID: () => uuids[uuidIndex++] };
 
+const lockCalls = [];
+const locks = {
+  async request(name, optionsOrCallback, maybeCallback) {
+    const callback = typeof optionsOrCallback === "function" ? optionsOrCallback : maybeCallback;
+    lockCalls.push(name);
+    return callback({ name, mode: "exclusive" });
+  },
+};
+
 const memoryA = createCreatorMemory({ storageAdapter: storage, projectIdentityCrypto: cryptoImpl });
-const runtimeA = createMovieMentorStudioIdentityRuntime({ memory: memoryA, cryptoImpl });
+const runtimeA = createMovieMentorStudioIdentityRuntime({ memory: memoryA, cryptoImpl, settlementLockManager: locks });
 const project = memoryA.saveProject({
   title: "Midnight Door",
   creatorType: "video",
@@ -22,7 +31,8 @@ const project = memoryA.saveProject({
 });
 
 runtimeA.recordConversationMessage(project.id, { role: "creator", text: "The red door should appear at midnight." }, { projectJourney: { currentStageId: "story" } });
-const persisted = runtimeA.recordConversationMessage(project.id, { role: "mentor", text: "Good. We'll make midnight the repeating trigger." }, { projectJourney: { currentStageId: "story" } });
+const persisted = await runtimeA.settleConversationMessage(project.id, { role: "mentor", text: "Good. We'll make midnight the repeating trigger.", metadata: { backendMetadata: { creatorTurnId: "midnight-door-turn-1" } } }, { projectJourney: { currentStageId: "story" } });
+assert.ok(lockCalls.length >= 2, "Conversation settlement must acquire shared recovery and idempotency locks.");
 assert.equal(persisted.status, "conversation-persisted");
 assert.equal(persisted.conversation.relatedProjectIds[0], project.id);
 assert.equal(persisted.handoff.projectId, project.id);
