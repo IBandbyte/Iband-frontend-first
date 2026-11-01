@@ -389,6 +389,7 @@ function createMovieMentorStudioIdentityRuntime({
     if (!shared.acquired) {
       const error = new Error("Movie Mentor settlement could not acquire shared recovery write authority.");
       error.code = "MOVIE_MENTOR_SHARED_WRITE_AUTHORITY_REQUIRED";
+      if (shared.cause !== undefined) error.cause = shared.cause;
       throw error;
     }
     return shared.value;
