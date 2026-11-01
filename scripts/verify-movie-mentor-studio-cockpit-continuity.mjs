@@ -10,10 +10,23 @@ const sessionACrypto = { randomUUID: () => "11111111-2222-4333-8444-555555555555
 const sessionBCrypto = { randomUUID: () => "66666666-7777-4888-8999-aaaaaaaaaaaa" };
 
 const memoryA = createCreatorMemory({ storageAdapter: storage, projectIdentityCrypto: projectCrypto });
-const runtimeA = createMovieMentorStudioIdentityRuntime({ memory: memoryA, cryptoImpl: sessionACrypto });
+const lockCalls = [];
+const locks = {
+  async request(name, optionsOrCallback, maybeCallback) {
+    const callback = typeof optionsOrCallback === "function" ? optionsOrCallback : maybeCallback;
+    lockCalls.push(name);
+    return callback({ name, mode: "exclusive" });
+  },
+};
+const runtimeA = createMovieMentorStudioIdentityRuntime({ memory: memoryA, cryptoImpl: sessionACrypto, settlementLockManager: locks });
 const journey = { id: "journey-1", creatorJourney: "guide", currentStageId: "idea" };
-const projectA = runtimeA.ensureProject({ projectJourney: journey, title: "Continuity Movie" });
-runtimeA.persistJourney(projectA.id, { ...journey, currentStageId: "characters" });
+const creation = await runtimeA.ensureProjectWithSharedAuthority({ projectJourney: journey, title: "Continuity Movie" });
+assert.equal(creation.acquired, true, "Studio project creation must acquire shared writer authority.");
+const projectA = runtimeA.getActiveProject();
+assert.ok(projectA?.id, "Coordinated creation must establish the active canonical project.");
+const journeyCommit = await runtimeA.persistJourneyWithSharedAuthority(projectA.id, { ...journey, currentStageId: "characters" });
+assert.equal(journeyCommit.acquired, true, "Journey persistence must acquire shared writer authority.");
+assert.ok(lockCalls.length >= 2, "Project creation and Journey persistence must each request exclusive coordination.");
 
 assert.equal(projectA.id, "movie-project-aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee");
 assert.equal(runtimeA.creatorSessionId, "movie-session-11111111-2222-4333-8444-555555555555");
