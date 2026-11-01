@@ -426,15 +426,19 @@ function createMovieMentorStudioIdentityRuntime({
     }
   }
 
+  function recordPendingCreatorMessage(projectId, message) {
+    const pid = clean(projectId);
+    if (!pid || clean(message?.role) !== "creator" || !clean(message?.text)) return null;
+    pendingCreatorMessageByProject.set(pid, clone(message));
+    return { status: "creator-message-pending", projectId: pid };
+  }
+
   function recordConversationMessage(projectId, message, { projectJourney = null } = {}) {
     const pid = clean(projectId);
     const role = clean(message?.role);
     const text = clean(message?.text);
     if (!pid || !text || !["creator", "mentor"].includes(role)) return null;
-    if (role === "creator") {
-      pendingCreatorMessageByProject.set(pid, clone(message));
-      return { status: "creator-message-pending", projectId: pid };
-    }
+    if (role === "creator") return recordPendingCreatorMessage(pid, message);
 
     // Legacy synchronous mentor persistence cannot acquire the asynchronous
     // recovery lock. Keep the pending creator turn intact for a safe retry.
@@ -601,6 +605,7 @@ function createMovieMentorStudioIdentityRuntime({
     retireSupersededRecommendationReferences,
     recordRecommendationReference,
     recordConversationMessage,
+    recordPendingCreatorMessage,
     settleConversationMessage,
     resumeProjectConversation,
     getResumeSnapshot,
