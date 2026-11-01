@@ -156,14 +156,11 @@ function createMovieMentorStudioIdentityRuntime({
   }
 
   function ensureProject({ projectJourney = null, title = "Untitled Movie" } = {}) {
-    const existing = getActiveMemoryProject();
-    if (existing) return getActiveProject();
-    return memory.saveProject({
-      title,
-      creatorType: "video",
-      status: PROJECT_STATUSES.CREATING,
-      metadata: { creatorMode: "ai-movie", creatorModeLabel: "AI Movie Making", projectJourney, createdFrom: "CreatorWorkspace" },
-    });
+    // The legacy synchronous path cannot acquire the shared recovery lock.
+    // All Studio project creation must use ensureProjectWithSharedAuthority.
+    const error = new Error("Legacy synchronous Studio project creation requires shared write authority.");
+    error.code = "MOVIE_MENTOR_LEGACY_PROJECT_WRITE_DENIED";
+    throw error;
   }
 
   async function ensureProjectWithSharedAuthority({ projectJourney = null, title = "Untitled Movie", locks = settlementLockManager } = {}) {
