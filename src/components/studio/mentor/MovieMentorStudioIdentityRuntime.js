@@ -8,6 +8,7 @@ import createMovieJourneyIntelligenceBridge from "./MovieJourneyIntelligenceBrid
 import createJourneyRecommendationEnvelope from "./JourneyRecommendationEnvelope.js";
 import certifyJourneyRecommendationResume from "./JourneyRecommendationResumeRecovery.js";
 import createJourneyAuthorityReadFacade from "./JourneyAuthorityReadFacade.js";
+import { withMovieMentorMemoryWriteAuthority, MOVIE_MENTOR_SHARED_MEMORY_WRITE_COORDINATION } from "./MovieMentorMemoryWriteAuthority.js";
 
 const MOVIE_MENTOR_STUDIO_IDENTITY_RUNTIME_VERSION = "1.10.0";
 const RECOMMENDATION_REFERENCE_DOMAIN = "iband.movie-mentor.journey-recommendation-reference";
@@ -377,7 +378,19 @@ function createMovieMentorStudioIdentityRuntime({
       error.code = "MOVIE_MENTOR_DURABLE_SETTLEMENT_AUTHORITY_REQUIRED";
       throw error;
     }
-    return settlementLockManager.request(DURABLE_SETTLEMENT_LOCK_NAME, operation);
+    // Recovery and ordinary settlement must not write the same durable blob
+    // concurrently. Acquire shared recovery authority first, then retain the
+    // existing settlement lock for creator-turn idempotency.
+    const shared = await withMovieMentorMemoryWriteAuthority({
+      locks: settlementLockManager,
+      operation: () => settlementLockManager.request(DURABLE_SETTLEMENT_LOCK_NAME, operation),
+    });
+    if (!shared.acquired) {
+      const error = new Error("Movie Mentor settlement could not acquire shared recovery write authority.");
+      error.code = "MOVIE_MENTOR_SHARED_WRITE_AUTHORITY_REQUIRED";
+      throw error;
+    }
+    return shared.value;
   }
 
   async function settleConversationMessage(projectId, message, { projectJourney = null } = {}) {
