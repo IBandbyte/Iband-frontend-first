@@ -188,11 +188,12 @@ const CreatorWorkspace = ({ creatorName = "Creator", initialCreator = "", onGene
     setMovieMessages((current) => [...current, message]);
     if (!activeMovieProject?.id) return;
     const journey = projectJourneySnapshot || projectJourney;
-    if (message?.role === "mentor" && message?.metadata?.backendMetadata?.creatorTurnId) {
+    if (message?.role === "mentor") {
       void identityRuntime
         .settleConversationMessage(activeMovieProject.id, message, { projectJourney: journey })
         .catch((error) => {
           console.error("CreatorWorkspace durable mentor settlement error:", error);
+          setProjectStatus("error");
           setMentorMessage("Your conversation is still here, but I couldn't complete the durable conversation save just now. The pending creator turn has been kept for a safe retry.");
         });
       return;
