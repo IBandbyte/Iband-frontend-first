@@ -42,6 +42,9 @@ jobs:
       - name: Verify synchronous legacy persistence compatibility
         if: always()
         run: node scripts/verify-movie-mentor-recovery-sync-compatibility.mjs
+      - name: Verify waiting settlement authority contention
+        if: always()
+        run: node scripts/verify-movie-mentor-settlement-waiting-authority.mjs
       - name: Verify settlement shares recovery writer authority
         if: always()
         run: node scripts/verify-movie-mentor-settlement-recovery-shared-authority.mjs
