@@ -205,6 +205,40 @@ function createMovieMentorStudioIdentityRuntime({
     });
   }
 
+  async function persistJourneyWithSharedAuthority(projectId, projectJourney, { locks = settlementLockManager } = {}) {
+    const pid = clean(projectId);
+    if (!pid || !projectJourney || typeof memory.replaceStateWithSharedAuthority !== "function") {
+      return Object.freeze({ acquired: false, reason: "journey-or-coordinated-memory-unavailable" });
+    }
+    return memory.replaceStateWithSharedAuthority({
+      locks,
+      transform: state => {
+        const index = (state.projects || []).findIndex(project => project?.id === pid && isMovieMentorProject(project));
+        if (index < 0) throw new Error("Coordinated Journey project is missing.");
+        const project = state.projects[index];
+        const currentRevision = effectiveProgressionRevision(project?.metadata?.projectJourney);
+        const proposedRevision = effectiveProgressionRevision(projectJourney);
+        if (currentRevision === null || proposedRevision === null || currentRevision !== proposedRevision) {
+          const error = new Error("Coordinated Journey progression changed before persistence.");
+          error.code = "MOVIE_MENTOR_JOURNEY_PROGRESSION_STALE";
+          throw error;
+        }
+        const nextProject = {
+          ...project,
+          updatedAt: new Date().toISOString(),
+          metadata: {
+            ...(project.metadata || {}),
+            creatorMode: "ai-movie",
+            creatorModeLabel: project.metadata?.creatorModeLabel || "AI Movie Making",
+            projectJourney: clone(projectJourney),
+          },
+        };
+        state.projects[index] = nextProject;
+        return state;
+      },
+    });
+  }
+
   function persistJourney(projectId, projectJourney, { expectedProgressionRevision = null } = {}) {
     const project = memory.getProject?.(projectId);
     if (!project) return null;
@@ -557,6 +591,7 @@ function createMovieMentorStudioIdentityRuntime({
     ensureProject,
     ensureProjectWithSharedAuthority,
     persistJourney,
+    persistJourneyWithSharedAuthority,
     getProjectConversationMessages,
     getProjectHandoff,
     getCurrentRecommendationReferences,
