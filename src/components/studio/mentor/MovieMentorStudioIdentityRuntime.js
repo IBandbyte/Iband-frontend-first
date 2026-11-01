@@ -383,6 +383,7 @@ function createMovieMentorStudioIdentityRuntime({
     // existing settlement lock for creator-turn idempotency.
     const shared = await withMovieMentorMemoryWriteAuthority({
       locks: settlementLockManager,
+      waitForAuthority: true,
       operation: () => settlementLockManager.request(DURABLE_SETTLEMENT_LOCK_NAME, operation),
     });
     if (!shared.acquired) {
