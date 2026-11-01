@@ -63,6 +63,9 @@ jobs:
       - name: Verify ordinary writer check-to-commit race
         if: always()
         run: node scripts/verify-movie-mentor-ordinary-write-check-commit-race.mjs
+      - name: Verify legacy mentor writer fails closed
+        if: always()
+        run: node scripts/verify-movie-mentor-legacy-mentor-writer-denial.mjs
       - name: Verify workspace conversation shared authority migration
         if: always()
         run: node scripts/verify-movie-mentor-workspace-conversation-shared-authority.mjs
