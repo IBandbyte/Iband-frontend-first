@@ -30,7 +30,7 @@ const result=await commitMovieMentorRecoveryWithLock({
 assert.equal(collisionEntered,true,"Strict-mode collision must physically execute.");
 assert.equal(refused,true,"Strict ordinary writer must refuse while recovery holds authority.");
 assert.equal(ordinaryCommitted,false,"Ordinary writer must not report success.");
-assert.equal(result.allowed,true,"Authorized recovery must finish.");
+assert.equal(result.allowed,true,`Authorized recovery must finish (reason: ${result.reason}).`);
 const persisted=JSON.parse(storage.getItem("iband.creator-memory"));
 assert.notEqual(persisted.metadata?.ordinaryOverlap,"unauthorised","Denied writer must not contaminate recovered state.");
 console.log("GREEN: strict ordinary writer refused during physically witnessed recovery collision.");
