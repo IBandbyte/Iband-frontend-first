@@ -87,6 +87,9 @@ jobs:
       - name: Witness recovery collision callback entry
         if: always()
         run: node scripts/verify-movie-mentor-recovery-collision-entry-witness.mjs
+      - name: Verify resume repair shared writer authority
+        if: always()
+        run: node scripts/verify-movie-mentor-resume-repair-shared-authority.mjs
       - name: Inventory writer caller reachability
         if: always()
         run: node scripts/verify-movie-mentor-writer-caller-reachability.mjs
