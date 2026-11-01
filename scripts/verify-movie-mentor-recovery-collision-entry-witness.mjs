@@ -21,7 +21,7 @@ const locks={request:async(_name,_options,callback)=>{
 }};
 const result=await commitMovieMentorRecoveryWithLock({
   projectId:"film-a",recovered,locks,
-  readLocalState:()=>JSON.parse(storage.getItem("iband.creator-memory")||JSON.stringify(eligible)),
+  readLocalState:()=>JSON.parse(JSON.stringify(eligible)),
   beforeCommit:()=>{collisionEntered=true;},
   commit:next=>{commitEntered=true;storage.setItem("iband.creator-memory",JSON.stringify(next));},
 });
