@@ -10,7 +10,11 @@ const initial=memory.getState();
 // A new Creator Memory contains nonempty journey counters. The recovery
 // adoption fence correctly protects those values, so this isolated collision
 // court supplies a truly empty, eligible local workspace instead.
-const eligible={...initial,journey:{activeProjectId:null,firstSeenAt:null,lastSeenAt:null}};
+const eligible={
+  ...initial,
+  journey:{activeProjectId:null,firstSeenAt:null,lastSeenAt:null},
+  creatorProfile:{id:initial.creatorProfile?.id??null},
+};
 const recovered={project:{id:"film-a",creatorType:"video",metadata:{creatorMode:"ai-movie"}},revision:9,creatorStateGeneration:9};
 let lockEntered=false;
 let collisionEntered=false;
