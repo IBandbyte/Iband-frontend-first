@@ -164,7 +164,26 @@ const CreatorWorkspace = ({ creatorName = "Creator", initialCreator = "", onGene
 
   const handleCreatorModeSelect = async (mode) => { const modeChanged = selectedCreatorMode !== mode.id; setSelectedCreatorMode(mode.id); setSelectedCreatorModeLabel(mode.label); setShowCreatorModeChoices(false); if (mode.id === "ai-movie") { const existing = identityRuntime.getActiveProject(); const nextJourney = existing?.metadata?.projectJourney || createMovieJourney({ creatorModeLabel: mode.label }); let project = existing; if (!project) { const creation = await identityRuntime.ensureProjectWithSharedAuthority({ projectJourney: nextJourney, locks: globalThis?.navigator?.locks }); if (creation.acquired !== true) { setProjectStatus("error"); setMentorMessage("Your movie project could not be safely saved. Please try again in a browser that supports secure shared storage."); return; } project = identityRuntime.getActiveProject(); if (!project?.id) { setProjectStatus("error"); setMentorMessage("Your movie project could not be confirmed after saving. Please try again."); return; } } const continuation = existing ? identityRuntime.resumeProjectConversation(project.id) : { messages: [] }; setActiveMovieProject(project); setProjectJourney(nextJourney); setProjectStatus(existing ? "saved" : "creating"); setMovieMessages(continuation.messages || []); setMovieJourneyPlanningEvidence(null); setDismissedRecommendationId(null); /* Initial Journey is already committed under shared authority; no second synchronous write. */ } else if (modeChanged) { setActiveMovieProject(null); setProjectJourney(null); setProjectStatus("idle"); setMovieMessages([]); setMovieJourneyPlanningEvidence(null); setDismissedRecommendationId(null); } if (modeChanged) { setIdea(""); setGeneratedIdea(""); } const messages = { "ai-movie": "Welcome. You don't need to know how to make a movie. I'll help you through it one step at a time. Tell me the idea in your head—even if it's only one sentence.", "movie-scene": "Let's build your scene together. Tell me what you imagine happening, even if you only know one moment, character or location.", "music-video": "Let's turn your music into a visual story. Tell me about the song and anything you already imagine seeing on screen.", advert: "Let's create a video advert that gets attention. Tell me what you're promoting and the main thing you want people to remember.", "short-reel": "Let's make something short, clear and engaging. Tell me the idea, message or moment you want the Reel or Short to capture.", "lyric-video": "Let's bring your lyrics to life visually. Tell me about the song, its mood and any visual ideas you already have.", "animation-cartoon": "Let's build your animated world. Tell me the idea, character or scene you have in mind, even if it's only the beginning.", documentary: "Let's shape your documentary one step at a time. Tell me the real story, subject or question you want to explore." }; setMentorMessage(messages[mode.id] || `Great choice. Let's create your ${mode.label.toLowerCase()} together. Tell me what you already have in mind, even if it's only a rough idea.`); };
 
-  const handleCreatorJourneyChange = (nextWorkingMode) => { setCreatorJourney(nextWorkingMode); setProjectJourney((currentJourney) => { const nextJourney = currentJourney ? { ...currentJourney, creatorJourney: nextWorkingMode, updatedAt: new Date().toISOString() } : currentJourney; persistMovieJourney(nextJourney); return nextJourney; }); };
+  const handleCreatorJourneyChange = async (nextWorkingMode) => {
+    const currentJourney = projectJourney;
+    const projectId = activeMovieProject?.id;
+    if (!currentJourney || !projectId) {
+      setProjectStatus("error");
+      setMentorMessage("Your movie Journey could not be safely saved. Please reopen the project and try again.");
+      return;
+    }
+    const nextJourney = { ...currentJourney, creatorJourney: nextWorkingMode, updatedAt: new Date().toISOString() };
+    const result = await identityRuntime.persistJourneyWithSharedAuthority(projectId, nextJourney, {
+      locks: globalThis?.navigator?.locks,
+    });
+    if (result.acquired !== true) {
+      setProjectStatus("error");
+      setMentorMessage("Your Journey change was not saved because exclusive storage authority was unavailable. Please try again.");
+      return;
+    }
+    setCreatorJourney(nextWorkingMode);
+    setProjectJourney(nextJourney);
+  };
   const handleMovieMessage = (message) => {
     setMovieMessages((current) => [...current, message]);
     if (!activeMovieProject?.id) return;
