@@ -16,8 +16,8 @@ async function withMovieMentorMemoryWriteAuthority({locks, operation, waitForAut
         return Object.freeze({acquired:true,value:await operation()});
       },
     );
-  } catch {
-    return Object.freeze({acquired:false,reason:"exclusive-operation-failed"});
+  } catch (error) {
+    return Object.freeze({acquired:false,reason:"exclusive-operation-failed",cause:error});
   }
 }
 export {MOVIE_MENTOR_SHARED_MEMORY_WRITE_COORDINATION,withMovieMentorMemoryWriteAuthority};
