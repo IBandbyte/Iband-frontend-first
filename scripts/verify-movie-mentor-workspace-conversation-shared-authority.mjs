@@ -11,7 +11,7 @@ assert.ok(start>=0&&end>start,"Movie conversation handler must exist.");
 const handler=workspace.slice(start,end);
 assert.doesNotMatch(handler,/identityRuntime\.recordConversationMessage\s*\(/,
   "RED: real workspace still routes unkeyed mentor replies through synchronous whole-memory writes.");
-assert.match(handler,/identityRuntime\.settleConversationMessage\s*\(/,
+assert.match(handler,/identityRuntime\s*\.\s*settleConversationMessage\s*\(/,
   "RED: mentor replies must use coordinated settlement.");
 assert.match(runtime,/async function settleConversationMessage\s*\(/,
   "RED: settlement runtime must expose an asynchronous shared-authority path.");
