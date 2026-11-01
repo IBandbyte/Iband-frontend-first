@@ -63,6 +63,9 @@ jobs:
       - name: Verify ordinary writer check-to-commit race
         if: always()
         run: node scripts/verify-movie-mentor-ordinary-write-check-commit-race.mjs
+      - name: Verify real workspace coordinated Journey mode caller
+        if: always()
+        run: node scripts/verify-movie-mentor-workspace-coordinated-journey-caller.mjs
       - name: Verify real workspace coordinated creation caller
         if: always()
         run: node scripts/verify-movie-mentor-workspace-coordinated-creation-caller.mjs
