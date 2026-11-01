@@ -23,10 +23,22 @@ function sharedStorage() {
   };
 }
 
+// Model both the browser Web Locks request(name, options, callback) contract
+// and the existing serial settlement request(name, callback) contract.
 function createSerialLockManager() {
   const tails = new Map();
+  const held = new Set();
   return {
-    request(name, operation) {
+    request(name, optionsOrOperation, maybeOperation) {
+      const webLocks = typeof maybeOperation === "function";
+      const operation = webLocks ? maybeOperation : optionsOrOperation;
+      if (typeof operation !== "function") throw new TypeError("Lock operation required.");
+      if (webLocks) {
+        assert.deepEqual(optionsOrOperation, { mode: "exclusive", ifAvailable: true });
+        if (held.has(name)) return Promise.resolve(operation(null));
+        held.add(name);
+        return Promise.resolve().then(() => operation({ name, mode: "exclusive" })).finally(() => held.delete(name));
+      }
       const previous = tails.get(name) || Promise.resolve();
       let release;
       const next = new Promise((resolve) => { release = resolve; });
@@ -40,12 +52,12 @@ function createFailOnceLockManager() {
   let failed = false;
   const serial = createSerialLockManager();
   return {
-    request(name, operation) {
+    request(name, optionsOrOperation, maybeOperation) {
       if (!failed) {
         failed = true;
         return Promise.reject(new Error("simulated settlement authority failure"));
       }
-      return serial.request(name, operation);
+      return serial.request(name, optionsOrOperation, maybeOperation);
     },
   };
 }
