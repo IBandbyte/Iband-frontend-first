@@ -18,7 +18,7 @@ const settlementAuthority=body("async function withDurableSettlementAuthority(",
 const recommendation=body("function recordRecommendationForMessage(","function buildConversationInput(");
 const recommendationReference=body("function recordRecommendationReference(","function recordRecommendationForMessage(");
 const retirement=body("function retireSupersededRecommendationReferences(","function getCurrentRecommendationReferences(");
-const resume=body("function getResumeSnapshot(","function ");
+const resume=runtime.slice(runtime.indexOf("function getResumeSnapshot("));
 assert.match(settlement,/withDurableSettlementAuthority\(/,"Settlement must retain shared authority.");
 assert.match(settlementAuthority,/withMovieMentorMemoryWriteAuthority\(/,"Settlement authority must use the recovery lock.");
 assert.match(settlement,/recordRecommendationForMessage\(/,"Recommendation recording is reachable from settlement.");
