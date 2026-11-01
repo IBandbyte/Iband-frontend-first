@@ -7,6 +7,10 @@ import {commitMovieMentorRecoveryWithLock} from "../src/components/studio/mentor
 const storage=createMemoryStorageAdapter();
 const memory=createCreatorMemory({storageAdapter:storage});
 const initial=memory.getState();
+// A new Creator Memory contains nonempty journey counters. The recovery
+// adoption fence correctly protects those values, so this isolated collision
+// court supplies a truly empty, eligible local workspace instead.
+const eligible={...initial,journey:{activeProjectId:null,firstSeenAt:null,lastSeenAt:null}};
 const recovered={project:{id:"film-a",creatorType:"video",metadata:{creatorMode:"ai-movie"}},revision:9,creatorStateGeneration:9};
 let lockEntered=false;
 let collisionEntered=false;
@@ -17,7 +21,7 @@ const locks={request:async(_name,_options,callback)=>{
 }};
 const result=await commitMovieMentorRecoveryWithLock({
   projectId:"film-a",recovered,locks,
-  readLocalState:()=>JSON.parse(storage.getItem("iband.creator-memory")||JSON.stringify(initial)),
+  readLocalState:()=>JSON.parse(storage.getItem("iband.creator-memory")||JSON.stringify(eligible)),
   beforeCommit:()=>{collisionEntered=true;},
   commit:next=>{commitEntered=true;storage.setItem("iband.creator-memory",JSON.stringify(next));},
 });
