@@ -57,6 +57,9 @@ jobs:
       - name: Verify asynchronous shared memory write authority
         if: always()
         run: node scripts/verify-movie-mentor-memory-write-authority.mjs
+      - name: Verify studio project creation overlap during recovery authority
+        if: always()
+        run: node scripts/verify-movie-mentor-studio-project-recovery-overlap.mjs
       - name: Verify ordinary writer overlap during recovery authority
         run: node scripts/verify-movie-mentor-recovery-overlap-authority.mjs
         if: always()
