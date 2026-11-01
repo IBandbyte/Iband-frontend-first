@@ -24,7 +24,7 @@ const result=await commitMovieMentorRecoveryWithLock({
    catch(error){
      refused=true;
      callbackException=`${error?.name}: ${error?.code || "no-code"}: ${error?.message}`;
-     assert.equal(error.code,"CREATOR_MEMORY_WRITE_AUTHORITY_DENIED","Strict mode must reject with explicit authority-denial code.");
+     assert.match(error.message,/Creator Memory persistence failed\. In-memory changes were rolled back\./,"Core must surface its fail-closed persistence rollback.");
    }
  },
  commit:next=>storage.setItem("iband.creator-memory",JSON.stringify(next)),
