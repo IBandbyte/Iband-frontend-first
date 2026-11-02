@@ -111,8 +111,15 @@ assert.equal(memory.getProject(projectId).metadata.projectJourney.currentStageId
 
 // Destroy Runtime A. Runtime B is a fresh identity/read universe sharing only durable storage.
 const readFacadeB = createJourneyAuthorityReadFacade({ authorityStore });
+// Runtime B only reads the stale Creator Memory projection. Preserve the
+// underlying fixture for independent N-vs-N+1 and zero-write assertions.
+const readMemoryB = {
+  getActiveProject: memory.getActiveProject,
+  getProject: memory.getProject,
+  getProjectMemories: memory.getProjectMemories,
+};
 const identityRuntimeB = createMovieMentorStudioIdentityRuntime({
-  memory,
+  memory: readMemoryB,
   cryptoImpl: { randomUUID: () => "reload-runtime-b" },
   journeyAuthorityReadFacade: readFacadeB,
 });
