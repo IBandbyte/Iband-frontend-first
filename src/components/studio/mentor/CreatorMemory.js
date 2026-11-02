@@ -308,6 +308,9 @@ function createCreatorMemory(options = {}) {
     if (!pid || !turnId || !conversation || !handoff) {
       return Object.freeze({ acquired: false, reason: "settlement-input-unavailable" });
     }
+    if (settlementLockName === "movie-mentor-creator-memory-recovery") {
+      return Object.freeze({ acquired: false, reason: "settlement-lock-aliases-shared-authority" });
+    }
     return withMovieMentorMemoryWriteAuthority({
       locks,
       operation: () => {
