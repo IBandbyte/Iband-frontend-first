@@ -69,6 +69,8 @@
  * - Complexity belongs behind the conversation.
  */
 
+import {requireVerifiedMemoryAuthority} from "./VerifiedMemoryAuthority.js";
+
 const CREATOR_MEMORY_ENGINE_VERSION = "2.4.0";
 
 const MEMORY_CATEGORIES = Object.freeze({
@@ -8801,7 +8803,7 @@ function createCreatorMemoryEngine({
   memory = null,
 } = {}) {
   let activeMemory =
-    memory ||
+    requireVerifiedMemoryAuthority(memory) ||
     null;
 
   function resolvePlanningContext(
@@ -9667,8 +9669,7 @@ function createCreatorMemoryEngine({
     memory: suppliedMemory = null,
   } = {}) {
     const resolvedMemory =
-      suppliedMemory ||
-      activeMemory;
+      suppliedMemory ? requireVerifiedMemoryAuthority(suppliedMemory) : activeMemory;
 
     const instructions =
       asArray(
@@ -10194,7 +10195,7 @@ function createCreatorMemoryEngine({
     nextMemory
   ) {
     activeMemory =
-      nextMemory ||
+      requireVerifiedMemoryAuthority(nextMemory) ||
       null;
 
     return activeMemory;

@@ -23,15 +23,23 @@ function sharedStorage() {
   };
 }
 
+// Model both the browser Web Locks request(name, options, callback) contract
+// and the existing serial settlement request(name, callback) contract.
 function createSerialLockManager() {
   const tails = new Map();
   return {
-    request(name, operation) {
+    request(name, optionsOrOperation, maybeOperation) {
+      const webLocks = typeof maybeOperation === "function";
+      const operation = webLocks ? maybeOperation : optionsOrOperation;
+      if (typeof operation !== "function") throw new TypeError("Lock operation required.");
+      if (webLocks) {
+        assert.deepEqual(optionsOrOperation, { mode: "exclusive" });
+      }
       const previous = tails.get(name) || Promise.resolve();
       let release;
-      const next = new Promise((resolve) => { release = resolve; });
+      const next = new Promise(resolve => { release = resolve; });
       tails.set(name, previous.then(() => next));
-      return previous.then(operation).finally(() => release());
+      return previous.then(() => operation(webLocks ? { name, mode: "exclusive" } : undefined)).finally(release);
     },
   };
 }
@@ -40,12 +48,12 @@ function createFailOnceLockManager() {
   let failed = false;
   const serial = createSerialLockManager();
   return {
-    request(name, operation) {
+    request(name, optionsOrOperation, maybeOperation) {
       if (!failed) {
         failed = true;
         return Promise.reject(new Error("simulated settlement authority failure"));
       }
-      return serial.request(name, operation);
+      return serial.request(name, optionsOrOperation, maybeOperation);
     },
   };
 }
@@ -120,13 +128,14 @@ const options = {
 };
 const lockManager = createSerialLockManager();
 
+// The direct legacy convergence witness above remains unchanged; only injected Studio facades migrate.
 const runtimeA = createMovieMentorStudioIdentityRuntime({
-  memory: createCreatorMemory(options),
+  memory: createCreatorMemory({...options,requireSharedWriteAuthority:true}),
   cryptoImpl: { randomUUID: () => "runtime-a" },
   settlementLockManager: lockManager,
 });
 const runtimeB = createMovieMentorStudioIdentityRuntime({
-  memory: createCreatorMemory(options),
+  memory: createCreatorMemory({...options,requireSharedWriteAuthority:true}),
   cryptoImpl: { randomUUID: () => "runtime-b" },
   settlementLockManager: lockManager,
 });
@@ -175,7 +184,7 @@ assert.equal(
 );
 
 const runtimeC = createMovieMentorStudioIdentityRuntime({
-  memory: createCreatorMemory(options),
+  memory: createCreatorMemory({...options,requireSharedWriteAuthority:true}),
   cryptoImpl: { randomUUID: () => "runtime-c" },
   settlementLockManager: lockManager,
 });
@@ -210,7 +219,7 @@ const failureOptions = {
   creatorId: "creator-38-failure",
 };
 const failureRuntime = createMovieMentorStudioIdentityRuntime({
-  memory: createCreatorMemory(failureOptions),
+  memory: createCreatorMemory({...failureOptions,requireSharedWriteAuthority:true}),
   cryptoImpl: { randomUUID: () => "runtime-failure" },
   settlementLockManager: createFailOnceLockManager(),
 });
@@ -223,8 +232,9 @@ await assert.rejects(
     "project-38",
     mentorMessage("turn-38-failure", "First settlement attempt.")
   ),
-  /simulated settlement authority failure/,
-  "Precondition failed: simulated settlement authority failure did not propagate."
+  error => error?.code === "MOVIE_MENTOR_SHARED_WRITE_AUTHORITY_REQUIRED" &&
+    error?.cause?.message === "simulated settlement authority failure",
+  "Precondition failed: shared authority must fail closed and preserve the exact simulated settlement failure as its cause."
 );
 const retried = await failureRuntime.settleConversationMessage(
   "project-38",

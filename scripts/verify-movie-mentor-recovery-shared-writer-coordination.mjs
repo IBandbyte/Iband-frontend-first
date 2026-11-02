@@ -1,0 +1,13 @@
+import assert from "node:assert/strict";
+import {readFileSync} from "node:fs";
+const facade=readFileSync(new URL("../src/components/studio/mentor/CreatorMemory.js",import.meta.url),"utf8");
+const core=readFileSync(new URL("../src/components/studio/mentor/CreatorMemoryCore.js",import.meta.url),"utf8");
+const recovery=readFileSync(new URL("../src/components/studio/mentor/MovieMentorRecoveryLockedCommit.js",import.meta.url),"utf8");
+const authority=readFileSync(new URL("../src/components/studio/mentor/MovieMentorMemoryWriteAuthority.js",import.meta.url),"utf8");
+assert.match(authority,/locks\.request\(/,"Shared authority must hold an exclusive browser lock.");
+assert.match(recovery,/withMovieMentorMemoryWriteAuthority/,"Recovery must use the shared browser-lock authority.");
+assert.match(facade,/createFacadeStorageController/,"Ordinary facade storage must be inspected.");
+assert.match(core,/storage\.setItem\(/,"Core uses whole-state durable writes.");
+assert.match(facade,/MOVIE_MENTOR_SHARED_MEMORY_WRITE_COORDINATION/,"Ordinary creator-memory writes must declare and enforce shared recovery coordination before editable adoption.");
+assert.match(recovery,/MOVIE_MENTOR_SHARED_MEMORY_WRITE_COORDINATION/,"Recovery must use the identical shared writer authority.");
+console.log("GREEN: ordinary creator memory and recovery share a coordinated write authority.");

@@ -8,6 +8,7 @@ on:
       - "src/components/studio/mentor/JourneyRecommendationActionSurface.js"
       - "src/components/studio/mentor/JourneyRecommendationAcceptanceExecutionRuntime.js"
       - "scripts/verify-movie-mentor-acceptance-reload-reality.mjs"
+      - "scripts/verify-movie-mentor-strict-acceptance-reload-reality.mjs"
       - ".github/workflows/verify-movie-mentor-acceptance-reload-reality.yml"
   pull_request:
     paths:
@@ -30,3 +31,5 @@ jobs:
           node-version: 20
       - name: Verify acceptance reload reality
         run: node scripts/verify-movie-mentor-acceptance-reload-reality.mjs
+      - name: Verify strict read-only acceptance reload reality
+        run: node scripts/verify-movie-mentor-strict-acceptance-reload-reality.mjs

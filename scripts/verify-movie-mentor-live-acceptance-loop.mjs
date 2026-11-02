@@ -9,6 +9,7 @@ import createMovieJourneyIntelligenceBridge from "../src/components/studio/mento
 import createMovieMentorStudioIdentityRuntime, {
   RECOMMENDATION_REFERENCE_DOMAIN,
 } from "../src/components/studio/mentor/MovieMentorStudioIdentityRuntime.js";
+import createJourneyRecommendationEnvelope from "../src/components/studio/mentor/JourneyRecommendationEnvelope.js";
 import { normalisePostCommitCreatorAuthority } from "../src/components/studio/mentor/MovieMentorTurnClient.js";
 
 import { resolveContinuationReferences } from "../iband-backend/ai/MovieMentorContinuationReferenceControl.js";
@@ -27,17 +28,18 @@ assert.match(
 
 const cryptoImpl = { randomUUID: () => "11111111-2222-4333-8444-555555555555" };
 const storageAdapter = createMemoryStorageAdapter();
-const memory = createCreatorMemory({ storageAdapter, projectIdentityCrypto: cryptoImpl });
+const memory = createCreatorMemory({ storageAdapter, projectIdentityCrypto: cryptoImpl, requireSharedWriteAuthority: true });
+const locks={request:async(_name,_options,callback)=>callback({name:"acceptance-exclusive-lock",mode:"exclusive"})};
+const runtime = createMovieMentorStudioIdentityRuntime({ memory, cryptoImpl, settlementLockManager: locks });
 const journeyEngine = createCreatorJourneyEngine();
 const journeyBridge = createMovieJourneyIntelligenceBridge({ journeyEngine });
 const projectJourney = journeyEngine.createMovieJourney({ creatorType: "video", creatorMode: "ai-movie", creatorJourney: "guide" });
-const project = memory.saveProject({
-  title: "Door 11D4 Acceptance Loop",
-  creatorType: "video",
-  status: PROJECT_STATUSES.CREATING,
-  metadata: { creatorMode: "ai-movie", creatorModeLabel: "AI Movie Making", projectJourney },
+const creation = await runtime.ensureProjectWithSharedAuthority({
+  title: "Door 11D4 Acceptance Loop", projectJourney, locks,
 });
-const runtime = createMovieMentorStudioIdentityRuntime({ memory, cryptoImpl });
+assert.equal(creation.acquired,true,"Strict acceptance project setup must acquire shared authority.");
+const project = runtime.getActiveProject();
+assert.ok(project?.id,"Strict acceptance project creation must establish canonical identity.");
 
 function planningEvidence(task, revision) {
   return {
@@ -62,7 +64,47 @@ function memoryContextFrom(mem) {
   };
 }
 
-const savedA = runtime.recordRecommendationReference(project.id, planningEvidence("escape-through-tunnel", 20), { turnRevision: 20, projectJourney });
+// Use the same shared-lock atomic recommendation settlement as the live Studio.
+// The acceptance sequence remains A -> creator confirmation -> B -> reload -> B.
+// Shared lock manager declared before strict project creation and reused for settlement.
+async function settleRecommendation(evidence,revision){
+  const envelope=createJourneyRecommendationEnvelope({projectId:project.id,projectJourney,planningEvidence:evidence});
+  assert.ok(envelope?.recommendationId,"Canonical recommendation envelope required.");
+  const reference={
+    domain:RECOMMENDATION_REFERENCE_DOMAIN,schema:2,
+    recommendationId:envelope.recommendationId,
+    recommendationFingerprint:envelope.fingerprint,
+    projectId:project.id,creatorSessionId:runtime.creatorSessionId,
+    authority:"mentor-advisory",creatorConfirmed:false,mayCreateCanon:false,mayAdvanceJourney:false,
+    recommendation:{
+      recommendedStageId:evidence.recommendation.recommendedStageId,
+      recommendedTaskId:evidence.recommendation.recommendedTaskId,
+      recommendedNextStep:evidence.semanticDirection.nextAction.label,
+      explanation:null,alternatives:evidence.recommendation.alternatives,
+      reasonCodes:evidence.recommendation.reasonCodes,confidence:evidence.recommendation.confidence,
+    },
+    issuedAgainst:envelope.issuedAgainst,target:envelope.target,planning:envelope.planning,
+    provenance:{turnRevision:revision,planningContractVersion:evidence.contractVersion,bridgeVersion:evidence.provenance.bridgeVersion,sourceEvidence:evidence.provenance},
+    lifecycle:{current:true,terminalReason:null,supersededByRecommendationId:null},
+    createdAt:new Date().toISOString(),
+  };
+  const result=await memory.settleConversationWithSharedAuthority({
+    locks,projectId:project.id,creatorTurnId:`acceptance-recommendation-${revision}`,
+    conversation:{creatorMessage:`Creator acceptance turn ${revision}`,mentorResponse:"Advisory recommendation",relatedProjectIds:[project.id]},
+    handoff:{sessionId:runtime.creatorSessionId,title:"Acceptance continuation",content:"Continue recommendation acceptance",value:{projectJourney}},
+    recommendation:{
+      memoryKey:`journey-recommendation:${reference.recommendationId}`,
+      content:reference.recommendation.recommendedNextStep,
+      source:"mentor",certainty:"observed",confidence:reference.recommendation.confidence,
+      metadata:{recommendationReference:reference},
+    },
+  });
+  assert.equal(result.acquired,true,"Shared writer authority must be acquired.");
+  assert.equal(result.value?.status,"committed","Atomic recommendation settlement must commit.");
+  assert.ok(result.value.recommendation?.id,"Recommendation must be durably saved.");
+  return {...result.value.recommendation,retiredRecommendationIds:result.value.retiredRecommendationIds||[]};
+}
+const savedA = await settleRecommendation(planningEvidence("escape-through-tunnel", 20),20);
 assert.ok(savedA?.id);
 const recommendationA = savedA.metadata.recommendationReference.recommendationId;
 let memoryContext = memoryContextFrom(memory);
@@ -160,7 +202,7 @@ assert.equal(evidenceB.localJourneyStale, true);
 assert.equal(evidenceB.recommendation.recommendedTaskId, "objective-after-escape");
 assert.ok(evidenceB.recommendation.reasonCodes.includes("post-commit-creator-authority-applied"));
 
-const savedB = runtime.recordRecommendationReference(project.id, evidenceB, { turnRevision: 21, projectJourney });
+const savedB = await settleRecommendation(evidenceB,21);
 assert.ok(savedB?.id);
 const recommendationB = savedB.metadata.recommendationReference.recommendationId;
 assert.notEqual(recommendationB, recommendationA);
@@ -173,7 +215,7 @@ assert.equal(refsBeforeRestart.filter((item) => item.lifecycle?.current === true
 assert.equal(refsBeforeRestart.find((item) => item.recommendationId === recommendationA).lifecycle.current, false);
 assert.equal(refsBeforeRestart.find((item) => item.recommendationId === recommendationB).lifecycle.current, true);
 
-const reloadedMemory = createCreatorMemory({ storageAdapter, projectIdentityCrypto: cryptoImpl });
+const reloadedMemory = createCreatorMemory({ storageAdapter, projectIdentityCrypto: cryptoImpl, requireSharedWriteAuthority: true });
 const reloadedRuntime = createMovieMentorStudioIdentityRuntime({ memory: reloadedMemory, cryptoImpl });
 const reloadedContext = memoryContextFrom(reloadedMemory);
 selected = selectCurrentRecommendationReference({ memoryContext: reloadedContext, projectId: project.id });

@@ -58,7 +58,7 @@
 import createAdaptiveMentorEngine from "./AdaptiveMentorEngine.js";
 import createResponseComposer from "./ResponseComposer.js";
 import createCommunicationVoiceEngine from "./CommunicationVoiceEngine.js";
-import createCreatorMemory from "./CreatorMemory.js";
+import createCreatorMemory, { hasStrictCreatorMemoryAuthority } from "./CreatorMemory.js";
 
 const RESPONSE_GENERATOR_VERSION = "3.0.0";
 
@@ -544,6 +544,26 @@ function isMemoryService(
         "function"
     )
   );
+}
+
+const ALLOWED_EXTERNAL_MEMORY_READ_METHODS = new Set(["getMemoryContext","getState","getProject","getActiveProject","getProjectMemories","readPersistedState","getPersistedProject"]);
+function requireSafeInjectedMemory(candidate) {
+  if (!candidate || typeof candidate !== "object") return candidate;
+  if (hasStrictCreatorMemoryAuthority(candidate)) return candidate;
+  const prototype = Object.getPrototypeOf(candidate);
+  const ownKeys = Reflect.ownKeys(candidate);
+  const readOnlyShape = (prototype === Object.prototype || prototype === null) &&
+    ownKeys.length > 0 && ownKeys.every(key => {
+      if (typeof key !== "string" || !ALLOWED_EXTERNAL_MEMORY_READ_METHODS.has(key)) return false;
+      const descriptor = Object.getOwnPropertyDescriptor(candidate,key);
+      return Boolean(descriptor && "value" in descriptor && typeof descriptor.value === "function");
+    });
+  if (!readOnlyShape) {
+    const error = new TypeError("Injected memory without a recognised read-only shape requires verified strict shared-write authority.");
+    error.code = "MOVIE_MENTOR_UNSAFE_MEMORY_AUTHORITY";
+    throw error;
+  }
+  return candidate;
 }
 
 function resolveGeneratorOptions(
@@ -3985,14 +4005,17 @@ function createResponseGenerator({
   const resolvedMemoryFactory =
     typeof memoryFactory ===
       "function"
-      ? memoryFactory
+      ? (options = {}) => requireSafeInjectedMemory(memoryFactory(options))
       : (options = {}) =>
           createCreatorMemory(
-            options
+            {
+              ...options,
+              requireSharedWriteAuthority: true,
+            }
           );
 
   let activeMemory =
-    memory ||
+    (memory ? requireSafeInjectedMemory(memory) : null) ||
     resolvedMemoryFactory({
       creatorId:
         creatorId ||
@@ -5646,8 +5669,7 @@ function createResponseGenerator({
     }
 
     activeMemory =
-      nextMemory ||
-      null;
+      nextMemory ? requireSafeInjectedMemory(nextMemory) : null;
 
     activeMemoryCreatorId =
       null;

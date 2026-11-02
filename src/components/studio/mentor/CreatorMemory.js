@@ -23,6 +23,7 @@ import {
   withMovieProjectIdentity,
 } from "./MovieMentorProjectIdentity.js";
 import createJourneyAuthorityReadFacade from "./JourneyAuthorityReadFacade.js";
+import { withMovieMentorMemoryWriteAuthority } from "./MovieMentorMemoryWriteAuthority.js";
 
 function clone(value) {
   if (value === undefined) return undefined;
@@ -94,30 +95,58 @@ function resolveFacadeDurableStorage(storageAdapter) {
  * are changed, no async work may run inside the shield, and no CAS/atomic storage
  * semantics are claimed.
  */
-function createFacadeStorageController(storage) {
+function createFacadeStorageController(storage, ordinaryWriteAuthorityGuard) {
   let refreshShieldActive = false;
   const virtualWrites = new Map();
+  // Synchronous stale-snapshot fence. This is not cross-tab CAS and does not
+  // replace the shared asynchronous writer authority needed for recovery.
+  const observedDurableValues = new Map();
+  const staleWriteError = () => {
+    const error = new Error("Creator Memory refused a stale durable snapshot.");
+    error.code = "CREATOR_MEMORY_STALE_DURABLE_SNAPSHOT";
+    return error;
+  };
+  function requireCurrentBaseline(key) {
+    if (!observedDurableValues.has(key)) throw staleWriteError();
+    if (storage.getItem(key) !== observedDurableValues.get(key)) throw staleWriteError();
+  }
+
+  function requireWritePermission() {
+    if (typeof ordinaryWriteAuthorityGuard === 'function' && ordinaryWriteAuthorityGuard() !== true) {
+      const error = new Error('Creator Memory ordinary write denied by recovery authority.');
+      error.code = 'CREATOR_MEMORY_WRITE_AUTHORITY_DENIED';
+      throw error;
+    }
+  }
 
   const adapter = {
     getItem(key) {
       if (refreshShieldActive && virtualWrites.has(key)) {
         return virtualWrites.get(key);
       }
-      return storage.getItem(key);
+      const value = storage.getItem(key);
+      if (!observedDurableValues.has(key)) observedDurableValues.set(key, value);
+      return value;
     },
     setItem(key, value) {
       if (refreshShieldActive) {
         virtualWrites.set(key, value);
         return;
       }
-      return storage.setItem(key, value);
+      requireWritePermission();
+      requireCurrentBaseline(key);
+      storage.setItem(key, value);
+      observedDurableValues.set(key, value);
     },
     removeItem(key) {
       if (refreshShieldActive) {
         virtualWrites.set(key, null);
         return;
       }
-      return storage.removeItem(key);
+      requireWritePermission();
+      requireCurrentBaseline(key);
+      storage.removeItem(key);
+      observedDurableValues.set(key, null);
     },
   };
 
@@ -137,23 +166,49 @@ function createFacadeStorageController(storage) {
     }
   }
 
-  return { adapter, refreshWithoutDurableWrite };
+  function acknowledgeFreshDurableBaseline() {
+    // Only the explicit, authority-owned adoption path may rebase this facade.
+    // Ordinary writes must never silently forgive a stale working snapshot.
+    for (const key of observedDurableValues.keys()) {
+      observedDurableValues.set(key, storage.getItem(key));
+    }
+  }
+
+  return { adapter, refreshWithoutDurableWrite, acknowledgeFreshDurableBaseline };
+}
+
+const strictCreatorMemoryInstances = new WeakSet();
+
+function hasStrictCreatorMemoryAuthority(candidate) {
+  return candidate !== null && typeof candidate === 'object' && strictCreatorMemoryInstances.has(candidate);
 }
 
 function createCreatorMemory(options = {}) {
   const {
     projectIdentityCrypto = globalThis?.crypto,
+    ordinaryWriteAuthorityGuard,
+    requireSharedWriteAuthority = false,
     journeyAuthorityReadFacade = createJourneyAuthorityReadFacade(),
     ...coreOptions
   } = options || {};
   const durableStorage = resolveFacadeDurableStorage(coreOptions.storageAdapter);
-  const storageController = createFacadeStorageController(durableStorage);
+  // Strict migration is opt-in until every legacy synchronous caller is migrated.
+  // Only the explicit async shared-lock transaction can commit in this mode.
+  const effectiveOrdinaryWriteGuard = requireSharedWriteAuthority === true
+    ? () => false
+    : ordinaryWriteAuthorityGuard;
+  const storageController = createFacadeStorageController(durableStorage, effectiveOrdinaryWriteGuard);
   const resolvedCoreOptions = {
     ...coreOptions,
     storageAdapter: storageController.adapter,
   };
   const memory = createCreatorMemoryCore(resolvedCoreOptions);
-  ensureLegacyIdentityMetadata(memory);
+  // Strict-mode construction is read-only: legacy identity decoration must
+  // never attempt a synchronous whole-state write without shared authority.
+  // Preserve legacy bytes until an explicit coordinated migration commits.
+  if (requireSharedWriteAuthority !== true) {
+    ensureLegacyIdentityMetadata(memory);
+  }
   const getCoreProject = typeof memory.getProject === "function"
     ? memory.getProject.bind(memory)
     : null;
@@ -186,7 +241,9 @@ function createCreatorMemory(options = {}) {
   }
 
   function adoptPersistedStateWithoutWrite(state) {
-    return storageController.refreshWithoutDurableWrite(() => memory.replaceState(state));
+    const adopted = storageController.refreshWithoutDurableWrite(() => memory.replaceState(state));
+    storageController.acknowledgeFreshDurableBaseline();
+    return adopted;
   }
 
   /**
@@ -210,7 +267,13 @@ function createCreatorMemory(options = {}) {
       };
     }
 
-    const freshMemory = createCreatorMemoryCore(resolvedCoreOptions);
+    // A genuinely fresh Core must have its own observed persistence baseline.
+    // Reusing this facade's stale adapter would incorrectly fence a serialized
+    // settlement even when its caller already holds the settlement authority.
+    const freshMemory = createCreatorMemoryCore({
+      ...resolvedCoreOptions,
+      storageAdapter: createFacadeStorageController(durableStorage).adapter,
+    });
     const freshState = clone(freshMemory.getState());
     const existing = (freshState?.conversations || []).find(
       (entry) =>
@@ -236,6 +299,207 @@ function createCreatorMemory(options = {}) {
       status: "committed",
       conversation: clone(conversation),
     };
+  }
+
+  // Stage all settlement effects in an isolated Core. Its persistence adapter
+  // is deliberately virtual: no intermediate conversation/handoff/recommendation
+  // operation may reach durable storage. Only the final whole-state replacement
+  // is permitted to commit under shared cross-context authority.
+  async function settleConversationWithSharedAuthority({
+    locks, projectId, creatorTurnId, conversation, handoff, recommendation,
+    beforeCommit, settlementLockName = null,
+  } = {}) {
+    const pid = cleanIdentity(projectId);
+    const turnId = cleanIdentity(creatorTurnId);
+    if (!pid || !turnId || !conversation || !handoff) {
+      return Object.freeze({ acquired: false, reason: "settlement-input-unavailable" });
+    }
+    if (settlementLockName === "movie-mentor-creator-memory-recovery") {
+      return Object.freeze({ acquired: false, reason: "settlement-lock-aliases-shared-authority" });
+    }
+    return withMovieMentorMemoryWriteAuthority({
+      locks,
+      operation: () => {
+        const commit = () => {
+        const fresh = createCreatorMemoryCore({
+          ...resolvedCoreOptions,
+          storageAdapter: createFacadeStorageController(durableStorage).adapter,
+        });
+        const initial = fresh.getState();
+        const prior = (initial.conversations || []).find(entry =>
+          cleanIdentity(entry?.metadata?.projectId) === pid &&
+          cleanIdentity(entry?.metadata?.creatorTurnId) === turnId
+        );
+        if (prior) {
+          adoptPersistedStateWithoutWrite(initial);
+          const canonicalHandoff = (initial.sessionHandoffs || []).find(entry =>
+            cleanIdentity(entry?.metadata?.projectId) === pid &&
+            cleanIdentity(entry?.metadata?.creatorTurnId) === turnId &&
+            cleanIdentity(entry?.metadata?.conversationId) === cleanIdentity(prior.id)
+          ) || null;
+          return Object.freeze({
+            status: "already-settled",
+            conversation: clone(prior),
+            handoff: clone(canonicalHandoff),
+          });
+        }
+
+        const stagedStorage = createMemoryStorageAdapter();
+        const key = coreOptions.creatorId
+          ? `${coreOptions.storageKey || DEFAULT_STORAGE_KEY}.${coreOptions.creatorId}`
+          : (coreOptions.storageKey || DEFAULT_STORAGE_KEY);
+        stagedStorage.setItem(key, JSON.stringify(initial));
+        const staged = createCreatorMemoryCore({
+          ...coreOptions,
+          storageAdapter: stagedStorage,
+        });
+        const savedConversation = staged.rememberConversation({
+          ...clone(conversation),
+          metadata: {
+            ...(clone(conversation.metadata) || {}),
+            projectId: pid,
+            creatorTurnId: turnId,
+          },
+        });
+        if (!savedConversation?.id) throw new Error("Atomic settlement refused conversation.");
+        const savedHandoff = staged.saveSessionHandoff({
+          ...clone(handoff),
+          projectId: pid,
+          value: {
+            ...(clone(handoff.value) || {}),
+            conversationId: savedConversation.id,
+          },
+          metadata: {
+            ...(clone(handoff.metadata) || {}),
+            projectId: pid,
+            creatorTurnId: turnId,
+            conversationId: savedConversation.id,
+          },
+        });
+        if (!savedHandoff?.id) throw new Error("Atomic settlement refused handoff.");
+        let savedRecommendation = null;
+        const retiredRecommendationIds = [];
+        if (recommendation) {
+          const replacementReference = recommendation?.metadata?.recommendationReference;
+          const replacementId = cleanIdentity(replacementReference?.recommendationId);
+          if (replacementId) {
+            const nextState = staged.getState();
+            const timestamp = new Date().toISOString();
+            nextState.projectMemories = (nextState.projectMemories || []).map(entry => {
+              const previous = entry?.metadata?.recommendationReference;
+              if (cleanIdentity(previous?.projectId) !== pid ||
+                  previous?.domain !== replacementReference?.domain ||
+                  previous?.lifecycle?.current !== true ||
+                  cleanIdentity(previous?.recommendationId) === replacementId) return entry;
+              retiredRecommendationIds.push(previous.recommendationId);
+              return {
+                ...entry,
+                updatedAt: timestamp,
+                metadata: {
+                  ...(entry.metadata || {}),
+                  recommendationReference: {
+                    ...clone(previous),
+                    lifecycle: {
+                      current: false,
+                      terminalReason: "superseded",
+                      supersededByRecommendationId: replacementId,
+                      supersededAt: timestamp,
+                    },
+                  },
+                },
+              };
+            });
+            // This write remains inside isolated staging storage.
+            staged.replaceState(nextState);
+          }
+
+          savedRecommendation = staged.saveProjectMemory({
+            ...clone(recommendation),
+            projectId: pid,
+            metadata: {
+              ...(clone(recommendation.metadata) || {}),
+              projectId: pid,
+              creatorTurnId: turnId,
+            },
+          });
+          if (!savedRecommendation?.id) throw new Error("Atomic settlement refused recommendation.");
+        }
+        if (typeof beforeCommit === "function") {
+          const checked = beforeCommit();
+          if (checked && typeof checked.then === "function") {
+            throw new Error("Atomic settlement precommit hook must be synchronous.");
+          }
+        }
+        // Exactly one durable state write. A failed staging operation leaves
+        // the original blob untouched and a retry starts from fresh storage.
+        fresh.replaceState(staged.getState());
+        adoptPersistedStateWithoutWrite(fresh.getState());
+        return Object.freeze({
+          status: "committed",
+          conversation: clone(savedConversation),
+          handoff: clone(savedHandoff),
+          recommendation: clone(savedRecommendation),
+          retiredRecommendationIds: clone(retiredRecommendationIds),
+        });
+        };
+        return settlementLockName
+          ? locks.request(settlementLockName, { mode: "exclusive" }, commit)
+          : commit();
+      },
+      waitForAuthority: true,
+    });
+  }
+
+  // Opt-in async ordinary-write migration path. The caller must supply a
+  // browser lock manager; legacy synchronous entry points remain unchanged.
+  async function replaceStateWithSharedAuthority({ locks, transform } = {}) {
+    if (typeof transform !== "function") {
+      return Object.freeze({ acquired: false, reason: "transform-unavailable" });
+    }
+    return withMovieMentorMemoryWriteAuthority({
+      locks,
+      operation: () => {
+        // Never mutate the potentially stale facade snapshot. Hydrate a fresh
+        // Core with its own persistence baseline while holding the shared lock.
+        const fresh = createCreatorMemoryCore({
+          ...resolvedCoreOptions,
+          storageAdapter: createFacadeStorageController(durableStorage).adapter,
+        });
+        const next = transform(clone(fresh.getState()));
+        if (!next || typeof next !== "object" || typeof next.then === "function") {
+          throw new Error("Shared ordinary writer requires a synchronous state transform.");
+        }
+        fresh.replaceState(next);
+        adoptPersistedStateWithoutWrite(fresh.getState());
+        return clone(fresh.getState());
+      },
+    });
+  }
+
+  // Dedicated resume-repair transaction. Run the existing lifecycle and
+  // proof-conflict quarantine implementation against a fresh Core while holding
+  // the same exclusive lock used by recovery and coordinated ordinary writers.
+  // Never reuse a render-time facade snapshot or persist an adoption write.
+  async function runRecoveryWithSharedAuthority({ locks, operation } = {}) {
+    if (typeof operation !== "function") {
+      return Object.freeze({ acquired: false, reason: "recovery-operation-unavailable" });
+    }
+    return withMovieMentorMemoryWriteAuthority({
+      locks,
+      waitForAuthority: true,
+      operation: () => {
+        const fresh = createCreatorMemoryCore({
+          ...resolvedCoreOptions,
+          storageAdapter: createFacadeStorageController(durableStorage).adapter,
+        });
+        const value = operation(fresh);
+        if (value && typeof value.then === "function") {
+          throw new Error("Resume recommendation recovery must complete synchronously under shared authority.");
+        }
+        adoptPersistedStateWithoutWrite(fresh.getState());
+        return value;
+      },
+    });
   }
 
   function overlayAuthorityJourney(project) {
@@ -391,17 +655,22 @@ function createCreatorMemory(options = {}) {
     return overlayAuthorityJourney(updated);
   }
 
-  return {
+  const facade = {
     ...memory,
     readPersistedState,
     getPersistedProject,
     convergeConversationSettlement,
+    settleConversationWithSharedAuthority,
+    replaceStateWithSharedAuthority,
+    runRecoveryWithSharedAuthority,
     getProject,
     getActiveProject,
     getProjectMemories,
     saveProject,
     updateProject,
   };
+  if (requireSharedWriteAuthority === true) strictCreatorMemoryInstances.add(facade);
+  return facade;
 }
 
 export {
@@ -423,6 +692,7 @@ export {
   createDefaultMemoryState,
   createMemoryStorageAdapter,
   createCreatorMemory,
+  hasStrictCreatorMemoryAuthority,
 };
 
 export default createCreatorMemory;

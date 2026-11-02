@@ -9,6 +9,12 @@ on:
       - "src/components/studio/mentor/CreatorMemory.js"
       - "src/components/studio/mentor/MovieMentorStudioIdentityRuntime.js"
       - "scripts/verify-movie-mentor-durable-settlement-idempotency.mjs"
+      - "scripts/verify-movie-mentor-strict-durable-settlement-idempotency.mjs"
+      - "scripts/verify-movie-mentor-strict-recommendation-lifecycle.mjs"
+      - "scripts/verify-movie-mentor-strict-live-recommendation-provenance.mjs"
+      - "scripts/verify-movie-mentor-recommendation-reference-evidence.mjs"
+      - "scripts/verify-movie-mentor-strict-recovery-two-writer-lock.mjs"
+      - "scripts/verify-movie-mentor-recovery-bounded-retry-algorithm.mjs"
       - ".github/workflows/verify-movie-mentor-durable-settlement-idempotency.yml"
   workflow_dispatch:
 
@@ -27,3 +33,21 @@ jobs:
           node-version: "20"
       - name: Verify durable mentor settlement idempotency
         run: node scripts/verify-movie-mentor-durable-settlement-idempotency.mjs
+
+      - name: Verify strict Studio settlement injection migration
+        run: node scripts/verify-movie-mentor-strict-durable-settlement-idempotency.mjs
+
+      - name: Verify strict recommendation retirement and reload
+        run: node scripts/verify-movie-mentor-strict-recommendation-lifecycle.mjs
+
+      - name: Verify strict live recommendation provenance
+        run: node scripts/verify-movie-mentor-strict-live-recommendation-provenance.mjs
+
+      - name: Verify original recommendation reference evidence migration
+        run: node scripts/verify-movie-mentor-recommendation-reference-evidence.mjs
+
+      - name: Verify strict recovery and ordinary writer lock contention
+        run: node scripts/verify-movie-mentor-strict-recovery-two-writer-lock.mjs
+
+      - name: Verify original bounded recovery retry at algorithm boundary
+        run: node scripts/verify-movie-mentor-recovery-bounded-retry-algorithm.mjs

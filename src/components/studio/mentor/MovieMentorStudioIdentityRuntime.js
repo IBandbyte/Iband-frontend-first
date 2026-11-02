@@ -8,6 +8,9 @@ import createMovieJourneyIntelligenceBridge from "./MovieJourneyIntelligenceBrid
 import createJourneyRecommendationEnvelope from "./JourneyRecommendationEnvelope.js";
 import certifyJourneyRecommendationResume from "./JourneyRecommendationResumeRecovery.js";
 import createJourneyAuthorityReadFacade from "./JourneyAuthorityReadFacade.js";
+import { requireVerifiedMemoryAuthority } from "./VerifiedMemoryAuthority.js";
+import { withMovieProjectIdentity } from "./MovieMentorProjectIdentity.js";
+import { withMovieMentorMemoryWriteAuthority, MOVIE_MENTOR_SHARED_MEMORY_WRITE_COORDINATION } from "./MovieMentorMemoryWriteAuthority.js";
 
 const MOVIE_MENTOR_STUDIO_IDENTITY_RUNTIME_VERSION = "1.10.0";
 const RECOMMENDATION_REFERENCE_DOMAIN = "iband.movie-mentor.journey-recommendation-reference";
@@ -109,11 +112,12 @@ function conversationToMessages(conversation) {
 }
 
 function createMovieMentorStudioIdentityRuntime({
-  memory = createCreatorMemory(),
+  memory = createCreatorMemory({ requireSharedWriteAuthority: true }),
   cryptoImpl = globalThis?.crypto,
   journeyAuthorityReadFacade = createJourneyAuthorityReadFacade(),
   settlementLockManager = globalThis?.navigator?.locks,
 } = {}) {
+  requireVerifiedMemoryAuthority(memory);
   const creatorSessionId = issueWorkingSessionId({ cryptoImpl });
   const pendingCreatorMessageByProject = new Map();
   const recommendationJourneyEngine = createCreatorJourneyEngine();
@@ -154,13 +158,83 @@ function createMovieMentorStudioIdentityRuntime({
   }
 
   function ensureProject({ projectJourney = null, title = "Untitled Movie" } = {}) {
-    const existing = getActiveMemoryProject();
-    if (existing) return getActiveProject();
-    return memory.saveProject({
-      title,
-      creatorType: "video",
-      status: PROJECT_STATUSES.CREATING,
-      metadata: { creatorMode: "ai-movie", creatorModeLabel: "AI Movie Making", projectJourney, createdFrom: "CreatorWorkspace" },
+    // The legacy synchronous path cannot acquire the shared recovery lock.
+    // All Studio project creation must use ensureProjectWithSharedAuthority.
+    const error = new Error("Legacy synchronous Studio project creation requires shared write authority.");
+    error.code = "MOVIE_MENTOR_LEGACY_PROJECT_WRITE_DENIED";
+    throw error;
+  }
+
+  async function ensureProjectWithSharedAuthority({ projectJourney = null, title = "Untitled Movie", locks = settlementLockManager } = {}) {
+    if (typeof memory.replaceStateWithSharedAuthority !== "function") {
+      return Object.freeze({ acquired: false, reason: "coordinated-memory-unavailable" });
+    }
+    const cleanTitle = clean(title);
+    if (!cleanTitle) return Object.freeze({ acquired: false, reason: "project-title-unavailable" });
+    return memory.replaceStateWithSharedAuthority({
+      locks,
+      transform: state => {
+        const active = (state.projects || []).find(project =>
+          project?.id === state.journey?.activeProjectId && isMovieMentorProject(project));
+        if (active) return state;
+        const timestamp = new Date().toISOString();
+        const project = withMovieProjectIdentity({
+          type: "project",
+          title: cleanTitle,
+          description: "",
+          creatorType: "video",
+          status: PROJECT_STATUSES.CREATING,
+          relatedIdeaIds: [],
+          tags: [],
+          metadata: {
+            creatorMode: "ai-movie",
+            creatorModeLabel: "AI Movie Making",
+            projectJourney,
+            createdFrom: "CreatorWorkspace",
+          },
+          createdAt: timestamp,
+          updatedAt: timestamp,
+          publishedAt: null,
+          completedAt: null,
+        }, { cryptoImpl });
+        state.projects = [...(state.projects || []), project];
+        state.journey = { ...(state.journey || {}), activeProjectId: project.id };
+        return state;
+      },
+    });
+  }
+
+  async function persistJourneyWithSharedAuthority(projectId, projectJourney, { locks = settlementLockManager } = {}) {
+    const pid = clean(projectId);
+    if (!pid || !projectJourney || typeof memory.replaceStateWithSharedAuthority !== "function") {
+      return Object.freeze({ acquired: false, reason: "journey-or-coordinated-memory-unavailable" });
+    }
+    return memory.replaceStateWithSharedAuthority({
+      locks,
+      transform: state => {
+        const index = (state.projects || []).findIndex(project => project?.id === pid && isMovieMentorProject(project));
+        if (index < 0) throw new Error("Coordinated Journey project is missing.");
+        const project = state.projects[index];
+        const currentRevision = effectiveProgressionRevision(project?.metadata?.projectJourney);
+        const proposedRevision = effectiveProgressionRevision(projectJourney);
+        if (currentRevision === null || proposedRevision === null || currentRevision !== proposedRevision) {
+          const error = new Error("Coordinated Journey progression changed before persistence.");
+          error.code = "MOVIE_MENTOR_JOURNEY_PROGRESSION_STALE";
+          throw error;
+        }
+        const nextProject = {
+          ...project,
+          updatedAt: new Date().toISOString(),
+          metadata: {
+            ...(project.metadata || {}),
+            creatorMode: "ai-movie",
+            creatorModeLabel: project.metadata?.creatorModeLabel || "AI Movie Making",
+            projectJourney: clone(projectJourney),
+          },
+        };
+        state.projects[index] = nextProject;
+        return state;
+      },
     });
   }
 
@@ -264,6 +338,11 @@ function createMovieMentorStudioIdentityRuntime({
   }
 
   function recordRecommendationReference(projectId, planningEvidence, { turnRevision = null, projectJourney = null } = {}) {
+    // Legacy synchronous recommendation writes cannot acquire the shared
+    // recovery authority. Atomic conversation settlement owns this mutation.
+    const error = new Error("Legacy synchronous recommendation recording requires shared write authority.");
+    error.code = "MOVIE_MENTOR_LEGACY_RECOMMENDATION_WRITE_DENIED";
+    throw error;
     const evidence = buildRecommendationReferenceEvidence({
       projectId,
       creatorSessionId,
@@ -351,24 +430,25 @@ function createMovieMentorStudioIdentityRuntime({
     }
   }
 
+  function recordPendingCreatorMessage(projectId, message) {
+    const pid = clean(projectId);
+    if (!pid || clean(message?.role) !== "creator" || !clean(message?.text)) return null;
+    pendingCreatorMessageByProject.set(pid, clone(message));
+    return { status: "creator-message-pending", projectId: pid };
+  }
+
   function recordConversationMessage(projectId, message, { projectJourney = null } = {}) {
     const pid = clean(projectId);
     const role = clean(message?.role);
     const text = clean(message?.text);
     if (!pid || !text || !["creator", "mentor"].includes(role)) return null;
-    if (role === "creator") {
-      pendingCreatorMessageByProject.set(pid, clone(message));
-      return { status: "creator-message-pending", projectId: pid };
-    }
+    if (role === "creator") return recordPendingCreatorMessage(pid, message);
 
-    const creatorMessage = pendingCreatorMessageByProject.get(pid) || null;
-    const conversation = memory.rememberConversation?.(
-      buildConversationInput(pid, creatorMessage, message, projectJourney)
-    ) || null;
-    const handoff = saveConversationHandoff(pid, conversation, projectJourney);
-    const recommendationReference = recordRecommendationForMessage(pid, message, projectJourney);
-    if (conversation?.id && handoff?.id) retirePendingCreatorMessage(pid, creatorMessage);
-    return { status: "conversation-persisted", projectId: pid, conversation, handoff, recommendationReference };
+    // Legacy synchronous mentor persistence cannot acquire the asynchronous
+    // recovery lock. Keep the pending creator turn intact for a safe retry.
+    const error = new Error("Legacy synchronous mentor persistence requires shared write authority.");
+    error.code = "MOVIE_MENTOR_LEGACY_MENTOR_WRITE_DENIED";
+    throw error;
   }
 
   async function withDurableSettlementAuthority(operation) {
@@ -377,7 +457,21 @@ function createMovieMentorStudioIdentityRuntime({
       error.code = "MOVIE_MENTOR_DURABLE_SETTLEMENT_AUTHORITY_REQUIRED";
       throw error;
     }
-    return settlementLockManager.request(DURABLE_SETTLEMENT_LOCK_NAME, operation);
+    // Recovery and ordinary settlement must not write the same durable blob
+    // concurrently. Acquire shared recovery authority first, then retain the
+    // existing settlement lock for creator-turn idempotency.
+    const shared = await withMovieMentorMemoryWriteAuthority({
+      locks: settlementLockManager,
+      waitForAuthority: true,
+      operation: () => settlementLockManager.request(DURABLE_SETTLEMENT_LOCK_NAME, operation),
+    });
+    if (!shared.acquired) {
+      const error = new Error("Movie Mentor settlement could not acquire shared recovery write authority.");
+      error.code = "MOVIE_MENTOR_SHARED_WRITE_AUTHORITY_REQUIRED";
+      if (shared.cause !== undefined) error.cause = shared.cause;
+      throw error;
+    }
+    return shared.value;
   }
 
   async function settleConversationMessage(projectId, message, { projectJourney = null } = {}) {
@@ -386,44 +480,115 @@ function createMovieMentorStudioIdentityRuntime({
     const text = clean(message?.text);
     if (!pid || role !== "mentor" || !text) return null;
     const creatorTurnId = clean(message?.metadata?.backendMetadata?.creatorTurnId);
-    if (!creatorTurnId) return recordConversationMessage(pid, message, { projectJourney });
+    if (!creatorTurnId) {
+      const error = new Error("Movie Mentor durable settlement requires a creator turn identity.");
+      error.code = "MOVIE_MENTOR_DURABLE_SETTLEMENT_TURN_ID_REQUIRED";
+      throw error;
+    }
+    if (!settlementLockManager || typeof settlementLockManager.request !== "function") {
+      const error = new Error("Movie Mentor durable settlement authority requires a cross-context lock manager.");
+      error.code = "MOVIE_MENTOR_DURABLE_SETTLEMENT_AUTHORITY_REQUIRED";
+      throw error;
+    }
+    if (typeof memory.settleConversationWithSharedAuthority !== "function") {
+      const error = new Error("Creator Memory does not expose atomic settlement authority.");
+      error.code = "MOVIE_MENTOR_ATOMIC_SETTLEMENT_REQUIRED";
+      throw error;
+    }
     const creatorMessage = pendingCreatorMessageByProject.get(pid) || null;
-
-    return withDurableSettlementAuthority(() => {
-      if (typeof memory.convergeConversationSettlement !== "function") {
-        const error = new Error("Creator Memory does not expose durable settlement convergence.");
-        error.code = "MOVIE_MENTOR_DURABLE_SETTLEMENT_CONVERGENCE_REQUIRED";
-        throw error;
-      }
-
-      const settlement = memory.convergeConversationSettlement(
-        buildConversationInput(pid, creatorMessage, message, projectJourney)
-      );
-      const conversation = settlement?.conversation || null;
-      if (!conversation?.id) {
-        const error = new Error("Movie Mentor durable conversation settlement failed.");
-        error.code = "MOVIE_MENTOR_DURABLE_SETTLEMENT_FAILED";
-        throw error;
-      }
-
-      const handoff = saveConversationHandoff(pid, conversation, projectJourney);
-      if (!handoff?.id) {
-        const error = new Error("Movie Mentor durable conversation handoff failed.");
-        error.code = "MOVIE_MENTOR_DURABLE_HANDOFF_FAILED";
-        throw error;
-      }
-
-      const recommendationReference = recordRecommendationForMessage(pid, message, projectJourney);
-      retirePendingCreatorMessage(pid, creatorMessage);
-      return {
-        status: "conversation-persisted",
-        settlementStatus: settlement?.status || null,
+    const conversationInput = buildConversationInput(pid, creatorMessage, message, projectJourney);
+    const handoffInput = {
+      projectId: pid,
+      sessionId: creatorSessionId,
+      title: "Movie Mentor conversation continuation",
+      content: conversationInput.creatorMessage
+        ? `Continue after the creator said: ${conversationInput.creatorMessage}`
+        : "Continue from the latest Movie Mentor response.",
+      value: {
+        lastCreatorMessage: conversationInput.creatorMessage || null,
+        lastMentorResponse: conversationInput.mentorResponse || null,
+        projectJourney: clone(projectJourney),
+      },
+      metadata: { projectId: pid, creatorSessionId, source: "movie-mentor-conversation" },
+    };
+    // Planning is advisory and must not write outside the atomic transaction.
+    let recommendationInput = null;
+    if (message?.metadata?.liveBackendTurn === true && projectJourney) {
+      const postCommitCreatorAuthority = clone(message?.metadata?.postCommitCreatorAuthority || message?.metadata?.backendMetadata?.postCommitCreatorAuthority || null);
+      const planning = recommendationJourneyBridge.consumeTurnForJourneyPlanning(projectJourney, {
+        status: message?.metadata?.backendMetadata?.status || null,
+        turnContextProof: clone(message?.metadata?.turnContextProof || null),
+        postCommitCreatorAuthority,
+        semanticIntelligence: clone(message?.metadata?.semanticIntelligence || null),
+        specialistResult: clone(message?.metadata?.specialistResult || null),
+        continuityConsequenceEnvelope: clone(message?.metadata?.continuityConsequenceEnvelope || null),
+        authority: clone(message?.metadata?.authority || null),
+        mayAdvanceJourney: message?.metadata?.mayAdvanceJourney === true,
+      }, {
+        source: "MovieMentorStudioIdentityRuntime",
+        turnRevision: message?.metadata?.turnContextProof?.revision ?? null,
+      });
+      const planningEvidence = planning?.journeyPlanningEvidence || null;
+      const recommendationRevision = planningEvidence?.provenance?.authorityRevision ?? message?.metadata?.turnContextProof?.revision ?? null;
+      const evidence = buildRecommendationReferenceEvidence({
         projectId: pid,
-        conversation,
-        handoff,
-        recommendationReference,
-      };
+        creatorSessionId,
+        projectJourney,
+        planningEvidence,
+        turnRevision: recommendationRevision,
+      });
+      if (evidence) {
+        recommendationInput = {
+          projectId: pid,
+          memoryKey: `journey-recommendation:${evidence.recommendationId}`,
+          content: evidence.recommendation.recommendedNextStep || "Movie Mentor Journey recommendation",
+          source: MEMORY_SOURCES.MENTOR,
+          certainty: MEMORY_CERTAINTY.OBSERVED,
+          confidence: evidence.recommendation.confidence ?? 1,
+          metadata: {
+            projectId: pid,
+            creatorSessionId,
+            source: "movie-mentor-journey-recommendation",
+            recommendationReference: clone(evidence),
+          },
+        };
+      }
+    }
+    // Atomic API acquires shared recovery authority first and then the
+    // creator-turn lock. Never nest it inside withDurableSettlementAuthority.
+    const result = await memory.settleConversationWithSharedAuthority({
+      locks: settlementLockManager,
+      settlementLockName: DURABLE_SETTLEMENT_LOCK_NAME,
+      projectId: pid,
+      creatorTurnId,
+      conversation: conversationInput,
+      handoff: handoffInput,
+      recommendation: recommendationInput,
     });
+    if (!result?.acquired) {
+      const error = new Error("Movie Mentor atomic settlement could not acquire write authority.");
+      error.code = "MOVIE_MENTOR_SHARED_WRITE_AUTHORITY_REQUIRED";
+      if (result?.cause !== undefined) error.cause = result.cause;
+      throw error;
+    }
+    const settlement = result.value;
+    const conversation = settlement?.conversation || null;
+    if (!conversation?.id) {
+      const error = new Error("Movie Mentor atomic conversation settlement failed.");
+      error.code = "MOVIE_MENTOR_DURABLE_SETTLEMENT_FAILED";
+      throw error;
+    }
+    retirePendingCreatorMessage(pid, creatorMessage);
+    return {
+      status: "conversation-persisted",
+      settlementStatus: settlement?.status || null,
+      projectId: pid,
+      conversation,
+      handoff: settlement?.handoff || null,
+      recommendationReference: settlement?.recommendation
+        ? { ...settlement.recommendation, retiredRecommendationIds: settlement.retiredRecommendationIds || [] }
+        : null,
+    };
   }
 
   function resumeProjectConversation(projectId) {
@@ -431,7 +596,8 @@ function createMovieMentorStudioIdentityRuntime({
     if (!pid) return { messages: [], handoff: null };
     const handoff = getProjectHandoff(pid);
     const messages = getProjectConversationMessages(pid);
-    if (handoff?.id) memory.markSessionHandoffResumed?.(handoff.id);
+    // Reading a handoff must not mutate durable Creator Memory. A resumed
+    // marker, if needed, requires a separate shared-authority transaction.
     return { messages, handoff };
   }
 
@@ -449,6 +615,65 @@ function createMovieMentorStudioIdentityRuntime({
     });
   }
 
+  async function recoverResumeRecommendationsWithSharedAuthority({ locks = settlementLockManager } = {}) {
+    const active = getActiveMemoryProject();
+    if (!active) return Object.freeze({ acquired: false, reason: "no-active-project" });
+    if (typeof memory.runRecoveryWithSharedAuthority !== "function") {
+      return Object.freeze({ acquired: false, reason: "coordinated-recovery-unavailable" });
+    }
+    const preferred = getPreferredJourney(active.id);
+    if (preferred?.status === "authority" && preferred?.projectionStatus !== "in-sync") {
+      return Object.freeze({
+        acquired: false,
+        reason: "authority-projection-divergence",
+        recommendationRecovery: blockedDivergentProjectionRecovery(active.id, preferred),
+      });
+    }
+    return memory.runRecoveryWithSharedAuthority({
+      locks,
+      operation: fresh => certifyJourneyRecommendationResume({
+        identityRuntime: { memory: fresh },
+        projectId: active.id,
+      }),
+    });
+  }
+
+  // Post-transaction view only. A successful lock alone is insufficient:
+  // require an unblocked certification for the same active project, then
+  // recheck fresh persisted Journey authority before exposing references.
+  function getCertifiedResumeSnapshot(transaction, expectedProjectId) {
+    const pid = clean(expectedProjectId);
+    const certification = transaction?.value;
+    if (!transaction?.acquired || !pid ||
+        certification?.projectId !== pid ||
+        certification?.recommendationActionsBlocked !== false ||
+        !["certified", "repaired", "proof-conflict-quarantined"].includes(certification?.status)) {
+      return null;
+    }
+    const active = getActiveMemoryProject();
+    if (active?.id !== pid) return null;
+    const project = typeof memory.getPersistedProject === "function"
+      ? memory.getPersistedProject(pid) : memory.getProject?.(pid) || null;
+    if (!isMovieMentorProject(project)) return null;
+    const conversation = resumeProjectConversation(pid);
+    const preferred = getPreferredJourney(pid, {
+      fallbackJourney: conversation.handoff?.value?.projectJourney || null,
+    });
+    if (preferred?.status === "authority" && preferred?.projectionStatus !== "in-sync") return null;
+    return {
+      project,
+      projectId: pid,
+      creatorSessionId,
+      projectJourney: preferred?.projectJourney || conversation.handoff?.value?.projectJourney || null,
+      journeyAuthorityRead: clone(preferred),
+      conversationMessages: conversation.messages,
+      sessionHandoff: conversation.handoff,
+      currentRecommendationReferences: getCurrentRecommendationReferences(pid),
+      recommendationRecovery: clone(certification),
+      recommendationActionsBlocked: false,
+    };
+  }
+
   function getResumeSnapshot() {
     const initiallyActiveProject = getActiveMemoryProject();
     if (!initiallyActiveProject) return null;
@@ -457,11 +682,19 @@ function createMovieMentorStudioIdentityRuntime({
     const authorityProjectionDiverged = preferredBeforeRecovery?.status === "authority" &&
       preferredBeforeRecovery?.projectionStatus !== "in-sync";
 
+    // This synchronous method is called during React render. Never perform
+    // lifecycle repair or proof-conflict quarantine from a render-time read.
+    // Recommendation actions remain blocked until a separate shared-authority
+    // recovery transaction has certified the durable state.
     const recommendationRecovery = authorityProjectionDiverged
       ? blockedDivergentProjectionRecovery(initiallyActiveProject.id, preferredBeforeRecovery)
-      : certifyJourneyRecommendationResume({
-          identityRuntime: { memory },
+      : Object.freeze({
+          status: "shared-authority-recovery-required",
           projectId: initiallyActiveProject.id,
+          recommendationActionsBlocked: true,
+          recoveryResult: null,
+          recoveryAttempts: 0,
+          errorCode: "JOURNEY_RECOMMENDATION_SHARED_AUTHORITY_REQUIRED",
         });
 
     // Recovery may change only recommendation metadata. Re-read both Creator Memory
@@ -500,15 +733,20 @@ function createMovieMentorStudioIdentityRuntime({
     getActiveProject,
     getPreferredJourney,
     ensureProject,
+    ensureProjectWithSharedAuthority,
     persistJourney,
+    persistJourneyWithSharedAuthority,
     getProjectConversationMessages,
     getProjectHandoff,
     getCurrentRecommendationReferences,
     retireSupersededRecommendationReferences,
     recordRecommendationReference,
     recordConversationMessage,
+    recordPendingCreatorMessage,
     settleConversationMessage,
     resumeProjectConversation,
+    recoverResumeRecommendationsWithSharedAuthority,
+    getCertifiedResumeSnapshot,
     getResumeSnapshot,
   };
 }

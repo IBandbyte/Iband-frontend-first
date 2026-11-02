@@ -35,6 +35,187 @@ jobs:
           node-version: "20"
       - name: Install dependencies
         run: npm i --no-audit --no-fund
+      - name: Verify Movie Mentor invalid durable acknowledgement
+        run: node scripts/verify-movie-mentor-invalid-durable-acknowledgement.mjs
+      - name: Verify stale ordinary writer cannot overwrite recovered state
+        run: node scripts/verify-movie-mentor-recovery-two-writer-contention.mjs
+      - name: Verify synchronous legacy persistence compatibility
+        if: always()
+        run: node scripts/verify-movie-mentor-recovery-sync-compatibility.mjs
+      - name: Verify waiting settlement authority contention
+        if: always()
+        run: node scripts/verify-movie-mentor-settlement-waiting-authority.mjs
+      - name: Verify settlement shares recovery writer authority
+        if: always()
+        run: node scripts/verify-movie-mentor-settlement-recovery-shared-authority.mjs
+      - name: Verify opt-in coordinated ordinary write
+        if: always()
+        run: node scripts/verify-movie-mentor-coordinated-ordinary-write.mjs
+      - name: Verify synchronous ordinary writer guard
+        if: always()
+        run: node scripts/verify-movie-mentor-ordinary-write-guard.mjs
+      - name: Verify asynchronous shared memory write authority
+        if: always()
+        run: node scripts/verify-movie-mentor-memory-write-authority.mjs
+      - name: Verify strict ordinary writer fail-closed migration
+        if: always()
+        run: node scripts/verify-movie-mentor-strict-ordinary-writer-fence.mjs
+      - name: Verify strict legacy project hydration without constructor writes
+        if: always()
+        run: node scripts/verify-movie-mentor-strict-legacy-hydration.mjs
+      - name: Verify atomic settlement lock ordering
+        if: always()
+        run: node scripts/verify-movie-mentor-atomic-settlement-lock-order.mjs
+      - name: Verify atomic mentor settlement fault and retry
+        if: always()
+        run: node scripts/verify-movie-mentor-atomic-settlement-fault-retry.mjs
+      - name: Verify atomic strict mentor settlement boundary
+        if: always()
+        run: node scripts/verify-movie-mentor-atomic-strict-settlement.mjs
+      - name: Verify strict mentor settlement compatibility
+        if: always()
+        run: node scripts/verify-movie-mentor-strict-settlement-compatibility.mjs
+      - name: Verify Response Generator strict memory authority
+        if: always()
+        run: node scripts/verify-movie-mentor-response-generator-strict-memory-authority.mjs
+      - name: Verify Studio strict read and coordinated contract
+        if: always()
+        run: node scripts/verify-movie-mentor-studio-strict-read-and-coordinated-contract.mjs
+      - name: Verify default Studio strict writer authority
+        if: always()
+        run: node scripts/verify-movie-mentor-studio-default-strict-authority.mjs
+      - name: Verify workspace Journey writer caller migration
+        if: always()
+        run: node scripts/verify-movie-mentor-workspace-journey-caller-migration.mjs
+      - name: Verify legacy recommendation writer denial
+        if: always()
+        run: node scripts/verify-movie-mentor-legacy-recommendation-writer-denial.mjs
+      - name: Verify unrecognised injected writer method boundary
+        if: always()
+        run: node scripts/verify-movie-mentor-unrecognised-injected-writer.mjs
+      - name: Verify injected memory authority contract and compatibility
+        if: always()
+        run: node scripts/verify-movie-mentor-response-generator-authority-contract.mjs
+      - name: Verify caller-retained injected memory writer authority
+        if: always()
+        run: node scripts/verify-movie-mentor-response-generator-retained-memory-reference.mjs
+      - name: Physically verify injected ResponseGenerator memory authority
+        if: always()
+        run: node scripts/verify-movie-mentor-response-generator-injected-memory-physical.mjs
+      - name: Verify injected ResponseGenerator memory authority boundary
+        if: always()
+        run: node scripts/verify-movie-mentor-response-generator-injected-memory-boundary.mjs
+      - name: Inventory permissive caller reachability boundaries
+        if: always()
+        run: node scripts/verify-movie-mentor-permissive-caller-reachability.mjs
+      - name: Verify legacy compatibility versus strict authority boundary
+        if: always()
+        run: node scripts/verify-movie-mentor-authority-mode-boundary.mjs
+      - name: Verify live Studio writer reachability
+        if: always()
+        run: node scripts/verify-movie-mentor-live-studio-writer-reachability.mjs
+      - name: Verify production writer cutover boundary
+        if: always()
+        run: node scripts/verify-movie-mentor-production-writer-cutover-boundary.mjs
+      - name: Verify downstream memory rebind authority boundary
+        if: always()
+        run: node scripts/verify-movie-mentor-downstream-memory-rebind-boundary.mjs
+      - name: Classify Studio and response-engine writer authorities
+        if: always()
+        run: node scripts/verify-movie-mentor-writer-caller-classification.mjs
+      - name: Inventory ordinary writer migration boundaries
+        if: always()
+        run: node scripts/verify-movie-mentor-ordinary-writer-migration-inventory.mjs
+      - name: Verify strict Studio refusal before legacy commit race
+        if: always()
+        run: node scripts/verify-movie-mentor-strict-writer-race-preservation.mjs
+      - name: Verify strict Studio cockpit migration
+        if: always()
+        run: node scripts/verify-movie-mentor-studio-strict-cockpit-migration.mjs
+      - name: Verify Studio runtime memory injection authority
+        if: always()
+        run: node scripts/verify-movie-mentor-studio-runtime-memory-injection-authority.mjs
+      - name: Verify coordinated writer invalid transform
+        if: always()
+        run: node scripts/verify-movie-mentor-coordinated-writer-invalid-transform.mjs
+      - name: Verify coordinated writer authority denial
+        if: always()
+        run: node scripts/verify-movie-mentor-coordinated-writer-authority-denial.mjs
+      - name: Verify coordinated writer stale baseline preservation
+        if: always()
+        run: node scripts/verify-movie-mentor-coordinated-writer-stale-baseline.mjs
+      - name: Verify ordinary writer check-to-commit race
+        if: always()
+        run: node scripts/verify-movie-mentor-ordinary-write-check-commit-race.mjs
+      - name: Verify legacy Studio project writer fails closed
+        if: always()
+        run: node scripts/verify-movie-mentor-legacy-project-writer-denial.mjs
+      - name: Verify Studio resume is read-only under shared authority
+        if: always()
+        run: node scripts/verify-movie-mentor-resume-read-only-authority.mjs
+      - name: Verify legacy mentor writer fails closed
+        if: always()
+        run: node scripts/verify-movie-mentor-legacy-mentor-writer-denial.mjs
+      - name: Verify workspace conversation shared authority migration
+        if: always()
+        run: node scripts/verify-movie-mentor-workspace-conversation-shared-authority.mjs
+      - name: Verify real workspace coordinated Journey mode caller
+        if: always()
+        run: node scripts/verify-movie-mentor-workspace-coordinated-journey-caller.mjs
+      - name: Verify real workspace coordinated creation caller
+        if: always()
+        run: node scripts/verify-movie-mentor-workspace-coordinated-creation-caller.mjs
+      - name: Verify Studio coordinated project creation migration
+        if: always()
+        run: node scripts/verify-movie-mentor-studio-coordinated-project-creation.mjs
+      - name: Witness recovery collision callback entry
+        if: always()
+        run: node scripts/verify-movie-mentor-recovery-collision-entry-witness.mjs
+      - name: Verify exclusive-lock refusal keeps resume blocked
+        if: always()
+        run: node scripts/verify-movie-mentor-resume-lock-refusal.mjs
+      - name: Verify denied-lock resume fails closed
+        if: always()
+        run: node scripts/verify-movie-mentor-resume-denied-lock.mjs
+      - name: Verify certified resume safe adoption
+        if: always()
+        run: node scripts/verify-movie-mentor-resume-safe-adoption.mjs
+      - name: Verify fresh-memory shared-authority resume recovery
+        if: always()
+        run: node scripts/verify-movie-mentor-resume-fresh-memory-authority.mjs
+      - name: Verify resume render-time write boundary
+        if: always()
+        run: node scripts/verify-movie-mentor-resume-render-write-boundary.mjs
+      - name: Verify resume repair shared writer authority
+        if: always()
+        run: node scripts/verify-movie-mentor-resume-repair-shared-authority.mjs
+      - name: Verify lifecycle caller authority inventory
+        if: always()
+        run: node scripts/verify-movie-mentor-lifecycle-caller-authority.mjs
+      - name: Verify Studio legacy writer reachability
+        if: always()
+        run: node scripts/verify-movie-mentor-studio-legacy-writer-reachability.mjs
+      - name: Inventory writer caller reachability
+        if: always()
+        run: node scripts/verify-movie-mentor-writer-caller-reachability.mjs
+      - name: Verify strict ordinary writer overlap during recovery authority
+        if: always()
+        run: node scripts/verify-movie-mentor-strict-ordinary-recovery-overlap.mjs
+      - name: Witness eligible Studio recovery collision entry
+        if: always()
+        run: node scripts/verify-movie-mentor-overlap-fixture-entry.mjs
+      - name: Verify studio project creation overlap during recovery authority
+        if: always()
+        run: node scripts/verify-movie-mentor-studio-project-recovery-overlap.mjs
+      - name: Verify coordinated writer denied during recovery overlap
+        if: always()
+        run: node scripts/verify-movie-mentor-coordinated-writer-overlap.mjs
+      - name: Verify ordinary writer overlap during recovery authority
+        run: node scripts/verify-movie-mentor-recovery-overlap-authority.mjs
+        if: always()
+      - name: Verify shared recovery and ordinary writer coordination
+        if: always()
+        run: node scripts/verify-movie-mentor-recovery-shared-writer-coordination.mjs
       - name: Verify Movie Mentor durable state sync
         run: npm run verify:movie-mentor-durable-sync
       - name: Verify Movie Mentor live backend turn gateway

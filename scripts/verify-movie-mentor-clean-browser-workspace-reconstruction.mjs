@@ -1,0 +1,10 @@
+import assert from "node:assert/strict";
+import fs from "node:fs";
+const source=fs.readFileSync(new URL("../src/components/studio/CreatorWorkspace.jsx",import.meta.url),"utf8");
+assert.match(source,/recoverMovieMentorCreatorState/,"CreatorWorkspace must invoke authenticated server recovery");
+assert.match(source,/useEffect/,"CreatorWorkspace must handle async recovery lifecycle");
+assert.match(source,/setProjectJourney/,"recovery must populate the visible project journey");
+assert.match(source,/setActiveMovieProject/,"recovery must restore the active creator project");
+assert.match(source,/setMovieMessages/,"recovery must restore conversation presentation");
+assert.match(source,/recoveryStatus|recoveryError|setRecoveryStatus/,"workspace must expose recovery state rather than silently treating failure as an empty project");
+console.log("GREEN: CreatorWorkspace declares authenticated server recovery and visible state reconstruction.");

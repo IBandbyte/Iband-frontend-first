@@ -10,6 +10,7 @@ on:
       - "src/components/studio/mentor/CreatorMemory.js"
       - "src/components/studio/mentor/CreatorMemoryCore.js"
       - "scripts/verify-movie-mentor-live-acceptance-loop.mjs"
+      - "scripts/verify-movie-mentor-strict-live-acceptance-loop.mjs"
       - ".github/workflows/verify-movie-mentor-live-acceptance-loop.yml"
   push:
     branches: [main]
@@ -20,6 +21,7 @@ on:
       - "src/components/studio/mentor/CreatorMemory.js"
       - "src/components/studio/mentor/CreatorMemoryCore.js"
       - "scripts/verify-movie-mentor-live-acceptance-loop.mjs"
+      - "scripts/verify-movie-mentor-strict-live-acceptance-loop.mjs"
       - ".github/workflows/verify-movie-mentor-live-acceptance-loop.yml"
   workflow_dispatch:
 
@@ -57,3 +59,9 @@ jobs:
 
       - name: Verify uninterrupted recommendation acceptance loop
         run: node scripts/verify-movie-mentor-live-acceptance-loop.mjs
+
+      - name: Check strict Door 11D4 migration harness syntax
+        run: node --check scripts/verify-movie-mentor-strict-live-acceptance-loop.mjs
+
+      - name: Verify strict uninterrupted recommendation acceptance loop
+        run: node scripts/verify-movie-mentor-strict-live-acceptance-loop.mjs

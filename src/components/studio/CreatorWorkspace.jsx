@@ -1,4 +1,6 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
+import { listOwnedMovieMentorProjects, recoverMovieMentorCreatorState } from "./mentor/MovieMentorDurableStateSync.js";
+import { projectRecoveredCreatorWorkspace } from "./mentor/MovieMentorRecoveredWorkspaceProjection.js";
 import AiMentor from "./AiMentor";
 import MentorConversation from "./MentorConversation";
 import PromptBuilder from "./PromptBuilder";
@@ -77,6 +79,104 @@ const CreatorWorkspace = ({ creatorName = "Creator", initialCreator = "", onGene
   const [showCreatorModeChoices, setShowCreatorModeChoices] = useState(resumedMovie ? false : Boolean(initialCreator));
   const [mentorMessage, setMentorMessage] = useState(resumedMovie ? `Welcome back. Your movie project “${resumeSnapshot.project.title}” is ready to continue.` : "I've got your back. Choose what you would like to create, then tell me about your idea.");
 
+  // Resume recommendation repair is a post-render operation. The initial
+  // snapshot stays read-only and blocked; a cancelled effect never publishes
+  // an outdated recovery result over a newer workspace session.
+  const [resumeRepairStatus, setResumeRepairStatus] = useState(resumedMovie ? "pending" : "not-required");
+  const [certifiedResumeSnapshot, setCertifiedResumeSnapshot] = useState(null);
+  useEffect(() => {
+    if (!resumeSnapshot?.projectId) return undefined;
+    let cancelled = false;
+    const projectId = resumeSnapshot.projectId;
+    void (async () => {
+      try {
+        const result = await identityRuntime.recoverResumeRecommendationsWithSharedAuthority();
+        if (cancelled) return;
+        if (!result?.acquired) {
+          setResumeRepairStatus("blocked");
+          return;
+        }
+        const current = identityRuntime.getResumeSnapshot();
+        if (current?.projectId !== projectId) {
+          setResumeRepairStatus("stale");
+          return;
+        }
+        const certified = identityRuntime.getCertifiedResumeSnapshot(result, projectId);
+        if (!certified || certified.projectId !== projectId) {
+          setResumeRepairStatus("blocked");
+          return;
+        }
+        // Adopt the certified read as evidence only. Do not publish its
+        // recommendation references into editable controls until competing
+        // writers and fresh-browser recovery are independently certified.
+        setCertifiedResumeSnapshot(certified);
+        setResumeRepairStatus("certified-read-only");
+      } catch {
+        if (!cancelled) setResumeRepairStatus("blocked");
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [identityRuntime, resumeSnapshot?.projectId]);
+
+  const [ownedMovieProjects, setOwnedMovieProjects] = useState([]);
+  const [ownedProjectsStatus, setOwnedProjectsStatus] = useState("idle");
+  const [ownedProjectsError, setOwnedProjectsError] = useState(null);
+  const [discoveryAttempt, setDiscoveryAttempt] = useState(0);
+  useEffect(() => {
+    if (!discoveryAttempt) return undefined;
+    let cancelled = false;
+    setOwnedProjectsStatus("loading");
+    setOwnedProjectsError(null);
+    setOwnedMovieProjects([]);
+    void (async () => {
+      try {
+        const projects = await listOwnedMovieMentorProjects();
+        if (cancelled) return;
+        setOwnedMovieProjects(projects);
+        setOwnedProjectsStatus("ready");
+      } catch (error) {
+        if (cancelled) return;
+        setOwnedProjectsStatus("failed");
+        setOwnedProjectsError(error?.message || "Unable to discover your projects.");
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [discoveryAttempt]);
+  const [recoveryProjectId, setRecoveryProjectId] = useState("");
+  const [recoveryRequest, setRecoveryRequest] = useState(null);
+  const [recoveryStatus, setRecoveryStatus] = useState("idle");
+  const [recoveryError, setRecoveryError] = useState(null);
+  const [serverRecoveredPreview, setServerRecoveredPreview] = useState(null);
+  useEffect(() => {
+    if (!recoveryRequest) return undefined;
+    let cancelled = false;
+    setRecoveryStatus("loading");
+    setRecoveryError(null);
+    void (async () => {
+      try {
+        const state = await recoverMovieMentorCreatorState({ projectId: recoveryRequest });
+        const recovered = projectRecoveredCreatorWorkspace({ projectId: recoveryRequest, state });
+        if (cancelled) return;
+        // The authoritative read is safe to display, but must not be written
+        // into the local identity runtime without an explicit adoption fence.
+        // Keep the existing workspace's mutation controls disabled by retaining
+        // its separate local project identity until that gate is implemented.
+        setServerRecoveredPreview(recovered);
+        setRecoveryStatus("preview-ready");
+      } catch (error) {
+        if (cancelled) return;
+        setRecoveryStatus("failed");
+        setRecoveryError(error?.message || "Unable to recover this project.");
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [recoveryRequest]);
+  const requestServerRecovery = () => {
+    const projectId = recoveryProjectId.trim();
+    if (!projectId) { setRecoveryError("Enter your existing project ID."); return; }
+    setRecoveryRequest(projectId);
+    setRecoveryStatus("loading");
+  };
   const activeCreator = useMemo(() => CREATOR_OPTIONS.find((creator) => creator.id === selectedCreator) || null, [selectedCreator]);
   const projectJourneySnapshot = useMemo(() => projectJourney ? creatorJourneyEngine.createSnapshot(projectJourney) : null, [projectJourney]);
   const projectJourneyOrientation = useMemo(() => projectJourney ? creatorJourneyEngine.getOrientation(projectJourney) : null, [projectJourney]);
@@ -97,27 +197,46 @@ const CreatorWorkspace = ({ creatorName = "Creator", initialCreator = "", onGene
   const canGenerate = journeyReady && selectedCreatorMode !== "ai-movie" && Boolean(idea.trim()) && projectStatus !== "generating";
   const createProjectPayload = () => ({ projectId: activeMovieProject?.id || null, creatorSessionId: identityRuntime.creatorSessionId, creatorType: selectedCreator, creatorLabel: activeCreator?.label || selectedCreator, creatorMode: selectedCreatorMode || null, creatorModeLabel: selectedCreatorModeLabel || null, creatorJourney, projectJourney, projectJourneySnapshot, projectJourneyOrientation, movieJourneyPlanningEvidence, idea: idea.trim(), generatedIdea });
   const createMovieJourney = ({ creatorModeLabel, workingMode = creatorJourney } = {}) => creatorJourneyEngine.createMovieJourney({ creatorType: "video", creatorMode: "ai-movie", creatorJourney: workingMode, metadata: { creatorModeLabel: creatorModeLabel || "AI Movie Making", createdFrom: "CreatorWorkspace" } });
-  const persistMovieJourney = (nextJourney, project = activeMovieProject) => { if (project?.id && nextJourney) identityRuntime.persistJourney(project.id, nextJourney); };
 
   const handleCreatorSelect = (creator) => { const creatorChanged = selectedCreator !== creator.id; setSelectedCreator(creator.id); setShowCreatorChoices(false); setShowCreatorModeChoices(true); if (creatorChanged) { setSelectedCreatorMode(""); setSelectedCreatorModeLabel(""); setIdea(""); setGeneratedIdea(""); setProjectStatus("idle"); setProjectJourney(null); setActiveMovieProject(null); setMovieMessages([]); setMovieJourneyPlanningEvidence(null); setDismissedRecommendationId(null); } const messages = { video: "Let's create something visual. Choose what you'd like to make, and we'll take it from there.", image: "Let's create something visual. Choose what kind of image you'd like to make, and we'll shape it together.", music: "Let's create something with music. Choose where you'd like to begin, and we'll build from there.", podcast: "Let's build your podcast project. Choose what you'd like to create, and we'll take it one step at a time.", story: "Let's build your story. Choose what you'd like to create, and we'll develop it together.", marketing: "Let's create something that gets attention. Choose the kind of marketing project you want to make.", social: "Let's create something for social media. Choose what you'd like to make, and we'll shape it together." }; setMentorMessage(messages[creator.id] || "Tell me what you'd like to create. We can shape the idea together."); };
 
-  const handleCreatorModeSelect = (mode) => { const modeChanged = selectedCreatorMode !== mode.id; setSelectedCreatorMode(mode.id); setSelectedCreatorModeLabel(mode.label); setShowCreatorModeChoices(false); if (mode.id === "ai-movie") { const existing = identityRuntime.getActiveProject(); const nextJourney = existing?.metadata?.projectJourney || createMovieJourney({ creatorModeLabel: mode.label }); const project = existing || identityRuntime.ensureProject({ projectJourney: nextJourney }); const continuation = existing ? identityRuntime.resumeProjectConversation(project.id) : { messages: [] }; setActiveMovieProject(project); setProjectJourney(nextJourney); setProjectStatus(existing ? "saved" : "creating"); setMovieMessages(continuation.messages || []); setMovieJourneyPlanningEvidence(null); setDismissedRecommendationId(null); persistMovieJourney(nextJourney, project); } else if (modeChanged) { setActiveMovieProject(null); setProjectJourney(null); setProjectStatus("idle"); setMovieMessages([]); setMovieJourneyPlanningEvidence(null); setDismissedRecommendationId(null); } if (modeChanged) { setIdea(""); setGeneratedIdea(""); } const messages = { "ai-movie": "Welcome. You don't need to know how to make a movie. I'll help you through it one step at a time. Tell me the idea in your head—even if it's only one sentence.", "movie-scene": "Let's build your scene together. Tell me what you imagine happening, even if you only know one moment, character or location.", "music-video": "Let's turn your music into a visual story. Tell me about the song and anything you already imagine seeing on screen.", advert: "Let's create a video advert that gets attention. Tell me what you're promoting and the main thing you want people to remember.", "short-reel": "Let's make something short, clear and engaging. Tell me the idea, message or moment you want the Reel or Short to capture.", "lyric-video": "Let's bring your lyrics to life visually. Tell me about the song, its mood and any visual ideas you already have.", "animation-cartoon": "Let's build your animated world. Tell me the idea, character or scene you have in mind, even if it's only the beginning.", documentary: "Let's shape your documentary one step at a time. Tell me the real story, subject or question you want to explore." }; setMentorMessage(messages[mode.id] || `Great choice. Let's create your ${mode.label.toLowerCase()} together. Tell me what you already have in mind, even if it's only a rough idea.`); };
+  const handleCreatorModeSelect = async (mode) => { const modeChanged = selectedCreatorMode !== mode.id; setSelectedCreatorMode(mode.id); setSelectedCreatorModeLabel(mode.label); setShowCreatorModeChoices(false); if (mode.id === "ai-movie") { const existing = identityRuntime.getActiveProject(); const nextJourney = existing?.metadata?.projectJourney || createMovieJourney({ creatorModeLabel: mode.label }); let project = existing; if (!project) { const creation = await identityRuntime.ensureProjectWithSharedAuthority({ projectJourney: nextJourney, locks: globalThis?.navigator?.locks }); if (creation.acquired !== true) { setProjectStatus("error"); setMentorMessage("Your movie project could not be safely saved. Please try again in a browser that supports secure shared storage."); return; } project = identityRuntime.getActiveProject(); if (!project?.id) { setProjectStatus("error"); setMentorMessage("Your movie project could not be confirmed after saving. Please try again."); return; } } const continuation = existing ? identityRuntime.resumeProjectConversation(project.id) : { messages: [] }; setActiveMovieProject(project); setProjectJourney(nextJourney); setProjectStatus(existing ? "saved" : "creating"); setMovieMessages(continuation.messages || []); setMovieJourneyPlanningEvidence(null); setDismissedRecommendationId(null); /* Initial Journey is already committed under shared authority; no second synchronous write. */ } else if (modeChanged) { setActiveMovieProject(null); setProjectJourney(null); setProjectStatus("idle"); setMovieMessages([]); setMovieJourneyPlanningEvidence(null); setDismissedRecommendationId(null); } if (modeChanged) { setIdea(""); setGeneratedIdea(""); } const messages = { "ai-movie": "Welcome. You don't need to know how to make a movie. I'll help you through it one step at a time. Tell me the idea in your head—even if it's only one sentence.", "movie-scene": "Let's build your scene together. Tell me what you imagine happening, even if you only know one moment, character or location.", "music-video": "Let's turn your music into a visual story. Tell me about the song and anything you already imagine seeing on screen.", advert: "Let's create a video advert that gets attention. Tell me what you're promoting and the main thing you want people to remember.", "short-reel": "Let's make something short, clear and engaging. Tell me the idea, message or moment you want the Reel or Short to capture.", "lyric-video": "Let's bring your lyrics to life visually. Tell me about the song, its mood and any visual ideas you already have.", "animation-cartoon": "Let's build your animated world. Tell me the idea, character or scene you have in mind, even if it's only the beginning.", documentary: "Let's shape your documentary one step at a time. Tell me the real story, subject or question you want to explore." }; setMentorMessage(messages[mode.id] || `Great choice. Let's create your ${mode.label.toLowerCase()} together. Tell me what you already have in mind, even if it's only a rough idea.`); };
 
-  const handleCreatorJourneyChange = (nextWorkingMode) => { setCreatorJourney(nextWorkingMode); setProjectJourney((currentJourney) => { const nextJourney = currentJourney ? { ...currentJourney, creatorJourney: nextWorkingMode, updatedAt: new Date().toISOString() } : currentJourney; persistMovieJourney(nextJourney); return nextJourney; }); };
+  const handleCreatorJourneyChange = async (nextWorkingMode) => {
+    const currentJourney = projectJourney;
+    const projectId = activeMovieProject?.id;
+    if (!currentJourney || !projectId) {
+      setProjectStatus("error");
+      setMentorMessage("Your movie Journey could not be safely saved. Please reopen the project and try again.");
+      return;
+    }
+    const nextJourney = { ...currentJourney, creatorJourney: nextWorkingMode, updatedAt: new Date().toISOString() };
+    const result = await identityRuntime.persistJourneyWithSharedAuthority(projectId, nextJourney, {
+      locks: globalThis?.navigator?.locks,
+    });
+    if (result.acquired !== true) {
+      setProjectStatus("error");
+      setMentorMessage("Your Journey change was not saved because exclusive storage authority was unavailable. Please try again.");
+      return;
+    }
+    setCreatorJourney(nextWorkingMode);
+    setProjectJourney(nextJourney);
+  };
   const handleMovieMessage = (message) => {
     setMovieMessages((current) => [...current, message]);
     if (!activeMovieProject?.id) return;
     const journey = projectJourneySnapshot || projectJourney;
-    if (message?.role === "mentor" && message?.metadata?.backendMetadata?.creatorTurnId) {
+    if (message?.role === "mentor") {
       void identityRuntime
         .settleConversationMessage(activeMovieProject.id, message, { projectJourney: journey })
         .catch((error) => {
           console.error("CreatorWorkspace durable mentor settlement error:", error);
+          setProjectStatus("error");
           setMentorMessage("Your conversation is still here, but I couldn't complete the durable conversation save just now. The pending creator turn has been kept for a safe retry.");
         });
       return;
     }
-    identityRuntime.recordConversationMessage(activeMovieProject.id, message, { projectJourney: journey });
+    identityRuntime.recordPendingCreatorMessage(activeMovieProject.id, message);
   };
   const handleMovieMentorTurnResult = async (turnResult) => { const projection = await projectCommittedCreatorAuthorityIntoJourney({ journeyEngine: creatorJourneyEngine, identityRuntime, projectJourney, projectId: activeMovieProject?.id || null, turnResult }); const authoritativeJourney = projection.projectJourney || projectJourney; if (projection.projected) setProjectJourney(authoritativeJourney); const planning = movieJourneyIntelligenceBridge.consumeTurnForJourneyPlanning(authoritativeJourney, turnResult, { source: "MovieMentorConversation", turnStatus: turnResult?.status || null, turnRevision: turnResult?.turnContextProof?.revision ?? null }); setMovieJourneyPlanningEvidence(planning.journeyPlanningEvidence || null); };
 
@@ -178,6 +297,31 @@ const CreatorWorkspace = ({ creatorName = "Creator", initialCreator = "", onGene
   return (
     <main style={styles.workspace}>
       <section style={styles.welcomeSection}><p style={styles.eyebrow}>iBand Studio</p><h1 style={styles.title}>Welcome back, {creatorName}.</h1><p style={styles.subtitle}>What would you like to create today?</p></section>
+      <section style={styles.section} aria-label="Recover an existing Movie Mentor project">
+        <h2 style={styles.sectionTitle}>Recover an existing movie</h2>
+        <p>Enter a project ID you already own. Recovery requires your current sign-in. This is a read-only preview until safe workspace adoption is verified.</p>
+        <button type="button" onClick={() => { setRecoveryProjectId(""); setRecoveryRequest(null); setServerRecoveredPreview(null); setRecoveryStatus("idle"); setDiscoveryAttempt(attempt => attempt + 1); }} disabled={ownedProjectsStatus === "loading"}>Find my saved movies</button>
+        {ownedProjectsStatus === "loading" && <p role="status">Finding movies belonging to your account…</p>}
+        {ownedProjectsStatus === "failed" && <p role="alert">{ownedProjectsError}</p>}
+        {ownedProjectsStatus === "ready" && ownedMovieProjects.length === 0 && <p role="status">No saved movies were found for this account.</p>}
+        {ownedProjectsStatus === "ready" && ownedMovieProjects.length > 0 && <label>Choose one of your movies
+          <select aria-label="Your saved movie projects" value={recoveryProjectId} onChange={event => { setRecoveryProjectId(event.target.value); setRecoveryRequest(null); setRecoveryStatus("idle"); setServerRecoveredPreview(null); }}>
+            <option value="">Select a saved movie</option>
+            {ownedMovieProjects.map(project => <option key={project.projectId} value={project.projectId}>{project.projectId}</option>)}
+          </select>
+        </label>}
+        <input aria-label="Existing movie project ID" value={recoveryProjectId} onChange={(event) => { setRecoveryProjectId(event.target.value); setRecoveryRequest(null); setRecoveryStatus("idle"); setServerRecoveredPreview(null); }} placeholder="Existing project ID" />
+        <button type="button" onClick={requestServerRecovery} disabled={recoveryStatus === "loading"}>Recover movie preview</button>
+        {recoveryStatus === "loading" && <p role="status">Checking your saved movie…</p>}
+        {recoveryStatus === "failed" && <p role="alert">{recoveryError}</p>}
+        {recoveryError && recoveryStatus === "idle" && <p role="alert">{recoveryError}</p>}
+        {serverRecoveredPreview && recoveryStatus === "preview-ready" && <div role="status">
+          <h3>{serverRecoveredPreview.project.title || "Recovered movie"}</h3>
+          <p>Saved stage: {serverRecoveredPreview.projectJourney.currentStageId || "unknown"}; task: {serverRecoveredPreview.projectJourney.currentTaskId || "unknown"}</p>
+          <p>Saved revision: {serverRecoveredPreview.revision}. This is a read-only preview; editing is not enabled.</p>
+          <ol>{serverRecoveredPreview.conversationMessages.map((message, index) => <li key={index}>{String(message?.content || message?.text || "")}</li>)}</ol>
+        </div>}
+      </section>
       <section style={styles.section}><AiMentor message={mentorMessage} creatorJourney={creatorJourney} mentorContext={mentorContext} journeyRecommendationAction={journeyRecommendationAction} onAcceptJourneyRecommendation={handleAcceptJourneyRecommendation} onDismissJourneyRecommendation={handleDismissJourneyRecommendation} /></section>
       {showCreatorChoices && <section style={styles.section}><div style={styles.sectionHeadingRow}><div><p style={styles.sectionEyebrow}>Quick Create</p><h2 style={styles.sectionTitle}>Choose your starting point</h2></div></div><div style={styles.creatorGrid}>{CREATOR_OPTIONS.map((creator) => { const isSelected = selectedCreator === creator.id; return <button key={creator.id} type="button" aria-pressed={isSelected} onClick={() => handleCreatorSelect(creator)} style={{ ...styles.creatorCard, ...(isSelected ? styles.creatorCardActive : {}) }}><span style={styles.creatorIcon}>{creator.icon}</span><span style={styles.creatorCopy}><span style={styles.creatorLabel}>{creator.label}</span><span style={styles.creatorDescription}>{creator.description}</span></span><span aria-hidden="true" style={{ ...styles.creatorArrow, ...(isSelected ? styles.creatorArrowActive : {}) }}>›</span></button>; })}</div></section>}
       {!showCreatorChoices && activeCreator && <section style={styles.section}><div style={styles.choiceSummary}><div style={styles.choiceSummaryCopy}><span style={styles.choiceSummaryEyebrow}>Starting Point</span><span style={styles.choiceSummaryValue}>{activeCreator.icon} {activeCreator.label}</span></div><button type="button" onClick={handleChangeCreator} style={styles.changeButton}>Change</button></div></section>}
