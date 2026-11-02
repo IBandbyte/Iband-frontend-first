@@ -18,7 +18,7 @@ const request={locks,projectId:"atomic-film",creatorTurnId:"atomic-turn-01",
 assert.equal(typeof memory.settleConversationWithSharedAuthority,"function",
  "RED: no strict-compatible atomic settlement API exists.");
 let rejected=false;
-try{await memory.settleConversationWithSharedAuthority({...request,beforeCommit:()=>{throw new Error("injected-before-commit");}});}catch(error){rejected=error.message==="injected-before-commit";if(!rejected)throw error;}
+try{const result=await memory.settleConversationWithSharedAuthority({...request,beforeCommit:()=>{throw new Error("injected-before-commit");}});if(result?.cause){throw result.cause;}assert.fail(`Fault injection unexpectedly returned: ${JSON.stringify(result)}`);}catch(error){rejected=error.message==="injected-before-commit";if(!rejected)throw error;}
 assert.equal(rejected,true,"Fault injection must stop the commit.");
 assert.equal(storage.getItem("iband.creator-memory"),before,"Failed settlement must not persist partial effects.");
 const first=await memory.settleConversationWithSharedAuthority(request);
