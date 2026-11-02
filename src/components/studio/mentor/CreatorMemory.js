@@ -178,11 +178,6 @@ function createFacadeStorageController(storage, ordinaryWriteAuthorityGuard) {
 }
 
 const strictCreatorMemoryInstances = new WeakSet();
-const permissiveCreatorMemoryInstances = new WeakSet();
-
-function hasPermissiveCreatorMemoryAuthority(candidate) {
-  return candidate !== null && typeof candidate === 'object' && permissiveCreatorMemoryInstances.has(candidate);
-}
 
 function hasStrictCreatorMemoryAuthority(candidate) {
   return candidate !== null && typeof candidate === 'object' && strictCreatorMemoryInstances.has(candidate);
@@ -675,7 +670,6 @@ function createCreatorMemory(options = {}) {
     updateProject,
   };
   if (requireSharedWriteAuthority === true) strictCreatorMemoryInstances.add(facade);
-  else permissiveCreatorMemoryInstances.add(facade);
   return facade;
 }
 
@@ -699,7 +693,6 @@ export {
   createMemoryStorageAdapter,
   createCreatorMemory,
   hasStrictCreatorMemoryAuthority,
-  hasPermissiveCreatorMemoryAuthority,
 };
 
 export default createCreatorMemory;
