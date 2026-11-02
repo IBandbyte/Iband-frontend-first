@@ -58,6 +58,17 @@ assert.equal(durableContext.conversations[0].relatedProjectIds[0], project.id);
 assert.equal(durableContext.sessionHandoffs.length, 1);
 assert.equal(durableContext.sessionHandoffs[0].projectId, project.id);
 
+// The Studio ensure operation intentionally resumes an existing active movie.
+// Explicitly switch the active selection under the same shared lock before
+// establishing the second independent movie project.
+const cleared = await memoryB.replaceStateWithSharedAuthority({
+  locks,
+  transform: state => {
+    state.journey = { ...(state.journey || {}), activeProjectId: null };
+    return state;
+  },
+});
+assert.equal(cleared.acquired, true);
 const otherCreated = await runtimeB.ensureProjectWithSharedAuthority({
   title: "Other Movie",
   projectJourney: { currentStageId: "idea" },
@@ -65,7 +76,7 @@ const otherCreated = await runtimeB.ensureProjectWithSharedAuthority({
 });
 assert.equal(otherCreated.acquired, true);
 const other = runtimeB.getActiveProject();
-assert.ok(other?.id && other.id !== project.id);
+assert.ok(other?.id && other.id !== project.id, "Second movie must have a distinct durable identity.");
 assert.equal(runtimeB.getProjectConversationMessages(other.id).length, 0, "Conversation history must not leak across projects.");
 
 console.log("Movie Mentor conversation continuity verification: PASS");
