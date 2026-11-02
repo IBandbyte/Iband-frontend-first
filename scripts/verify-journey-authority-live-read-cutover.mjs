@@ -63,8 +63,16 @@ for (const [projected, authoritative, projectionStatus, expectedTask] of [
   [journey(5, "zorg-version"), journey(5, "canonical-version"), "split-brain-same-revision", "canonical-version"],
 ]) {
   const memory = createMemory(projected);
+  // This court uses a read-only Studio projection. Keep the legacy mutable
+  // fixture outside the injection boundary as the zero-write witness.
+  const readMemory = {
+    getActiveProject: memory.getActiveProject,
+    getPersistedProject: memory.getPersistedProject,
+    getProject: memory.getProject,
+    getProjectMemories: memory.getProjectMemories,
+  };
   const runtime = createMovieMentorStudioIdentityRuntime({
-    memory,
+    memory: readMemory,
     cryptoImpl: { randomUUID: () => `live-read-${expectedTask}` },
     journeyAuthorityReadFacade: authorityFacade(authoritative, projectionStatus),
   });
