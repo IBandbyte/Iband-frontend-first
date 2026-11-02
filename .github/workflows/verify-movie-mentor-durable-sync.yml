@@ -117,6 +117,9 @@ jobs:
       - name: Inventory ordinary writer migration boundaries
         if: always()
         run: node scripts/verify-movie-mentor-ordinary-writer-migration-inventory.mjs
+      - name: Verify strict Studio refusal before legacy commit race
+        if: always()
+        run: node scripts/verify-movie-mentor-strict-writer-race-preservation.mjs
       - name: Verify ordinary writer check-to-commit race
         if: always()
         run: node scripts/verify-movie-mentor-ordinary-write-check-commit-race.mjs
