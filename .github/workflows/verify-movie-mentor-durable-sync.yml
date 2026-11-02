@@ -63,6 +63,9 @@ jobs:
       - name: Verify strict legacy project hydration without constructor writes
         if: always()
         run: node scripts/verify-movie-mentor-strict-legacy-hydration.mjs
+      - name: Verify atomic mentor settlement fault and retry
+        if: always()
+        run: node scripts/verify-movie-mentor-atomic-settlement-fault-retry.mjs
       - name: Verify atomic strict mentor settlement boundary
         if: always()
         run: node scripts/verify-movie-mentor-atomic-strict-settlement.mjs
