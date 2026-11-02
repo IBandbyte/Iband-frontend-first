@@ -28,38 +28,33 @@ const locks = {
     return new Promise((resolve, reject) => { queue.push({ name, callback, resolve, reject }); drain(); });
   },
 };
-let releaseRecovery;
-const recoveryBarrier = new Promise(resolve => { releaseRecovery = resolve; });
-let recoveryEntered;
-const entered = new Promise(resolve => { recoveryEntered = resolve; });
-const recovery = recoveryMemory.runRecoveryWithSharedAuthority({
+let overlappingWriter = null;
+const recovery = await recoveryMemory.runRecoveryWithSharedAuthority({
   locks,
   operation: fresh => {
     assert.equal(fresh.getState().journey?.activeProjectId ?? null, null);
-    recoveryEntered();
+    overlappingWriter = writerMemory.replaceStateWithSharedAuthority({
+      locks,
+      transform: state => ({ ...state, journey: { ...state.journey, activeProjectId: "forbidden-overlap" } }),
+    });
     return { status: "recovery-certified" };
   },
 });
-// Recovery itself is synchronous inside the exclusive lock; use a second
-// lock-holder as a real queued contention barrier before recovery begins.
-const holding = locks.request(MOVIE_MENTOR_SHARED_MEMORY_WRITE_COORDINATION, { mode: "exclusive" }, async () => {
-  await recoveryBarrier;
-  return "holder-released";
+assert.equal(recovery.acquired, true);
+assert.equal(recovery.value.status, "recovery-certified");
+assert.ok(overlappingWriter, "Second context must attempt its ordinary write while recovery owns the lock.");
+const denied = await overlappingWriter;
+assert.equal(denied.acquired, false, "Ordinary writer must fail closed during recovery authority.");
+assert.equal(denied.reason, "exclusive-lock-unavailable");
+assert.equal(writerMemory.readPersistedState().journey.activeProjectId, null, "Denied ordinary writer cannot mutate durable state.");
+const after = await writerMemory.replaceStateWithSharedAuthority({
+  locks,
+  transform: state => ({ ...state, journey: { ...state.journey, activeProjectId: "post-recovery-write" } }),
 });
-// The recovery request was enqueued first, so it must finish before the holder.
-// Await recovery and then assert that the second holder remains gated.
-const recovered = await recovery;
-assert.equal(recovered.acquired, true);
-assert.equal(recovered.value.status, "recovery-certified");
-await entered;
-let holderFinished = false;
-holding.then(() => { holderFinished = true; });
-await Promise.resolve();
-assert.equal(holderFinished, false, "Queued lock holder must not bypass exclusive recovery.");
-releaseRecovery();
-assert.equal(await holding, "holder-released");
-assert.equal(holderFinished, true);
-assert.equal(requests.length, 2);
+assert.equal(after.acquired, true, "Ordinary writer may commit after recovery releases exclusive authority.");
+assert.equal(recoveryMemory.readPersistedState().journey.activeProjectId, "post-recovery-write");
+assert.equal(requests.length, 3);
 assert.equal(requests[0].ifAvailable, false);
-assert.equal(requests[1].ifAvailable, false);
-console.log("GREEN: recovery and another exclusive lock holder are serialized under shared authority.");
+assert.equal(requests[1].ifAvailable, true);
+assert.equal(requests[2].ifAvailable, true);
+console.log("GREEN: real strict ordinary writer is denied during recovery lock and succeeds only after release.");
