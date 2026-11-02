@@ -79,6 +79,38 @@ const CreatorWorkspace = ({ creatorName = "Creator", initialCreator = "", onGene
   const [showCreatorModeChoices, setShowCreatorModeChoices] = useState(resumedMovie ? false : Boolean(initialCreator));
   const [mentorMessage, setMentorMessage] = useState(resumedMovie ? `Welcome back. Your movie project “${resumeSnapshot.project.title}” is ready to continue.` : "I've got your back. Choose what you would like to create, then tell me about your idea.");
 
+  // Resume recommendation repair is a post-render operation. The initial
+  // snapshot stays read-only and blocked; a cancelled effect never publishes
+  // an outdated recovery result over a newer workspace session.
+  const [resumeRepairStatus, setResumeRepairStatus] = useState(resumedMovie ? "pending" : "not-required");
+  useEffect(() => {
+    if (!resumeSnapshot?.projectId) return undefined;
+    let cancelled = false;
+    const projectId = resumeSnapshot.projectId;
+    void (async () => {
+      try {
+        const result = await identityRuntime.recoverResumeRecommendationsWithSharedAuthority();
+        if (cancelled) return;
+        if (!result?.acquired) {
+          setResumeRepairStatus("blocked");
+          return;
+        }
+        const current = identityRuntime.getResumeSnapshot();
+        if (current?.projectId !== projectId) {
+          setResumeRepairStatus("stale");
+          return;
+        }
+        // The shared-lock transaction has committed, but the current
+        // synchronous snapshot intentionally remains fail-closed. Do not
+        // enable recommendation actions until adoption is separately proved.
+        setResumeRepairStatus("committed-awaiting-adoption");
+      } catch {
+        if (!cancelled) setResumeRepairStatus("blocked");
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [identityRuntime, resumeSnapshot?.projectId]);
+
   const [ownedMovieProjects, setOwnedMovieProjects] = useState([]);
   const [ownedProjectsStatus, setOwnedProjectsStatus] = useState("idle");
   const [ownedProjectsError, setOwnedProjectsError] = useState(null);
