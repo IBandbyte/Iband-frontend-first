@@ -336,6 +336,11 @@ function createMovieMentorStudioIdentityRuntime({
   }
 
   function recordRecommendationReference(projectId, planningEvidence, { turnRevision = null, projectJourney = null } = {}) {
+    // Legacy synchronous recommendation writes cannot acquire the shared
+    // recovery authority. Atomic conversation settlement owns this mutation.
+    const error = new Error("Legacy synchronous recommendation recording requires shared write authority.");
+    error.code = "MOVIE_MENTOR_LEGACY_RECOMMENDATION_WRITE_DENIED";
+    throw error;
     const evidence = buildRecommendationReferenceEvidence({
       projectId,
       creatorSessionId,
