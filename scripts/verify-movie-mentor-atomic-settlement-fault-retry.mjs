@@ -86,4 +86,13 @@ assert.deepEqual(lockTrace,[
  "movie-mentor-creator-memory-recovery",
  "movie-mentor-durable-settlement-test",
 ],"Atomic settlement must acquire exactly two locks in shared-first order.");
+// Reject a settlement lock name that aliases the shared recovery lock.
+// A real Web Locks implementation would otherwise wait on its own held lock.
+const alias=await memory.settleConversationWithSharedAuthority({
+ ...request,locks:orderedLocks,creatorTurnId:"atomic-turn-04",
+ settlementLockName:"movie-mentor-creator-memory-recovery"
+});
+assert.equal(alias.acquired,false,"Aliased settlement lock must be refused.");
+assert.equal(alias.reason,"settlement-lock-aliases-shared-authority");
+assert.equal(memory.readPersistedState().conversations.some(x=>x.metadata?.creatorTurnId==="atomic-turn-04"),false);
 console.log("GREEN: injected failure is atomic and retry is idempotent.");
