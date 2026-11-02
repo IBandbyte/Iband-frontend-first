@@ -6,7 +6,7 @@ import {commitMovieMentorRecoveryWithLock} from "../src/components/studio/mentor
 // Real studio project creation must not bypass recovery's shared authority.
 // This is a separate caller-level court; the original overlap RED stays intact.
 const storage = createMemoryStorageAdapter();
-const memory = createCreatorMemory({storageAdapter: storage});
+const memory = createCreatorMemory({storageAdapter: storage, requireSharedWriteAuthority: true});
 const runtime = createMovieMentorStudioIdentityRuntime({memory});
 const original = memory.getState();
 // Recovery adoption requires an eligible empty local workspace. A default
