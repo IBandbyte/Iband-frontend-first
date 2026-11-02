@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import createMovieMentorStudioIdentityRuntime from "../src/components/studio/mentor/MovieMentorStudioIdentityRuntime.js";
+import createCreatorMemory, { createDefaultMemoryState, createMemoryStorageAdapter } from "../src/components/studio/mentor/CreatorMemory.js";
+import { requireVerifiedMemoryAuthority } from "../src/components/studio/mentor/VerifiedMemoryAuthority.js";
 
 const ROOT = process.cwd();
 const identitySource = fs.readFileSync(path.join(ROOT, "src/components/studio/mentor/MovieMentorStudioIdentityRuntime.js"), "utf8");
@@ -79,57 +81,28 @@ function createReference({ recommendationId, fingerprint } = {}) {
   };
 }
 
-function createMemory({ journey, reference, beforeLatestRead = null } = {}) {
-  let state = {
-    projects: [{
-      id: "movie-project-resume-recovery",
-      creatorType: "video",
-      metadata: { creatorMode: "ai-movie", creatorModeLabel: "AI Movie Making", projectJourney: clone(journey) },
-    }],
-    projectMemories: [recommendationEntry(reference)],
-    conversations: [],
-    sessionHandoffs: [],
-  };
-  let getStateCalls = 0;
-
-  const memory = {
-    getActiveProject() { return clone(state.projects[0] || null); },
-    getProject(projectId) { return clone(state.projects.find((project) => project.id === projectId) || null); },
-    getState() {
-      getStateCalls += 1;
-      if (typeof beforeLatestRead === "function") {
-        const next = beforeLatestRead({ state: clone(state), getStateCalls });
-        if (next) state = clone(next);
-      }
-      return clone(state);
-    },
-    replaceState(nextState) { state = clone(nextState); return clone(state); },
-    async runRecoveryWithSharedAuthority({ locks, operation }) {
-      if (!locks || typeof locks.request !== "function") return { acquired: false, reason: "lock-unavailable" };
-      return locks.request("movie-mentor-creator-memory-recovery", { mode: "exclusive" }, async lock => {
-        if (!lock) return { acquired: false, reason: "exclusive-lock-unavailable" };
-        return { acquired: true, value: operation(memory) };
-      });
-    },
-    getProjectMemories({ projectId } = {}) { return clone(state.projectMemories.filter((entry) => entry.projectId === projectId)); },
-    getRecentConversations() { return []; },
-    getLatestSessionHandoff() { return null; },
-    markSessionHandoffResumed() { return null; },
-    saveProject() { throw new Error("not expected"); },
-    updateProject() { throw new Error("not expected"); },
-    saveProjectMemory() { throw new Error("not expected"); },
-    rememberConversation() { throw new Error("not expected"); },
-    saveSessionHandoff() { throw new Error("not expected"); },
-  };
-
-  return { memory, inspect: () => clone(state) };
+function createMemory({ journey, reference } = {}) {
+  const state = createDefaultMemoryState();
+  state.projects = [{
+    id: "movie-project-resume-recovery",
+    creatorType: "video",
+    metadata: { creatorMode: "ai-movie", creatorModeLabel: "AI Movie Making", projectJourney: clone(journey) },
+  }];
+  state.journey.activeProjectId = "movie-project-resume-recovery";
+  state.projectMemories = [recommendationEntry(reference)];
+  const storage = createMemoryStorageAdapter(state);
+  const memory = createCreatorMemory({ storageAdapter: storage, requireSharedWriteAuthority: true });
+  assert.equal(requireVerifiedMemoryAuthority(memory), memory, "Studio must receive verified strict memory.");
+  return { memory, storage, inspect: () => memory.readPersistedState() };
 }
 
-function createRuntime(memory) {
+function createRuntime(memory, settlementLockManager = {
+  request: async (_name, _options, callback) => callback({ mode: "exclusive" }),
+}) {
   return createMovieMentorStudioIdentityRuntime({
     memory,
     cryptoImpl: { randomUUID: () => "resume-recovery-session" },
-    settlementLockManager: { request: async (_name, _options, callback) => callback({ mode: "exclusive" }) },
+    settlementLockManager,
   });
 }
 
@@ -186,38 +159,38 @@ const fingerprint = "resume-proof-fingerprint";
   const journey = createJourney({ recommendationId, fingerprint });
   const reference = createReference({ recommendationId, fingerprint });
   let externalRepairApplied = false;
-  const { memory } = createMemory({
-    journey,
-    reference,
-    beforeLatestRead: ({ state, getStateCalls }) => {
-      if (!externalRepairApplied && getStateCalls === 2) {
-        externalRepairApplied = true;
-        const next = clone(state);
-        const lifecycle = next.projectMemories[0].metadata.recommendationReference.lifecycle;
+  const { memory, storage } = createMemory({ journey, reference });
+  const runtime = createRuntime(memory);
+  const initialSnapshot = runtime.getResumeSnapshot();
+  assert.equal(initialSnapshot.recommendationActionsBlocked, true, "Render must remain read-only and blocked.");
+  const transaction = await runtime.recoverResumeRecommendationsWithSharedAuthority({
+    locks: {
+      async request(name, options, callback) {
+        assert.equal(name, "movie-mentor-creator-memory-recovery");
+        assert.equal(options.mode, "exclusive");
+        assert.equal(externalRepairApplied, false);
+        const next = memory.readPersistedState();
         next.projectMemories[0].metadata.recommendationReference.lifecycle = {
-          ...lifecycle,
           current: false,
           terminalReason: "consumed",
           consumedByOperationId: `journey-recommendation-acceptance:${recommendationId}`,
           consumedByCreatorActId: "creator-act-1",
           consumedAtProgressionRevision: 1,
         };
-        return next;
-      }
-      return null;
+        storage.setItem("iband.creator-memory", JSON.stringify(next));
+        externalRepairApplied = true;
+        return callback({ name, mode: "exclusive" });
+      },
     },
   });
-  const runtime = createRuntime(memory);
-  const initialSnapshot = runtime.getResumeSnapshot();
-  assert.equal(initialSnapshot.recommendationActionsBlocked, true, "Render must remain read-only and blocked.");
-  const transaction = await runtime.recoverResumeRecommendationsWithSharedAuthority();
+  assert.equal(externalRepairApplied, true, "External convergence must precede acquisition.");
   assert.equal(transaction.acquired, true, "Recovery requires exclusive authority.");
   const recovery = transaction.value;
   const snapshot = runtime.getResumeSnapshot();
 
   assert.equal(recovery.recommendationActionsBlocked, false);
   assert.equal(recovery.status, "certified");
-  assert.equal(recovery.recoveryAttempts, 2);
+  assert.equal(recovery.recoveryAttempts, 1, "Pre-lock convergence requires no stale retry; mid-read bounded retry has its independent algorithm court.");
   assert.deepEqual(snapshot.currentRecommendationReferences, []);
 }
 
@@ -245,5 +218,5 @@ console.log("Movie Mentor resume recovery integration verification passed.");
 console.log("- recovery runs before recommendation exposure");
 console.log("- exact receipt lineage is repaired before resume snapshot creation");
 console.log("- contradictory proof is quarantined without invented history");
-console.log("- simultaneous recovery converges with one bounded retry");
+console.log("- strict recovery observes pre-lock external convergence; separate algorithm court preserves bounded mid-read retry");
 console.log("- resume prefers fresh durable project reality after recovery");
