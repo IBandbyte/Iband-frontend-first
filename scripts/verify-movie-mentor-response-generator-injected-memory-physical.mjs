@@ -2,32 +2,16 @@ import assert from "node:assert/strict";
 import createResponseGenerator from "../src/components/studio/mentor/ResponseGenerator.js";
 import createCreatorMemory,{createMemoryStorageAdapter} from "../src/components/studio/mentor/CreatorMemory.js";
 
-// Physical, not regex: inject an otherwise valid legacy memory facade through
-// each public entry point and attempt a synchronous durable mutation.
-const failures=[];
-function probe(memory,label) {
-  const storage=memory.storage;
-  const generator=memory.generator;
-  const active=generator.getMemory();
-  assert.ok(active, `${label}: injected memory must be reachable`);
-  const before=storage.getItem("iband.creator-memory");
-  const next=active.getState();
-  next.metadata={...(next.metadata||{}),injectedBypass:label};
-  let refused=false;
-  try {active.replaceState(next);} catch {refused=true;}
-  const after=storage.getItem("iband.creator-memory");
-  if (!refused || after!==before) failures.push({label,refused,durableBytesChanged:after!==before});
+// Physical rejection must occur before an unsafe injected writer becomes active.
+for(const [label,inject] of [
+ ["constructor memory",memory=>createResponseGenerator({memory})],
+ ["injected memoryFactory",memory=>createResponseGenerator({memoryFactory:()=>memory})],
+ ["setMemory",memory=>createResponseGenerator().setMemory(memory)],
+]) {
+ const storage=createMemoryStorageAdapter();
+ const unsafe=createCreatorMemory({storageAdapter:storage});
+ const before=storage.getItem("iband.creator-memory");
+ assert.throws(()=>inject(unsafe),error=>error?.code==="MOVIE_MENTOR_UNSAFE_MEMORY_AUTHORITY",`RED: ${label} accepted an unverified writable service`);
+ assert.equal(storage.getItem("iband.creator-memory"),before,`${label}: rejected injection changed durable bytes`);
 }
-const firstStorage=createMemoryStorageAdapter();
-const first=createCreatorMemory({storageAdapter:firstStorage});
-probe({storage:firstStorage,generator:createResponseGenerator({memory:first})},"constructor memory");
-const secondStorage=createMemoryStorageAdapter();
-const second=createCreatorMemory({storageAdapter:secondStorage});
-probe({storage:secondStorage,generator:createResponseGenerator({memoryFactory:()=>second})},"injected memoryFactory");
-const thirdStorage=createMemoryStorageAdapter();
-const third=createCreatorMemory({storageAdapter:thirdStorage});
-const thirdGenerator=createResponseGenerator();
-thirdGenerator.setMemory(third);
-probe({storage:thirdStorage,generator:thirdGenerator},"setMemory");
-assert.deepEqual(failures,[],`RED: injected memory authority bypasses: ${JSON.stringify(failures)}`);
-console.log("GREEN: all three injected memory entry points physically deny uncoordinated writes.");
+console.log("GREEN: all three unsafe injected writers are rejected without changing durable bytes.");
