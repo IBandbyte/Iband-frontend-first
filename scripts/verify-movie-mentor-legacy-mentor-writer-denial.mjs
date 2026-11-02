@@ -2,10 +2,11 @@ import assert from "node:assert/strict";
 import createCreatorMemory, {createMemoryStorageAdapter} from "../src/components/studio/mentor/CreatorMemory.js";
 import createMovieMentorStudioIdentityRuntime from "../src/components/studio/mentor/MovieMentorStudioIdentityRuntime.js";
 
-// Legacy public API must never persist an uncoordinated mentor reply, even
-// when the real workspace has migrated. Keep creator messages pending for retry.
+// Legacy public API must never persist an uncoordinated mentor reply.
+// Test method-level denial with strict memory independently of injection rejection.
+// Keep creator messages pending for retry.
 const storage=createMemoryStorageAdapter();
-const memory=createCreatorMemory({storageAdapter:storage});
+const memory=createCreatorMemory({storageAdapter:storage,requireSharedWriteAuthority:true});
 const runtime=createMovieMentorStudioIdentityRuntime({memory});
 const before=storage.getItem("iband.creator-memory");
 const result=runtime.recordConversationMessage("film-a",{role:"creator",text:"Create a scene"});
