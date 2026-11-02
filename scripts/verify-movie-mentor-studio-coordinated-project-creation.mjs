@@ -6,7 +6,7 @@ import createMovieMentorStudioIdentityRuntime from "../src/components/studio/men
 // but expose an explicit coordinated asynchronous creation path. No implicit
 // fallback to an uncoordinated ordinary write when authority is unavailable.
 const storage = createMemoryStorageAdapter();
-const memory = createCreatorMemory({storageAdapter:storage});
+const memory = createCreatorMemory({storageAdapter:storage,requireSharedWriteAuthority:true});
 const runtime = createMovieMentorStudioIdentityRuntime({memory});
 assert.equal(typeof runtime.ensureProject,"function","Legacy sync caller contract must remain present.");
 assert.equal(typeof runtime.ensureProjectWithSharedAuthority,"function",
