@@ -12,7 +12,7 @@ const sessionACrypto = { randomUUID: () => ++sessionAIssuance === 1
   : "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee" };
 const sessionBCrypto = { randomUUID: () => "66666666-7777-4888-8999-aaaaaaaaaaaa" };
 
-const memoryA = createCreatorMemory({ storageAdapter: storage, projectIdentityCrypto: projectCrypto });
+const memoryA = createCreatorMemory({ storageAdapter: storage, projectIdentityCrypto: projectCrypto, requireSharedWriteAuthority: true });
 const lockCalls = [];
 const locks = {
   async request(name, optionsOrCallback, maybeCallback) {
@@ -34,7 +34,7 @@ assert.ok(lockCalls.length >= 2, "Project creation and Journey persistence must 
 assert.equal(projectA.id, "movie-project-aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee");
 assert.equal(runtimeA.creatorSessionId, "movie-session-11111111-2222-4333-8444-555555555555");
 
-const memoryB = createCreatorMemory({ storageAdapter: storage, projectIdentityCrypto: projectCrypto });
+const memoryB = createCreatorMemory({ storageAdapter: storage, projectIdentityCrypto: projectCrypto, requireSharedWriteAuthority: true });
 const runtimeB = createMovieMentorStudioIdentityRuntime({ memory: memoryB, cryptoImpl: sessionBCrypto });
 const resumed = runtimeB.getResumeSnapshot();
 
