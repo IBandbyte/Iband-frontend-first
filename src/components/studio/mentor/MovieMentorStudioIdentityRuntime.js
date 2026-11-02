@@ -543,6 +543,29 @@ function createMovieMentorStudioIdentityRuntime({
     });
   }
 
+  async function recoverResumeRecommendationsWithSharedAuthority({ locks = settlementLockManager } = {}) {
+    const active = getActiveMemoryProject();
+    if (!active) return Object.freeze({ acquired: false, reason: "no-active-project" });
+    if (typeof memory.runRecoveryWithSharedAuthority !== "function") {
+      return Object.freeze({ acquired: false, reason: "coordinated-recovery-unavailable" });
+    }
+    const preferred = getPreferredJourney(active.id);
+    if (preferred?.status === "authority" && preferred?.projectionStatus !== "in-sync") {
+      return Object.freeze({
+        acquired: false,
+        reason: "authority-projection-divergence",
+        recommendationRecovery: blockedDivergentProjectionRecovery(active.id, preferred),
+      });
+    }
+    return memory.runRecoveryWithSharedAuthority({
+      locks,
+      operation: fresh => certifyJourneyRecommendationResume({
+        identityRuntime: { memory: fresh },
+        projectId: active.id,
+      }),
+    });
+  }
+
   function getResumeSnapshot() {
     const initiallyActiveProject = getActiveMemoryProject();
     if (!initiallyActiveProject) return null;
@@ -614,6 +637,7 @@ function createMovieMentorStudioIdentityRuntime({
     recordPendingCreatorMessage,
     settleConversationMessage,
     resumeProjectConversation,
+    recoverResumeRecommendationsWithSharedAuthority,
     getResumeSnapshot,
   };
 }
