@@ -37,6 +37,6 @@ assert.equal(resumed?.projectJourney?.currentStageId,"characters");
 assert.notEqual(runtimeB.creatorSessionId,runtimeA.creatorSessionId);
 // Strict synchronous mutation must not become an alternate persistence path.
 const before=storage.getItem("iband.creator-memory");
-assert.throws(()=>memoryB.replaceState(memoryB.getState()),error=>error?.code==="CREATOR_MEMORY_WRITE_AUTHORITY_DENIED");
+assert.throws(()=>memoryB.replaceState(memoryB.getState()),error=>error?.cause?.code==="CREATOR_MEMORY_WRITE_AUTHORITY_DENIED");
 assert.equal(storage.getItem("iband.creator-memory"),before);
 console.log("GREEN: strict Studio cockpit migrates coordinated project and Journey across mounts; sync bypass denied.");
