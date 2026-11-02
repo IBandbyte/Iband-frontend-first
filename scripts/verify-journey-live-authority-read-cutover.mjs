@@ -84,8 +84,16 @@ const readFacade = {
   },
 };
 const cryptoImpl = { randomUUID: () => "00000000-0000-4000-8000-000000000001" };
+// Studio consumes the verified read-only memory surface; the mutable
+// legacy fixture remains outside the Studio injection boundary.
+const readMemory = {
+  getActiveProject: memory.getActiveProject,
+  getProject: memory.getProject,
+  getPersistedProject: memory.getPersistedProject,
+  getProjectMemories: memory.getProjectMemories,
+};
 const identityRuntime = createMovieMentorStudioIdentityRuntime({
-  memory,
+  memory: readMemory,
   cryptoImpl,
   journeyAuthorityReadFacade: readFacade,
 });
