@@ -326,7 +326,16 @@ function createCreatorMemory(options = {}) {
         );
         if (prior) {
           adoptPersistedStateWithoutWrite(initial);
-          return Object.freeze({ status: "already-settled", conversation: clone(prior) });
+          const canonicalHandoff = (initial.sessionHandoffs || []).find(entry =>
+            cleanIdentity(entry?.metadata?.projectId) === pid &&
+            cleanIdentity(entry?.metadata?.creatorTurnId) === turnId &&
+            cleanIdentity(entry?.metadata?.conversationId) === cleanIdentity(prior.id)
+          ) || null;
+          return Object.freeze({
+            status: "already-settled",
+            conversation: clone(prior),
+            handoff: clone(canonicalHandoff),
+          });
         }
 
         const stagedStorage = createMemoryStorageAdapter();
@@ -350,6 +359,10 @@ function createCreatorMemory(options = {}) {
         const savedHandoff = staged.saveSessionHandoff({
           ...clone(handoff),
           projectId: pid,
+          value: {
+            ...(clone(handoff.value) || {}),
+            conversationId: savedConversation.id,
+          },
           metadata: {
             ...(clone(handoff.metadata) || {}),
             projectId: pid,
