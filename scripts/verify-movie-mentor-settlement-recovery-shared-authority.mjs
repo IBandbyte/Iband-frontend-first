@@ -4,7 +4,12 @@ import { MOVIE_MENTOR_SHARED_MEMORY_WRITE_COORDINATION } from "../src/components
 const source = readFileSync(new URL("../src/components/studio/mentor/MovieMentorStudioIdentityRuntime.js", import.meta.url), "utf8");
 assert.match(source, /async function withDurableSettlementAuthority\(operation\)/, "Existing settlement authority must remain explicit.");
 assert.match(source, /settlementLockManager\.request\(/, "Existing settlement lock must not be silently removed.");
-assert.match(source, /convergeConversationSettlement\(/, "Durable settlement must retain its convergence contract.");
+assert.match(source, /memory\.settleConversationWithSharedAuthority\(/, "Studio settlement must use the atomic convergence primitive.");
+const creatorMemory = readFileSync(new URL("../src/components/studio/mentor/CreatorMemory.js", import.meta.url), "utf8");
+assert.match(creatorMemory, /async function settleConversationWithSharedAuthority\(/, "Atomic settlement implementation must remain available.");
+assert.match(creatorMemory, /withMovieMentorMemoryWriteAuthority\(\{/, "Atomic settlement must use shared recovery writer authority.");
+assert.match(creatorMemory, /cleanIdentity\(entry\?\.metadata\?\.creatorTurnId\) === turnId/, "Atomic settlement must deduplicate by creator turn.");
+assert.match(creatorMemory, /fresh\.replaceState\(staged\.getState\(\)\)/, "Atomic settlement must commit staged state as one durable replacement.");
 assert.match(source, /MOVIE_MENTOR_SHARED_MEMORY_WRITE_COORDINATION/, "RED: settlement must import the same shared recovery authority.");
 assert.match(source, /withMovieMentorMemoryWriteAuthority\(/, "RED: settlement must acquire shared recovery write authority.");
 assert.equal(MOVIE_MENTOR_SHARED_MEMORY_WRITE_COORDINATION, "movie-mentor-creator-memory-recovery");
