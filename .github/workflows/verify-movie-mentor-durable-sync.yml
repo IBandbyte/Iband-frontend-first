@@ -78,6 +78,9 @@ jobs:
       - name: Verify Response Generator strict memory authority
         if: always()
         run: node scripts/verify-movie-mentor-response-generator-strict-memory-authority.mjs
+      - name: Verify Studio strict read and coordinated contract
+        if: always()
+        run: node scripts/verify-movie-mentor-studio-strict-read-and-coordinated-contract.mjs
       - name: Verify default Studio strict writer authority
         if: always()
         run: node scripts/verify-movie-mentor-studio-default-strict-authority.mjs
