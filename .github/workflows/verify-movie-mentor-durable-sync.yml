@@ -189,6 +189,9 @@ jobs:
       - name: Verify resume repair shared writer authority
         if: always()
         run: node scripts/verify-movie-mentor-resume-repair-shared-authority.mjs
+      - name: Verify lifecycle caller authority inventory
+        if: always()
+        run: node scripts/verify-movie-mentor-lifecycle-caller-authority.mjs
       - name: Verify Studio legacy writer reachability
         if: always()
         run: node scripts/verify-movie-mentor-studio-legacy-writer-reachability.mjs
