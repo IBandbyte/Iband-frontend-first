@@ -27,7 +27,10 @@ assert.match(recommendationReference,/retireSupersededRecommendationReferences\(
 assert.match(recommendationReference,/memory\.saveProjectMemory/,"Recommendation save is a synchronous whole-memory write.");
 assert.match(retirement,/memory\.replaceState/,"Retirement is a synchronous whole-memory write.");
 assert.match(workspace,/settleConversationMessage\(/,"Real workspace must call coordinated settlement.");
-assert.match(resume,/certifyJourneyRecommendationResume\(/,"Resume calls recommendation repair outside settlement.");
+assert.doesNotMatch(resume,/certifyJourneyRecommendationResume\(/,"Synchronous render-time resume must not repair.");
+assert.match(runtime,/async function recoverResumeRecommendationsWithSharedAuthority\(/,"Resume recovery is an independent async operation.");
+assert.match(runtime,/runRecoveryWithSharedAuthority\(/,"Async resume recovery uses shared authority.");
+assert.match(workspace,/recoverResumeRecommendationsWithSharedAuthority\(/,"Real workspace invokes the async recovery operation.");
 assert.match(runtime,/function persistJourney\(/,"Legacy Journey persistence path must be audited.");
 assert.match(runtime,/memory\.updateProject\(/,"Legacy Journey still uses synchronous persistence.");
 console.log("GREEN: caller graph inventoried: recommendation writes inside shared settlement; resume recommendation repair and legacy Journey require independent authority audit.");
