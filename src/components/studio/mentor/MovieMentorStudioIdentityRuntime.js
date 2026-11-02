@@ -8,6 +8,7 @@ import createMovieJourneyIntelligenceBridge from "./MovieJourneyIntelligenceBrid
 import createJourneyRecommendationEnvelope from "./JourneyRecommendationEnvelope.js";
 import certifyJourneyRecommendationResume from "./JourneyRecommendationResumeRecovery.js";
 import createJourneyAuthorityReadFacade from "./JourneyAuthorityReadFacade.js";
+import { requireVerifiedMemoryAuthority } from "./VerifiedMemoryAuthority.js";
 import { withMovieProjectIdentity } from "./MovieMentorProjectIdentity.js";
 import { withMovieMentorMemoryWriteAuthority, MOVIE_MENTOR_SHARED_MEMORY_WRITE_COORDINATION } from "./MovieMentorMemoryWriteAuthority.js";
 
@@ -116,6 +117,7 @@ function createMovieMentorStudioIdentityRuntime({
   journeyAuthorityReadFacade = createJourneyAuthorityReadFacade(),
   settlementLockManager = globalThis?.navigator?.locks,
 } = {}) {
+  requireVerifiedMemoryAuthority(memory);
   const creatorSessionId = issueWorkingSessionId({ cryptoImpl });
   const pendingCreatorMessageByProject = new Map();
   const recommendationJourneyEngine = createCreatorJourneyEngine();
