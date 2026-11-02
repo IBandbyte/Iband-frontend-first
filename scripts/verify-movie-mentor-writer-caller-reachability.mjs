@@ -19,9 +19,11 @@ const recommendation=body("function recordRecommendationForMessage(","function b
 const recommendationReference=body("function recordRecommendationReference(","function recordRecommendationForMessage(");
 const retirement=body("function retireSupersededRecommendationReferences(","function getCurrentRecommendationReferences(");
 const resume=runtime.slice(runtime.indexOf("function getResumeSnapshot("));
-assert.match(settlement,/withDurableSettlementAuthority\(/,"Settlement must retain shared authority.");
+assert.match(settlement,/memory\.settleConversationWithSharedAuthority\(/,"Settlement must use atomic shared authority.");
+assert.doesNotMatch(settlement,/withDurableSettlementAuthority\(/,"Settlement must not nest legacy lock wrapper.");
 assert.match(settlementAuthority,/withMovieMentorMemoryWriteAuthority\(/,"Settlement authority must use the recovery lock.");
-assert.match(settlement,/recordRecommendationForMessage\(/,"Recommendation recording is reachable from settlement.");
+assert.doesNotMatch(settlement,/recordRecommendationForMessage\(/,"Settlement must not use legacy recommendation writer.");
+assert.match(settlement,/recommendation:\s*recommendationInput/,"Recommendation must join atomic settlement.");
 assert.match(recommendation,/recordRecommendationReference\(/,"Recommendation recording must remain visible.");
 assert.match(recommendationReference,/retireSupersededRecommendationReferences\(/,"Retirement is reachable through recommendation recording.");
 assert.match(recommendationReference,/memory\.saveProjectMemory/,"Recommendation save is a synchronous whole-memory write.");
