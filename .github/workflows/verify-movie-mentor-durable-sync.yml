@@ -63,6 +63,9 @@ jobs:
       - name: Verify strict legacy project hydration without constructor writes
         if: always()
         run: node scripts/verify-movie-mentor-strict-legacy-hydration.mjs
+      - name: Verify strict mentor settlement compatibility
+        if: always()
+        run: node scripts/verify-movie-mentor-strict-settlement-compatibility.mjs
       - name: Verify default Studio strict writer authority
         if: always()
         run: node scripts/verify-movie-mentor-studio-default-strict-authority.mjs
