@@ -355,7 +355,41 @@ function createCreatorMemory(options = {}) {
         });
         if (!savedHandoff?.id) throw new Error("Atomic settlement refused handoff.");
         let savedRecommendation = null;
+        const retiredRecommendationIds = [];
         if (recommendation) {
+          const replacementReference = recommendation?.metadata?.recommendationReference;
+          const replacementId = cleanIdentity(replacementReference?.recommendationId);
+          if (replacementId) {
+            const nextState = staged.getState();
+            const timestamp = new Date().toISOString();
+            nextState.projectMemories = (nextState.projectMemories || []).map(entry => {
+              const previous = entry?.metadata?.recommendationReference;
+              if (cleanIdentity(previous?.projectId) !== pid ||
+                  previous?.domain !== replacementReference?.domain ||
+                  previous?.lifecycle?.current !== true ||
+                  cleanIdentity(previous?.recommendationId) === replacementId) return entry;
+              retiredRecommendationIds.push(previous.recommendationId);
+              return {
+                ...entry,
+                updatedAt: timestamp,
+                metadata: {
+                  ...(entry.metadata || {}),
+                  recommendationReference: {
+                    ...clone(previous),
+                    lifecycle: {
+                      current: false,
+                      terminalReason: "superseded",
+                      supersededByRecommendationId: replacementId,
+                      supersededAt: timestamp,
+                    },
+                  },
+                },
+              };
+            });
+            // This write remains inside isolated staging storage.
+            staged.replaceState(nextState);
+          }
+
           savedRecommendation = staged.saveProjectMemory({
             ...clone(recommendation),
             projectId: pid,
@@ -382,6 +416,7 @@ function createCreatorMemory(options = {}) {
           conversation: clone(savedConversation),
           handoff: clone(savedHandoff),
           recommendation: clone(savedRecommendation),
+          retiredRecommendationIds: clone(retiredRecommendationIds),
         });
       },
     });
