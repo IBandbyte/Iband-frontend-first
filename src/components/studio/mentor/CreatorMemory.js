@@ -177,6 +177,12 @@ function createFacadeStorageController(storage, ordinaryWriteAuthorityGuard) {
   return { adapter, refreshWithoutDurableWrite, acknowledgeFreshDurableBaseline };
 }
 
+const strictCreatorMemoryInstances = new WeakSet();
+
+function hasStrictCreatorMemoryAuthority(candidate) {
+  return candidate !== null && typeof candidate === 'object' && strictCreatorMemoryInstances.has(candidate);
+}
+
 function createCreatorMemory(options = {}) {
   const {
     projectIdentityCrypto = globalThis?.crypto,
@@ -649,7 +655,7 @@ function createCreatorMemory(options = {}) {
     return overlayAuthorityJourney(updated);
   }
 
-  return {
+  const facade = {
     ...memory,
     readPersistedState,
     getPersistedProject,
@@ -663,6 +669,8 @@ function createCreatorMemory(options = {}) {
     saveProject,
     updateProject,
   };
+  if (requireSharedWriteAuthority === true) strictCreatorMemoryInstances.add(facade);
+  return facade;
 }
 
 export {
@@ -684,6 +692,7 @@ export {
   createDefaultMemoryState,
   createMemoryStorageAdapter,
   createCreatorMemory,
+  hasStrictCreatorMemoryAuthority,
 };
 
 export default createCreatorMemory;
