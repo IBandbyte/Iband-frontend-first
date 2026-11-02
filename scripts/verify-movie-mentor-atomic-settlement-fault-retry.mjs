@@ -62,4 +62,28 @@ const replacementBytes=storage.getItem("iband.creator-memory");
 const replacementRetry=await memory.settleConversationWithSharedAuthority(replacement);
 assert.equal(replacementRetry.value.status,"already-settled");
 assert.equal(storage.getItem("iband.creator-memory"),replacementBytes);
+// Physical nested-lock court: shared recovery lock must be acquired before
+// the separate settlement lock, with no second shared-lock acquisition.
+const lockTrace=[];
+const orderedLocks={request:async(name,options,callback)=>{
+ lockTrace.push(name);
+ assert.equal(options?.mode,"exclusive");
+ if(name==="movie-mentor-creator-memory-recovery"){
+  assert.equal(options.ifAvailable,undefined);
+  return callback({name});
+ }
+ assert.equal(name,"movie-mentor-durable-settlement-test");
+ assert.equal(lockTrace.at(-2),"movie-mentor-creator-memory-recovery");
+ return callback({name});
+}};
+const ordered=await memory.settleConversationWithSharedAuthority({
+ ...request,locks:orderedLocks,creatorTurnId:"atomic-turn-03",
+ settlementLockName:"movie-mentor-durable-settlement-test"
+});
+assert.equal(ordered.acquired,true);
+assert.equal(ordered.value.status,"committed");
+assert.deepEqual(lockTrace,[
+ "movie-mentor-creator-memory-recovery",
+ "movie-mentor-durable-settlement-test",
+],"Atomic settlement must acquire exactly two locks in shared-first order.");
 console.log("GREEN: injected failure is atomic and retry is idempotent.");
