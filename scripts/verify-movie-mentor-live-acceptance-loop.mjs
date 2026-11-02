@@ -28,17 +28,18 @@ assert.match(
 
 const cryptoImpl = { randomUUID: () => "11111111-2222-4333-8444-555555555555" };
 const storageAdapter = createMemoryStorageAdapter();
-const memory = createCreatorMemory({ storageAdapter, projectIdentityCrypto: cryptoImpl });
+const memory = createCreatorMemory({ storageAdapter, projectIdentityCrypto: cryptoImpl, requireSharedWriteAuthority: true });
+const locks={request:async(_name,_options,callback)=>callback({name:"acceptance-exclusive-lock",mode:"exclusive"})};
+const runtime = createMovieMentorStudioIdentityRuntime({ memory, cryptoImpl, settlementLockManager: locks });
 const journeyEngine = createCreatorJourneyEngine();
 const journeyBridge = createMovieJourneyIntelligenceBridge({ journeyEngine });
 const projectJourney = journeyEngine.createMovieJourney({ creatorType: "video", creatorMode: "ai-movie", creatorJourney: "guide" });
-const project = memory.saveProject({
-  title: "Door 11D4 Acceptance Loop",
-  creatorType: "video",
-  status: PROJECT_STATUSES.CREATING,
-  metadata: { creatorMode: "ai-movie", creatorModeLabel: "AI Movie Making", projectJourney },
+const creation = await runtime.ensureProjectWithSharedAuthority({
+  title: "Door 11D4 Acceptance Loop", projectJourney, locks,
 });
-const runtime = createMovieMentorStudioIdentityRuntime({ memory, cryptoImpl });
+assert.equal(creation.acquired,true,"Strict acceptance project setup must acquire shared authority.");
+const project = runtime.getActiveProject();
+assert.ok(project?.id,"Strict acceptance project creation must establish canonical identity.");
 
 function planningEvidence(task, revision) {
   return {
@@ -65,7 +66,7 @@ function memoryContextFrom(mem) {
 
 // Use the same shared-lock atomic recommendation settlement as the live Studio.
 // The acceptance sequence remains A -> creator confirmation -> B -> reload -> B.
-const locks={request:async(_name,_options,callback)=>callback({name:"acceptance-exclusive-lock"})};
+// Shared lock manager declared before strict project creation and reused for settlement.
 async function settleRecommendation(evidence,revision){
   const envelope=createJourneyRecommendationEnvelope({projectId:project.id,projectJourney,planningEvidence:evidence});
   assert.ok(envelope?.recommendationId,"Canonical recommendation envelope required.");
@@ -214,7 +215,7 @@ assert.equal(refsBeforeRestart.filter((item) => item.lifecycle?.current === true
 assert.equal(refsBeforeRestart.find((item) => item.recommendationId === recommendationA).lifecycle.current, false);
 assert.equal(refsBeforeRestart.find((item) => item.recommendationId === recommendationB).lifecycle.current, true);
 
-const reloadedMemory = createCreatorMemory({ storageAdapter, projectIdentityCrypto: cryptoImpl });
+const reloadedMemory = createCreatorMemory({ storageAdapter, projectIdentityCrypto: cryptoImpl, requireSharedWriteAuthority: true });
 const reloadedRuntime = createMovieMentorStudioIdentityRuntime({ memory: reloadedMemory, cryptoImpl });
 const reloadedContext = memoryContextFrom(reloadedMemory);
 selected = selectCurrentRecommendationReference({ memoryContext: reloadedContext, projectId: project.id });
