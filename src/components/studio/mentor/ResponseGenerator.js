@@ -3988,7 +3988,10 @@ function createResponseGenerator({
       ? memoryFactory
       : (options = {}) =>
           createCreatorMemory(
-            options
+            {
+              ...options,
+              requireSharedWriteAuthority: true,
+            }
           );
 
   let activeMemory =
