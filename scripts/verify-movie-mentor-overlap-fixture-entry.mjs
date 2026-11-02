@@ -5,7 +5,7 @@ import {commitMovieMentorRecoveryWithLock} from "../src/components/studio/mentor
 
 // Independent reachability witness: preserve the original overlap courts.
 const storage=createMemoryStorageAdapter();
-const memory=createCreatorMemory({storageAdapter:storage});
+const memory=createCreatorMemory({storageAdapter:storage,requireSharedWriteAuthority:true});
 const runtime=createMovieMentorStudioIdentityRuntime({memory});
 const initial=memory.getState();
 const eligible={...initial,journey:{activeProjectId:null,firstSeenAt:null,lastSeenAt:null},creatorProfile:{id:initial.creatorProfile?.id??null}};
