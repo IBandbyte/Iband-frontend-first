@@ -12,7 +12,8 @@ const end=runtime.indexOf("function resumeProjectConversation(",begin);
 assert.ok(begin>=0&&end>begin);
 const settlement=runtime.slice(begin,end);
 assert.match(settlement,/creatorTurnId/,"Durable turn identity must remain mandatory.");
-assert.match(settlement,/withDurableSettlementAuthority\(/,"Existing lock ordering must remain.");
+assert.doesNotMatch(settlement,/withDurableSettlementAuthority\(/,"Nested shared-lock acquisition must remain prohibited.");
+assert.match(settlement,/settlementLockName:\s*DURABLE_SETTLEMENT_LOCK_NAME/,"Atomic settlement must preserve creator-turn lock.");
 assert.match(facade,/replaceStateWithSharedAuthority/,"Fresh-state shared writer must remain available.");
 assert.match(settlement,/settleConversationWithSharedAuthority\(/,
  "RED: settlement has not migrated to an atomic strict-compatible transaction.");
