@@ -28,3 +28,26 @@ A synchronous `getItem` followed by `setItem` cannot guarantee atomic cross-tab 
 ## Release gate
 
 Editable restoration and Phase 01 remain held. No main-branch change, merge, deployment, or production database write is authorised by this document.
+
+## Exact-head evidence update: 7fa9f3bf
+
+- All 30 workflows completed: 29 GREEN, Durable Sync RED.
+- The new production writer cutover source court passed. It pins the known live Studio's strict coordinated project/Journey calls, the strict default response generator, and downstream injection validation.
+- The three original physical RED steps are unchanged: check-to-commit race, ordinary writer overlap with recovery, and shared writer coordination.
+- The downstream memory rebind authority and strict/read-only compatibility court also passed on this exact head.
+- This establishes a **known-live-path boundary**, not complete runtime call-graph coverage. The cutover court is a source-pattern verifier, not a browser concurrency simulation.
+
+## Compatibility and migration decision record
+
+**Do not change `createCreatorMemory()` to strict-by-default yet.** The default permissive facade is still exercised by legacy identity/continuity and other test integrations; a global change could break them without proving that every production caller has migrated.
+
+The implementation direction is a controlled, explicit cutover:
+
+1. Preserve the already-strict AI Movie Studio and response-generator defaults.
+2. Classify each remaining production facade factory and injected memory service by runtime reachability, rather than counting tests as production consumers.
+3. Prefer the existing `replaceStateWithSharedAuthority({locks,transform})` for simple whole-state mutations, and the atomic settlement API for grouped conversation/handoff/recommendation effects. Both must acquire the same shared exclusive authority as recovery.
+4. Require an explicit fail-closed result when a browser lock manager is unavailable or refuses the lock; never silently fall back to legacy synchronous `replaceState`.
+5. Before retiring the permissive default, introduce adversarial courts that exercise the actual migrated callers against concurrent recovery and stale durable state, and separately establish the compatibility contract for legacy offline/test-only adapters.
+6. Keep the original three courts RED until the unsafe default writer is genuinely fenced or its original contention semantics are satisfied. The current tests explicitly instantiate the permissive default, so a live-Studio-only migration cannot make them GREEN.
+
+**Open architectural decision:** To make the original default-facade courts GREEN, the legacy default must eventually be retired or constrained to a storage mode with proven atomic writes; an ordinary localStorage preflight check cannot satisfy the injected check-to-commit race. Any such change must be accompanied by an explicit compatibility plan and physical regression results.
