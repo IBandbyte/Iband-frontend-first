@@ -2,7 +2,6 @@ import createCreatorMemory, {
   PROJECT_STATUSES,
   MEMORY_SOURCES,
   MEMORY_CERTAINTY,
-  hasPermissiveCreatorMemoryAuthority,
 } from "./CreatorMemory.js";
 import createCreatorJourneyEngine from "./CreatorJourneyEngine.js";
 import createMovieJourneyIntelligenceBridge from "./MovieJourneyIntelligenceBridge.js";
@@ -117,14 +116,6 @@ function createMovieMentorStudioIdentityRuntime({
   journeyAuthorityReadFacade = createJourneyAuthorityReadFacade(),
   settlementLockManager = globalThis?.navigator?.locks,
 } = {}) {
-  // Reject genuine permissive Creator Memory facades at the Studio boundary.
-  // Preserve existing injected test/integration adapters until their contracts
-  // are migrated and physically verified, rather than silently breaking them.
-  if (hasPermissiveCreatorMemoryAuthority(memory)) {
-    const error = new TypeError('Studio runtime refuses permissive Creator Memory authority.');
-    error.code = 'MOVIE_MENTOR_UNSAFE_MEMORY_AUTHORITY';
-    throw error;
-  }
   const creatorSessionId = issueWorkingSessionId({ cryptoImpl });
   const pendingCreatorMessageByProject = new Map();
   const recommendationJourneyEngine = createCreatorJourneyEngine();
