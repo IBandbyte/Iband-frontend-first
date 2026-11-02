@@ -566,6 +566,42 @@ function createMovieMentorStudioIdentityRuntime({
     });
   }
 
+  // Post-transaction view only. A successful lock alone is insufficient:
+  // require an unblocked certification for the same active project, then
+  // recheck fresh persisted Journey authority before exposing references.
+  function getCertifiedResumeSnapshot(transaction, expectedProjectId) {
+    const pid = clean(expectedProjectId);
+    const certification = transaction?.value;
+    if (!transaction?.acquired || !pid ||
+        certification?.projectId !== pid ||
+        certification?.recommendationActionsBlocked !== false ||
+        !["certified", "repaired", "proof-conflict-quarantined"].includes(certification?.status)) {
+      return null;
+    }
+    const active = getActiveMemoryProject();
+    if (active?.id !== pid) return null;
+    const project = typeof memory.getPersistedProject === "function"
+      ? memory.getPersistedProject(pid) : memory.getProject?.(pid) || null;
+    if (!isMovieMentorProject(project)) return null;
+    const conversation = resumeProjectConversation(pid);
+    const preferred = getPreferredJourney(pid, {
+      fallbackJourney: conversation.handoff?.value?.projectJourney || null,
+    });
+    if (preferred?.status === "authority" && preferred?.projectionStatus !== "in-sync") return null;
+    return {
+      project,
+      projectId: pid,
+      creatorSessionId,
+      projectJourney: preferred?.projectJourney || conversation.handoff?.value?.projectJourney || null,
+      journeyAuthorityRead: clone(preferred),
+      conversationMessages: conversation.messages,
+      sessionHandoff: conversation.handoff,
+      currentRecommendationReferences: getCurrentRecommendationReferences(pid),
+      recommendationRecovery: clone(certification),
+      recommendationActionsBlocked: false,
+    };
+  }
+
   function getResumeSnapshot() {
     const initiallyActiveProject = getActiveMemoryProject();
     if (!initiallyActiveProject) return null;
@@ -638,6 +674,7 @@ function createMovieMentorStudioIdentityRuntime({
     settleConversationMessage,
     resumeProjectConversation,
     recoverResumeRecommendationsWithSharedAuthority,
+    getCertifiedResumeSnapshot,
     getResumeSnapshot,
   };
 }
