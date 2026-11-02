@@ -75,6 +75,9 @@ jobs:
       - name: Verify strict mentor settlement compatibility
         if: always()
         run: node scripts/verify-movie-mentor-strict-settlement-compatibility.mjs
+      - name: Verify Response Generator strict memory authority
+        if: always()
+        run: node scripts/verify-movie-mentor-response-generator-strict-memory-authority.mjs
       - name: Verify default Studio strict writer authority
         if: always()
         run: node scripts/verify-movie-mentor-studio-default-strict-authority.mjs
