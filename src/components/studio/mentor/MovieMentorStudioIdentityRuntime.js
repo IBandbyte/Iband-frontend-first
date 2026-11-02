@@ -3,6 +3,7 @@ import createCreatorMemory, {
   MEMORY_SOURCES,
   MEMORY_CERTAINTY,
 } from "./CreatorMemory.js";
+import { requireVerifiedMemoryAuthority } from "./VerifiedMemoryAuthority.js";
 import createCreatorJourneyEngine from "./CreatorJourneyEngine.js";
 import createMovieJourneyIntelligenceBridge from "./MovieJourneyIntelligenceBridge.js";
 import createJourneyRecommendationEnvelope from "./JourneyRecommendationEnvelope.js";
@@ -116,6 +117,9 @@ function createMovieMentorStudioIdentityRuntime({
   journeyAuthorityReadFacade = createJourneyAuthorityReadFacade(),
   settlementLockManager = globalThis?.navigator?.locks,
 } = {}) {
+  // A caller-supplied facade must not bypass the strict default used by the
+  // live Studio. This check is before any recovery or persistence work.
+  requireVerifiedMemoryAuthority(memory);
   const creatorSessionId = issueWorkingSessionId({ cryptoImpl });
   const pendingCreatorMessageByProject = new Map();
   const recommendationJourneyEngine = createCreatorJourneyEngine();
