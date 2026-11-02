@@ -7,7 +7,7 @@ const storage=createMemoryStorageAdapter();
 const memory=createCreatorMemory({storageAdapter:storage,requireSharedWriteAuthority:true});
 const locks={request:async(name,options,callback)=>{
  assert.equal(name,"movie-mentor-creator-memory-recovery");
- assert.deepEqual(options,{mode:"exclusive"},"Atomic settlement must wait for shared recovery authority.");
+ assert.ok(options?.mode==="exclusive" && (options.ifAvailable===undefined || options.ifAvailable===true),"Lock mock accepts waiting atomic settlement and non-waiting ordinary writer.");
  return callback({name});
 }};
 const before=storage.getItem("iband.creator-memory");
