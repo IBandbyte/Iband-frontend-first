@@ -106,3 +106,46 @@ for (const [receiptFingerprint, expectedStatus, expectedReason] of [
   }
 }
 console.log("Strict Creator Memory resume recovery: valid receipt and proof conflict PASS");
+
+{
+  // An independent context commits the valid terminal lifecycle immediately
+  // BEFORE the exclusive recovery lock is granted. The recovery transaction
+  // must hydrate that durable state rather than reuse its stale render snapshot.
+  const { runtime, memory, journey, storage } = seed();
+  const initial = runtime.getResumeSnapshot();
+  assert.equal(initial.recommendationActionsBlocked, true);
+  let externalRepairCount = 0;
+  const raceLocks = {
+    async request(name, options, callback) {
+      assert.equal(name, "movie-mentor-creator-memory-recovery");
+      assert.equal(options?.mode, "exclusive");
+      const persisted = memory.readPersistedState();
+      const reference = persisted.projectMemories[0].metadata.recommendationReference;
+      assert.equal(reference.lifecycle.current, true);
+      reference.lifecycle = {
+        ...reference.lifecycle,
+        current: false,
+        terminalReason: "consumed",
+        consumedByOperationId: `journey-recommendation-acceptance:${recommendationId}`,
+        consumedByCreatorActId: "creator-act-1",
+        consumedAtProgressionRevision: 1,
+      };
+      storage.setItem("iband.creator-memory", JSON.stringify(persisted));
+      externalRepairCount += 1;
+      return callback({ name, mode: "exclusive" });
+    },
+  };
+  const transaction = await runtime.recoverResumeRecommendationsWithSharedAuthority({ locks: raceLocks });
+  assert.equal(externalRepairCount, 1, "External repair must commit exactly once before lock acquisition.");
+  assert.equal(transaction.acquired, true);
+  assert.equal(transaction.value.status, "certified", "Fresh locked recovery must recognize preexisting terminal proof.");
+  assert.equal(transaction.value.recommendationActionsBlocked, false);
+  const snapshot = runtime.getResumeSnapshot();
+  assert.deepEqual(snapshot.currentRecommendationReferences, []);
+  assert.deepEqual(snapshot.projectJourney, journey);
+  const persisted = memory.readPersistedState();
+  assert.equal(persisted.projectMemories[0].metadata.recommendationReference.lifecycle.terminalReason, "consumed");
+  assert.equal(persisted.projects[0].metadata.projectJourney.progression.revision, 1);
+}
+console.log("Strict Creator Memory recovery: pre-lock external convergence PASS");
+
