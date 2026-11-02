@@ -90,6 +90,9 @@ jobs:
       - name: Verify legacy recommendation writer denial
         if: always()
         run: node scripts/verify-movie-mentor-legacy-recommendation-writer-denial.mjs
+      - name: Verify unrecognised injected writer method boundary
+        if: always()
+        run: node scripts/verify-movie-mentor-unrecognised-injected-writer.mjs
       - name: Verify injected memory authority contract and compatibility
         if: always()
         run: node scripts/verify-movie-mentor-response-generator-authority-contract.mjs
