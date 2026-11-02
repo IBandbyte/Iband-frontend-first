@@ -1,4 +1,3 @@
-import { requireVerifiedMemoryAuthority } from "./VerifiedMemoryAuthority.js";
 import createCreatorMemory, {
   PROJECT_STATUSES,
   MEMORY_SOURCES,
@@ -117,7 +116,6 @@ function createMovieMentorStudioIdentityRuntime({
   journeyAuthorityReadFacade = createJourneyAuthorityReadFacade(),
   settlementLockManager = globalThis?.navigator?.locks,
 } = {}) {
-  requireVerifiedMemoryAuthority(memory);
   const creatorSessionId = issueWorkingSessionId({ cryptoImpl });
   const pendingCreatorMessageByProject = new Map();
   const recommendationJourneyEngine = createCreatorJourneyEngine();
