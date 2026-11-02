@@ -87,6 +87,9 @@ jobs:
       - name: Witness recovery collision callback entry
         if: always()
         run: node scripts/verify-movie-mentor-recovery-collision-entry-witness.mjs
+      - name: Verify certified resume safe adoption
+        if: always()
+        run: node scripts/verify-movie-mentor-resume-safe-adoption.mjs
       - name: Verify fresh-memory shared-authority resume recovery
         if: always()
         run: node scripts/verify-movie-mentor-resume-fresh-memory-authority.mjs
