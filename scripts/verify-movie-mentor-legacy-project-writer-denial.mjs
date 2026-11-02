@@ -5,7 +5,9 @@ import createMovieMentorStudioIdentityRuntime from "../src/components/studio/men
 // The real UI uses ensureProjectWithSharedAuthority. Its public synchronous
 // predecessor must not create a project outside the shared recovery lock.
 const storage=createMemoryStorageAdapter();
-const memory=createCreatorMemory({storageAdapter:storage});
+// Use a verified strict facade so constructor injection and method-level
+// denial remain independently testable.
+const memory=createCreatorMemory({storageAdapter:storage,requireSharedWriteAuthority:true});
 const runtime=createMovieMentorStudioIdentityRuntime({memory});
 const before=storage.getItem("iband.creator-memory");
 let denied=false;
