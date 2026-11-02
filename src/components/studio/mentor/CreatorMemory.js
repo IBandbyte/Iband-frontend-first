@@ -316,6 +316,32 @@ function createCreatorMemory(options = {}) {
     });
   }
 
+  // Dedicated resume-repair transaction. Run the existing lifecycle and
+  // proof-conflict quarantine implementation against a fresh Core while holding
+  // the same exclusive lock used by recovery and coordinated ordinary writers.
+  // Never reuse a render-time facade snapshot or persist an adoption write.
+  async function runRecoveryWithSharedAuthority({ locks, operation } = {}) {
+    if (typeof operation !== "function") {
+      return Object.freeze({ acquired: false, reason: "recovery-operation-unavailable" });
+    }
+    return withMovieMentorMemoryWriteAuthority({
+      locks,
+      waitForAuthority: true,
+      operation: () => {
+        const fresh = createCreatorMemoryCore({
+          ...resolvedCoreOptions,
+          storageAdapter: createFacadeStorageController(durableStorage).adapter,
+        });
+        const value = operation(fresh);
+        if (value && typeof value.then === "function") {
+          throw new Error("Resume recommendation recovery must complete synchronously under shared authority.");
+        }
+        adoptPersistedStateWithoutWrite(fresh.getState());
+        return value;
+      },
+    });
+  }
+
   function overlayAuthorityJourney(project) {
     const safeProject = clone(project || null);
     if (!isMovieMentorProject(safeProject)) return safeProject;
@@ -475,6 +501,7 @@ function createCreatorMemory(options = {}) {
     getPersistedProject,
     convergeConversationSettlement,
     replaceStateWithSharedAuthority,
+    runRecoveryWithSharedAuthority,
     getProject,
     getActiveProject,
     getProjectMemories,
