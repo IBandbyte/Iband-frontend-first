@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import createCreatorMemory, { createMemoryStorageAdapter } from "../src/components/studio/mentor/CreatorMemory.js";
 import { requireVerifiedMemoryAuthority } from "../src/components/studio/mentor/VerifiedMemoryAuthority.js";
+import { syncMovieMentorDurableState } from "../src/components/studio/mentor/MovieMentorDurableStateSync.js";
 
 // Independent strict physical court: recommendation replacement must be part of
 // the same shared-authority transaction as conversation and handoff settlement.
@@ -72,4 +73,29 @@ for (let index = 0; index < 2; index += 1) {
 }
 assert.equal((state.conversations || []).filter(entry => entry?.metadata?.projectId === projectId).length, 3);
 assert.equal((state.sessionHandoffs || []).filter(entry => entry?.metadata?.projectId === projectId).length, 3);
-console.log("GREEN: strict shared-authority settlement retains exactly one current recommendation, two retired references, and all conversations and handoffs after reload.");
+let syncedBody = null;
+let syncedAuthorization = null;
+await syncMovieMentorDurableState({
+  projectId,
+  creatorSessionId: "strict-session",
+  memoryState: state,
+  storage: { getItem: () => null, setItem() {} },
+  getAuthToken: async () => "strict-recommendation-test-token",
+  fetchImpl: async (_url, request) => {
+    syncedAuthorization = request.headers?.Authorization || null;
+    syncedBody = JSON.parse(request.body);
+    return { ok: true, status: 200, json: async () => ({ success: true, state: { revision: 10 } }) };
+  },
+});
+assert.equal(syncedAuthorization, "Bearer strict-recommendation-test-token");
+const syncedReferences = (syncedBody?.state?.memoryContext?.projectMemories || [])
+  .map(entry => entry?.metadata?.recommendationReference)
+  .filter(reference => reference?.domain === "iband.movie-mentor.journey-recommendation-reference" && reference?.projectId === projectId);
+assert.equal(syncedReferences.length, 3, "Authenticated sync must carry every recommendation lifecycle record.");
+assert.deepEqual(syncedReferences.filter(reference => reference.lifecycle?.current === true).map(reference => reference.recommendationId), [ids[2]]);
+for (let index = 0; index < 2; index += 1) {
+  const previous = syncedReferences.find(reference => reference.recommendationId === ids[index]);
+  assert.equal(previous?.lifecycle?.terminalReason, "superseded");
+  assert.equal(previous?.lifecycle?.supersededByRecommendationId, ids[index + 1]);
+}
+console.log("GREEN: strict shared-authority settlement, recommendation retirement, reload and authenticated durable sync preserve one current reference.");
