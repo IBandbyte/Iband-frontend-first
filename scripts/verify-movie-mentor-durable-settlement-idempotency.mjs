@@ -128,13 +128,14 @@ const options = {
 };
 const lockManager = createSerialLockManager();
 
+// The direct legacy convergence witness above remains unchanged; only injected Studio facades migrate.
 const runtimeA = createMovieMentorStudioIdentityRuntime({
-  memory: createCreatorMemory(options),
+  memory: createCreatorMemory({...options,requireSharedWriteAuthority:true}),
   cryptoImpl: { randomUUID: () => "runtime-a" },
   settlementLockManager: lockManager,
 });
 const runtimeB = createMovieMentorStudioIdentityRuntime({
-  memory: createCreatorMemory(options),
+  memory: createCreatorMemory({...options,requireSharedWriteAuthority:true}),
   cryptoImpl: { randomUUID: () => "runtime-b" },
   settlementLockManager: lockManager,
 });
@@ -183,7 +184,7 @@ assert.equal(
 );
 
 const runtimeC = createMovieMentorStudioIdentityRuntime({
-  memory: createCreatorMemory(options),
+  memory: createCreatorMemory({...options,requireSharedWriteAuthority:true}),
   cryptoImpl: { randomUUID: () => "runtime-c" },
   settlementLockManager: lockManager,
 });
@@ -218,7 +219,7 @@ const failureOptions = {
   creatorId: "creator-38-failure",
 };
 const failureRuntime = createMovieMentorStudioIdentityRuntime({
-  memory: createCreatorMemory(failureOptions),
+  memory: createCreatorMemory({...failureOptions,requireSharedWriteAuthority:true}),
   cryptoImpl: { randomUUID: () => "runtime-failure" },
   settlementLockManager: createFailOnceLockManager(),
 });
