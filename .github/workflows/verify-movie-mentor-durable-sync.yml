@@ -141,6 +141,9 @@ jobs:
       - name: Verify strict ordinary writer overlap during recovery authority
         if: always()
         run: node scripts/verify-movie-mentor-strict-ordinary-recovery-overlap.mjs
+      - name: Witness eligible Studio recovery collision entry
+        if: always()
+        run: node scripts/verify-movie-mentor-overlap-fixture-entry.mjs
       - name: Verify studio project creation overlap during recovery authority
         if: always()
         run: node scripts/verify-movie-mentor-studio-project-recovery-overlap.mjs
