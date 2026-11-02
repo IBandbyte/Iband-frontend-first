@@ -51,3 +51,15 @@ The implementation direction is a controlled, explicit cutover:
 6. Keep the original three courts RED until the unsafe default writer is genuinely fenced or its original contention semantics are satisfied. The current tests explicitly instantiate the permissive default, so a live-Studio-only migration cannot make them GREEN.
 
 **Open architectural decision:** To make the original default-facade courts GREEN, the legacy default must eventually be retired or constrained to a storage mode with proven atomic writes; an ordinary localStorage preflight check cannot satisfy the injected check-to-commit race. Any such change must be accompanied by an explicit compatibility plan and physical regression results.
+
+## Exact-head compatibility court: 92d72c94
+
+- All 30 workflows completed: 29 GREEN and one RED (Durable Sync).
+- The Durable Sync job has four genuine RED steps: Studio runtime permissive-memory injection; ordinary writer check-to-commit race; ordinary writer overlap during recovery authority; shared recovery/ordinary writer coordination.
+- A strict-brand-only constructor guard on 17a589ec made the new injection court GREEN but regressed multiple pre-existing integration workflows. A narrower permissive-brand rejection on 19682f97 also regressed legacy integrations.
+- Inspection of live acceptance, durable settlement, and cockpit continuity scripts shows they construct permissive Creator Memory facades and explicitly inject them into the Studio runtime. Some perform synchronous setup writes before exercising the coordinated workflow. These are real compatibility dependencies of the CI suite, **not proof of production browser reachability**.
+- Both attempted constructor guards were rolled back. The new injection court remains RED; no test-only bypass was introduced and the three original contention REDs remain.
+
+### Next migration gate
+
+Do not reintroduce a constructor rejection without a separately verified legacy integration migration. First inventory the exact synchronous setup and runtime mutation calls in each affected verifier, classify their storage/authority assumptions, and register a migration-specific adversarial court. Preserve the old court as an independent compatibility witness until the replacement has passed exact-head CI. Separately verify the actual production Studio entry points do not supply permissive facades; source-only default inspection does not certify every injection path.
