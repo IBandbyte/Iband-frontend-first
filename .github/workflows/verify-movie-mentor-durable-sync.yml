@@ -129,6 +129,9 @@ jobs:
       - name: Verify strict Studio refusal before legacy commit race
         if: always()
         run: node scripts/verify-movie-mentor-strict-writer-race-preservation.mjs
+      - name: Verify coordinated writer authority denial
+        if: always()
+        run: node scripts/verify-movie-mentor-coordinated-writer-authority-denial.mjs
       - name: Verify coordinated writer stale baseline preservation
         if: always()
         run: node scripts/verify-movie-mentor-coordinated-writer-stale-baseline.mjs
