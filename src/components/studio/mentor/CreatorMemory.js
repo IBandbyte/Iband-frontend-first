@@ -301,7 +301,7 @@ function createCreatorMemory(options = {}) {
   // is permitted to commit under shared cross-context authority.
   async function settleConversationWithSharedAuthority({
     locks, projectId, creatorTurnId, conversation, handoff, recommendation,
-    beforeCommit,
+    beforeCommit, settlementLockName = null,
   } = {}) {
     const pid = cleanIdentity(projectId);
     const turnId = cleanIdentity(creatorTurnId);
@@ -311,6 +311,7 @@ function createCreatorMemory(options = {}) {
     return withMovieMentorMemoryWriteAuthority({
       locks,
       operation: () => {
+        const commit = () => {
         const fresh = createCreatorMemoryCore({
           ...resolvedCoreOptions,
           storageAdapter: createFacadeStorageController(durableStorage).adapter,
@@ -418,7 +419,12 @@ function createCreatorMemory(options = {}) {
           recommendation: clone(savedRecommendation),
           retiredRecommendationIds: clone(retiredRecommendationIds),
         });
+        };
+        return settlementLockName
+          ? locks.request(settlementLockName, { mode: "exclusive" }, commit)
+          : commit();
       },
+      waitForAuthority: true,
     });
   }
 
