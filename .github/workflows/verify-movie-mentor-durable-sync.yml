@@ -60,6 +60,9 @@ jobs:
       - name: Verify strict ordinary writer fail-closed migration
         if: always()
         run: node scripts/verify-movie-mentor-strict-ordinary-writer-fence.mjs
+      - name: Verify strict legacy project hydration without constructor writes
+        if: always()
+        run: node scripts/verify-movie-mentor-strict-legacy-hydration.mjs
       - name: Verify default Studio strict writer authority
         if: always()
         run: node scripts/verify-movie-mentor-studio-default-strict-authority.mjs
