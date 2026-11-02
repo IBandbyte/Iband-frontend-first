@@ -104,6 +104,13 @@ function createMemory({ journey, reference, beforeLatestRead = null } = {}) {
       return clone(state);
     },
     replaceState(nextState) { state = clone(nextState); return clone(state); },
+    async runRecoveryWithSharedAuthority({ locks, operation }) {
+      if (!locks || typeof locks.request !== "function") return { acquired: false, reason: "lock-unavailable" };
+      return locks.request("movie-mentor-creator-memory-recovery", { mode: "exclusive" }, async lock => {
+        if (!lock) return { acquired: false, reason: "exclusive-lock-unavailable" };
+        return { acquired: true, value: operation(memory) };
+      });
+    },
     getProjectMemories({ projectId } = {}) { return clone(state.projectMemories.filter((entry) => entry.projectId === projectId)); },
     getRecentConversations() { return []; },
     getLatestSessionHandoff() { return null; },
@@ -122,6 +129,7 @@ function createRuntime(memory) {
   return createMovieMentorStudioIdentityRuntime({
     memory,
     cryptoImpl: { randomUUID: () => "resume-recovery-session" },
+    settlementLockManager: { request: async (_name, _options, callback) => callback({ mode: "exclusive" }) },
   });
 }
 
@@ -133,12 +141,17 @@ const fingerprint = "resume-proof-fingerprint";
   const reference = createReference({ recommendationId, fingerprint });
   const { memory, inspect } = createMemory({ journey, reference });
   const runtime = createRuntime(memory);
+  const initialSnapshot = runtime.getResumeSnapshot();
+  assert.equal(initialSnapshot.recommendationActionsBlocked, true, "Render must remain read-only and blocked.");
+  const transaction = await runtime.recoverResumeRecommendationsWithSharedAuthority();
+  assert.equal(transaction.acquired, true, "Recovery requires exclusive authority.");
+  const recovery = transaction.value;
   const snapshot = runtime.getResumeSnapshot();
   const persisted = inspect();
   const persistedReference = persisted.projectMemories[0].metadata.recommendationReference;
 
-  assert.equal(snapshot.recommendationActionsBlocked, false);
-  assert.equal(snapshot.recommendationRecovery.status, "repaired");
+  assert.equal(recovery.recommendationActionsBlocked, false);
+  assert.equal(recovery.status, "repaired");
   assert.equal(snapshot.currentRecommendationReferences.length, 0);
   assert.equal(persistedReference.lifecycle.current, false);
   assert.equal(persistedReference.lifecycle.terminalReason, "consumed");
@@ -150,13 +163,18 @@ const fingerprint = "resume-proof-fingerprint";
   const reference = createReference({ recommendationId, fingerprint });
   const { memory, inspect } = createMemory({ journey, reference });
   const runtime = createRuntime(memory);
+  const initialSnapshot = runtime.getResumeSnapshot();
+  assert.equal(initialSnapshot.recommendationActionsBlocked, true, "Render must remain read-only and blocked.");
+  const transaction = await runtime.recoverResumeRecommendationsWithSharedAuthority();
+  assert.equal(transaction.acquired, true, "Recovery requires exclusive authority.");
+  const recovery = transaction.value;
   const snapshot = runtime.getResumeSnapshot();
   const persisted = inspect();
   const persistedReference = persisted.projectMemories[0].metadata.recommendationReference;
 
-  assert.equal(snapshot.recommendationActionsBlocked, false);
-  assert.equal(snapshot.recommendationRecovery.status, "proof-conflict-quarantined");
-  assert.equal(snapshot.recommendationRecovery.recoveryAttempts, 2);
+  assert.equal(recovery.recommendationActionsBlocked, false);
+  assert.equal(recovery.status, "proof-conflict-quarantined");
+  assert.equal(recovery.recoveryAttempts, 2);
   assert.deepEqual(snapshot.currentRecommendationReferences, []);
   assert.equal(persistedReference.lifecycle.current, false);
   assert.equal(persistedReference.lifecycle.terminalReason, "proof-conflict-quarantined");
@@ -190,18 +208,23 @@ const fingerprint = "resume-proof-fingerprint";
     },
   });
   const runtime = createRuntime(memory);
+  const initialSnapshot = runtime.getResumeSnapshot();
+  assert.equal(initialSnapshot.recommendationActionsBlocked, true, "Render must remain read-only and blocked.");
+  const transaction = await runtime.recoverResumeRecommendationsWithSharedAuthority();
+  assert.equal(transaction.acquired, true, "Recovery requires exclusive authority.");
+  const recovery = transaction.value;
   const snapshot = runtime.getResumeSnapshot();
 
-  assert.equal(snapshot.recommendationActionsBlocked, false);
-  assert.equal(snapshot.recommendationRecovery.status, "certified");
-  assert.equal(snapshot.recommendationRecovery.recoveryAttempts, 2);
+  assert.equal(recovery.recommendationActionsBlocked, false);
+  assert.equal(recovery.status, "certified");
+  assert.equal(recovery.recoveryAttempts, 2);
   assert.deepEqual(snapshot.currentRecommendationReferences, []);
 }
 
 const recoveryCall = identitySource.indexOf("certifyJourneyRecommendationResume({");
 const recommendationExposure = identitySource.indexOf("currentRecommendationReferences:", recoveryCall);
-check(recoveryCall >= 0, "Studio identity resume must invoke recommendation lifecycle recovery.");
-check(recommendationExposure > recoveryCall, "Recommendation references must only be exposed after recovery invocation.");
+check(recoveryCall >= 0 && identitySource.includes("async function recoverResumeRecommendationsWithSharedAuthority("), "Async Studio identity recovery must invoke existing recommendation lifecycle recovery.");
+check(recommendationExposure > recoveryCall, "Read-only recommendation exposure must follow the async recovery definition and remain blocked until certification.");
 check(identitySource.includes("typeof memory.getPersistedProject === \"function\"") && identitySource.includes("memory.getPersistedProject(initiallyActiveProject.id)") && identitySource.includes(": memory.getProject?.(initiallyActiveProject.id) || null"), "Resume must prefer a fresh durable project read after recovery, with compatibility fallback only when persisted reads are unavailable.");
 check(identitySource.includes("recommendationActionsBlocked ? [] : getCurrentRecommendationReferences(project.id)"), "Blocked recovery must expose zero current recommendation references.");
 check(resumeSource.includes("quarantineJourneyRecommendationRecoveryConflicts"), "Proof conflicts must route through dedicated metadata-only quarantine.");
