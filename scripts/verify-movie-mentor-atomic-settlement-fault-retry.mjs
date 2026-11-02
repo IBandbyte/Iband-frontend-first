@@ -35,4 +35,31 @@ assert.equal(state.projectMemories.filter(x=>x.metadata?.creatorTurnId==="atomic
  "Exactly one durable recommendation must accompany the conversation.");
 assert.equal(first.value?.status,"committed","First attempt must commit.");
 assert.equal(retry.value?.status,"already-settled","Retry must reuse the existing turn.");
+// Exercise replacement retirement and repeated turn identity against the same
+// durable state. Old references must become terminal only when the new one
+// commits, and retry must not retire or append again.
+const oldReference={domain:"movie-mentor-journey-recommendation",projectId:"atomic-film",recommendationId:"rec-old",lifecycle:{current:true}};
+const newReference={domain:oldReference.domain,projectId:"atomic-film",recommendationId:"rec-new",lifecycle:{current:true}};
+const seed=await memory.replaceStateWithSharedAuthority({locks,transform:state=>{
+ state.projectMemories.push({
+  id:"old-rec-entry",projectId:"atomic-film",type:"project-memory",
+  title:"Previous recommendation",content:"Old plan",metadata:{recommendationReference:oldReference}
+ });
+ return state;
+}});
+assert.equal(seed.acquired,true);
+const replacement={...request,creatorTurnId:"atomic-turn-02",recommendation:{
+ content:"New plan",metadata:{recommendationReference:newReference}
+}};
+const replacementResult=await memory.settleConversationWithSharedAuthority(replacement);
+assert.equal(replacementResult.acquired,true);
+assert.deepEqual(replacementResult.value.retiredRecommendationIds,["rec-old"]);
+const afterReplacement=memory.readPersistedState();
+const old=afterReplacement.projectMemories.find(x=>x.id==="old-rec-entry");
+assert.equal(old.metadata.recommendationReference.lifecycle.current,false);
+assert.equal(old.metadata.recommendationReference.lifecycle.supersededByRecommendationId,"rec-new");
+const replacementBytes=storage.getItem("iband.creator-memory");
+const replacementRetry=await memory.settleConversationWithSharedAuthority(replacement);
+assert.equal(replacementRetry.value.status,"already-settled");
+assert.equal(storage.getItem("iband.creator-memory"),replacementBytes);
 console.log("GREEN: injected failure is atomic and retry is idempotent.");
