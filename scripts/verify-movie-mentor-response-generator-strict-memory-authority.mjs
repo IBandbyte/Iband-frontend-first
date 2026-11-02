@@ -38,7 +38,7 @@ assert.ok(memory.getState(),"Strict Creator Memory must preserve read-side acces
 assert.equal(typeof memory.readPersistedState,"function");
 assert.equal(typeof memory.replaceStateWithSharedAuthority,"function");
 assert.throws(()=>memory.replaceState(memory.getState()),
-  error=>error?.code==="CREATOR_MEMORY_WRITE_AUTHORITY_DENIED",
+  error=>error?.code==="CREATOR_MEMORY_WRITE_AUTHORITY_DENIED" || error?.cause?.code==="CREATOR_MEMORY_WRITE_AUTHORITY_DENIED",
   "RED: strict Creator Memory accepted an uncoordinated synchronous mutation.");
 assert.equal(storage.getItem("iband.creator-memory"),before,
   "Denied synchronous mutation must leave durable bytes unchanged.");
