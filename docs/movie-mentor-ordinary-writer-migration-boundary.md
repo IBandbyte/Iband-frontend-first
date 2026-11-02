@@ -85,3 +85,10 @@ These are **verified source call sites in CI scripts**, not a complete repositor
 - At the last status check, 28 of 30 workflows were GREEN, Durable Sync RED, and Live Gateway pending. This is not a full exact-head completion claim.
 
 **Next migration target:** Live acceptance loop currently calls permissive `memory.saveProject` before runtime injection. Replace that fixture setup in a *separate* migration court with strict coordinated project creation, retaining the same recommendation A/B, reload, and creator-confirmation assertions. The original live acceptance verifier remains unchanged until its replacement physically passes. The production injection court must remain RED until a compatible constructor boundary is implemented.
+
+## Strict acceptance and settlement physical verdicts — 8cb1ae54 / 9f35462b
+
+- Exact-head `8cb1ae54`: original and independently migrated strict Live Acceptance Loop both GREEN. All 30 workflows completed: 29 GREEN, Durable Sync RED with exactly the original four safety steps.
+- Exact-head `9f35462b`: original and independently migrated strict Durable Settlement Idempotency both GREEN. The new strict settlement migration is step 5 in its dedicated workflow; it retains concurrent same-turn convergence, distinct-turn identity, failure/retry and direct legacy compatibility witnesses. At the last check, 28 workflows GREEN, Durable Sync RED with the same four steps, and Creator Completion Torture pending.
+- Both migrations are **parallel witnesses**, not changes to the original compatibility scripts. Production Studio runtime injection still accepts permissive mutable facades and its independent rejection court remains RED.
+- **Next gate before constructor enforcement:** identify every remaining legacy integration that injects permissive Creator Memory, migrate those that can use strict coordinated operations, and keep separate direct legacy compatibility tests. The earlier broad and narrow production injection guards caused regressions; do not reintroduce one without physically passing the complete integration matrix.
