@@ -14,6 +14,7 @@ on:
       - "scripts/verify-movie-mentor-strict-live-recommendation-provenance.mjs"
       - "scripts/verify-movie-mentor-recommendation-reference-evidence.mjs"
       - "scripts/verify-movie-mentor-strict-recovery-two-writer-lock.mjs"
+      - "scripts/verify-movie-mentor-recovery-bounded-retry-algorithm.mjs"
       - ".github/workflows/verify-movie-mentor-durable-settlement-idempotency.yml"
   workflow_dispatch:
 
@@ -47,3 +48,6 @@ jobs:
 
       - name: Verify strict recovery and ordinary writer lock contention
         run: node scripts/verify-movie-mentor-strict-recovery-two-writer-lock.mjs
+
+      - name: Verify original bounded recovery retry at algorithm boundary
+        run: node scripts/verify-movie-mentor-recovery-bounded-retry-algorithm.mjs
