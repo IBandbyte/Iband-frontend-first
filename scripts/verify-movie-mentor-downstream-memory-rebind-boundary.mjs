@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import createCreatorMemory,{createMemoryStorageAdapter} from "../src/components/studio/mentor/CreatorMemory.js";
 import {createCreatorMemoryEngine} from "../src/components/studio/mentor/CreatorMemoryEngine.js";
 import {createAdaptiveMentorEngine} from "../src/components/studio/mentor/AdaptiveMentorEngine.js";
 
@@ -12,6 +13,24 @@ const unsafe={
   applyMemoryInstructions(instructions){writes+=instructions.length;return {applied:instructions,skipped:[],errors:[]};},
 };
 const instruction={type:"memory-upsert",payload:{text:"unverified mutation"}};
+// Compatibility: a genuine strict facade and a constrained read-only service
+// must still be accepted by both lower-level engines.
+const strict=createCreatorMemory({storageAdapter:createMemoryStorageAdapter(),requireSharedWriteAuthority:true});
+const readOnly={getMemoryContext(){return {};},getState(){return {};}};
+for(const [label,make] of [
+  ["CreatorMemoryEngine",()=>createCreatorMemoryEngine()],
+  ["AdaptiveMentorEngine",()=>createAdaptiveMentorEngine()],
+]){
+  for(const [kind,memory] of [["strict",strict],["read-only",readOnly]]){
+    const engine=make();
+    assert.equal(engine.setMemory(memory),memory,`${label} must preserve ${kind} memory identity.`);
+    assert.equal(engine.getMemory(),memory,`${label} must retain ${kind} memory service.`);
+  }
+}
+assert.equal(createCreatorMemoryEngine({memory:strict}).getMemory(),strict);
+assert.equal(createAdaptiveMentorEngine({memory:strict}).getMemory(),strict);
+assert.equal(createCreatorMemoryEngine({memory:readOnly}).getMemory(),readOnly);
+assert.equal(createAdaptiveMentorEngine({memory:readOnly}).getMemory(),readOnly);
 const cases=[
   ["CreatorMemoryEngine.setMemory",()=>createCreatorMemoryEngine().setMemory(unsafe)],
   ["AdaptiveMentorEngine.setMemory",()=>createAdaptiveMentorEngine().setMemory(unsafe)],
