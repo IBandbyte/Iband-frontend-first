@@ -9,6 +9,7 @@ on:
       - "src/components/studio/mentor/CreatorMemory.js"
       - "src/components/studio/mentor/MovieMentorStudioIdentityRuntime.js"
       - "scripts/verify-movie-mentor-durable-settlement-idempotency.mjs"
+      - "scripts/verify-movie-mentor-strict-durable-settlement-idempotency.mjs"
       - ".github/workflows/verify-movie-mentor-durable-settlement-idempotency.yml"
   workflow_dispatch:
 
@@ -27,3 +28,6 @@ jobs:
           node-version: "20"
       - name: Verify durable mentor settlement idempotency
         run: node scripts/verify-movie-mentor-durable-settlement-idempotency.mjs
+
+      - name: Verify strict Studio settlement injection migration
+        run: node scripts/verify-movie-mentor-strict-durable-settlement-idempotency.mjs
