@@ -29,4 +29,10 @@ assert.equal(retry.acquired,true);
 assert.equal(storage.getItem("iband.creator-memory"),committed,"Retry must not write another settlement.");
 const state=memory.readPersistedState();
 assert.equal(state.conversations.filter(x=>x.metadata?.creatorTurnId==="atomic-turn-01").length,1);
+assert.equal(state.sessionHandoffs.filter(x=>x.metadata?.creatorTurnId==="atomic-turn-01").length,1,
+ "Exactly one durable handoff must accompany the conversation.");
+assert.equal(state.projectMemories.filter(x=>x.metadata?.creatorTurnId==="atomic-turn-01").length,1,
+ "Exactly one durable recommendation must accompany the conversation.");
+assert.equal(first.value?.status,"committed","First attempt must commit.");
+assert.equal(retry.value?.status,"already-settled","Retry must reuse the existing turn.");
 console.log("GREEN: injected failure is atomic and retry is idempotent.");
