@@ -90,6 +90,9 @@ jobs:
       - name: Verify legacy recommendation writer denial
         if: always()
         run: node scripts/verify-movie-mentor-legacy-recommendation-writer-denial.mjs
+      - name: Verify injected ResponseGenerator memory authority boundary
+        if: always()
+        run: node scripts/verify-movie-mentor-response-generator-injected-memory-boundary.mjs
       - name: Inventory permissive caller reachability boundaries
         if: always()
         run: node scripts/verify-movie-mentor-permissive-caller-reachability.mjs
