@@ -546,12 +546,20 @@ function isMemoryService(
   );
 }
 
-const UNSAFE_MEMORY_WRITER_METHODS = ["replaceState","saveProject","updateProject","applyMemoryInstructions","addMemory","removeMemory","deleteMemory","clearMemory","setState","persist"];
+const ALLOWED_EXTERNAL_MEMORY_READ_METHODS = new Set(["getMemoryContext","getState","getProject","getActiveProject","getProjectMemories","readPersistedState","getPersistedProject"]);
 function requireSafeInjectedMemory(candidate) {
   if (!candidate || typeof candidate !== "object") return candidate;
   if (hasStrictCreatorMemoryAuthority(candidate)) return candidate;
-  if (UNSAFE_MEMORY_WRITER_METHODS.some(name => typeof candidate[name] === "function")) {
-    const error = new TypeError("Injected memory with writable methods requires verified strict shared-write authority.");
+  const prototype = Object.getPrototypeOf(candidate);
+  const ownKeys = Reflect.ownKeys(candidate);
+  const readOnlyShape = (prototype === Object.prototype || prototype === null) &&
+    ownKeys.length > 0 && ownKeys.every(key => {
+      if (typeof key !== "string" || !ALLOWED_EXTERNAL_MEMORY_READ_METHODS.has(key)) return false;
+      const descriptor = Object.getOwnPropertyDescriptor(candidate,key);
+      return Boolean(descriptor && "value" in descriptor && typeof descriptor.value === "function");
+    });
+  if (!readOnlyShape) {
+    const error = new TypeError("Injected memory without a recognised read-only shape requires verified strict shared-write authority.");
     error.code = "MOVIE_MENTOR_UNSAFE_MEMORY_AUTHORITY";
     throw error;
   }
