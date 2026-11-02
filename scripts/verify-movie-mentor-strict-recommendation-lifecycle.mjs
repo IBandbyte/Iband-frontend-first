@@ -84,7 +84,7 @@ await syncMovieMentorDurableState({
   fetchImpl: async (_url, request) => {
     syncedAuthorization = request.headers?.Authorization || null;
     syncedBody = JSON.parse(request.body);
-    return { ok: true, status: 200, json: async () => ({ success: true, state: { revision: 10 } }) };
+    return { ok: true, status: 200, json: async () => ({ success: true, state: { revision: 1 } }) };
   },
 });
 assert.equal(syncedAuthorization, "Bearer strict-recommendation-test-token");
