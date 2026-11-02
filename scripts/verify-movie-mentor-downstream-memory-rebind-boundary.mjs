@@ -12,21 +12,26 @@ const unsafe={
   applyMemoryInstructions(instructions){writes+=instructions.length;return {applied:instructions,skipped:[],errors:[]};},
 };
 const instruction={type:"memory-upsert",payload:{text:"unverified mutation"}};
-for(const [label,make] of [
-  ["CreatorMemoryEngine",()=>createCreatorMemoryEngine()],
-  ["AdaptiveMentorEngine",()=>createAdaptiveMentorEngine()],
-]){
-  const engine=make();
-  let refused=false;
-  try{engine.setMemory(unsafe);}
-  catch(error){refused=error?.code==="MOVIE_MENTOR_UNSAFE_MEMORY_AUTHORITY";}
-  assert.equal(refused,true,`RED: ${label}.setMemory accepted an unverified mutable memory adapter.`);
+const cases=[
+  ["CreatorMemoryEngine.setMemory",()=>createCreatorMemoryEngine().setMemory(unsafe)],
+  ["AdaptiveMentorEngine.setMemory",()=>createAdaptiveMentorEngine().setMemory(unsafe)],
+  ["CreatorMemoryEngine.applyMemoryPlan override",()=>createCreatorMemoryEngine().applyMemoryPlan({plan:{instructions:[instruction]},memory:unsafe})],
+];
+const results=[];
+for(const [label,invoke] of cases){
+  const before=writes;
+  let refused=false,thrown=null;
+  try{invoke();}
+  catch(error){thrown=error;refused=error?.code==="MOVIE_MENTOR_UNSAFE_MEMORY_AUTHORITY";}
+  results.push({label,refused,writeDelta:writes-before,errorCode:thrown?.code??null});
 }
-const direct=createCreatorMemoryEngine();
-const plan={instructions:[instruction]};
-let refusedOverride=false;
-try{direct.applyMemoryPlan({plan,memory:unsafe});}
-catch(error){refusedOverride=error?.code==="MOVIE_MENTOR_UNSAFE_MEMORY_AUTHORITY";}
-assert.equal(refusedOverride,true,"RED: per-call memory override bypassed verified authority.");
-assert.equal(writes,0,"Unverified memory adapter must not receive a persistence instruction.");
+for(const result of results){
+  console.log(JSON.stringify(result));
+}
+assert.equal(results.length,3);
+for(const result of results){
+  assert.equal(result.refused,true,`RED: ${result.label} did not reject an unverified mutable memory adapter.`);
+  assert.equal(result.writeDelta,0,`RED: ${result.label} executed an unverified persistence instruction.`);
+}
+assert.equal(writes,0,"Unverified memory adapter must not receive any persistence instruction.");
 console.log("GREEN: lower-level memory rebind and per-call override refuse unverified mutable adapters.");
