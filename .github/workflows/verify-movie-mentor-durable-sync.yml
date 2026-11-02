@@ -129,6 +129,9 @@ jobs:
       - name: Verify strict Studio refusal before legacy commit race
         if: always()
         run: node scripts/verify-movie-mentor-strict-writer-race-preservation.mjs
+      - name: Verify strict Studio cockpit migration
+        if: always()
+        run: node scripts/verify-movie-mentor-studio-strict-cockpit-migration.mjs
       - name: Verify Studio runtime memory injection authority
         if: always()
         run: node scripts/verify-movie-mentor-studio-runtime-memory-injection-authority.mjs
