@@ -2,10 +2,10 @@ import assert from "node:assert/strict";
 import createCreatorMemory,{createMemoryStorageAdapter} from "../src/components/studio/mentor/CreatorMemory.js";
 import createMovieMentorStudioIdentityRuntime from "../src/components/studio/mentor/MovieMentorStudioIdentityRuntime.js";
 
-// Exported synchronous recommendation writer must fail closed even when a
-// permissive legacy Creator Memory facade is injected by another caller.
+// Exported synchronous recommendation writer must fail closed with a
+// verified strict Creator Memory facade; injection is examined separately.
 const storage=createMemoryStorageAdapter();
-const memory=createCreatorMemory({storageAdapter:storage});
+const memory=createCreatorMemory({storageAdapter:storage,requireSharedWriteAuthority:true});
 const runtime=createMovieMentorStudioIdentityRuntime({memory});
 const original=storage.getItem("iband.creator-memory");
 const evidence={
