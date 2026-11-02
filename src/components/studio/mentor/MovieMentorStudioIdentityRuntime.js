@@ -111,7 +111,7 @@ function conversationToMessages(conversation) {
 }
 
 function createMovieMentorStudioIdentityRuntime({
-  memory = createCreatorMemory(),
+  memory = createCreatorMemory({ requireSharedWriteAuthority: true }),
   cryptoImpl = globalThis?.crypto,
   journeyAuthorityReadFacade = createJourneyAuthorityReadFacade(),
   settlementLockManager = globalThis?.navigator?.locks,
