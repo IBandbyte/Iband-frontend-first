@@ -12,6 +12,7 @@ on:
       - "scripts/verify-movie-mentor-strict-durable-settlement-idempotency.mjs"
       - "scripts/verify-movie-mentor-strict-recommendation-lifecycle.mjs"
       - "scripts/verify-movie-mentor-strict-live-recommendation-provenance.mjs"
+      - "scripts/verify-movie-mentor-recommendation-reference-evidence.mjs"
       - ".github/workflows/verify-movie-mentor-durable-settlement-idempotency.yml"
   workflow_dispatch:
 
@@ -39,3 +40,6 @@ jobs:
 
       - name: Verify strict live recommendation provenance
         run: node scripts/verify-movie-mentor-strict-live-recommendation-provenance.mjs
+
+      - name: Verify original recommendation reference evidence migration
+        run: node scripts/verify-movie-mentor-recommendation-reference-evidence.mjs
