@@ -197,7 +197,12 @@ function createCreatorMemory(options = {}) {
     storageAdapter: storageController.adapter,
   };
   const memory = createCreatorMemoryCore(resolvedCoreOptions);
-  ensureLegacyIdentityMetadata(memory);
+  // Strict-mode construction is read-only: legacy identity decoration must
+  // never attempt a synchronous whole-state write without shared authority.
+  // Preserve legacy bytes until an explicit coordinated migration commits.
+  if (requireSharedWriteAuthority !== true) {
+    ensureLegacyIdentityMetadata(memory);
+  }
   const getCoreProject = typeof memory.getProject === "function"
     ? memory.getProject.bind(memory)
     : null;
