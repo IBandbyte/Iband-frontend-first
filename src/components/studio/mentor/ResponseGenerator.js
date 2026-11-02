@@ -58,7 +58,7 @@
 import createAdaptiveMentorEngine from "./AdaptiveMentorEngine.js";
 import createResponseComposer from "./ResponseComposer.js";
 import createCommunicationVoiceEngine from "./CommunicationVoiceEngine.js";
-import createCreatorMemory from "./CreatorMemory.js";
+import createCreatorMemory, { hasStrictCreatorMemoryAuthority } from "./CreatorMemory.js";
 
 const RESPONSE_GENERATOR_VERSION = "3.0.0";
 
@@ -544,6 +544,18 @@ function isMemoryService(
         "function"
     )
   );
+}
+
+const UNSAFE_MEMORY_WRITER_METHODS = ["replaceState","saveProject","updateProject","applyMemoryInstructions","addMemory","removeMemory","deleteMemory","clearMemory","setState","persist"];
+function requireSafeInjectedMemory(candidate) {
+  if (!candidate || typeof candidate !== "object") return candidate;
+  if (hasStrictCreatorMemoryAuthority(candidate)) return candidate;
+  if (UNSAFE_MEMORY_WRITER_METHODS.some(name => typeof candidate[name] === "function")) {
+    const error = new TypeError("Injected memory with writable methods requires verified strict shared-write authority.");
+    error.code = "MOVIE_MENTOR_UNSAFE_MEMORY_AUTHORITY";
+    throw error;
+  }
+  return candidate;
 }
 
 function resolveGeneratorOptions(
@@ -3985,7 +3997,7 @@ function createResponseGenerator({
   const resolvedMemoryFactory =
     typeof memoryFactory ===
       "function"
-      ? memoryFactory
+      ? (options = {}) => requireSafeInjectedMemory(memoryFactory(options))
       : (options = {}) =>
           createCreatorMemory(
             {
@@ -3995,7 +4007,7 @@ function createResponseGenerator({
           );
 
   let activeMemory =
-    memory ||
+    (memory ? requireSafeInjectedMemory(memory) : null) ||
     resolvedMemoryFactory({
       creatorId:
         creatorId ||
@@ -5649,8 +5661,7 @@ function createResponseGenerator({
     }
 
     activeMemory =
-      nextMemory ||
-      null;
+      nextMemory ? requireSafeInjectedMemory(nextMemory) : null;
 
     activeMemoryCreatorId =
       null;
