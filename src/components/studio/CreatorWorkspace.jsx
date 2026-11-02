@@ -83,6 +83,7 @@ const CreatorWorkspace = ({ creatorName = "Creator", initialCreator = "", onGene
   // snapshot stays read-only and blocked; a cancelled effect never publishes
   // an outdated recovery result over a newer workspace session.
   const [resumeRepairStatus, setResumeRepairStatus] = useState(resumedMovie ? "pending" : "not-required");
+  const [certifiedResumeSnapshot, setCertifiedResumeSnapshot] = useState(null);
   useEffect(() => {
     if (!resumeSnapshot?.projectId) return undefined;
     let cancelled = false;
@@ -100,10 +101,16 @@ const CreatorWorkspace = ({ creatorName = "Creator", initialCreator = "", onGene
           setResumeRepairStatus("stale");
           return;
         }
-        // The shared-lock transaction has committed, but the current
-        // synchronous snapshot intentionally remains fail-closed. Do not
-        // enable recommendation actions until adoption is separately proved.
-        setResumeRepairStatus("committed-awaiting-adoption");
+        const certified = identityRuntime.getCertifiedResumeSnapshot(result, projectId);
+        if (!certified || certified.projectId !== projectId) {
+          setResumeRepairStatus("blocked");
+          return;
+        }
+        // Adopt the certified read as evidence only. Do not publish its
+        // recommendation references into editable controls until competing
+        // writers and fresh-browser recovery are independently certified.
+        setCertifiedResumeSnapshot(certified);
+        setResumeRepairStatus("certified-read-only");
       } catch {
         if (!cancelled) setResumeRepairStatus("blocked");
       }
