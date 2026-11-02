@@ -1,24 +1,22 @@
 import assert from "node:assert/strict";
 import createMovieMentorStudioIdentityRuntime from "../src/components/studio/mentor/MovieMentorStudioIdentityRuntime.js";
+import createCreatorMemory,{createDefaultMemoryState,createMemoryStorageAdapter} from "../src/components/studio/mentor/CreatorMemory.js";
 
-// Executable denial court: no browser lock must never call the recovery
-// operation or mutate the persisted recommendation evidence.
+// Executable denial court: missing browser authority must never attempt
+// recovery or mutate durable recommendation evidence in strict memory.
 let writes=0, recoveries=0;
 const project={id:"movie-mentor-denied-lock",creatorType:"video",metadata:{creatorMode:"ai-movie",projectJourney:null}};
-const memory={
-  getActiveProject:()=>project,
-  getPersistedProject:()=>project,
-  getProject:()=>project,
-  getProjectMemories:()=>[],
-  getRecentConversations:()=>[],
-  getLatestSessionHandoff:()=>null,
-  runRecoveryWithSharedAuthority:async ({locks,operation})=>{
-    if(!locks || typeof locks.request!=="function")return {acquired:false,reason:"lock-or-operation-unavailable"};
-    recoveries++;
-    return {acquired:false,reason:"exclusive-lock-unavailable"};
-  },
-  replaceState:()=>{writes++;throw Error("Denied authority must never write.");},
+const state=createDefaultMemoryState();
+state.projects=[project];
+state.journey.activeProjectId=project.id;
+const backing=createMemoryStorageAdapter(state);
+const storage={
+  getItem:key=>backing.getItem(key),
+  setItem:(key,value)=>{writes++;return backing.setItem(key,value);},
+  removeItem:key=>{writes++;return backing.removeItem(key);},
 };
+const memory=createCreatorMemory({storageAdapter:storage,requireSharedWriteAuthority:true});
+const beforeBytes=storage.getItem("iband.creator-memory");
 const runtime=createMovieMentorStudioIdentityRuntime({
   memory,
   settlementLockManager:null,
@@ -30,6 +28,7 @@ const result=await runtime.recoverResumeRecommendationsWithSharedAuthority({lock
 assert.equal(result.acquired,false);
 assert.equal(recoveries,0);
 assert.equal(writes,0);
+assert.equal(storage.getItem("iband.creator-memory"),beforeBytes,"Denied authority must preserve durable bytes.");
 const after=runtime.getResumeSnapshot();
 assert.equal(after.recommendationActionsBlocked,true);
 console.log("GREEN: denied browser authority keeps resume recommendation actions blocked with zero recovery operations and zero writes.");
