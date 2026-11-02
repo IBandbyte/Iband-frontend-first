@@ -75,6 +75,8 @@
  * - Complexity belongs behind the conversation.
  */
 
+import {requireVerifiedMemoryAuthority} from "./VerifiedMemoryAuthority.js";
+
 import createConversationPlanner from "./ConversationPlanner.js";
 import createReflectionEngine from "./ReflectionEngine.js";
 import createProgressionEngine from "./ProgressionEngine.js";
@@ -5978,7 +5980,7 @@ function createAdaptiveMentorEngine({
   memory = null,
 } = {}) {
   let activeMemory =
-    memory ||
+    requireVerifiedMemoryAuthority(memory) ||
     null;
 
   const resolvedConversationPlanner =
@@ -7126,7 +7128,7 @@ function createAdaptiveMentorEngine({
     nextMemory
   ) {
     activeMemory =
-      nextMemory ||
+      requireVerifiedMemoryAuthority(nextMemory) ||
       null;
 
     if (
