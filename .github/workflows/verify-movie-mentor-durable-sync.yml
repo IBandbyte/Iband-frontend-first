@@ -111,6 +111,9 @@ jobs:
       - name: Verify legacy compatibility versus strict authority boundary
         if: always()
         run: node scripts/verify-movie-mentor-authority-mode-boundary.mjs
+      - name: Inventory ordinary writer migration boundaries
+        if: always()
+        run: node scripts/verify-movie-mentor-ordinary-writer-migration-inventory.mjs
       - name: Verify ordinary writer check-to-commit race
         if: always()
         run: node scripts/verify-movie-mentor-ordinary-write-check-commit-race.mjs
