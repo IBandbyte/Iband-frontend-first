@@ -10,11 +10,14 @@ const resume=read("../src/components/studio/mentor/JourneyRecommendationResumeRe
 const lifecycle=read("../src/components/studio/mentor/JourneyRecommendationLifecycleRecovery.js");
 const quarantine=read("../src/components/studio/mentor/JourneyRecommendationRecoveryConflictQuarantine.js");
 const snapshot=runtime.slice(runtime.indexOf("function getResumeSnapshot("));
-assert.match(snapshot,/certifyJourneyRecommendationResume\(/,"Real resume invokes recommendation recovery.");
+assert.doesNotMatch(snapshot,/certifyJourneyRecommendationResume\(/,"Render-time resume must not invoke recovery.");
+assert.match(runtime,/async function recoverResumeRecommendationsWithSharedAuthority\(/,"Recovery must have a distinct asynchronous entry point.");
+assert.match(runtime,/runRecoveryWithSharedAuthority\(/,"Recovery must acquire fresh shared writer authority.");
 assert.match(resume,/executeJourneyRecommendationLifecycleRecovery\(/,"Resume recovery may repair lifecycle.");
 assert.match(resume,/quarantineJourneyRecommendationRecoveryConflicts\(/,"Resume recovery may quarantine conflicts.");
 assert.match(lifecycle,/memory\.replaceState\(/,"Lifecycle repair writes whole Creator Memory state.");
 assert.match(quarantine,/memory\.replaceState\(/,"Conflict quarantine writes whole Creator Memory state.");
-const safeResume=/await\s+withMovieMentorMemoryWriteAuthority\(/.test(snapshot) || /certifyJourneyRecommendationResumeWithSharedAuthority\(/.test(snapshot);
-assert.equal(safeResume,true,"RED: getResumeSnapshot still invokes synchronous recommendation repair/quarantine without shared writer authority.");
+const recovery=runtime.slice(runtime.indexOf("async function recoverResumeRecommendationsWithSharedAuthority("),runtime.indexOf("function getCertifiedResumeSnapshot("));
+assert.match(recovery,/operation:\s*fresh\s*=>\s*certifyJourneyRecommendationResume\(/,"Recovery certification must execute against fresh state inside the lock.");
+assert.match(runtime,/function getCertifiedResumeSnapshot\(/,"Post-lock certification must have a separate read boundary.");
 console.log("GREEN: resume recommendation repair/quarantine is routed through explicit shared writer authority.");
