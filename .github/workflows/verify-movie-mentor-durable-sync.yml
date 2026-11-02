@@ -111,6 +111,9 @@ jobs:
       - name: Verify legacy compatibility versus strict authority boundary
         if: always()
         run: node scripts/verify-movie-mentor-authority-mode-boundary.mjs
+      - name: Verify live Studio writer reachability
+        if: always()
+        run: node scripts/verify-movie-mentor-live-studio-writer-reachability.mjs
       - name: Inventory ordinary writer migration boundaries
         if: always()
         run: node scripts/verify-movie-mentor-ordinary-writer-migration-inventory.mjs
