@@ -295,6 +295,98 @@ function createCreatorMemory(options = {}) {
     };
   }
 
+  // Stage all settlement effects in an isolated Core. Its persistence adapter
+  // is deliberately virtual: no intermediate conversation/handoff/recommendation
+  // operation may reach durable storage. Only the final whole-state replacement
+  // is permitted to commit under shared cross-context authority.
+  async function settleConversationWithSharedAuthority({
+    locks, projectId, creatorTurnId, conversation, handoff, recommendation,
+    beforeCommit,
+  } = {}) {
+    const pid = cleanIdentity(projectId);
+    const turnId = cleanIdentity(creatorTurnId);
+    if (!pid || !turnId || !conversation || !handoff) {
+      return Object.freeze({ acquired: false, reason: "settlement-input-unavailable" });
+    }
+    return withMovieMentorMemoryWriteAuthority({
+      locks,
+      operation: () => {
+        const fresh = createCreatorMemoryCore({
+          ...resolvedCoreOptions,
+          storageAdapter: createFacadeStorageController(durableStorage).adapter,
+        });
+        const initial = fresh.getState();
+        const prior = (initial.conversations || []).find(entry =>
+          cleanIdentity(entry?.metadata?.projectId) === pid &&
+          cleanIdentity(entry?.metadata?.creatorTurnId) === turnId
+        );
+        if (prior) {
+          adoptPersistedStateWithoutWrite(initial);
+          return Object.freeze({ status: "already-settled", conversation: clone(prior) });
+        }
+
+        const stagedStorage = createMemoryStorageAdapter();
+        const key = coreOptions.creatorId
+          ? `${coreOptions.storageKey || DEFAULT_STORAGE_KEY}.${coreOptions.creatorId}`
+          : (coreOptions.storageKey || DEFAULT_STORAGE_KEY);
+        stagedStorage.setItem(key, JSON.stringify(initial));
+        const staged = createCreatorMemoryCore({
+          ...coreOptions,
+          storageAdapter: stagedStorage,
+        });
+        const savedConversation = staged.rememberConversation({
+          ...clone(conversation),
+          metadata: {
+            ...(clone(conversation.metadata) || {}),
+            projectId: pid,
+            creatorTurnId: turnId,
+          },
+        });
+        if (!savedConversation?.id) throw new Error("Atomic settlement refused conversation.");
+        const savedHandoff = staged.saveSessionHandoff({
+          ...clone(handoff),
+          projectId: pid,
+          metadata: {
+            ...(clone(handoff.metadata) || {}),
+            projectId: pid,
+            creatorTurnId: turnId,
+            conversationId: savedConversation.id,
+          },
+        });
+        if (!savedHandoff?.id) throw new Error("Atomic settlement refused handoff.");
+        let savedRecommendation = null;
+        if (recommendation) {
+          savedRecommendation = staged.saveProjectMemory({
+            ...clone(recommendation),
+            projectId: pid,
+            metadata: {
+              ...(clone(recommendation.metadata) || {}),
+              projectId: pid,
+              creatorTurnId: turnId,
+            },
+          });
+          if (!savedRecommendation?.id) throw new Error("Atomic settlement refused recommendation.");
+        }
+        if (typeof beforeCommit === "function") {
+          const checked = beforeCommit();
+          if (checked && typeof checked.then === "function") {
+            throw new Error("Atomic settlement precommit hook must be synchronous.");
+          }
+        }
+        // Exactly one durable state write. A failed staging operation leaves
+        // the original blob untouched and a retry starts from fresh storage.
+        fresh.replaceState(staged.getState());
+        adoptPersistedStateWithoutWrite(fresh.getState());
+        return Object.freeze({
+          status: "committed",
+          conversation: clone(savedConversation),
+          handoff: clone(savedHandoff),
+          recommendation: clone(savedRecommendation),
+        });
+      },
+    });
+  }
+
   // Opt-in async ordinary-write migration path. The caller must supply a
   // browser lock manager; legacy synchronous entry points remain unchanged.
   async function replaceStateWithSharedAuthority({ locks, transform } = {}) {
@@ -505,6 +597,7 @@ function createCreatorMemory(options = {}) {
     readPersistedState,
     getPersistedProject,
     convergeConversationSettlement,
+    settleConversationWithSharedAuthority,
     replaceStateWithSharedAuthority,
     runRecoveryWithSharedAuthority,
     getProject,
