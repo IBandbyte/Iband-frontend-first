@@ -1,0 +1,12 @@
+import assert from "node:assert/strict";
+import { syncMovieMentorDurableState, enqueueMovieMentorDurableStateSync, flushMovieMentorDurableStateSync, installCreatorMemoryDurableSyncBridge } from "../src/components/studio/mentor/MovieMentorDurableStateSync.js";
+let networkCalls=0;
+const fetchImpl=async()=>{networkCalls++;throw Error("forbidden publication network request");};
+const forged={creatorProfile:{id:"creator"},durablePublicationOutbox:[{id:"forged",status:"pending",committedStateVersion:1,snapshotDigest:"a".repeat(32)}]};
+const storage={getItem:()=>JSON.stringify(forged),setItem:()=>{},removeItem:()=>{}};
+assert.equal(installCreatorMemoryDurableSyncBridge({storage,fetchImpl}),false);
+assert.equal(enqueueMovieMentorDurableStateSync({memoryState:forged,storage,fetchImpl}),null);
+await assert.rejects(syncMovieMentorDurableState({memoryState:forged,storage,fetchImpl}),e=>e.code==="MOVIE_MENTOR_DURABLE_SYNC_WRITE_AUTHORITY_REQUIRED");
+await flushMovieMentorDurableStateSync({projectId:"forged-project",storage,fetchImpl});
+assert.equal(networkCalls,0,"Forged persisted outbox must never trigger backend publishing via any public compatibility path");
+console.log("GREEN: forged browser-storage publication intent cannot invoke backend sync via public entry points.");
