@@ -452,7 +452,7 @@ function createCreatorMemory(options = {}) {
 
   // Opt-in async ordinary-write migration path. The caller must supply a
   // browser lock manager; legacy synchronous entry points remain unchanged.
-  async function replaceStateWithSharedAuthority({ locks, transform } = {}) {
+  async function replaceStateWithSharedAuthority({ locks, transform, onCommittedSnapshot } = {}) {
     if (typeof transform !== "function") {
       return Object.freeze({ acquired: false, reason: "transform-unavailable" });
     }
@@ -471,7 +471,9 @@ function createCreatorMemory(options = {}) {
         }
         fresh.replaceState(next);
         adoptPersistedStateWithoutWrite(fresh.getState());
-        return clone(fresh.getState());
+        const committedSnapshot = clone(fresh.getState());
+        if (typeof onCommittedSnapshot === "function") onCommittedSnapshot(clone(committedSnapshot));
+        return committedSnapshot;
       },
     });
   }
