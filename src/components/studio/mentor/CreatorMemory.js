@@ -485,6 +485,14 @@ function createCreatorMemory(options = {}) {
         const fresh = createCreatorMemoryCore({
           ...resolvedCoreOptions,
           storageAdapter: createFacadeStorageController(durableStorage).adapter,
+          beforePersistSerialize: (committingState) => {
+            const outbox = committingState.durablePublicationOutbox;
+            if (!Array.isArray(outbox) || outbox.length === 0) return;
+            // The digest binds the fully normalised, timestamped commit state.
+            // This remains an equality marker, never proof of origin.
+            const { durablePublicationOutbox: _outbox, ...contents } = committingState;
+            outbox[outbox.length - 1].snapshotDigest = publicationSnapshotFingerprint(contents);
+          },
         });
         const persistedLedger = fresh.getState().durablePublicationOutbox;
         if (persistedLedger !== undefined) {
@@ -523,9 +531,8 @@ function createCreatorMemory(options = {}) {
           (max, entry) => Math.max(max, Number.isSafeInteger(entry?.committedStateVersion)
             ? entry.committedStateVersion : 0), 0
         ) + 1;
-        // Exclude the outbox itself to avoid a recursive digest dependency.
-        const { durablePublicationOutbox: _outbox, ...snapshotContents } = next;
-        const snapshotDigest = publicationSnapshotFingerprint(snapshotContents);
+        // The Core pre-serialization hook fills this after commit normalisation.
+        const snapshotDigest = "0".repeat(32);
         next.durablePublicationOutbox = [
           ...previousOutbox,
           {
