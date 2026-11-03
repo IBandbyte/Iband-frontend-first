@@ -1,0 +1,23 @@
+name: Verify Journey Real Browser Acceptance
+on:
+  push:
+    branches:
+      - verify/journey-real-browser-acceptance-0ee966c1
+  workflow_dispatch:
+jobs:
+  browser-acceptance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install frontend dependencies
+        run: npm install --no-audit --no-fund
+      - name: Install isolated browser verifier dependency
+        run: npm install --no-save --no-audit --no-fund playwright
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Execute real two-tab browser acceptance court
+        run: node scripts/verify-journey-real-browser-acceptance.mjs
