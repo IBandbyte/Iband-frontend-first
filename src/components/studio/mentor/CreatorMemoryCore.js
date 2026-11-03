@@ -1635,6 +1635,7 @@ function createCreatorMemory({
   storageAdapter = null,
 
   creatorId = null,
+  beforePersistSerialize = null,
 } = {}) {
   const storage =
     resolveStorageAdapter(
@@ -2049,6 +2050,13 @@ function createCreatorMemory({
           .creatorProfile
           .id =
           cleanCreatorId;
+      }
+
+      // The optional synchronous internal hook runs after normalisation,
+      // journey recount and commit timestamps, before the sole durable write.
+      // It must not perform storage or network I/O.
+      if (typeof beforePersistSerialize === "function") {
+        beforePersistSerialize(memoryState);
       }
 
       const serialisedState =
