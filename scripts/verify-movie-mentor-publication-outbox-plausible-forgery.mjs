@@ -1,0 +1,17 @@
+import assert from "node:assert/strict";
+import createCreatorMemory from "../src/components/studio/mentor/CreatorMemory.js";
+const bytes=new Map(),storage={getItem:k=>bytes.get(k)||null,setItem:(k,v)=>bytes.set(k,v),removeItem:k=>bytes.delete(k)};
+const locks={request:async(_name,_options,fn)=>fn({name:"exclusive"})};
+const memory=createCreatorMemory({storageAdapter:storage,requireSharedWriteAuthority:true});
+const first=await memory.replaceStateWithSharedAuthority({locks,transform:state=>({...state,creatorProfile:{id:"original"}})});
+assert.equal(first.acquired,true);
+const [key,serialized]=[...bytes.entries()].find(([_,v])=>typeof v==="string"&&v.includes("durablePublicationOutbox"));
+assert.ok(key);
+const forged=JSON.parse(serialized);
+forged.durablePublicationOutbox[0].id="attacker-controlled-but-well-formed";
+forged.durablePublicationOutbox[0].snapshotDigest="a".repeat(32);
+storage.setItem(key,JSON.stringify(forged));
+const result=await memory.replaceStateWithSharedAuthority({locks,transform:state=>({...state,creatorProfile:{id:"second"}})});
+assert.equal(result.acquired,false,"RED: structurally plausible forged outbox must not be silently trusted as authentic");
+assert.equal(result.reason,"publication-outbox-provenance-unverified");
+console.log("GREEN: structurally plausible direct-storage outbox forgery is quarantined.");
