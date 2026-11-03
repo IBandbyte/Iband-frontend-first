@@ -1,0 +1,18 @@
+import assert from "node:assert/strict";
+import createCreatorMemory from "../src/components/studio/mentor/CreatorMemory.js";
+const bytes=new Map(),storage={getItem:k=>bytes.get(k)||null,setItem:(k,v)=>bytes.set(k,v),removeItem:k=>bytes.delete(k)};
+const locks={request:async(_name,_options,fn)=>fn({name:"exclusive"})};
+const memory=createCreatorMemory({storageAdapter:storage,requireSharedWriteAuthority:true});
+const first=await memory.replaceStateWithSharedAuthority({locks,transform:state=>({...state,creatorProfile:{id:"original"}})});
+assert.equal(first.acquired,true);
+const before=memory.readPersistedState(), original=before.durablePublicationOutbox[0];
+assert.equal(original.status,"pending");
+const [storageKey,serialized]=[...bytes.entries()].find(([_,v])=>typeof v==="string"&&v.includes("durablePublicationOutbox"));
+assert.ok(storageKey,"expected persisted Creator Memory");
+const forged=JSON.parse(serialized);
+forged.durablePublicationOutbox=[{id:"forged",status:"acknowledged",committedStateVersion:999999,snapshotDigest:"f".repeat(32)}];
+storage.setItem(storageKey,JSON.stringify(forged));
+const second=await memory.replaceStateWithSharedAuthority({locks,transform:state=>({...state,creatorProfile:{id:"second"}})});
+assert.equal(second.acquired,false,"RED: coordinated writer must quarantine storage ledger tampering instead of accepting forged history");
+assert.equal(second.reason,"publication-outbox-integrity-failed","RED: tampering must be distinguishable from lock contention");
+console.log("GREEN: direct storage publication-ledger tampering is quarantined.");
