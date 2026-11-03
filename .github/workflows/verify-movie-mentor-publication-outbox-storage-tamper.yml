@@ -1,0 +1,17 @@
+name: Verify Movie Mentor Publication Outbox Storage Tamper
+on:
+  push:
+    branches:
+      - verify/response-memory-injection-courts-6c98ab76
+  workflow_dispatch:
+jobs:
+  storage-tamper:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Verify persisted ledger tamper quarantine
+        run: node scripts/verify-movie-mentor-publication-outbox-storage-tamper.mjs
