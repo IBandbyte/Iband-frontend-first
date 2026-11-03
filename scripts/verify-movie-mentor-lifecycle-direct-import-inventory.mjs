@@ -5,10 +5,9 @@ import {fileURLToPath} from "node:url";
 
 const root=resolve(dirname(fileURLToPath(import.meta.url)),"../src");
 const targets=new Map([
- ["JourneyRecommendationLifecycleRecovery.js",new Set(["components/studio/mentor/JourneyRecommendationResumeRecovery.js"])],
+ ["JourneyRecommendationLifecycleRecovery.js",new Set(["components/studio/mentor/JourneyRecommendationResumeRecovery.js","components/studio/mentor/JourneyRecommendationRecoveryConflictQuarantine.js"])],
  ["JourneyRecommendationLifecyclePersistence.js",new Set([
    "components/studio/mentor/JourneyRecommendationLifecycleRecovery.js",
-   "components/studio/mentor/JourneyRecommendationLifecyclePersistence.js"
  ])],
 ]);
 const consumers=new Map([...targets.keys()].map(name=>[name,[]]));
@@ -31,6 +30,7 @@ function walk(dir) {
 walk(root);
 assert.ok(consumers.get("JourneyRecommendationLifecycleRecovery.js").includes("components/studio/mentor/JourneyRecommendationResumeRecovery.js"),
  "RED: lifecycle recovery caller disappeared");
+assert.ok(consumers.get("JourneyRecommendationLifecycleRecovery.js").includes("components/studio/mentor/JourneyRecommendationRecoveryConflictQuarantine.js"),"RED: conflict quarantine planning dependency disappeared");
 assert.ok(consumers.get("JourneyRecommendationLifecyclePersistence.js").includes("components/studio/mentor/JourneyRecommendationLifecycleRecovery.js"),
  "RED: lifecycle recovery classification dependency disappeared");
 for(const [target,paths] of consumers)console.log(`GREEN: direct source import boundary ${target}: ${paths.join(", ")}`);
