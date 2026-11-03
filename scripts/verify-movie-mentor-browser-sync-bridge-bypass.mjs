@@ -34,7 +34,7 @@ try{
    storage:localStorage,fetchImpl:window.__mockFetch,getAuthToken:async()=>"isolated-verifier-token"
   });
  });
- assert.equal(installed,true,"RED: mocked sync bridge was not installed in isolated browser tab");
+ assert.equal(installed,false,"Automatic untrusted storage publishing bridge must fail closed");
  const lockName=await b.evaluate(()=>window.__lockName);
  await a.evaluate(async lockName=>{
   window.__ready=new Promise(resolve=>window.__signalReady=resolve);
@@ -60,16 +60,11 @@ try{
   return locks.held.filter(item=>item.name===lockName).length;
  },lockName);
  assert.equal(held,1,"RED: browser lock was not held during sync bridge forwarding");
- assert.ok(result.requests.length>=1,"RED: mock transport did not receive a Creator Memory sync request");
- const forwarded=result.requests.find(item=>item.body.projectId==="browser-uncoordinated-sync-proof");
- assert.ok(forwarded,"RED: noncooperating project did not reach mock backend transport");
- assert.equal(forwarded.body.state.memoryContext.projectMemories[0].metadata.uncoordinatedWriteMarker,
-  "forwarded-without-lock","RED: intercepted noncooperating payload was not forwarded");
- assert.equal(forwarded.authorization,"Bearer isolated-verifier-token");
- assert.equal(result.sync?.status,"acknowledged");
+ assert.equal(result.requests.length,0,"Uncoordinated storage write must not reach mock backend transport");
+ assert.equal(result.sync,null,"No automatic sync status may be acknowledged for uncoordinated state");
  await a.evaluate(()=>window.__release());
- console.log("BOUNDARY RED CONFIRMED: a noncooperating Creator Memory localStorage write was forwarded through the startup sync bridge to an authenticated MOCK transport while another Chromium tab held the exclusive Creator Memory Web Lock.");
- console.log("LIMITATION: mock backend acknowledgement proves frontend forwarding only; no production endpoint or database touched, no real backend acceptance certified.");
+ console.log("GREEN: uncoordinated localStorage write was NOT forwarded by the disabled automatic sync bridge while another Chromium tab held the exclusive Web Lock.");
+ console.log("LIMITATION: this verifies automatic-bridge removal only; direct explicit enqueue and authenticated publishing still require independent authority certification.");
 }finally{
  if(browser)await browser.close();
  if(server.exitCode===null&&server.signalCode===null)server.kill("SIGTERM");
