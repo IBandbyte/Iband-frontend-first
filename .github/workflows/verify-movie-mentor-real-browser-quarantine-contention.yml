@@ -1,0 +1,23 @@
+name: Verify Movie Mentor Real Browser Quarantine Contention
+on:
+  push:
+    branches:
+      - verify/response-memory-injection-courts-6c98ab76
+  workflow_dispatch:
+jobs:
+  browser-quarantine-contention:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install frontend dependencies
+        run: npm install --no-audit --no-fund
+      - name: Install isolated browser verifier dependency
+        run: npm install --no-save --no-audit --no-fund playwright
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Execute two-tab physical Creator Memory quarantine court
+        run: node scripts/verify-movie-mentor-real-browser-quarantine-contention.mjs
