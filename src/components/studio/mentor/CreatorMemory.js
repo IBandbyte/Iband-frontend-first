@@ -477,7 +477,7 @@ function createCreatorMemory(options = {}) {
     if (typeof transform !== "function") {
       return Object.freeze({ acquired: false, reason: "transform-unavailable" });
     }
-    return withMovieMentorMemoryWriteAuthority({
+    const outcome = await withMovieMentorMemoryWriteAuthority({
       locks,
       operation: () => {
         // Never mutate the potentially stale facade snapshot. Hydrate a fresh
@@ -486,6 +486,26 @@ function createCreatorMemory(options = {}) {
           ...resolvedCoreOptions,
           storageAdapter: createFacadeStorageController(durableStorage).adapter,
         });
+        const persistedLedger = fresh.getState().durablePublicationOutbox;
+        if (persistedLedger !== undefined) {
+          let valid = Array.isArray(persistedLedger);
+          if (valid) {
+            valid = persistedLedger.every((entry, index) =>
+              entry && typeof entry.id === "string" && entry.id.length > 0
+              && entry.status === "pending"
+              && Number.isSafeInteger(entry.committedStateVersion)
+              && entry.committedStateVersion === index + 1
+              && typeof entry.snapshotDigest === "string"
+              && /^[0-9a-f]{32}$/.test(entry.snapshotDigest)
+            );
+            valid = valid && new Set(persistedLedger.map(entry => entry.id)).size === persistedLedger.length;
+          }
+          if (!valid) {
+            const integrityError = new Error("Persisted publication ledger is structurally inconsistent.");
+            integrityError.code = "MOVIE_MENTOR_PUBLICATION_OUTBOX_INTEGRITY_FAILED";
+            throw integrityError;
+          }
+        }
         const next = transform(clone(fresh.getState()));
         if (!next || typeof next !== "object" || typeof next.then === "function") {
           throw new Error("Shared ordinary writer requires a synchronous state transform.");
@@ -532,6 +552,10 @@ function createCreatorMemory(options = {}) {
         return committedSnapshot;
       },
     });
+    if (outcome?.cause?.code === "MOVIE_MENTOR_PUBLICATION_OUTBOX_INTEGRITY_FAILED") {
+      return Object.freeze({ acquired: false, reason: "publication-outbox-integrity-failed" });
+    }
+    return outcome;
   }
 
   // Dedicated resume-repair transaction. Run the existing lifecycle and
