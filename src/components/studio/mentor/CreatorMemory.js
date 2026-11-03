@@ -469,6 +469,17 @@ function createCreatorMemory(options = {}) {
         if (!next || typeof next !== "object" || typeof next.then === "function") {
           throw new Error("Shared ordinary writer requires a synchronous state transform.");
         }
+        // Atomically persist the publication intent in the same Creator Memory
+        // whole-state replacement. This is NOT an authorisation to publish:
+        // the outbox remains quarantined until provenance and replay courts pass.
+        const previousOutbox = Array.isArray(next.durablePublicationOutbox)
+          ? next.durablePublicationOutbox : [];
+        const publicationId = globalThis?.crypto?.randomUUID?.()
+          || `pending-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+        next.durablePublicationOutbox = [
+          ...previousOutbox,
+          { id: publicationId, status: "pending", createdAt: new Date().toISOString() },
+        ];
         fresh.replaceState(next);
         adoptPersistedStateWithoutWrite(fresh.getState());
         const committedSnapshot = clone(fresh.getState());
