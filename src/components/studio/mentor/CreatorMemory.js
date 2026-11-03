@@ -30,6 +30,27 @@ function clone(value) {
   return JSON.parse(JSON.stringify(value));
 }
 
+// Deterministic non-cryptographic snapshot fingerprint. This is only a local
+// equality marker, NEVER proof of provenance, authenticity or write authority.
+function publicationSnapshotFingerprint(value) {
+  const canonical = (v) => {
+    if (Array.isArray(v)) return v.map(canonical);
+    if (v && typeof v === "object") return Object.fromEntries(
+      Object.keys(v).sort().map((key) => [key, canonical(v[key])])
+    );
+    return v;
+  };
+  const payload = JSON.stringify(canonical(value));
+  const seeds = [2166136261, 2246822519, 3266489917, 668265263];
+  return seeds.map((seed) => {
+    let hash = seed >>> 0;
+    for (let i = 0; i < payload.length; i += 1) {
+      hash = Math.imul(hash ^ payload.charCodeAt(i), 16777619) >>> 0;
+    }
+    return hash.toString(16).padStart(8, "0");
+  }).join("");
+}
+
 function legacyIdentity() {
   return {
     domain: MOVIE_MENTOR_PROJECT_IDENTITY_DOMAIN,
@@ -476,9 +497,22 @@ function createCreatorMemory(options = {}) {
           ? next.durablePublicationOutbox : [];
         const publicationId = globalThis?.crypto?.randomUUID?.()
           || `pending-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+        const committedStateVersion = previousOutbox.reduce(
+          (max, entry) => Math.max(max, Number.isSafeInteger(entry?.committedStateVersion)
+            ? entry.committedStateVersion : 0), 0
+        ) + 1;
+        // Exclude the outbox itself to avoid a recursive digest dependency.
+        const { durablePublicationOutbox: _outbox, ...snapshotContents } = next;
+        const snapshotDigest = publicationSnapshotFingerprint(snapshotContents);
         next.durablePublicationOutbox = [
           ...previousOutbox,
-          { id: publicationId, status: "pending", createdAt: new Date().toISOString() },
+          {
+            id: publicationId,
+            status: "pending",
+            createdAt: new Date().toISOString(),
+            committedStateVersion,
+            snapshotDigest,
+          },
         ];
         fresh.replaceState(next);
         adoptPersistedStateWithoutWrite(fresh.getState());
