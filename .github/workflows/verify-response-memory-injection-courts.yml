@@ -27,3 +27,9 @@ jobs:
         run: node scripts/verify-movie-mentor-strict-ordinary-recovery-overlap.mjs
       - name: Coordinated writer versus recovery lock overlap
         run: node scripts/verify-movie-mentor-coordinated-writer-overlap.mjs
+      - name: Production writer cutover boundary inventory
+        run: node scripts/verify-movie-mentor-production-writer-cutover-boundary.mjs
+      - name: Ordinary writer migration inventory
+        run: node scripts/verify-movie-mentor-ordinary-writer-migration-inventory.mjs
+      - name: Studio legacy writer reachability inventory
+        run: node scripts/verify-movie-mentor-studio-legacy-writer-reachability.mjs
