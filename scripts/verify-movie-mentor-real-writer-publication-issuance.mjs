@@ -11,7 +11,7 @@ const locks={request:async(name,options,fn)=>{
  held=true;entered++;
  try{return await fn({name});}finally{held=false;}
 }};
-const memory=createCreatorMemory({storage,requireSharedWriteAuthority:true});
+const memory=createCreatorMemory({storageAdapter:storage,requireSharedWriteAuthority:true});
 const result=await memory.replaceStateWithSharedAuthority({locks,transform:state=>({...state,creatorProfile:{id:"verified-creator"}}),onCommittedSnapshot:snapshot=>{
  assert.equal(held,true,"Snapshot must be issued before shared lock is released");
  assert.equal(snapshot.creatorProfile.id,"verified-creator");
