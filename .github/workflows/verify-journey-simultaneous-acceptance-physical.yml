@@ -1,0 +1,16 @@
+name: Verify Journey Simultaneous Acceptance Physical
+on:
+  push:
+    branches:
+      - verify/acceptance-contention-court-503e5a4d
+  workflow_dispatch:
+jobs:
+  simultaneous-acceptance:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Run simultaneous movement and no-movement acceptance courts
+        run: node scripts/verify-journey-simultaneous-acceptance-physical.mjs
