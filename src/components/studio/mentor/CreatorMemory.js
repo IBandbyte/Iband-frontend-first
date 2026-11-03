@@ -493,8 +493,10 @@ function createCreatorMemory(options = {}) {
         // Atomically persist the publication intent in the same Creator Memory
         // whole-state replacement. This is NOT an authorisation to publish:
         // the outbox remains quarantined until provenance and replay courts pass.
-        const previousOutbox = Array.isArray(next.durablePublicationOutbox)
-          ? next.durablePublicationOutbox : [];
+        // Only the freshly hydrated persisted state owns publication history.
+        // A caller's transform may edit creator content, never outbox metadata.
+        const previousOutbox = Array.isArray(fresh.getState().durablePublicationOutbox)
+          ? clone(fresh.getState().durablePublicationOutbox) : [];
         const publicationId = globalThis?.crypto?.randomUUID?.()
           || `pending-${Date.now()}-${Math.random().toString(36).slice(2)}`;
         const committedStateVersion = previousOutbox.reduce(
