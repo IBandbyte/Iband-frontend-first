@@ -1,0 +1,23 @@
+name: Verify Movie Mentor Browser Sync Bridge Bypass
+on:
+  push:
+    branches:
+      - verify/response-memory-injection-courts-6c98ab76
+  workflow_dispatch:
+jobs:
+  browser-sync-bridge-bypass:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install frontend dependencies
+        run: npm install --no-audit --no-fund
+      - name: Install isolated browser verifier dependency
+        run: npm install --no-save --no-audit --no-fund playwright
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Execute isolated mock-transport sync bridge bypass court
+        run: node scripts/verify-movie-mentor-browser-sync-bridge-bypass.mjs
