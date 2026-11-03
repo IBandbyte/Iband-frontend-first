@@ -1274,8 +1274,10 @@ function hydrateMemoryState(
               ?.migratedFromVersion ||
             null,
 
+      // Hydration is read-only: retain the durable commit timestamp.
+      // New writes receive their timestamp in persist(), not on reload.
       updatedAt:
-        createTimestamp(),
+        normaliseString(value.metadata?.updatedAt) || fallback.metadata.updatedAt,
     },
   };
 }
