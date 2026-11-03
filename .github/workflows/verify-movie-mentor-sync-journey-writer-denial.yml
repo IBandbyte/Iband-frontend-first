@@ -1,0 +1,21 @@
+name: Verify Movie Mentor Sync Journey Writer Denial
+
+on:
+  push:
+    branches:
+      - verify/movie-mentor-sync-journey-denial-44b164d4
+  workflow_dispatch:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact head
+        uses: actions/checkout@v4
+      - name: Use Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Verify exported synchronous Journey denial
+        run: node scripts/verify-movie-mentor-sync-journey-writer-denial.mjs
