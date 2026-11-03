@@ -1,0 +1,17 @@
+name: Verify Movie Mentor Forged Outbox Network Quarantine
+on:
+  push:
+    branches:
+      - verify/response-memory-injection-courts-6c98ab76
+  workflow_dispatch:
+jobs:
+  network-quarantine:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Verify forged outbox cannot reach backend sync
+        run: node scripts/verify-movie-mentor-forged-outbox-network-quarantine.mjs
