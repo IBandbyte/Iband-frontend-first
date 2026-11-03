@@ -1,0 +1,17 @@
+name: Verify Movie Mentor Durable Publication Outbox
+on:
+  push:
+    branches:
+      - verify/response-memory-injection-courts-6c98ab76
+  workflow_dispatch:
+jobs:
+  durable-publication-outbox:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Verify atomic pending publication durability
+        run: node scripts/verify-movie-mentor-durable-publication-outbox.mjs
