@@ -1,0 +1,17 @@
+name: Verify Movie Mentor Sync Bridge Trust Boundary Contract
+on:
+  push:
+    branches:
+      - verify/response-memory-injection-courts-6c98ab76
+  workflow_dispatch:
+jobs:
+  sync-bridge-trust-boundary:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Run storage trust boundary contract
+        run: node scripts/verify-movie-mentor-sync-bridge-trust-boundary-contract.mjs
