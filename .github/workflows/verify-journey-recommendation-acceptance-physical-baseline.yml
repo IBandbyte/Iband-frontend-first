@@ -1,0 +1,20 @@
+name: Verify Journey Recommendation Acceptance Physical Baseline
+on:
+  push:
+    branches:
+      - verify/journey-recommendation-acceptance-courts-911a424a
+  workflow_dispatch:
+jobs:
+  recommendation-acceptance:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Verify recommendation acceptance and durable receipt
+        run: node scripts/verify-journey-recommendation-acceptance-consumption.mjs
+      - name: Verify no-movement lock source contract
+        run: node scripts/verify-journey-recommendation-noop-project-lock.mjs
+      - name: Verify independent runtime contention baseline
+        run: node scripts/verify-journey-cross-runtime-progression-contention.mjs
