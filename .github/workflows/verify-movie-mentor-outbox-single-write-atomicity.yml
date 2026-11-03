@@ -1,0 +1,17 @@
+name: Verify Movie Mentor Outbox Single Write Atomicity
+on:
+  push:
+    branches:
+      - verify/response-memory-injection-courts-6c98ab76
+  workflow_dispatch:
+jobs:
+  single-write:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Verify coordinated outbox commits with one durable write
+        run: node scripts/verify-movie-mentor-outbox-single-write-atomicity.mjs
