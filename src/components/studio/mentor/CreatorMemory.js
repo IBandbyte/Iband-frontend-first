@@ -472,7 +472,16 @@ function createCreatorMemory(options = {}) {
         fresh.replaceState(next);
         adoptPersistedStateWithoutWrite(fresh.getState());
         const committedSnapshot = clone(fresh.getState());
-        if (typeof onCommittedSnapshot === "function") onCommittedSnapshot(clone(committedSnapshot));
+        // The durable commit is already complete. Notification failure must
+        // not turn a committed transaction into a reported abort/retry.
+        if (typeof onCommittedSnapshot === "function") {
+          try {
+            onCommittedSnapshot(clone(committedSnapshot));
+          } catch {
+            // Publishing is still fail-closed; callback delivery is best-effort
+            // until an independently durable outbox is certified.
+          }
+        }
         return committedSnapshot;
       },
     });
