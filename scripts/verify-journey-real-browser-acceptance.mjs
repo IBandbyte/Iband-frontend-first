@@ -3,7 +3,7 @@ import { chromium } from "playwright";
 import { spawn } from "node:child_process";
 
 const port = 4179;
-const server = spawn("npx", ["vite", "--host", "127.0.0.1", "--port", String(port), "--strictPort"], { stdio: "pipe" });
+const server = spawn(process.execPath, ["node_modules/vite/bin/vite.js", "--host", "127.0.0.1", "--port", String(port), "--strictPort"], { stdio: "pipe" });
 let output = "";
 server.stdout.on("data", chunk => { output += chunk.toString(); });
 server.stderr.on("data", chunk => { output += chunk.toString(); });
@@ -90,5 +90,6 @@ try {
  console.log("LIMITATION: two same-origin tabs in one Chromium browser context; does not simulate noncooperating setItem injection or separate browser profiles.");
 } finally {
  if(browser)await browser.close();
- server.kill("SIGTERM");
+ if(server.exitCode === null && server.signalCode === null) server.kill("SIGTERM");
+ await Promise.race([new Promise(resolve => server.once("exit", resolve)), sleep(3000).then(() => { if(server.exitCode === null && server.signalCode === null) server.kill("SIGKILL"); })]);
 }
