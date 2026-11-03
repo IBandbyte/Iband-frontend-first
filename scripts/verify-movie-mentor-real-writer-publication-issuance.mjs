@@ -24,4 +24,13 @@ assert.equal(memory.getState().creatorProfile.id,"verified-creator");
 const rejected=await memory.replaceStateWithSharedAuthority({locks,transform:()=>{throw Error("abort");},onCommittedSnapshot:()=>called++});
 assert.equal(rejected.acquired,false);
 assert.equal(called,1,"Failed commit must not issue a snapshot");
+// Publication notification must never turn a successfully persisted commit into
+// an apparent failed write; otherwise callers may retry an already committed
+// transaction and create duplicate or conflicting downstream effects.
+const callbackFailure=await memory.replaceStateWithSharedAuthority({
+ locks,transform:state=>({...state,creatorProfile:{id:"committed-despite-callback-failure"}}),
+ onCommittedSnapshot:()=>{throw Error("simulated publication callback failure");}
+});
+assert.equal(callbackFailure.acquired,true,"Committed write must not be reported as aborted after publication notification fails");
+assert.equal(memory.readPersistedState().creatorProfile.id,"committed-despite-callback-failure");
 console.log("GREEN: real CreatorMemory coordinated writer issues exactly one committed snapshot inside shared authority, and none on abort.");
