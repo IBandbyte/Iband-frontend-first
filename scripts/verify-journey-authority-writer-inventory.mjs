@@ -20,7 +20,7 @@ function walk(dir) {
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
     const full = join(dir, entry.name);
     if (entry.isDirectory()) walk(full);
-    else if (/\\.(?:js|jsx|ts|tsx)$/.test(entry.name)) files.push(full);
+    else if (/\.(?:js|jsx|ts|tsx)$/.test(entry.name)) files.push(full);
   }
 }
 walk(src);
@@ -28,15 +28,15 @@ assert.ok(files.length >= 90, "Source inventory unexpectedly small; audit cannot
 const issues = [];
 const findings = [];
 for (const file of files) {
-  const path = relative(root, file).replaceAll("\\", "/");
+  const path = relative(root, file).replaceAll("\", "/");
   const source = readFileSync(file, "utf8");
-  const lines = source.split("\\n");
+  const lines = source.split("\n");
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
     if (path !== storePath && /iband:movie-mentor:journey-authority(?::|["'`])/.test(line)) {
       issues.push(`${path}:${i + 1} unexpected direct Journey Authority key reference`);
     }
-    if (/\\.(?:bootstrapUnderLock|compareAndCommitUnderLock)\\s*\\(/.test(line)) {
+    if (/\.(?:bootstrapUnderLock|compareAndCommitUnderLock)\s*\(/.test(line)) {
       findings.push(`${path}:${i + 1} under-lock authority call`);
       if (path !== storePath && !allowedUnderLockCallers.has(path)) {
         issues.push(`${path}:${i + 1} unreviewed under-lock authority caller`);
@@ -51,9 +51,9 @@ for (const file of files) {
   }
 }
 const store = readFileSync(join(root, storePath), "utf8");
-assert.match(store, /storage\\.setItem\\(key, serialized\\)/, "Expected canonical authority write location changed; re-audit required.");
-assert.match(store, /callback: async \\(lockProof\\) => compareAndCommitUnderLock/, "Public commit no longer delegates under lock.");
-assert.match(store, /callback: async \\(lockProof\\) => bootstrapUnderLock/, "Public bootstrap no longer delegates under lock.");
+assert.match(store, /storage\.setItem\(key, serialized\)/, "Expected canonical authority write location changed; re-audit required.");
+assert.match(store, /callback: async \(lockProof\) => compareAndCommitUnderLock/, "Public commit no longer delegates under lock.");
+assert.match(store, /callback: async \(lockProof\) => bootstrapUnderLock/, "Public bootstrap no longer delegates under lock.");
 console.log(`Scanned ${files.length} source files at exact checkout HEAD.`);
 for (const finding of findings) console.log(`INVENTORY ${finding}`);
 if (issues.length) {
