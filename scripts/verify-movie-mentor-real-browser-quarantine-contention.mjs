@@ -86,7 +86,35 @@ try {
  assert.equal(final.projects.find(x=>x.id===projectId)?.metadata?.projectJourney?.progression?.revision,1,
   "RED: quarantine changed authoritative Journey revision");
  console.log("GREEN: two real same-origin Chromium tabs contend for Creator Memory Web Lock; ordinary writer refused while held; queued quarantine commits once after release; Journey revision preserved.");
- console.log("LIMITATION: one browser context, cooperating Web Locks, synthetic contradictory receipt; noncooperating setItem and separate profiles remain uncertified.");
+ // Independent adversarial characterization: a browser Web Lock cannot
+ // prevent a same-origin actor from directly mutating localStorage.
+ // This is a demonstrated boundary failure, not a security GREEN.
+ await a.evaluate(async()=>{
+  window.__bypassReady=new Promise(resolve=>window.__signalBypassReady=resolve);
+  window.__bypassHold=navigator.locks.request(window.__court.lockName,{mode:"exclusive"},async()=>{
+   window.__signalBypassReady();
+   await new Promise(resolve=>window.__releaseBypass=resolve);
+  });
+  await window.__bypassReady;
+ });
+ const direct=await b.evaluate(()=>{
+  const key="iband.creator-memory";
+  const state=JSON.parse(localStorage.getItem(key));
+  state.metadata={...(state.metadata||{}),noncooperatingBrowserWriter:"bypassed-web-lock"};
+  localStorage.setItem(key,JSON.stringify(state));
+  return localStorage.getItem(key);
+ });
+ const bypassHeld=await a.evaluate(async()=>{
+  const q=await navigator.locks.query();
+  return q.held.filter(x=>x.name===window.__court.lockName).length;
+ });
+ assert.equal(bypassHeld,1,"RED: bypass demonstration lost held browser lock");
+ assert.equal(await a.evaluate(()=>localStorage.getItem("iband.creator-memory")),direct,
+  "RED: direct storage bypass not physically observed across tabs");
+ assert.equal(JSON.parse(direct).metadata.noncooperatingBrowserWriter,"bypassed-web-lock");
+ await a.evaluate(()=>window.__releaseBypass());
+ console.log("BOUNDARY RED PRESERVED: second real browser tab directly changed Creator Memory localStorage while first tab held exclusive Web Lock. Cooperative locking does not prevent noncooperating storage writes.");
+ console.log("LIMITATION: one browser context and synthetic fixture; direct bypass characterized, not prevented; separate profiles and exact setItem-interleaving remain uncertified.");
 } finally {
  if(browser)await browser.close();
  if(server.exitCode===null&&server.signalCode===null)server.kill("SIGTERM");
