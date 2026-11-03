@@ -1,0 +1,25 @@
+name: Verify response memory injection physical courts
+on:
+  push:
+    branches:
+      - verify/response-memory-injection-courts-6c98ab76
+  workflow_dispatch:
+jobs:
+  injection-courts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install frontend dependencies
+        run: npm install --no-audit --no-fund
+      - name: Physical unsafe memory injection denial
+        run: node scripts/verify-movie-mentor-response-generator-injected-memory-physical.mjs
+      - name: Physical unrecognised writer denial
+        run: node scripts/verify-movie-mentor-unrecognised-injected-writer.mjs
+      - name: Strict memory authority contract
+        run: node scripts/verify-movie-mentor-response-generator-strict-memory-authority.mjs
+      - name: Live Studio writer reachability contract
+        run: node scripts/verify-movie-mentor-live-studio-writer-reachability.mjs
