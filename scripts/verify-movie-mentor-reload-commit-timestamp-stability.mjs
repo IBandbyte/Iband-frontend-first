@@ -1,0 +1,12 @@
+import assert from "node:assert/strict";
+import createCreatorMemory from "../src/components/studio/mentor/CreatorMemory.js";
+const bytes=new Map();
+const storage={getItem:k=>bytes.get(k)||null,setItem:(k,v)=>bytes.set(k,v),removeItem:k=>bytes.delete(k)};
+const locks={request:async(_name,_options,operation)=>operation({name:"exclusive"})};
+const writer=createCreatorMemory({storageAdapter:storage,requireSharedWriteAuthority:true});
+const result=await writer.replaceStateWithSharedAuthority({locks,transform:state=>({...state,creatorProfile:{...state.creatorProfile,id:"hydration-timestamp"}})});
+assert.equal(result.acquired,true);
+const persisted=JSON.parse([...bytes.values()].find(v=>v.includes("durablePublicationOutbox")));
+const restored=createCreatorMemory({storageAdapter:storage,requireSharedWriteAuthority:true}).getState();
+assert.equal(restored.metadata.updatedAt,persisted.metadata.updatedAt,"RED: hydration must not rewrite durable commit timestamp and invalidate snapshot fingerprint");
+console.log("GREEN: reload preserves durable commit timestamp.");
