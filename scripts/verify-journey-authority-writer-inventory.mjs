@@ -28,7 +28,7 @@ assert.ok(files.length >= 90, "Source inventory unexpectedly small; audit cannot
 const issues = [];
 const findings = [];
 for (const file of files) {
-  const path = relative(root, file).replaceAll("\", "/");
+  const path = relative(root, file).split(/\\/).join("/");
   const source = readFileSync(file, "utf8");
   const lines = source.split("\n");
   for (let i = 0; i < lines.length; i++) {
