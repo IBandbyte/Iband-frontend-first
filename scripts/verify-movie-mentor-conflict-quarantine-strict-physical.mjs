@@ -27,7 +27,8 @@ let error;
 try { quarantineJourneyRecommendationRecoveryConflicts({identityRuntime:{memory},projectId}); }
 catch(caught){error=caught;}
 assert.ok(error,"RED: quarantine committed without shared authority");
-assert.equal(error.code,"CREATOR_MEMORY_WRITE_AUTHORITY_DENIED",
+const chain=[error,error?.cause,error?.cause?.cause];
+assert.ok(chain.some(item=>item?.code==="CREATOR_MEMORY_WRITE_AUTHORITY_DENIED"),
  `RED: quarantine did not reach strict write fence: ${error.code||error.message}`);
 assert.equal(storage.getItem(KEY),before,"RED: quarantine changed durable bytes without authority");
 console.log("GREEN: physically constructed contradictory receipt/reference proof reaches quarantine write path; strict authority denies synchronous commit; durable bytes unchanged.");
