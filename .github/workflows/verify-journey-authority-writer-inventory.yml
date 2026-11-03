@@ -1,0 +1,16 @@
+name: Verify Journey Authority Writer Inventory
+on:
+  push:
+    branches:
+      - verify/journey-authority-writer-inventory-21f51f92
+  workflow_dispatch:
+jobs:
+  exact-head-inventory:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Scan exact-head application writer inventory
+        run: node scripts/verify-journey-authority-writer-inventory.mjs
