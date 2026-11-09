@@ -15,6 +15,8 @@ jobs:
           node-version: '20'
       - name: Plausible forgery quarantine
         run: node scripts/verify-movie-mentor-publication-outbox-plausible-forgery.mjs
+      - name: Cross-facade and reload provenance quarantine
+        run: node scripts/verify-movie-mentor-publication-outbox-cross-facade-provenance.mjs
       - name: Direct storage tamper quarantine
         run: node scripts/verify-movie-mentor-publication-outbox-storage-tamper.mjs
       - name: Transform tamper quarantine
