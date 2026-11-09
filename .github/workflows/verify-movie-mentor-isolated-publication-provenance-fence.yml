@@ -19,6 +19,8 @@ jobs:
         run: node scripts/verify-movie-mentor-publication-outbox-cross-facade-provenance.mjs
       - name: Shared lock does not confer provenance
         run: node scripts/verify-movie-mentor-publication-outbox-shared-lock-not-provenance.mjs
+      - name: Authenticated recovery is not publication authority
+        run: node scripts/verify-movie-mentor-authenticated-recovery-not-publication.mjs
       - name: Direct storage tamper quarantine
         run: node scripts/verify-movie-mentor-publication-outbox-storage-tamper.mjs
       - name: Transform tamper quarantine
