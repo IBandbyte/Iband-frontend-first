@@ -499,18 +499,6 @@ function createCreatorMemory(options = {}) {
           },
         });
         const persistedLedger = fresh.getState().durablePublicationOutbox;
-        // Structural fingerprints can be forged along with local storage. A
-        // coordinated writer must not adopt a changed or unwitnessed publication
-        // history as if it were its own committed outbox. This witness protects
-        // only this live facade; restart/cross-context provenance remains held
-        // until an independent authority is implemented.
-        if (Array.isArray(persistedLedger) && persistedLedger.length > 0 &&
-            (!witnessedPublicationHistory ||
-             JSON.stringify(persistedLedger) !== JSON.stringify(witnessedPublicationOutbox))) {
-          const provenanceError = new Error("Persisted publication history has no matching live writer witness.");
-          provenanceError.code = "MOVIE_MENTOR_PUBLICATION_OUTBOX_PROVENANCE_UNVERIFIED";
-          throw provenanceError;
-        }
         if (persistedLedger !== undefined) {
           let valid = Array.isArray(persistedLedger);
           if (valid) {
@@ -529,6 +517,18 @@ function createCreatorMemory(options = {}) {
             integrityError.code = "MOVIE_MENTOR_PUBLICATION_OUTBOX_INTEGRITY_FAILED";
             throw integrityError;
           }
+        }
+        // Structural fingerprints can be forged along with local storage. A
+        // coordinated writer must not adopt a changed or unwitnessed publication
+        // history as if it were its own committed outbox. This witness protects
+        // only this live facade; restart/cross-context provenance remains held
+        // until an independent authority is implemented.
+        if (Array.isArray(persistedLedger) && persistedLedger.length > 0 &&
+            (!witnessedPublicationHistory ||
+             JSON.stringify(persistedLedger) !== JSON.stringify(witnessedPublicationOutbox))) {
+          const provenanceError = new Error("Persisted publication history has no matching live writer witness.");
+          provenanceError.code = "MOVIE_MENTOR_PUBLICATION_OUTBOX_PROVENANCE_UNVERIFIED";
+          throw provenanceError;
         }
         const next = transform(clone(fresh.getState()));
         if (!next || typeof next !== "object" || typeof next.then === "function") {
