@@ -1,0 +1,33 @@
+name: Verify Movie Mentor Isolated Publication Provenance Fence
+on:
+  push:
+    branches:
+      - verify/publication-outbox-provenance-fence-24214bb9
+  workflow_dispatch:
+jobs:
+  publication-provenance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Plausible forgery quarantine
+        run: node scripts/verify-movie-mentor-publication-outbox-plausible-forgery.mjs
+      - name: Direct storage tamper quarantine
+        run: node scripts/verify-movie-mentor-publication-outbox-storage-tamper.mjs
+      - name: Transform tamper quarantine
+        run: node scripts/verify-movie-mentor-publication-outbox-transform-tamper.mjs
+      - name: Snapshot binding
+        run: node scripts/verify-movie-mentor-publication-outbox-snapshot-binding.mjs
+      - name: Committed snapshot digest
+        run: node scripts/verify-movie-mentor-outbox-committed-snapshot-digest.mjs
+      - name: Single-write atomicity
+        run: node scripts/verify-movie-mentor-outbox-single-write-atomicity.mjs
+      - name: Restart replay quarantine
+        run: node scripts/verify-movie-mentor-outbox-restart-replay-quarantine.mjs
+      - name: Durable publication outbox
+        run: node scripts/verify-movie-mentor-durable-publication-outbox.mjs
+      - name: Forged network quarantine
+        run: node scripts/verify-movie-mentor-forged-outbox-network-quarantine.mjs
