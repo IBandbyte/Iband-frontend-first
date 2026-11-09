@@ -224,6 +224,10 @@ function createCreatorMemory(options = {}) {
     storageAdapter: storageController.adapter,
   };
   const memory = createCreatorMemoryCore(resolvedCoreOptions);
+  // A process-local witness is deliberately NOT a durable authenticity credential.
+  // Unknown persisted publication history must remain quarantined after reload.
+  let witnessedPublicationOutbox = [];
+  let witnessedPublicationHistory = false;
   // Strict-mode construction is read-only: legacy identity decoration must
   // never attempt a synchronous whole-state write without shared authority.
   // Preserve legacy bytes until an explicit coordinated migration commits.
@@ -495,6 +499,18 @@ function createCreatorMemory(options = {}) {
           },
         });
         const persistedLedger = fresh.getState().durablePublicationOutbox;
+        // Structural fingerprints can be forged along with local storage. A
+        // coordinated writer must not adopt a changed or unwitnessed publication
+        // history as if it were its own committed outbox. This witness protects
+        // only this live facade; restart/cross-context provenance remains held
+        // until an independent authority is implemented.
+        if (Array.isArray(persistedLedger) && persistedLedger.length > 0 &&
+            (!witnessedPublicationHistory ||
+             JSON.stringify(persistedLedger) !== JSON.stringify(witnessedPublicationOutbox))) {
+          const provenanceError = new Error("Persisted publication history has no matching live writer witness.");
+          provenanceError.code = "MOVIE_MENTOR_PUBLICATION_OUTBOX_PROVENANCE_UNVERIFIED";
+          throw provenanceError;
+        }
         if (persistedLedger !== undefined) {
           let valid = Array.isArray(persistedLedger);
           if (valid) {
@@ -546,6 +562,8 @@ function createCreatorMemory(options = {}) {
         fresh.replaceState(next);
         adoptPersistedStateWithoutWrite(fresh.getState());
         const committedSnapshot = clone(fresh.getState());
+        witnessedPublicationOutbox = clone(committedSnapshot.durablePublicationOutbox || []);
+        witnessedPublicationHistory = true;
         // The durable commit is already complete. Notification failure must
         // not turn a committed transaction into a reported abort/retry.
         if (typeof onCommittedSnapshot === "function") {
@@ -559,6 +577,9 @@ function createCreatorMemory(options = {}) {
         return committedSnapshot;
       },
     });
+    if (outcome?.cause?.code === "MOVIE_MENTOR_PUBLICATION_OUTBOX_PROVENANCE_UNVERIFIED") {
+      return Object.freeze({ acquired: false, reason: "publication-outbox-provenance-unverified" });
+    }
     if (outcome?.cause?.code === "MOVIE_MENTOR_PUBLICATION_OUTBOX_INTEGRITY_FAILED") {
       return Object.freeze({ acquired: false, reason: "publication-outbox-integrity-failed" });
     }
