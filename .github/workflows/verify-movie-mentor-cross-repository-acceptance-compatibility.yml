@@ -1,0 +1,43 @@
+name: Verify Movie Mentor Cross Repository Acceptance Compatibility
+on:
+  push:
+    branches:
+      - verify/publication-outbox-provenance-fence-24214bb9
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  pinned-acceptance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout exact frontend isolation head
+        uses: actions/checkout@v4
+      - name: Checkout certified backend authority head
+        uses: actions/checkout@v4
+        with:
+          repository: IBandbyte/iband-backend-first
+          ref: 688050d33dc80f2cbf1220f1e80abf5471662d2d
+          path: iband-backend
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install frontend dependencies
+        run: npm install --no-audit --no-fund --ignore-scripts
+      - name: Install backend dependencies
+        working-directory: iband-backend
+        run: npm install --no-audit --no-fund --ignore-scripts
+      - name: Verify backend pin matches exact certified SHA
+        run: |
+          test "$(git -C iband-backend rev-parse HEAD)" = "688050d33dc80f2cbf1220f1e80abf5471662d2d"
+          echo "PINNED BACKEND 688050d3; frontend $(git rev-parse HEAD)"
+      - name: Verify cross-repository acceptance loop with current backend
+        run: node scripts/verify-movie-mentor-live-acceptance-loop.mjs
+      - name: Verify strict cross-repository acceptance loop
+        run: node scripts/verify-movie-mentor-strict-live-acceptance-loop.mjs
+      - name: Verify acceptance reload reality
+        run: node scripts/verify-movie-mentor-acceptance-reload-reality.mjs
+      - name: Verify strict acceptance reload reality
+        run: node scripts/verify-movie-mentor-strict-acceptance-reload-reality.mjs
+      - name: Verify provenance quarantine
+        run: node scripts/verify-movie-mentor-publication-outbox-plausible-forgery.mjs
