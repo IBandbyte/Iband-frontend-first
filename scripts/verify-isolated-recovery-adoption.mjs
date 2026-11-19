@@ -1,4 +1,10 @@
 import assert from "node:assert/strict";
+import {readFileSync} from "node:fs";
+const uiSource=readFileSync(new URL("../src/components/studio/CreatorWorkspace.jsx",import.meta.url),"utf8");
+for(const marker of ["Adopt recovered workspace","commitMovieMentorRecoveryWithLock","readLocalState","navigator.locks","setAdoptionResult"]) {
+ assert.ok(uiSource.includes(marker),"Missing real UI adoption integration: "+marker);
+}
+console.log("GREEN CANDIDATE_REAL_CREATOR_WORKSPACE_SOURCE_WIRED");
 import {commitMovieMentorRecoveryWithLock} from "../src/components/studio/mentor/MovieMentorRecoveryLockedCommit.js";
 import {projectRecoveredCreatorWorkspace} from "../src/components/studio/mentor/MovieMentorRecoveredWorkspaceProjection.js";
 const projectId="isolated-film";
