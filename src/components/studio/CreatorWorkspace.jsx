@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { listOwnedMovieMentorProjects, recoverMovieMentorCreatorState } from "./mentor/MovieMentorDurableStateSync.js";
 import { projectRecoveredCreatorWorkspace } from "./mentor/MovieMentorRecoveredWorkspaceProjection.js";
+import { commitMovieMentorRecoveryWithLock } from "./mentor/MovieMentorRecoveryLockedCommit.js";
 import AiMentor from "./AiMentor";
 import MentorConversation from "./MentorConversation";
 import PromptBuilder from "./PromptBuilder";
@@ -147,6 +148,29 @@ const CreatorWorkspace = ({ creatorName = "Creator", initialCreator = "", onGene
   const [recoveryStatus, setRecoveryStatus] = useState("idle");
   const [recoveryError, setRecoveryError] = useState(null);
   const [serverRecoveredPreview, setServerRecoveredPreview] = useState(null);
+  const [adoptionResult, setAdoptionResult] = useState(null);
+  const adoptRecoveredWorkspace = async () => {
+    setAdoptionResult(null);
+    const recovered = serverRecoveredPreview;
+    const projectId = recoveryProjectId.trim();
+    if (!recovered || !projectId || recovered.project?.id !== projectId || recoveryStatus !== "preview-ready") {
+      setAdoptionResult("Adoption denied: project mismatch");
+      return;
+    }
+    const key = "iband.creator-memory";
+    const readLocalState = () => {
+      const raw = localStorage.getItem(key);
+      return raw ? JSON.parse(raw) : { projects: [], conversations: [], journey: { activeProjectId: null } };
+    };
+    const verdict = await commitMovieMentorRecoveryWithLock({
+      projectId, recovered, readLocalState,
+      commit: next => localStorage.setItem(key, JSON.stringify(next)),
+      locks: navigator.locks
+    });
+    setAdoptionResult(verdict.allowed
+      ? "Workspace adopted. Reload to resume your movie."
+      : "Adoption denied: " + verdict.reason);
+  };
   useEffect(() => {
     if (!recoveryRequest) return undefined;
     let cancelled = false;
@@ -310,7 +334,7 @@ const CreatorWorkspace = ({ creatorName = "Creator", initialCreator = "", onGene
             {ownedMovieProjects.map(project => <option key={project.projectId} value={project.projectId}>{project.projectId}</option>)}
           </select>
         </label>}
-        <input aria-label="Existing movie project ID" value={recoveryProjectId} onChange={(event) => { setRecoveryProjectId(event.target.value); setRecoveryRequest(null); setRecoveryStatus("idle"); setServerRecoveredPreview(null); }} placeholder="Existing project ID" />
+        <input aria-label="Existing movie project ID" value={recoveryProjectId} onChange={(event) => { setRecoveryProjectId(event.target.value); setRecoveryRequest(null); setRecoveryStatus("idle"); setServerRecoveredPreview(null); setAdoptionResult(null); }} placeholder="Existing project ID" />
         <button type="button" onClick={requestServerRecovery} disabled={recoveryStatus === "loading"}>Recover movie preview</button>
         {recoveryStatus === "loading" && <p role="status">Checking your saved movie…</p>}
         {recoveryStatus === "failed" && <p role="alert">{recoveryError}</p>}
@@ -319,8 +343,10 @@ const CreatorWorkspace = ({ creatorName = "Creator", initialCreator = "", onGene
           <h3>{serverRecoveredPreview.project.title || "Recovered movie"}</h3>
           <p>Saved stage: {serverRecoveredPreview.projectJourney.currentStageId || "unknown"}; task: {serverRecoveredPreview.projectJourney.currentTaskId || "unknown"}</p>
           <p>Saved revision: {serverRecoveredPreview.revision}. This is a read-only preview; editing is not enabled.</p>
-          <ol>{serverRecoveredPreview.conversationMessages.map((message, index) => <li key={index}>{String(message?.content || message?.text || "")}</li>)}</ol>
+          <ol>{serverRecoveredPreview.conversationMessages.map((message, index) => <li key={index}>{[message?.creatorMessage, message?.mentorResponse].filter(value => typeof value === "string" && value.trim()).join(" | ") || String(message?.content || message?.text || "")}</li>)}</ol>
+          <button type="button" onClick={adoptRecoveredWorkspace}>Adopt recovered workspace</button>
         </div>}
+        {adoptionResult && <p role="status">{adoptionResult}</p>}
       </section>
       <section style={styles.section}><AiMentor message={mentorMessage} creatorJourney={creatorJourney} mentorContext={mentorContext} journeyRecommendationAction={journeyRecommendationAction} onAcceptJourneyRecommendation={handleAcceptJourneyRecommendation} onDismissJourneyRecommendation={handleDismissJourneyRecommendation} /></section>
       {showCreatorChoices && <section style={styles.section}><div style={styles.sectionHeadingRow}><div><p style={styles.sectionEyebrow}>Quick Create</p><h2 style={styles.sectionTitle}>Choose your starting point</h2></div></div><div style={styles.creatorGrid}>{CREATOR_OPTIONS.map((creator) => { const isSelected = selectedCreator === creator.id; return <button key={creator.id} type="button" aria-pressed={isSelected} onClick={() => handleCreatorSelect(creator)} style={{ ...styles.creatorCard, ...(isSelected ? styles.creatorCardActive : {}) }}><span style={styles.creatorIcon}>{creator.icon}</span><span style={styles.creatorCopy}><span style={styles.creatorLabel}>{creator.label}</span><span style={styles.creatorDescription}>{creator.description}</span></span><span aria-hidden="true" style={{ ...styles.creatorArrow, ...(isSelected ? styles.creatorArrowActive : {}) }}>›</span></button>; })}</div></section>}
