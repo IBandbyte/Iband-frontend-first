@@ -1,0 +1,27 @@
+name: Isolated Movie Mentor Recovery Adoption
+on:
+  push:
+    branches:
+      - diagnostic/recovery-adoption-integration-20261119
+  workflow_dispatch:
+jobs:
+  candidate-adoption:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Independent candidate adoption and denial courts
+        run: node scripts/verify-isolated-recovery-adoption.mjs
+      - name: Install frontend dependencies
+        run: npm install --no-package-lock --ignore-scripts
+      - name: Build isolated frontend candidate
+        run: npm run build
+      - name: Existing creator-facing regression court
+        run: npm run verify:movie-mentor-creator-facing
+      - name: Existing studio cockpit regression court
+        run: npm run verify:movie-mentor-studio-cockpit
+      - name: Existing conversation continuity regression court
+        run: npm run verify:movie-mentor-conversation-continuity
