@@ -15,6 +15,14 @@ async function commitMovieMentorRecoveryWithLock({projectId,recovered,readLocalS
    if(!confirmed.allowed)return confirmed;
    const next=clone(fresh);
    next.projects=[clone(recovered.project)];
+   const conversations=recovered.conversationMessages;
+   if(!Array.isArray(conversations))return deny("invalid-recovered-conversations");
+   const handoffs=recovered.sessionHandoffs;
+   if(!Array.isArray(handoffs))return deny("invalid-recovered-handoffs");
+   if(handoffs.some(h=>!h||h.type!=="session-handoff"||h.projectId!==projectId||typeof h.id!=="string"||!h.id.trim()||typeof h.content!=="string"||!h.content.trim()||h.scope!=="project"||!["active","superseded"].includes(h.status)))return deny("invalid-recovered-handoff");
+   if(new Set(handoffs.map(h=>h.id)).size!==handoffs.length)return deny("duplicate-recovered-handoff");
+   next.conversations=clone(conversations);
+   next.sessionHandoffs=clone(handoffs);
    next.journey={...next.journey,activeProjectId:projectId};
    await commit(next);
    return Object.freeze({allowed:true,reason:"committed-under-exclusive-lock",projectId,revision:recovered.revision});
