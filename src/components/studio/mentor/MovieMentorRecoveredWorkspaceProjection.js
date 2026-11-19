@@ -20,7 +20,7 @@ function projectRecoveredCreatorWorkspace({projectId,state}={}){
  const context=state.memoryContext&&typeof state.memoryContext==="object"?state.memoryContext:{};
  const conversations=Array.isArray(context.conversations)?context.conversations:[];
  if(conversations.some(message=>clean(message?.projectId)&&clean(message.projectId)!==pid))invalid("Recovered conversation belongs to a different project.");
- return Object.freeze({project:clone(project),projectJourney:clone(recoveredJourney),conversationMessages:clone(conversations),revision:state.revision,creatorStateGeneration:state.creatorStateGeneration});
+ return Object.freeze({project:clone(project),projectJourney:clone(recoveredJourney),conversationMessages:clone(conversations),sessionHandoffs:clone(Array.isArray(context.sessionHandoffs)?context.sessionHandoffs:[]),revision:state.revision,creatorStateGeneration:state.creatorStateGeneration});
 }
 export{projectRecoveredCreatorWorkspace};
 export default projectRecoveredCreatorWorkspace;
