@@ -775,9 +775,18 @@ function createCreatorMemory(options = {}) {
     const { continueCreatorMemoryWithDurableAuthority } = await import("./MovieMentorDurableCreatorWriteBoundary.js");
     const result = await continueCreatorMemoryWithDurableAuthority(request);
     if (!result.acquired) return result;
-    // No local adoption: server state is a read-only continuation result until
-    // a separate physical projection/reconciliation verifier certifies adoption.
-    return Object.freeze({ ...result, localStateAdopted: false });
+    // A restarted creator may inspect the server-authoritative continuation,
+    // but neither the working facade nor local persistence is rebased here.
+    // This is deliberately not a publication witness or write permission.
+    const restored = clone(result.state);
+    return Object.freeze({
+      acquired: true,
+      committedRevision: result.committedRevision,
+      serverCommitId: result.serverCommitId,
+      state: restored,
+      localStateAdopted: false,
+      restorationMode: "server-read-only",
+    });
   }
 
   const facade = {
