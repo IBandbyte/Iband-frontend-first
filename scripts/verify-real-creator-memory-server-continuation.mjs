@@ -13,6 +13,10 @@ const request={projectId:'film-1',operationId:'turn-1',expectedRevision:1,authen
 const result=await facade.continueWithDurableServerAuthority(request);
 assert.equal(result.acquired,true);
 assert.equal(result.localStateAdopted,false);
+assert.equal(result.restorationMode,'server-read-only');
+assert.equal(result.state.journey.activeProjectId,'film-1');
+result.state.journey.activeProjectId='malicious-local-change';
+assert.equal(JSON.stringify(facade.getState()),before,'Read-only projection must not alias live facade');
 assert.equal(JSON.stringify(facade.getState()),before);
 assert.equal(storage.getItem('movie_mentor_creator_memory_v2'),persistedBefore,'Server continuation must not change persisted bytes');
 const failed=await facade.continueWithDurableServerAuthority({...request,authorityAdapter:{...adapter,readCommitted:async()=>null}});
