@@ -1,0 +1,21 @@
+name: Isolated Durable Creator Write Boundary Contract
+on:
+  push:
+    branches: [verify/creator-memory-durable-authority-01]
+    paths:
+      - 'src/components/studio/mentor/MovieMentorDurableCreatorWriteBoundary.js'
+      - 'scripts/verify-movie-mentor-durable-creator-write-boundary.mjs'
+      - '.github/workflows/isolated-durable-creator-write-boundary.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  fail-closed-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify fail-closed server-authority boundary
+        run: node scripts/verify-movie-mentor-durable-creator-write-boundary.mjs
