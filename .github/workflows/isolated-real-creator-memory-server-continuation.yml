@@ -1,0 +1,22 @@
+name: Isolated Real CreatorMemory Server Continuation
+on:
+  push:
+    branches: [verify/creator-memory-durable-authority-01]
+    paths:
+      - 'src/components/studio/mentor/CreatorMemory.js'
+      - 'src/components/studio/mentor/MovieMentorDurableCreatorWriteBoundary.js'
+      - 'scripts/verify-real-creator-memory-server-continuation.mjs'
+      - '.github/workflows/isolated-real-creator-memory-server-continuation.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  strict-facade-server-continuation:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify real CreatorMemory strict facade continuation
+        run: node scripts/verify-real-creator-memory-server-continuation.mjs
