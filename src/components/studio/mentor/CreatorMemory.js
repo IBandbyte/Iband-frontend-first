@@ -765,6 +765,21 @@ function createCreatorMemory(options = {}) {
     return overlayAuthorityJourney(updated);
   }
 
+  // Isolated candidate: route authenticated continuation through this real facade,
+  // but NEVER grant a local publication witness or persist unverified bytes.
+  // The trusted server adapter must authenticate and durably commit first.
+  async function continueWithDurableServerAuthority(request = {}) {
+    if (requireSharedWriteAuthority !== true) {
+      return Object.freeze({ acquired: false, reason: "strict-writer-required" });
+    }
+    const { continueCreatorMemoryWithDurableAuthority } = await import("./MovieMentorDurableCreatorWriteBoundary.js");
+    const result = await continueCreatorMemoryWithDurableAuthority(request);
+    if (!result.acquired) return result;
+    // No local adoption: server state is a read-only continuation result until
+    // a separate physical projection/reconciliation verifier certifies adoption.
+    return Object.freeze({ ...result, localStateAdopted: false });
+  }
+
   const facade = {
     ...memory,
     readPersistedState,
@@ -772,6 +787,7 @@ function createCreatorMemory(options = {}) {
     convergeConversationSettlement,
     settleConversationWithSharedAuthority,
     replaceStateWithSharedAuthority,
+    continueWithDurableServerAuthority,
     runRecoveryWithSharedAuthority,
     getProject,
     getActiveProject,
